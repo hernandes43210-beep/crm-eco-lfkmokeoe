@@ -24,9 +24,12 @@ import {
   Loader2,
   Send,
   Sparkles,
+  MessageSquare,
+  ExternalLink,
 } from 'lucide-react'
 import { LeadsService } from '@/services/leads'
-import type { Lead, LeadStatus, HistoricoItem } from '@/types/crm'
+import { WhatsAppService } from '@/services/whatsapp'
+import type { Lead, LeadStatus, HistoricoItem, WhatsAppMessage } from '@/types/crm'
 import useRealtime from '@/hooks/use-realtime'
 import { useAuth } from '@/context/AuthContext'
 import {
@@ -82,6 +85,12 @@ export default function LeadDetail() {
   const [novaNota, setNovaNota] = useState('')
   const [savingNote, setSavingNote] = useState(false)
 
+  // WhatsApp integration in LeadDetail
+  const [waMessages, setWaMessages] = useState<WhatsAppMessage[]>([])
+  const [loadingWa, setLoadingWa] = useState(false)
+  const [waText, setWaText] = useState('')
+  const [sendingWa, setSendingWa] = useState(false)
+
   const fetchLead = async () => {
     if (!id) return
     try {
@@ -89,6 +98,7 @@ export default function LeadDetail() {
       setLead(data)
       setPrecoVenda(data.preco_venda || '')
       setPrAssinada(data.pr_assinada_ganho || false)
+      fetchWaMessages(data)
     } catch (err) {
       console.error('Error loading lead detail:', err)
       toast({
@@ -105,6 +115,74 @@ export default function LeadDetail() {
   useEffect(() => {
     fetchLead()
   }, [id])
+
+  const fetchWaMessages = async (leadData?: Lead | null) => {
+    const targetLead = leadData || lead
+    if (!targetLead) return
+    try {
+      setLoadingWa(true)
+      let list: WhatsAppMessage[] = []
+      if (targetLead.id) {
+        list = await WhatsAppService.getMessagesByLead(targetLead.id)
+      }
+      if (list.length === 0 && targetLead.telefone) {
+        list = await WhatsAppService.getMessagesByPhone(targetLead.telefone)
+      }
+      setWaMessages(list)
+    } catch (err) {
+      console.error('Error loading WhatsApp messages for lead:', err)
+    } finally {
+      setLoadingWa(false)
+    }
+  }
+
+  // Realtime subscription for WhatsApp messages for this lead
+  useRealtime<WhatsAppMessage>('whatsapp_messages', (e) => {
+    if (
+      lead &&
+      (e.record.lead === lead.id ||
+        (lead.telefone && e.record.phone_number === lead.telefone.replace(/\D/g, '')))
+    ) {
+      if (e.action === 'create') {
+        setWaMessages((prev) => [...prev, e.record])
+      } else if (e.action === 'update') {
+        setWaMessages((prev) => prev.map((m) => (m.id === e.record.id ? e.record : m)))
+      }
+    }
+  })
+
+  const handleSendWhatsApp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!lead || !lead.telefone || !waText.trim()) return
+
+    const textToSend = waText.trim()
+    setWaText('')
+
+    try {
+      setSendingWa(true)
+      await WhatsAppService.sendMessage({
+        number: lead.telefone,
+        text: textToSend,
+        lead_id: lead.id,
+      })
+      toast({
+        title: 'Mensagem enviada!',
+        description: 'Enviada com sucesso para o WhatsApp do cliente.',
+      })
+      fetchWaMessages()
+      fetchLead() // Atualiza histórico do lead
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha ao enviar via WhatsApp'
+      toast({
+        title: 'Erro no envio',
+        description: msg,
+        variant: 'destructive',
+      })
+      setWaText(textToSend)
+    } finally {
+      setSendingWa(false)
+    }
+  }
 
   // Real-time subscription for this specific lead
   useRealtime<Lead>('leads', (e) => {
@@ -386,14 +464,28 @@ export default function LeadDetail() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                  <Phone className="w-4 h-4" />
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                    <Phone className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Telefone / WhatsApp</p>
+                    <p className="font-medium text-slate-800">{lead.telefone || 'Não informado'}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-400">Telefone / WhatsApp</p>
-                  <p className="font-medium text-slate-800">{lead.telefone || 'Não informado'}</p>
-                </div>
+                {lead.telefone && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => navigate('/whatsapp')}
+                    title="Abrir no WhatsApp CRM"
+                    className="text-[#0B7A5B] hover:text-[#095C44] hover:bg-emerald-50 h-7 px-2 text-xs gap-1"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>Inbox</span>
+                  </Button>
+                )}
               </div>
 
               <div className="flex items-center gap-3">
@@ -621,6 +713,100 @@ export default function LeadDetail() {
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>Salvar</span>
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Card 5: Painel de Conversas WhatsApp do Lead */}
+          <Card className="border-slate-200/80 shadow-xs bg-white">
+            <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-[#0B7A5B]" />
+                <CardTitle className="text-sm font-bold text-slate-900">
+                  Conversas no WhatsApp
+                </CardTitle>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">
+                  {waMessages.length} mensagens
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/whatsapp')}
+                  className="text-xs text-[#0B7A5B] hover:bg-emerald-50 h-7 px-2 gap-1"
+                >
+                  <span>Abrir Inbox</span>
+                  <ExternalLink className="w-3 h-3" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 space-y-3">
+              {/* Mensagens do Lead */}
+              <div className="space-y-2.5 max-h-64 overflow-y-auto p-2 bg-slate-50/70 rounded-lg border border-slate-100">
+                {loadingWa ? (
+                  <p className="text-xs text-slate-400 py-3 text-center">
+                    Carregando mensagens do WhatsApp...
+                  </p>
+                ) : waMessages.length === 0 ? (
+                  <div className="text-center py-4 text-xs text-slate-400 space-y-1">
+                    <p>Nenhuma mensagem do WhatsApp trocada com este lead ainda.</p>
+                    <p className="text-[11px] text-slate-400">
+                      Envie uma mensagem abaixo ou conecte o WhatsApp na aba lateral.
+                    </p>
+                  </div>
+                ) : (
+                  waMessages.map((msg) => {
+                    const isOut = msg.direction === 'out'
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`flex flex-col ${isOut ? 'items-end' : 'items-start'}`}
+                      >
+                        <div
+                          className={`max-w-[85%] rounded-xl px-3 py-2 text-xs shadow-xs ${
+                            isOut
+                              ? 'bg-[#0B7A5B] text-white'
+                              : 'bg-white text-slate-800 border border-slate-200/80'
+                          }`}
+                        >
+                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                          <span
+                            className={`text-[9px] block text-right mt-1 ${
+                              isOut ? 'text-emerald-100' : 'text-slate-400'
+                            }`}
+                          >
+                            {formatDateTimeBR(msg.created)}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+
+              {/* Formulário de Envio Rápido para este Lead */}
+              <form onSubmit={handleSendWhatsApp} className="pt-2 flex gap-2">
+                <Input
+                  value={waText}
+                  onChange={(e) => setWaText(e.target.value)}
+                  placeholder={
+                    lead.telefone
+                      ? `Responder via WhatsApp para ${lead.telefone}...`
+                      : 'Lead não possui telefone cadastrado'
+                  }
+                  disabled={!lead.telefone || sendingWa}
+                  className="h-9 text-xs border-slate-200 focus-visible:ring-[#0B7A5B]"
+                />
+                <Button
+                  type="submit"
+                  disabled={!lead.telefone || !waText.trim() || sendingWa}
+                  size="sm"
+                  className="bg-[#0B7A5B] hover:bg-[#095C44] text-white h-9 px-3 text-xs gap-1 shrink-0"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{sendingWa ? 'Enviando...' : 'Enviar'}</span>
                 </Button>
               </form>
             </CardContent>

@@ -88,3 +88,44 @@ export interface Convidado extends RecordModel {
   created: string
   updated: string
 }
+
+export type WhatsAppConnectionStatus = 'disconnected' | 'connecting' | 'connected'
+
+export interface WhatsAppSettings {
+  configured: boolean
+  id?: string
+  api_url: string
+  instance_name: string
+  has_key?: boolean
+  masked_key?: string
+  connection_status: WhatsAppConnectionStatus
+  phone_number?: string
+  webhook_url?: string
+}
+
+export type WhatsAppMessageDirection = 'in' | 'out'
+export type WhatsAppMessageStatus = 'pending' | 'sent' | 'received' | 'read' | 'error'
+
+export interface WhatsAppMessage extends RecordModel {
+  id: string
+  lead?: string
+  phone_number: string
+  sender_name?: string
+  direction: WhatsAppMessageDirection
+  content: string
+  wa_message_id: string
+  status: WhatsAppMessageStatus
+  unread?: boolean
+  created: string
+  updated: string
+  expand?: {
+    lead?: Lead
+  }
+}
+
+export interface WhatsAppConversation {
+  phone_number: string
+  lead?: Lead
+  last_message: WhatsAppMessage
+  unread_count: number
+}

@@ -5,6 +5,7 @@ import {
   Users,
   GitBranch,
   Boxes,
+  MessageSquare,
   ShieldCheck,
   Plus,
   LogOut,
@@ -30,6 +31,7 @@ export default function Layout() {
     { label: 'Leads', path: '/leads', icon: Users },
     { label: 'Funil de Vendas', path: '/funil', icon: GitBranch },
     { label: 'Kits Solares', path: '/kits', icon: Boxes },
+    { label: 'WhatsApp', path: '/whatsapp', icon: MessageSquare },
     ...(isAdmin ? [{ label: 'Equipe', path: '/equipe', icon: ShieldCheck }] : []),
   ]
 
@@ -43,6 +45,7 @@ export default function Layout() {
     if (path.startsWith('/leads/')) return 'Detalhes do Lead'
     if (path === '/funil') return 'Funil de Vendas Solar'
     if (path === '/kits') return 'Catálogo de Kits Solares'
+    if (path === '/whatsapp') return 'WhatsApp & Atendimento Solar'
     if (path === '/equipe') return 'Membros da Equipe'
     return 'SolarCRM'
   }

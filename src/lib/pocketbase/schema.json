@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-05T00:06:44.534Z",
+  "generatedAt": "2026-09-05T01:31:43.033Z",
   "collections": [
     {
       "name": "users",
@@ -336,6 +336,157 @@
       "indexes": [
         "CREATE UNIQUE INDEX idx_convidados_email ON convidados (email)",
         "CREATE UNIQUE INDEX idx_convidados_codigo ON convidados (codigo_convite)"
+      ]
+    },
+    {
+      "name": "whatsapp_settings",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != '' && @request.auth.role = 'Admin'",
+        "update": "@request.auth.id != '' && @request.auth.role = 'Admin'",
+        "delete": "@request.auth.id != '' && @request.auth.role = 'Admin'"
+      },
+      "fields": [
+        {
+          "name": "api_url",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "api_key",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "instance_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "webhook_url",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "phone_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "connection_status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["disconnected", "connecting", "connected"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_wa_settings_instance ON whatsapp_settings (instance_name)"
+      ]
+    },
+    {
+      "name": "whatsapp_messages",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != '' && @request.auth.role = 'Admin'"
+      },
+      "fields": [
+        {
+          "name": "lead",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "leads"
+        },
+        {
+          "name": "phone_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "sender_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "direction",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["in", "out"]
+        },
+        {
+          "name": "content",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "wa_message_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["pending", "sent", "received", "read", "error"]
+        },
+        {
+          "name": "unread",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_wa_messages_msg_id ON whatsapp_messages (wa_message_id)",
+        "CREATE INDEX idx_wa_messages_phone ON whatsapp_messages (phone_number)",
+        "CREATE INDEX idx_wa_messages_lead ON whatsapp_messages (lead)",
+        "CREATE INDEX idx_wa_messages_created ON whatsapp_messages (created)"
       ]
     }
   ]
