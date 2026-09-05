@@ -18,6 +18,8 @@ import {
 import { LeadsService } from '@/services/leads'
 import { useAuth } from '@/context/AuthContext'
 import type { Lead, LeadOrigem, LeadStatus } from '@/types/crm'
+import pb from '@/lib/pocketbase/client'
+import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
 import { formatDateBR } from '@/lib/solarUtils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -139,8 +141,38 @@ export default function LeadForm() {
     e.preventDefault()
     setErrorBanner('')
 
-    if (!nome.trim() || !email.trim()) {
-      setErrorBanner('Por favor, preencha os campos obrigatórios (Nome e E-mail).')
+    const cleanNome = nome.trim()
+    const cleanEmail = email.trim().toLowerCase()
+
+    if (!cleanNome) {
+      setErrorBanner('Por favor, preencha o Nome Completo do lead.')
+      return
+    }
+
+    if (!cleanEmail) {
+      setErrorBanner('Por favor, preencha o E-mail do lead.')
+      return
+    }
+
+    // Validação básica de formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(cleanEmail)) {
+      setErrorBanner('Por favor, insira um endereço de e-mail válido (ex: cliente@email.com).')
+      return
+    }
+
+    const numConsumo = Number(consumoMensal)
+    if (isNaN(numConsumo) || numConsumo <= 0) {
+      setErrorBanner('Por favor, informe um Consumo Mensal Médio válido em kWh maior que zero.')
+      return
+    }
+
+    // Garantir ID de proprietário para atender ao campo obrigatório da coleção
+    const ownerId = user?.id || pb.authStore.record?.id || ''
+    if (!isEditing && !ownerId) {
+      setErrorBanner(
+        'Sessão de usuário não identificada. Por favor, faça login novamente para vincular o lead ao seu usuário.',
+      )
       return
     }
 
@@ -148,16 +180,16 @@ export default function LeadForm() {
       setSubmitting(true)
 
       const payload: Partial<Lead> = {
-        nome: nome.trim(),
-        email: email.trim().toLowerCase(),
+        nome: cleanNome,
+        email: cleanEmail,
         telefone: telefone.trim(),
         origem,
-        consumo_mensal_kwh: Number(consumoMensal) || 0,
+        consumo_mensal_kwh: numConsumo,
         endereco: endereco.trim(),
         cidade: cidade.trim(),
         estado: estado.trim().toUpperCase(),
-        status,
-        sla_dias: Number(slaDias) || 7,
+        status: status || 'Novo',
+        sla_dias: Math.max(1, Number(slaDias) || 7),
         pr_post_encerramento: prPostEncerramento
           ? new Date(prPostEncerramento).toISOString()
           : undefined,
@@ -169,26 +201,46 @@ export default function LeadForm() {
       if (isEditing && id) {
         await LeadsService.updateLead(id, payload)
         toast({
-          title: 'Lead atualizado',
+          title: 'Lead atualizado com sucesso!',
           description: 'As alterações foram salvas com sucesso.',
         })
       } else {
-        payload.proprietario = user?.id || ''
+        payload.proprietario = ownerId
         const created = await LeadsService.createLead(payload)
         savedId = created.id
         toast({
-          title: 'Lead cadastrado',
-          description: 'Nova oportunidade registrada no funil.',
+          title: 'Lead cadastrado com sucesso!',
+          description: 'Nova oportunidade registrada no funil com SLA ativo.',
         })
       }
 
       navigate(`/leads/${savedId}`)
     } catch (err: unknown) {
       console.error('Error saving lead:', err)
-      const msg = err instanceof Error ? err.message : 'Falha ao salvar lead.'
-      setErrorBanner(
-        msg.includes('unique') ? 'Já existe um lead cadastrado com este e-mail no sistema.' : msg,
-      )
+      const fieldErrors = extractFieldErrors(err)
+      const rawMsg = getErrorMessage(err)
+
+      let friendlyMsg = rawMsg
+      if (
+        fieldErrors.email ||
+        rawMsg.toLowerCase().includes('email') ||
+        rawMsg.includes('unique')
+      ) {
+        friendlyMsg = 'Já existe um lead cadastrado com este e-mail no sistema.'
+      } else if (fieldErrors.consumo_mensal_kwh) {
+        friendlyMsg = 'O consumo mensal em kWh é obrigatório e deve ser numérico.'
+      } else if (fieldErrors.proprietario) {
+        friendlyMsg = 'Erro ao associar proprietário ao lead. Faça login novamente.'
+      } else if (fieldErrors.nome) {
+        friendlyMsg = 'O nome do lead é obrigatório.'
+      }
+
+      setErrorBanner(friendlyMsg)
+      toast({
+        title: 'Erro ao salvar lead',
+        description: friendlyMsg,
+        variant: 'destructive',
+      })
     } finally {
       setSubmitting(false)
     }

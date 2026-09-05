@@ -30,34 +30,37 @@ onRecordCreate((e) => {
 
 onRecordUpdate((e) => {
   const record = e.record
-  const origStatus = record.original().getString('status')
-  const newStatus = record.getString('status')
+  try {
+    const orig = record.original()
+    const origStatus = orig ? orig.getString('status') : ''
+    const newStatus = record.getString('status')
 
-  const origSlaDias = record.original().getInt('sla_dias')
-  const newSlaDias = record.getInt('sla_dias')
+    const origSlaDias = orig ? orig.getInt('sla_dias') : 0
+    const newSlaDias = record.getInt('sla_dias')
 
-  // If status changed or SLA days changed, recalculate SLA limit
-  if (origStatus !== newStatus || origSlaDias !== newSlaDias) {
-    const days = newSlaDias > 0 ? newSlaDias : 7
-    const now = new Date()
-    const deadline = new Date(now.getTime() + days * 86400000)
-    const isoStr = deadline.toISOString().replace('T', ' ').substring(0, 19) + 'Z'
-    record.set('sla_limite', isoStr)
-  }
-
-  // If status changed, append to history
-  if (origStatus && newStatus && origStatus !== newStatus) {
-    let hist = record.get('historico')
-    if (!hist || !Array.isArray(hist)) {
-      hist = []
+    // If status changed or SLA days changed, recalculate SLA limit
+    if (origStatus !== newStatus || origSlaDias !== newSlaDias) {
+      const days = newSlaDias > 0 ? newSlaDias : 7
+      const now = new Date()
+      const deadline = new Date(now.getTime() + days * 86400000)
+      const isoStr = deadline.toISOString().replace('T', ' ').substring(0, 19) + 'Z'
+      record.set('sla_limite', isoStr)
     }
-    hist.push({
-      data: new Date().toISOString(),
-      tipo: 'status',
-      descricao: "Estágio alterado de '" + origStatus + "' para '" + newStatus + "'.",
-    })
-    record.set('historico', hist)
-  }
+
+    // If status changed, append to history
+    if (origStatus && newStatus && origStatus !== newStatus) {
+      let hist = record.get('historico')
+      if (!hist || !Array.isArray(hist)) {
+        hist = []
+      }
+      hist.push({
+        data: new Date().toISOString(),
+        tipo: 'status',
+        descricao: "Estágio alterado de '" + origStatus + "' para '" + newStatus + "'.",
+      })
+      record.set('historico', hist)
+    }
+  } catch (_) {}
 
   e.next()
 }, 'leads')
