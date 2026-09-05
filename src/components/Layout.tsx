@@ -13,6 +13,7 @@ import {
   X,
   Sun,
   ChevronRight,
+  Webhook,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -32,7 +33,12 @@ export default function Layout() {
     { label: 'Funil de Vendas', path: '/funil', icon: GitBranch },
     { label: 'Kits Solares', path: '/kits', icon: Boxes },
     { label: 'WhatsApp', path: '/whatsapp', icon: MessageSquare },
-    ...(isAdmin ? [{ label: 'Equipe', path: '/equipe', icon: ShieldCheck }] : []),
+    ...(isAdmin
+      ? [
+          { label: 'Integrações', path: '/integracoes', icon: Webhook },
+          { label: 'Equipe', path: '/equipe', icon: ShieldCheck },
+        ]
+      : []),
   ]
 
   // Page title mapping based on current pathname
@@ -46,6 +52,7 @@ export default function Layout() {
     if (path === '/funil') return 'Funil de Vendas Solar'
     if (path === '/kits') return 'Catálogo de Kits Solares'
     if (path === '/whatsapp') return 'WhatsApp & Atendimento Solar'
+    if (path === '/integracoes') return 'Integrações & Webhooks (Luvik)'
     if (path === '/equipe') return 'Membros da Equipe'
     return 'SolarCRM'
   }

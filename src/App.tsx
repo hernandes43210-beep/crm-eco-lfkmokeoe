@@ -18,6 +18,7 @@ import FunilVendas from '@/pages/FunilVendas'
 import KitsSolares from '@/pages/KitsSolares'
 import Equipe from '@/pages/Equipe'
 import WhatsAppPage from '@/pages/WhatsApp'
+import IntegracoesPage from '@/pages/Integracoes'
 import NotFound from '@/pages/NotFound'
 
 const App = () => (
@@ -48,7 +49,15 @@ const App = () => (
             <Route path="/kits" element={<KitsSolares />} />
             <Route path="/whatsapp" element={<WhatsAppPage />} />
 
-            {/* Admin-only Equipe Route */}
+            {/* Admin-only Routes */}
+            <Route
+              path="/integracoes"
+              element={
+                <ProtectedRoute adminOnly>
+                  <IntegracoesPage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/equipe"
               element={

@@ -54,6 +54,7 @@ export interface Lead extends RecordModel {
   pr_file?: string
   preco_venda?: number
   proprietario: string
+  luvik_deal_id?: string
   historico?: HistoricoItem[]
   created: string
   updated: string
@@ -128,4 +129,31 @@ export interface WhatsAppConversation {
   lead?: Lead
   last_message: WhatsAppMessage
   unread_count: number
+}
+
+export type LuvikEventoTipo =
+  | 'negocio_criado'
+  | 'negocio_ganho'
+  | 'negocio_perdido'
+  | 'desconhecido'
+export type LuvikStatusProcessamento = 'sucesso' | 'ignorado' | 'erro'
+
+export interface LuvikSettings {
+  id: string
+  webhook_token: string
+  ativo: boolean
+  created?: string
+  updated?: string
+}
+
+export interface LuvikLogItem {
+  id: string
+  evento: LuvikEventoTipo
+  status_processamento: LuvikStatusProcessamento
+  lead_id?: string
+  lead_nome?: string
+  deal_id?: string
+  mensagem?: string
+  payload_bruto?: Record<string, unknown>
+  created: string
 }

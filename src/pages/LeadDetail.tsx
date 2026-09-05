@@ -503,16 +503,28 @@ export default function LeadDetail() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 pt-1 border-t border-slate-100">
-                <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                  <Building className="w-4 h-4" />
+              <div className="flex items-center justify-between gap-3 pt-1 border-t border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                    <Building className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Canal de Origem</p>
+                    <Badge variant="secondary" className="text-xs mt-0.5 font-medium">
+                      {lead.origem || 'Site'}
+                    </Badge>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-400">Canal de Origem</p>
-                  <Badge variant="secondary" className="text-xs mt-0.5 font-medium">
-                    {lead.origem || 'Site'}
+
+                {lead.luvik_deal_id && (
+                  <Badge
+                    variant="outline"
+                    className="bg-emerald-50 text-emerald-800 border-emerald-300 text-[11px] font-mono"
+                    title={`ID do Negócio no Luvik: ${lead.luvik_deal_id}`}
+                  >
+                    Luvik #{lead.luvik_deal_id.slice(-6)}
                   </Badge>
-                </div>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-05T01:31:43.033Z",
+  "generatedAt": "2026-09-05T13:52:20.399Z",
   "collections": [
     {
       "name": "users",
@@ -187,13 +187,20 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "luvik_deal_id",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
         "CREATE INDEX idx_leads_status ON leads (status)",
         "CREATE INDEX idx_leads_sla_limite ON leads (sla_limite)",
         "CREATE INDEX idx_leads_proprietario ON leads (proprietario)",
-        "CREATE UNIQUE INDEX idx_leads_email ON leads (email)"
+        "CREATE UNIQUE INDEX idx_leads_email ON leads (email)",
+        "CREATE INDEX `idx_leads_luvik_deal_id` ON `leads` (luvik_deal_id)"
       ]
     },
     {
@@ -487,6 +494,122 @@
         "CREATE INDEX idx_wa_messages_phone ON whatsapp_messages (phone_number)",
         "CREATE INDEX idx_wa_messages_lead ON whatsapp_messages (lead)",
         "CREATE INDEX idx_wa_messages_created ON whatsapp_messages (created)"
+      ]
+    },
+    {
+      "name": "luvik_settings",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.role = 'Admin'",
+        "view": "@request.auth.id != '' && @request.auth.role = 'Admin'",
+        "create": "@request.auth.id != '' && @request.auth.role = 'Admin'",
+        "update": "@request.auth.id != '' && @request.auth.role = 'Admin'",
+        "delete": "@request.auth.id != '' && @request.auth.role = 'Admin'"
+      },
+      "fields": [
+        {
+          "name": "webhook_token",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_luvik_settings_token ON luvik_settings (webhook_token)"]
+    },
+    {
+      "name": "luvik_logs",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.role = 'Admin'",
+        "view": "@request.auth.id != '' && @request.auth.role = 'Admin'",
+        "create": null,
+        "update": null,
+        "delete": "@request.auth.id != '' && @request.auth.role = 'Admin'"
+      },
+      "fields": [
+        {
+          "name": "evento",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["negocio_criado", "negocio_ganho", "negocio_perdido", "desconhecido"]
+        },
+        {
+          "name": "status_processamento",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["sucesso", "ignorado", "erro"]
+        },
+        {
+          "name": "lead_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lead_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deal_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "mensagem",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "payload_bruto",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_luvik_logs_created ON luvik_logs (created DESC)",
+        "CREATE INDEX idx_luvik_logs_deal_id ON luvik_logs (deal_id)",
+        "CREATE INDEX idx_luvik_logs_evento ON luvik_logs (evento)"
       ]
     }
   ]
