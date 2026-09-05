@@ -167,11 +167,43 @@ export default function LeadForm() {
       return
     }
 
-    // Garantir ID de proprietário para atender ao campo obrigatório da coleção
-    const ownerId = user?.id || pb.authStore.record?.id || ''
+    // Formatar estado: max 2 caracteres maiúsculos (ex: 'SP')
+    const cleanEstado = estado.trim().toUpperCase().slice(0, 2)
+
+    // Formatar pr_post_encerramento: campo tipo date do PocketBase aceita 'YYYY-MM-DD 00:00:00.000Z' ou 'YYYY-MM-DD'
+    let formattedPrPost: string | undefined = undefined
+    if (prPostEncerramento && prPostEncerramento.trim()) {
+      const dateVal = prPostEncerramento.trim()
+      // Se já está no formato YYYY-MM-DD
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateVal)) {
+        formattedPrPost = `${dateVal} 00:00:00.000Z`
+      } else {
+        const d = new Date(dateVal)
+        if (!isNaN(d.getTime())) {
+          formattedPrPost = d.toISOString().substring(0, 10) + ' 00:00:00.000Z'
+        }
+      }
+    }
+
+    // Obter ID do proprietário
+    let ownerId = user?.id || pb.authStore.record?.id || ''
+
+    // Se estiver deslogado ou sem authStore, tentar recuperar token ou avisar
+    if (!pb.authStore.isValid || !ownerId) {
+      // Tentar refresh rápido de autenticação
+      if (pb.authStore.token) {
+        try {
+          const authData = await pb.collection('users').authRefresh()
+          ownerId = authData.record.id
+        } catch (_) {
+          // Token expirado
+        }
+      }
+    }
+
     if (!isEditing && !ownerId) {
       setErrorBanner(
-        'Sessão de usuário não identificada. Por favor, faça login novamente para vincular o lead ao seu usuário.',
+        'Sua sessão expirou ou não está identificada. Por favor, acesse a tela de login para se autenticar antes de cadastrar leads.',
       )
       return
     }
@@ -179,7 +211,7 @@ export default function LeadForm() {
     try {
       setSubmitting(true)
 
-      const payload: Partial<Lead> = {
+      const payload: Record<string, unknown> = {
         nome: cleanNome,
         email: cleanEmail,
         telefone: telefone.trim(),
@@ -187,26 +219,27 @@ export default function LeadForm() {
         consumo_mensal_kwh: numConsumo,
         endereco: endereco.trim(),
         cidade: cidade.trim(),
-        estado: estado.trim().toUpperCase(),
+        estado: cleanEstado || 'SP',
         status: status || 'Novo',
         sla_dias: Math.max(1, Number(slaDias) || 7),
-        pr_post_encerramento: prPostEncerramento
-          ? new Date(prPostEncerramento).toISOString()
-          : undefined,
-        preco_venda: Number(precoVenda) || 0,
+        preco_venda: Math.max(0, Number(precoVenda) || 0),
+      }
+
+      if (formattedPrPost) {
+        payload.pr_post_encerramento = formattedPrPost
       }
 
       let savedId = id
 
       if (isEditing && id) {
-        await LeadsService.updateLead(id, payload)
+        await LeadsService.updateLead(id, payload as Partial<Lead>)
         toast({
           title: 'Lead atualizado com sucesso!',
           description: 'As alterações foram salvas com sucesso.',
         })
       } else {
         payload.proprietario = ownerId
-        const created = await LeadsService.createLead(payload)
+        const created = await LeadsService.createLead(payload as Partial<Lead>)
         savedId = created.id
         toast({
           title: 'Lead cadastrado com sucesso!',
@@ -218,27 +251,23 @@ export default function LeadForm() {
     } catch (err: unknown) {
       console.error('Error saving lead:', err)
       const fieldErrors = extractFieldErrors(err)
-      const rawMsg = getErrorMessage(err)
+      const friendlyMsg = getErrorMessage(err)
 
-      let friendlyMsg = rawMsg
-      if (
-        fieldErrors.email ||
-        rawMsg.toLowerCase().includes('email') ||
-        rawMsg.includes('unique')
-      ) {
-        friendlyMsg = 'Já existe um lead cadastrado com este e-mail no sistema.'
-      } else if (fieldErrors.consumo_mensal_kwh) {
-        friendlyMsg = 'O consumo mensal em kWh é obrigatório e deve ser numérico.'
-      } else if (fieldErrors.proprietario) {
-        friendlyMsg = 'Erro ao associar proprietário ao lead. Faça login novamente.'
-      } else if (fieldErrors.nome) {
-        friendlyMsg = 'O nome do lead é obrigatório.'
+      // Montar mensagem detalhada caso haja erros de campos específicos
+      let displayError = friendlyMsg
+      const specificFieldList = Object.entries(fieldErrors)
+        .map(([field, msg]) => `• ${msg}`)
+        .join('\n')
+
+      if (specificFieldList && !friendlyMsg.includes('•')) {
+        displayError = `${friendlyMsg}\n${specificFieldList}`
       }
 
-      setErrorBanner(friendlyMsg)
+      setErrorBanner(displayError)
       toast({
         title: 'Erro ao salvar lead',
-        description: friendlyMsg,
+        description:
+          displayError.length > 120 ? displayError.substring(0, 117) + '...' : displayError,
         variant: 'destructive',
       })
     } finally {
@@ -279,9 +308,23 @@ export default function LeadForm() {
       {errorBanner && (
         <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-3 text-rose-700 text-sm animate-fade-in-up">
           <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
-          <div>
+          <div className="w-full">
             <p className="font-semibold">Erro ao salvar lead</p>
-            <p className="text-xs text-rose-600 mt-0.5">{errorBanner}</p>
+            <div className="text-xs text-rose-600 mt-1 whitespace-pre-line leading-relaxed">
+              {errorBanner}
+            </div>
+            {errorBanner.includes('sessão') && (
+              <div className="mt-3">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigate('/login')}
+                  className="bg-white border-rose-300 text-rose-700 hover:bg-rose-100 text-xs h-8"
+                >
+                  Ir para página de Login
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}

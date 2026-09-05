@@ -1,29 +1,34 @@
 // Computes sla_limite on leads create / update, and appends history when status changes
 onRecordCreate((e) => {
-  const record = e.record
-  let slaDias = record.getInt('sla_dias')
-  if (!slaDias || slaDias <= 0) {
-    slaDias = 7
-    record.set('sla_dias', 7)
-  }
+  try {
+    const record = e.record
+    let slaDias = record.getInt('sla_dias')
+    if (!slaDias || slaDias <= 0) {
+      slaDias = 7
+      record.set('sla_dias', 7)
+    }
 
-  const now = new Date()
-  const deadline = new Date(now.getTime() + slaDias * 86400000)
-  const isoStr = deadline.toISOString().replace('T', ' ').substring(0, 19) + 'Z'
-  record.set('sla_limite', isoStr)
+    const now = new Date()
+    const deadline = new Date(now.getTime() + slaDias * 86400000)
+    const isoStr = deadline.toISOString().replace('T', ' ').substring(0, 19) + 'Z'
+    record.set('sla_limite', isoStr)
 
-  let hist = record.get('historico')
-  if (!hist || !Array.isArray(hist)) {
-    hist = []
+    let hist = record.get('historico')
+    if (!hist || !Array.isArray(hist)) {
+      hist = []
+    }
+    if (hist.length === 0) {
+      hist.push({
+        data: new Date().toISOString(),
+        tipo: 'criacao',
+        descricao:
+          "Lead criado no sistema com status inicial '" + record.getString('status') + "'.",
+      })
+    }
+    record.set('historico', hist)
+  } catch (err) {
+    console.error('Erro em leads_sla onRecordCreate:', err)
   }
-  if (hist.length === 0) {
-    hist.push({
-      data: new Date().toISOString(),
-      tipo: 'criacao',
-      descricao: "Lead criado no sistema com status inicial '" + record.getString('status') + "'.",
-    })
-  }
-  record.set('historico', hist)
 
   e.next()
 }, 'leads')
