@@ -213,6 +213,24 @@ export default function FunilVendas() {
           <div className="w-8 h-8 border-2 border-[#0B7A5B] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
           <p className="text-sm">Carregando colunas do funil...</p>
         </div>
+      ) : leads.length === 0 ? (
+        <div className="bg-white rounded-xl border border-slate-200/80 p-12 text-center flex flex-col items-center justify-center max-w-lg mx-auto shadow-xs">
+          <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-[#0B7A5B] flex items-center justify-center mb-3">
+            <Sparkles className="w-8 h-8" />
+          </div>
+          <h3 className="text-base font-bold text-slate-900">Nenhum lead no funil ainda</h3>
+          <p className="text-xs text-slate-500 max-w-sm mt-1 mb-5">
+            Cadastre seu primeiro lead para visualizar e movimentar as etapas da negociação no
+            quadro Kanban.
+          </p>
+          <Button
+            onClick={() => navigate('/leads/novo')}
+            className="bg-[#0B7A5B] hover:bg-[#095C44] text-white font-medium gap-1.5 h-9 px-4 rounded-lg"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>Cadastrar Primeiro Lead</span>
+          </Button>
+        </div>
       ) : (
         /* Kanban Board Horizontal Container */
         <div className="flex gap-4 overflow-x-auto pb-6 pt-1 min-h-[calc(100vh-220px)] items-start">

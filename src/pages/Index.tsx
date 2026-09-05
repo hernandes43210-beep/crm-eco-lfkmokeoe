@@ -533,8 +533,21 @@ export default function Index() {
           </CardHeader>
           <CardContent className="p-4 space-y-2.5">
             {leads.length === 0 ? (
-              <div className="py-8 text-center text-slate-400 text-sm">
-                Nenhum lead cadastrado ainda.
+              <div className="py-8 text-center flex flex-col items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                  <Users className="w-6 h-6" />
+                </div>
+                <p className="text-sm font-semibold text-slate-800">Nenhum lead ainda</p>
+                <p className="text-xs text-slate-500 mt-0.5 mb-3">
+                  Cadastre o primeiro lead para começar a acompanhar o funil de vendas.
+                </p>
+                <Button
+                  size="sm"
+                  onClick={() => navigate('/leads/novo')}
+                  className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold h-8"
+                >
+                  Cadastrar Primeiro Lead
+                </Button>
               </div>
             ) : (
               leads.slice(0, 5).map((lead) => {

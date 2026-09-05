@@ -296,17 +296,22 @@ export default function LeadsList() {
             <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center mb-3">
               <FolderOpen className="w-8 h-8" />
             </div>
-            <h3 className="text-base font-bold text-slate-800">Nenhum lead encontrado</h3>
+            <h3 className="text-base font-bold text-slate-800">
+              {debouncedSearch || selectedStatuses.length > 0 || selectedOwner !== 'all'
+                ? 'Nenhum lead encontrado'
+                : 'Nenhum lead ainda'}
+            </h3>
             <p className="text-xs text-slate-500 max-w-sm mt-1 mb-4">
-              Não encontramos nenhum lead com os filtros aplicados ou sua carteira ainda não possui
-              cadastros.
+              {debouncedSearch || selectedStatuses.length > 0 || selectedOwner !== 'all'
+                ? 'Não encontramos nenhum lead com os filtros aplicados.'
+                : 'Sua carteira de leads está vazia no momento — cadastre o primeiro lead para iniciar seu pipeline comercial.'}
             </p>
             <Button
               onClick={() => navigate('/leads/novo')}
               className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold gap-1.5 h-9"
             >
               <Plus className="w-4 h-4" />
-              <span>Criar primeiro lead</span>
+              <span>Cadastrar primeiro lead</span>
             </Button>
           </div>
         ) : (
