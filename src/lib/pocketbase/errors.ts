@@ -14,20 +14,7 @@ export function extractFieldErrors(error: unknown): FieldErrors {
       'message' in detail &&
       typeof (detail as { message: unknown }).message === 'string'
     ) {
-      const msg = (detail as { message: string }).message
-      // Traduzir mensagens padrão comuns do PocketBase
-      if (msg.includes('Value must be unique') || msg.includes('unique')) {
-        errors[field] =
-          field === 'email'
-            ? 'Já existe um lead cadastrado com este e-mail.'
-            : 'Este valor já está em uso.'
-      } else if (msg.includes('Cannot be blank')) {
-        errors[field] = 'Este campo é obrigatório.'
-      } else if (msg.includes('Must be a valid email')) {
-        errors[field] = 'Informe um endereço de e-mail válido.'
-      } else {
-        errors[field] = msg
-      }
+      errors[field] = (detail as { message: string }).message
     }
   }
   return errors
@@ -35,25 +22,8 @@ export function extractFieldErrors(error: unknown): FieldErrors {
 
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
-    return error instanceof Error ? error.message : 'Ocorreu um erro inesperado.'
+    return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
-  const fieldErrors = extractFieldErrors(error)
-  const msgs = Object.values(fieldErrors)
-  if (msgs.length > 0) {
-    return msgs.join(' ')
-  }
-
-  const rawMsg = error.response?.message || error.message || ''
-  if (rawMsg.includes('Failed to create record') || rawMsg.includes('Failed to update record')) {
-    return 'Não foi possível salvar os dados do lead. Verifique os campos preenchidos e tente novamente.'
-  }
-  if (
-    rawMsg.includes('unique') ||
-    rawMsg.includes('UNIQUE') ||
-    rawMsg.includes('idx_leads_email')
-  ) {
-    return 'Já existe um lead cadastrado com este e-mail.'
-  }
-
-  return rawMsg || 'Ocorreu um erro ao salvar o registro no banco de dados.'
+  const msgs = Object.values(extractFieldErrors(error))
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }

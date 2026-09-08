@@ -104,7 +104,14 @@ export default function LeadDetail() {
     try {
       setLoadingPropostas(true)
       const list = await ProposalsService.getPropostasByLead(leadId)
-      setPropostas(list)
+      // Deduplicar lista por id para garantir que itens repetidos não causem problemas de key
+      const seen = new Set<string>()
+      const unique = list.filter((p) => {
+        if (!p.id || seen.has(p.id)) return false
+        seen.add(p.id)
+        return true
+      })
+      setPropostas(unique)
     } catch (err) {
       console.error('Erro ao carregar propostas:', err)
     } finally {
@@ -150,7 +157,14 @@ export default function LeadDetail() {
       if (list.length === 0 && targetLead.telefone) {
         list = await WhatsAppService.getMessagesByPhone(targetLead.telefone)
       }
-      setWaMessages(list)
+      // Deduplicar lista de mensagens por id
+      const seen = new Set<string>()
+      const unique = list.filter((m) => {
+        if (!m.id || seen.has(m.id)) return false
+        seen.add(m.id)
+        return true
+      })
+      setWaMessages(unique)
     } catch (err) {
       console.error('Error loading WhatsApp messages for lead:', err)
     } finally {
@@ -166,9 +180,16 @@ export default function LeadDetail() {
         (lead.telefone && e.record.phone_number === lead.telefone.replace(/\D/g, '')))
     ) {
       if (e.action === 'create') {
-        setWaMessages((prev) => [...prev, e.record])
+        setWaMessages((prev) => {
+          if (prev.some((m) => m.id === e.record.id)) {
+            return prev.map((m) => (m.id === e.record.id ? e.record : m))
+          }
+          return [...prev, e.record]
+        })
       } else if (e.action === 'update') {
         setWaMessages((prev) => prev.map((m) => (m.id === e.record.id ? e.record : m)))
+      } else if (e.action === 'delete') {
+        setWaMessages((prev) => prev.filter((m) => m.id !== e.record.id))
       }
     }
   })
@@ -807,9 +828,10 @@ export default function LeadDetail() {
                 ) : (
                   [...normalizedHistorico].reverse().map((item, idx) => {
                     const isSlaAlert = item.tipo === 'alerta_sla'
+                    const histKey = `hist-${(item as { id?: string }).id ?? item.tipo ?? 'item'}-${item.data ?? 'nodate'}-${idx}`
                     return (
                       <div
-                        key={idx}
+                        key={histKey}
                         className={`p-3 rounded-lg border text-xs flex items-start gap-3 ${
                           isSlaAlert
                             ? 'bg-red-50/50 border-red-200 text-red-900'
@@ -905,11 +927,12 @@ export default function LeadDetail() {
                     </p>
                   </div>
                 ) : (
-                  waMessages.map((msg) => {
+                  waMessages.map((msg, idx) => {
                     const isOut = msg.direction === 'out'
+                    const msgKey = `wa-${msg.id ?? 'msg'}-${idx}`
                     return (
                       <div
-                        key={msg.id}
+                        key={msgKey}
                         className={`flex flex-col ${isOut ? 'items-end' : 'items-start'}`}
                       >
                         <div
@@ -1015,14 +1038,15 @@ export default function LeadDetail() {
             </div>
           ) : (
             <div className="space-y-3">
-              {propostas.map((prop) => {
+              {propostas.map((prop, idx) => {
                 const publicUrl = ProposalsService.getPublicUrl(prop.token_publico)
                 const isAceita = prop.status === 'Aceita'
                 const isRecusada = prop.status === 'Recusada'
+                const propKey = `prop-${prop.id ?? 'sem-id'}-${idx}`
 
                 return (
                   <div
-                    key={prop.id}
+                    key={propKey}
                     className={`p-4 rounded-xl border transition-all ${
                       isAceita
                         ? 'border-emerald-300 bg-emerald-50/30'
@@ -1360,7 +1384,12 @@ export default function LeadDetail() {
           onOpenChange={setShowGerarPropostaModal}
           lead={lead}
           onProposalCreated={(nova) => {
-            setPropostas((prev) => [nova, ...prev])
+            setPropostas((prev) => {
+              if (prev.some((p) => p.id === nova.id)) {
+                return prev.map((p) => (p.id === nova.id ? nova : p))
+              }
+              return [nova, ...prev]
+            })
             fetchLead() // Recarrega para obter possível histórico atualizado
           }}
         />
