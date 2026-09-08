@@ -2,7 +2,15 @@
 // Endpoint público para consulta de proposta por token único sem exigir autenticação
 
 routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
-  const token = (e.requestInfo().pathParams.token || '').trim()
+  let token = ''
+  try {
+    token = (e.request.pathValue('token') || '').trim()
+  } catch (_) {}
+  if (!token) {
+    try {
+      token = (e.requestInfo().pathParams?.token || '').trim()
+    } catch (_) {}
+  }
 
   if (!token) {
     return e.json(400, { error: 'Token não fornecido' })

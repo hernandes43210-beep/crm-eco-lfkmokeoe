@@ -5,7 +5,15 @@
 // para diferenciar a URL de cada campo do Luvik caso o payload não traga o status explícito.
 
 routerAdd('POST', '/backend/v1/integrations/luvik/webhook/{token}', (e) => {
-  const token = e.requestInfo().pathParams.token || ''
+  let token = ''
+  try {
+    token = (e.request.pathValue('token') || '').trim()
+  } catch (_) {}
+  if (!token) {
+    try {
+      token = (e.requestInfo().pathParams?.token || '').trim()
+    } catch (_) {}
+  }
 
   // 1. Validação do Token
   if (!token) {

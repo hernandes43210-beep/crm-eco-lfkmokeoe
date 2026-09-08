@@ -28,9 +28,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from '@/hooks/use-toast'
+import { useAuth } from '@/context/AuthContext'
 
 export default function PropostaPublica() {
   const { token } = useParams<{ token: string }>()
+  const { isAuthenticated } = useAuth()
   const [proposta, setProposta] = useState<PublicProposta | null>(null)
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -215,6 +217,19 @@ export default function PropostaPublica() {
           </div>
 
           <div className="flex items-center gap-2">
+            {isAuthenticated && proposta.lead?.id && (
+              <Link to={`/leads/${proposta.lead.id}`}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs font-semibold gap-1.5 h-8.5 border-slate-200 text-slate-700 hover:text-[#0B7A5B]"
+                >
+                  <ArrowRight className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Ver Ficha do Lead</span>
+                  <span className="sm:hidden">Lead</span>
+                </Button>
+              </Link>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -228,6 +243,24 @@ export default function PropostaPublica() {
           </div>
         </div>
       </header>
+
+      {/* Top Banner for authenticated CRM user */}
+      {isAuthenticated && proposta.lead?.id && (
+        <div className="bg-slate-900 text-white text-xs px-4 py-2">
+          <div className="max-w-5xl mx-auto flex items-center justify-between">
+            <span className="text-slate-300">
+              Você está visualizando a <strong>página pública da proposta</strong> como membro
+              logado do CRM.
+            </span>
+            <Link
+              to={`/leads/${proposta.lead.id}`}
+              className="font-semibold text-amber-400 hover:underline flex items-center gap-1"
+            >
+              Ir para detalhes do lead &rarr;
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 space-y-6">

@@ -4,7 +4,15 @@
 // atualiza o Lead para "Fechado Ganho" (com histórico e data de encerramento)
 
 routerAdd('POST', '/backend/v1/propostas/public/{token}/aceitar', (e) => {
-  const token = (e.requestInfo().pathParams.token || '').trim()
+  let token = ''
+  try {
+    token = (e.request.pathValue('token') || '').trim()
+  } catch (_) {}
+  if (!token) {
+    try {
+      token = (e.requestInfo().pathParams?.token || '').trim()
+    } catch (_) {}
+  }
 
   if (!token) {
     return e.json(400, { error: 'Token não fornecido' })
@@ -61,7 +69,14 @@ routerAdd('POST', '/backend/v1/propostas/public/{token}/aceitar', (e) => {
     if (nomeCliente) {
       proposta.set('aceito_por_nome', nomeCliente)
     }
-    const clientIp = e.requestInfo().remoteIP || ''
+    let clientIp = ''
+    try {
+      clientIp = e.realIP() || e.remoteIP() || ''
+    } catch (_) {
+      try {
+        clientIp = e.requestInfo().remoteIP || ''
+      } catch (_) {}
+    }
     if (clientIp) {
       proposta.set('aceito_por_ip', clientIp)
     }
