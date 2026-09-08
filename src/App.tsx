@@ -14,6 +14,7 @@ import Cadastro from '@/pages/Cadastro'
 import LeadsList from '@/pages/LeadsList'
 import LeadForm from '@/pages/LeadForm'
 import LeadDetail from '@/pages/LeadDetail'
+import LeadImport from '@/pages/LeadImport'
 import FunilVendas from '@/pages/FunilVendas'
 import KitsSolares from '@/pages/KitsSolares'
 import Equipe from '@/pages/Equipe'
@@ -48,6 +49,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/leads" element={<LeadsList />} />
             <Route path="/leads/novo" element={<LeadForm />} />
+            <Route path="/leads/importar" element={<LeadImport />} />
             <Route path="/leads/:id/editar" element={<LeadForm />} />
             <Route path="/leads/:id" element={<LeadDetail />} />
             <Route path="/funil" element={<FunilVendas />} />

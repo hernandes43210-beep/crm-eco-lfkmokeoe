@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
   Users,
+  FileSpreadsheet,
   GitBranch,
   FileText,
   Boxes,
@@ -31,6 +32,7 @@ export default function Layout() {
   const navItems = [
     { label: 'Painel', path: '/', icon: LayoutDashboard },
     { label: 'Leads', path: '/leads', icon: Users },
+    { label: 'Importar Leads', path: '/leads/importar', icon: FileSpreadsheet },
     { label: 'Funil de Vendas', path: '/funil', icon: GitBranch },
     { label: 'Propostas', path: '/propostas', icon: FileText },
     { label: 'Kits Solares', path: '/kits', icon: Boxes },
@@ -49,6 +51,7 @@ export default function Layout() {
     if (path === '/') return 'Painel Comercial'
     if (path === '/leads') return 'Gestão de Leads'
     if (path === '/leads/novo') return 'Novo Lead'
+    if (path === '/leads/importar') return 'Importar Leads (Planilha Luvik)'
     if (path.startsWith('/leads/') && path.endsWith('/editar')) return 'Editar Lead'
     if (path.startsWith('/leads/')) return 'Detalhes do Lead'
     if (path === '/funil') return 'Funil de Vendas Solar'

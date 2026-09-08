@@ -4,6 +4,7 @@ import {
   Search,
   Filter,
   Plus,
+  FileSpreadsheet,
   Trash2,
   Edit3,
   Eye,
@@ -183,13 +184,24 @@ export default function LeadsList() {
           </p>
         </div>
 
-        <Button
-          onClick={() => navigate('/leads/novo')}
-          className="bg-[#0B7A5B] hover:bg-[#095C44] text-white font-medium shadow-sm shadow-[#0B7A5B]/30 gap-1.5 h-9.5 px-4 rounded-lg self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span>Cadastrar Lead</span>
-        </Button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Button
+            variant="outline"
+            onClick={() => navigate('/leads/importar')}
+            className="border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-50 font-medium text-xs h-9.5 px-3.5 gap-1.5 rounded-lg shadow-xs"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-[#0B7A5B]" />
+            <span>Importar</span>
+          </Button>
+
+          <Button
+            onClick={() => navigate('/leads/novo')}
+            className="bg-[#0B7A5B] hover:bg-[#095C44] text-white font-medium shadow-sm shadow-[#0B7A5B]/30 gap-1.5 h-9.5 px-4 rounded-lg"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>Cadastrar Lead</span>
+          </Button>
+        </div>
       </div>
 
       {/* Search & Filter Bar */}
@@ -306,13 +318,23 @@ export default function LeadsList() {
                 ? 'Não encontramos nenhum lead com os filtros aplicados.'
                 : 'Sua carteira de leads está vazia no momento — cadastre o primeiro lead para iniciar seu pipeline comercial.'}
             </p>
-            <Button
-              onClick={() => navigate('/leads/novo')}
-              className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold gap-1.5 h-9"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Cadastrar primeiro lead</span>
-            </Button>
+            <div className="flex items-center gap-2.5">
+              <Button
+                variant="outline"
+                onClick={() => navigate('/leads/importar')}
+                className="text-xs font-semibold gap-1.5 h-9 border-slate-300 text-slate-700"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-[#0B7A5B]" />
+                <span>Importar Planilha Luvik</span>
+              </Button>
+              <Button
+                onClick={() => navigate('/leads/novo')}
+                className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold gap-1.5 h-9"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Cadastrar primeiro lead</span>
+              </Button>
+            </div>
           </div>
         ) : (
           <>
