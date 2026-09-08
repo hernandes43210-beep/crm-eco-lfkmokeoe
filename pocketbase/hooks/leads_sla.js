@@ -13,8 +13,7 @@ onRecordCreate((e) => {
     const isoStr = deadline.toISOString().replace('T', ' ').substring(0, 19) + 'Z'
     record.set('sla_limite', isoStr)
 
-    // PocketBase v0.36 JSONField validation:
-    // When unset or raw JS object/array, it must be serialized as JSON string.
+    // Handle historico: if string, array, or byte array/object
     let rawHist = record.get('historico')
     let hist = []
     if (rawHist) {
@@ -26,7 +25,21 @@ onRecordCreate((e) => {
           hist = []
         }
       } else if (Array.isArray(rawHist)) {
-        hist = rawHist
+        // Check if rawHist is an array of byte numbers (ASCII/UTF-8 byte codes)
+        if (rawHist.length > 0 && typeof rawHist[0] === 'number') {
+          try {
+            let str = ''
+            for (let b = 0; b < rawHist.length; b++) {
+              str += String.fromCharCode(rawHist[b])
+            }
+            const parsed = JSON.parse(str)
+            if (Array.isArray(parsed)) hist = parsed
+          } catch (_) {
+            hist = []
+          }
+        } else {
+          hist = rawHist
+        }
       }
     }
     if (!Array.isArray(hist) || hist.length === 0) {
@@ -41,7 +54,7 @@ onRecordCreate((e) => {
         },
       ]
     }
-    record.set('historico', JSON.stringify(hist))
+    record.set('historico', hist)
   } catch (err) {
     console.error('Erro em leads_sla onRecordCreate:', err)
   }
@@ -80,7 +93,20 @@ onRecordUpdate((e) => {
           hist = []
         }
       } else if (Array.isArray(rawHist)) {
-        hist = rawHist
+        if (rawHist.length > 0 && typeof rawHist[0] === 'number') {
+          try {
+            let str = ''
+            for (let b = 0; b < rawHist.length; b++) {
+              str += String.fromCharCode(rawHist[b])
+            }
+            const parsed = JSON.parse(str)
+            if (Array.isArray(parsed)) hist = parsed
+          } catch (_) {
+            hist = []
+          }
+        } else {
+          hist = rawHist
+        }
       }
     }
 
@@ -93,7 +119,7 @@ onRecordUpdate((e) => {
       })
     }
 
-    record.set('historico', JSON.stringify(hist))
+    record.set('historico', hist)
   } catch (err) {
     console.error('Erro em leads_sla onRecordUpdate:', err)
   }

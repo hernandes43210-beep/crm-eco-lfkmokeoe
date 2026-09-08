@@ -103,13 +103,21 @@ export const CRM_FIELDS: FieldDefinition[] = [
     required: false,
     description: 'Consumo mensal médio de energia elétrica.',
     heuristicMatches: [
-      'consumo',
-      'kwh',
+      'consumo mensal kwh',
       'consumo mensal',
+      'consumo medio kwh',
       'consumo medio',
+      'consumo médio kwh',
       'consumo médio',
+      'consumo kwh',
+      'consumo',
+      'media de consumo',
+      'média de consumo',
       'gasto kwh',
-      'energia',
+      'energia kwh',
+      'kwh mes',
+      'kwh mês',
+      'kwh',
     ],
   },
   {
@@ -118,15 +126,23 @@ export const CRM_FIELDS: FieldDefinition[] = [
     required: false,
     description: 'Valor total do projeto fotovoltaico.',
     heuristicMatches: [
+      'valor do negocio',
+      'valor do negócio',
+      'valor da proposta',
+      'preco de venda',
+      'preço de venda',
+      'valor total',
+      'preco total',
+      'preço total',
+      'valor do contrato',
+      'valor fechado',
       'valor',
       'preco',
       'preço',
-      'valor do negocio',
-      'valor do negócio',
       'montante',
-      'total',
       'orcamento',
       'orçamento',
+      'total',
     ],
   },
   {
@@ -391,13 +407,57 @@ export function autoDetectMapping(
 export function parseNumberSafe(val?: string | number | null, fallback = 0): number {
   if (val === null || val === undefined) return fallback
   if (typeof val === 'number') return isNaN(val) ? fallback : val
-  const clean = String(val)
-    .replace(/R\$/g, '')
-    .replace(/\s+/g, '')
-    .replace(/\./g, '')
-    .replace(',', '.')
-    .replace(/[^0-9.-]/g, '')
-  const n = parseFloat(clean)
+
+  const rawStr = String(val).trim()
+  if (!rawStr) return fallback
+
+  const hadR$ = /R\$/i.test(rawStr)
+  // Remove currency prefix "R$", spaces and non-breaking spaces
+  let str = rawStr.replace(/R\$/gi, '').replace(/[\s\u00A0]/g, '')
+  if (!str) return fallback
+
+  const hasComma = str.includes(',')
+  const hasDot = str.includes('.')
+
+  if (hasComma && hasDot) {
+    const lastComma = str.lastIndexOf(',')
+    const lastDot = str.lastIndexOf('.')
+    if (lastComma > lastDot) {
+      // Brazilian format: 1.234.567,89 (dot is thousands, comma is decimal)
+      str = str.replace(/\./g, '').replace(',', '.')
+    } else {
+      // US format: 1,234,567.89 (comma is thousands, dot is decimal)
+      str = str.replace(/,/g, '')
+    }
+  } else if (hasComma) {
+    // Only comma present: 1234,56 or 1,234,567
+    const commaParts = str.split(',')
+    if (commaParts.length > 2) {
+      // Multiple commas: e.g. 1,000,000 (US thousands with comma)
+      str = commaParts.join('')
+    } else {
+      // Single comma: e.g. 22916,28 -> 22916.28
+      str = str.replace(',', '.')
+    }
+  } else if (hasDot) {
+    // Only dot present: e.g. "25.000" vs "1250.50" vs "1.234.567"
+    const parts = str.split('.')
+    if (parts.length > 2) {
+      // Multiple dots: definitely thousands separator, e.g. 1.234.567
+      str = parts.join('')
+    } else if (parts.length === 2) {
+      // Single dot: e.g. "25.000" or "25.5"
+      // If it had R$ prefix and exactly 3 decimals (e.g. R$ 25.000), it's Brazilian thousand separator
+      if (hadR$ && parts[1].length === 3) {
+        str = parts.join('')
+      }
+      // Otherwise keep as standard float decimal (e.g. 25.5, 1250.50, 450.00)
+    }
+  }
+
+  // Remove any remaining unwanted characters except digits, minus, and dot
+  str = str.replace(/[^0-9.-]/g, '')
+  const n = parseFloat(str)
   return isNaN(n) ? fallback : n
 }
 
@@ -733,10 +793,10 @@ export async function executeLeadImport(
           }
           hist.push({
             data: new Date().toISOString(),
-            tipo: 'nota',
+            tipo: 'nota' as const,
             descricao: `Lead atualizado via importação de planilha Luvik (${options.sourceFilename || 'arquivo'}).`,
           })
-          updatePayload.historico = JSON.stringify(hist)
+          updatePayload.historico = hist
 
           await pb.collection('leads').update(row.existingLeadId, updatePayload)
           summary.updated++
@@ -771,13 +831,13 @@ export async function executeLeadImport(
         sla_dias: defaultSlaDias,
         proprietario: defaultOwnerId,
         luvik_deal_id: row.luvik_deal_id,
-        historico: JSON.stringify([
+        historico: [
           {
             data: new Date().toISOString(),
-            tipo: 'criacao',
+            tipo: 'criacao' as const,
             descricao: `Lead importado de planilha Luvik (${options.sourceFilename || 'importação'}) no estágio 'Novo' com SLA ativo de ${defaultSlaDias} dias.`,
           },
-        ]),
+        ],
       }
 
       await pb.collection('leads').create(payload)

@@ -19,12 +19,26 @@ cronAdd('cron_overdue_sla', '0 * * * *', () => {
       if (rawHist) {
         if (typeof rawHist === 'string') {
           try {
-            hist = JSON.parse(rawHist)
+            const parsed = JSON.parse(rawHist)
+            if (Array.isArray(parsed)) hist = parsed
           } catch (_) {
             hist = []
           }
         } else if (Array.isArray(rawHist)) {
-          hist = rawHist
+          if (rawHist.length > 0 && typeof rawHist[0] === 'number') {
+            try {
+              let str = ''
+              for (let b = 0; b < rawHist.length; b++) {
+                str += String.fromCharCode(rawHist[b])
+              }
+              const parsed = JSON.parse(str)
+              if (Array.isArray(parsed)) hist = parsed
+            } catch (_) {
+              hist = []
+            }
+          } else {
+            hist = rawHist
+          }
         }
       }
 
@@ -44,7 +58,7 @@ cronAdd('cron_overdue_sla', '0 * * * *', () => {
           tipo: 'alerta_sla',
           descricao: 'Prazo SLA estourado. Lead requer ação imediata da equipe comercial.',
         })
-        lead.set('historico', JSON.stringify(hist))
+        lead.set('historico', hist)
         $app.save(lead)
       }
     }

@@ -15,7 +15,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { LeadsService } from '@/services/leads'
-import type { Lead, LeadStatus } from '@/types/crm'
+import type { Lead, LeadStatus, HistoricoItem } from '@/types/crm'
 import useRealtime from '@/hooks/use-realtime'
 import { computeSLAStatus, formatBRL } from '@/lib/solarUtils'
 import { Button } from '@/components/ui/button'
@@ -124,7 +124,7 @@ export default function FunilVendas() {
     setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, status: newStatus } : l)))
 
     try {
-      let currentHist = targetLead.historico
+      let currentHist: unknown = targetLead.historico
       if (typeof currentHist === 'string') {
         try {
           currentHist = JSON.parse(currentHist)
@@ -132,7 +132,22 @@ export default function FunilVendas() {
           currentHist = []
         }
       }
-      let historyList = Array.isArray(currentHist) ? currentHist : []
+      if (
+        Array.isArray(currentHist) &&
+        currentHist.length > 0 &&
+        typeof currentHist[0] === 'number'
+      ) {
+        try {
+          let str = ''
+          for (let i = 0; i < currentHist.length; i++) {
+            str += String.fromCharCode(Number(currentHist[i]))
+          }
+          currentHist = JSON.parse(str)
+        } catch (_) {
+          currentHist = []
+        }
+      }
+      let historyList = Array.isArray(currentHist) ? (currentHist as HistoricoItem[]) : []
       historyList = [
         ...historyList,
         {

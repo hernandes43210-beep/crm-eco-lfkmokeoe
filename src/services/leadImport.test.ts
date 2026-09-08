@@ -20,11 +20,21 @@ describe('leadImport utilities', () => {
     expect(normalizeDigits(null)).toBe('')
   })
 
-  it('parses numbers safely from PT-BR formatting', () => {
+  it('parses numbers safely from PT-BR formatting and various spreadsheet formats', () => {
     expect(parseNumberSafe('R$ 25.500,00')).toBe(25500)
     expect(parseNumberSafe('1.250,50')).toBe(1250.5)
+    expect(parseNumberSafe('22.916,28')).toBe(22916.28)
+    expect(parseNumberSafe('21581,23')).toBe(21581.23)
+    expect(parseNumberSafe('15.742,26')).toBe(15742.26)
+    expect(parseNumberSafe('R$ 34.469,46')).toBe(34469.46)
+    expect(parseNumberSafe('25000.50')).toBe(25000.5)
+    expect(parseNumberSafe('1,250.50')).toBe(1250.5)
+    expect(parseNumberSafe('R$ 25.000')).toBe(25000)
     expect(parseNumberSafe('450')).toBe(450)
     expect(parseNumberSafe('', 400)).toBe(400)
+    expect(parseNumberSafe(null, 0)).toBe(0)
+    expect(parseNumberSafe(undefined, 0)).toBe(0)
+    expect(parseNumberSafe(18000)).toBe(18000)
   })
 
   it('parses Brazilian UFs and full state names', () => {
@@ -76,6 +86,26 @@ describe('leadImport utilities', () => {
     expect(mapping.estado).toBe('Estado')
     expect(mapping.consumo_mensal_kwh).toBe('Consumo kWh')
     expect(mapping.preco_venda).toBe('Valor')
+  })
+
+  it('auto detects Luvik spreadsheet column variants for consumo and preco', () => {
+    const luvikHeaders = [
+      'ID Negócio',
+      'Cliente',
+      'Celular',
+      'Consumo Médio (kWh)',
+      'Valor do Negócio (R$)',
+      'Cidade',
+      'UF',
+    ]
+    const mapping = autoDetectMapping(luvikHeaders)
+    expect(mapping.nome).toBe('Cliente')
+    expect(mapping.telefone).toBe('Celular')
+    expect(mapping.consumo_mensal_kwh).toBe('Consumo Médio (kWh)')
+    expect(mapping.preco_venda).toBe('Valor do Negócio (R$)')
+    expect(mapping.cidade).toBe('Cidade')
+    expect(mapping.estado).toBe('UF')
+    expect(mapping.luvik_deal_id).toBe('ID Negócio')
   })
 
   it('evaluates deduplication correctly for new, duplicate and invalid rows', () => {

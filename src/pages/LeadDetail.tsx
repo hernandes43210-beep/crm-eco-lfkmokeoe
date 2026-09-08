@@ -250,18 +250,54 @@ export default function LeadDetail() {
     }
   })
 
-  // Normalizar historico caso chegue como string do backend
-  const normalizedHistorico = React.useMemo(() => {
+  // Normalizar historico caso chegue como string, array de bytes, ou array normal do backend
+  const normalizedHistorico = React.useMemo<HistoricoItem[]>(() => {
     if (!lead?.historico) return []
-    if (typeof lead.historico === 'string') {
+    let val: unknown = lead.historico
+
+    if (typeof val === 'string') {
       try {
-        const parsed = JSON.parse(lead.historico)
-        return Array.isArray(parsed) ? parsed : []
+        val = JSON.parse(val)
       } catch (_) {
         return []
       }
     }
-    return Array.isArray(lead.historico) ? lead.historico : []
+
+    if (Array.isArray(val)) {
+      // Caso 1: Array de bytes ASCII / UTF-8 salvo por engano (ex: [91, 123, 34, ...])
+      if (val.length > 0 && typeof val[0] === 'number') {
+        try {
+          let str = ''
+          for (let i = 0; i < val.length; i++) {
+            str += String.fromCharCode(val[i] as number)
+          }
+          const parsed = JSON.parse(str)
+          if (Array.isArray(parsed)) {
+            val = parsed
+          } else {
+            return []
+          }
+        } catch (_) {
+          return []
+        }
+      }
+
+      // Filtrar e validar cada item para garantir que descricao e tipo existam de forma segura
+      return (val as unknown[])
+        .filter(
+          (item): item is Record<string, unknown> => typeof item === 'object' && item !== null,
+        )
+        .map((item) => ({
+          id: typeof item.id === 'string' ? item.id : undefined,
+          data: typeof item.data === 'string' ? item.data : new Date().toISOString(),
+          tipo: (typeof item.tipo === 'string' ? item.tipo : 'nota') as HistoricoItem['tipo'],
+          descricao:
+            typeof item.descricao === 'string' ? item.descricao : String(item.descricao ?? ''),
+          autor_nome: typeof item.autor_nome === 'string' ? item.autor_nome : undefined,
+        }))
+    }
+
+    return []
   }, [lead?.historico])
 
   // Pipeline advance/retreat
