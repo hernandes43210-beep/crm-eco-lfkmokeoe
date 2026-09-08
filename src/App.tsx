@@ -19,6 +19,8 @@ import KitsSolares from '@/pages/KitsSolares'
 import Equipe from '@/pages/Equipe'
 import WhatsAppPage from '@/pages/WhatsApp'
 import IntegracoesPage from '@/pages/Integracoes'
+import PropostasList from '@/pages/PropostasList'
+import PropostaPublica from '@/pages/PropostaPublica'
 import NotFound from '@/pages/NotFound'
 
 const App = () => (
@@ -31,6 +33,9 @@ const App = () => (
           {/* Public Auth Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/cadastro" element={<Cadastro />} />
+
+          {/* Public Proposal Link Route (No login required) */}
+          <Route path="/proposta/:token" element={<PropostaPublica />} />
 
           {/* Protected CRM Routes inside Layout */}
           <Route
@@ -46,6 +51,7 @@ const App = () => (
             <Route path="/leads/:id/editar" element={<LeadForm />} />
             <Route path="/leads/:id" element={<LeadDetail />} />
             <Route path="/funil" element={<FunilVendas />} />
+            <Route path="/propostas" element={<PropostasList />} />
             <Route path="/kits" element={<KitsSolares />} />
             <Route path="/whatsapp" element={<WhatsAppPage />} />
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-05T20:41:17.926Z",
+  "generatedAt": "2026-09-08T13:20:14.816Z",
   "collections": [
     {
       "name": "users",
@@ -610,6 +610,152 @@
         "CREATE INDEX idx_luvik_logs_created ON luvik_logs (created DESC)",
         "CREATE INDEX idx_luvik_logs_deal_id ON luvik_logs (deal_id)",
         "CREATE INDEX idx_luvik_logs_evento ON luvik_logs (evento)"
+      ]
+    },
+    {
+      "name": "propostas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != '' && @request.auth.role = 'Admin'"
+      },
+      "fields": [
+        {
+          "name": "lead",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "leads"
+        },
+        {
+          "name": "kit",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "kits"
+        },
+        {
+          "name": "criado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "kit_nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "kit_potencia_kw",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "kit_fabricante",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "margem",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "preco_venda",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "validade_dias",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_validade",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "condicoes_pagamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Rascunho", "Enviada", "Aceita", "Recusada"]
+        },
+        {
+          "name": "token_publico",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_aceite",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aceito_por_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aceito_por_ip",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_propostas_token ON propostas (token_publico)",
+        "CREATE INDEX idx_propostas_lead ON propostas (lead)",
+        "CREATE INDEX idx_propostas_status ON propostas (status)",
+        "CREATE INDEX idx_propostas_validade ON propostas (data_validade)",
+        "CREATE INDEX idx_propostas_created ON propostas (created DESC)"
       ]
     }
   ]

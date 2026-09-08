@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   Users,
   GitBranch,
+  FileText,
   Boxes,
   MessageSquare,
   ShieldCheck,
@@ -31,6 +32,7 @@ export default function Layout() {
     { label: 'Painel', path: '/', icon: LayoutDashboard },
     { label: 'Leads', path: '/leads', icon: Users },
     { label: 'Funil de Vendas', path: '/funil', icon: GitBranch },
+    { label: 'Propostas', path: '/propostas', icon: FileText },
     { label: 'Kits Solares', path: '/kits', icon: Boxes },
     { label: 'WhatsApp', path: '/whatsapp', icon: MessageSquare },
     ...(isAdmin
@@ -50,6 +52,7 @@ export default function Layout() {
     if (path.startsWith('/leads/') && path.endsWith('/editar')) return 'Editar Lead'
     if (path.startsWith('/leads/')) return 'Detalhes do Lead'
     if (path === '/funil') return 'Funil de Vendas Solar'
+    if (path === '/propostas') return 'Gestão de Propostas Comerciais'
     if (path === '/kits') return 'Catálogo de Kits Solares'
     if (path === '/whatsapp') return 'WhatsApp & Atendimento Solar'
     if (path === '/integracoes') return 'Integrações & Webhooks (Luvik)'

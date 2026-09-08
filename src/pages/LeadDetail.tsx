@@ -29,7 +29,10 @@ import {
 } from 'lucide-react'
 import { LeadsService } from '@/services/leads'
 import { WhatsAppService } from '@/services/whatsapp'
-import type { Lead, LeadStatus, HistoricoItem, WhatsAppMessage } from '@/types/crm'
+import { ProposalsService } from '@/services/proposals'
+import type { Lead, LeadStatus, HistoricoItem, WhatsAppMessage, Proposta } from '@/types/crm'
+import { GerarPropostaModal } from '@/components/GerarPropostaModal'
+import { openProposalPDFPrint } from '@/lib/proposalPdf'
 import useRealtime from '@/hooks/use-realtime'
 import { useAuth } from '@/context/AuthContext'
 import {
@@ -71,7 +74,12 @@ export default function LeadDetail() {
   const [lead, setLead] = useState<Lead | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Proposal editable state
+  // Proposals list and generation modal
+  const [propostas, setPropostas] = useState<Proposta[]>([])
+  const [loadingPropostas, setLoadingPropostas] = useState(false)
+  const [showGerarPropostaModal, setShowGerarPropostaModal] = useState(false)
+
+  // Legacy proposal editable state
   const [precoVenda, setPrecoVenda] = useState<number | string>('')
   const [prAssinada, setPrAssinada] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -90,6 +98,19 @@ export default function LeadDetail() {
   const [loadingWa, setLoadingWa] = useState(false)
   const [waText, setWaText] = useState('')
   const [sendingWa, setSendingWa] = useState(false)
+  const [copiedToken, setCopiedToken] = useState<string | null>(null)
+
+  const fetchPropostas = async (leadId: string) => {
+    try {
+      setLoadingPropostas(true)
+      const list = await ProposalsService.getPropostasByLead(leadId)
+      setPropostas(list)
+    } catch (err) {
+      console.error('Erro ao carregar propostas:', err)
+    } finally {
+      setLoadingPropostas(false)
+    }
+  }
 
   const fetchLead = async () => {
     if (!id) return
@@ -99,6 +120,7 @@ export default function LeadDetail() {
       setPrecoVenda(data.preco_venda || '')
       setPrAssinada(data.pr_assinada_ganho || false)
       fetchWaMessages(data)
+      fetchPropostas(data.id)
     } catch (err) {
       console.error('Error loading lead detail:', err)
       toast({
@@ -190,6 +212,19 @@ export default function LeadDetail() {
       setLead(e.record)
       setPrecoVenda(e.record.preco_venda || '')
       setPrAssinada(e.record.pr_assinada_ganho || false)
+    }
+  })
+
+  // Real-time subscription for propostas of this lead
+  useRealtime<Proposta>('propostas', (e) => {
+    if (id && e.record.lead === id) {
+      if (e.action === 'create') {
+        setPropostas((prev) => [e.record, ...prev.filter((p) => p.id !== e.record.id)])
+      } else if (e.action === 'update') {
+        setPropostas((prev) => prev.map((p) => (p.id === e.record.id ? e.record : p)))
+      } else if (e.action === 'delete') {
+        setPropostas((prev) => prev.filter((p) => p.id !== e.record.id))
+      }
     }
   })
 
@@ -377,6 +412,67 @@ export default function LeadDetail() {
 
   const pdfUrl = lead.pr_file ? LeadsService.getFileUrl(lead, lead.pr_file) : ''
 
+  const handleCopyLink = (token: string) => {
+    const url = ProposalsService.getPublicUrl(token)
+    navigator.clipboard.writeText(url)
+    setCopiedToken(token)
+    toast({
+      title: 'Link copiado!',
+      description: 'O link exclusivo da proposta foi copiado para sua área de transferência.',
+    })
+    setTimeout(() => setCopiedToken(null), 3000)
+  }
+
+  const handleSendProposalWhatsApp = (prop: Proposta) => {
+    const rawPhone = (lead.telefone || '').replace(/\D/g, '')
+    if (!rawPhone) {
+      toast({
+        title: 'Telefone não cadastrado',
+        description: 'Cadastre o WhatsApp do cliente para enviar a proposta diretamente.',
+        variant: 'destructive',
+      })
+      return
+    }
+    const publicUrl = ProposalsService.getPublicUrl(prop.token_publico)
+    const msg = `Olá, ${lead.nome}! Tudo bem? Segue a proposta comercial do seu sistema solar (${prop.kit_nome}) no valor de ${formatBRL(prop.preco_venda)}. Você pode visualizar todos os detalhes e aprovar online através do link: ${publicUrl}`
+    const waUrl = `https://wa.me/55${rawPhone}?text=${encodeURIComponent(msg)}`
+    window.open(waUrl, '_blank')
+  }
+
+  const handleDownloadPDF = (prop: Proposta) => {
+    openProposalPDFPrint({
+      id: prop.id,
+      token_publico: prop.token_publico,
+      status: prop.status,
+      kit_nome: prop.kit_nome,
+      kit_potencia_kw: prop.kit_potencia_kw,
+      kit_fabricante: prop.kit_fabricante,
+      custo: prop.custo,
+      margem: prop.margem,
+      preco_venda: prop.preco_venda,
+      validade_dias: prop.validade_dias,
+      data_validade: prop.data_validade,
+      condicoes_pagamento: prop.condicoes_pagamento,
+      observacoes: prop.observacoes,
+      data_aceite: prop.data_aceite,
+      aceito_por_nome: prop.aceito_por_nome,
+      created: prop.created,
+      cliente: {
+        nome: lead.nome,
+        email: lead.email,
+        telefone: lead.telefone,
+        cidade: lead.cidade,
+        estado: lead.estado,
+        endereco: lead.endereco,
+        consumo_mensal_kwh: lead.consumo_mensal_kwh,
+      },
+      vendedor: {
+        name: lead.expand?.proprietario?.name || user?.name,
+        email: lead.expand?.proprietario?.email || user?.email,
+      },
+    })
+  }
+
   return (
     <div className="space-y-6 select-none animate-fade-in-up pb-12">
       {/* Top Breadcrumb & Header Action */}
@@ -403,6 +499,24 @@ export default function LeadDetail() {
               >
                 {lead.status}
               </Badge>
+
+              {propostas.length > 0 && (
+                <Badge
+                  variant="outline"
+                  className={`text-xs px-2.5 py-0.5 border font-semibold ${
+                    propostas[0].status === 'Aceita'
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                      : propostas[0].status === 'Enviada'
+                        ? 'bg-blue-50 text-blue-800 border-blue-300'
+                        : propostas[0].status === 'Recusada'
+                          ? 'bg-rose-50 text-rose-800 border-rose-300'
+                          : 'bg-slate-50 text-slate-700 border-slate-300'
+                  }`}
+                  title={`Status da última proposta gerada: ${propostas[0].status}`}
+                >
+                  Proposta: {propostas[0].status}
+                </Badge>
+              )}
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
               Proprietário:{' '}
@@ -415,6 +529,14 @@ export default function LeadDetail() {
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Button
+            onClick={() => setShowGerarPropostaModal(true)}
+            className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-bold gap-1.5 h-9 shadow-sm"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300" />
+            <span>Gerar Proposta</span>
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -826,16 +948,214 @@ export default function LeadDetail() {
         </div>
       </div>
 
-      {/* Proposta Section (Always visible below columns) */}
+      {/* Nova Seção: Propostas Comerciais Geradas com Link Público */}
+      <Card className="border-slate-200/80 shadow-xs bg-white">
+        <CardHeader className="pb-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <CardTitle className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-[#0B7A5B]" />
+              <span>Propostas Geradas & Link Público do Cliente</span>
+            </CardTitle>
+            <p className="text-xs text-slate-500">
+              Propostas com link exclusivo para envio no WhatsApp, aceite digital automático e
+              download em PDF
+            </p>
+          </div>
+
+          <Button
+            onClick={() => setShowGerarPropostaModal(true)}
+            size="sm"
+            className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold gap-1.5 h-8.5 shadow-xs shrink-0"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span>+ Gerar Nova Proposta</span>
+          </Button>
+        </CardHeader>
+
+        <CardContent className="p-4 sm:p-6 space-y-4">
+          {loadingPropostas ? (
+            <div className="py-8 text-center text-slate-400">
+              <Loader2 className="w-6 h-6 animate-spin text-[#0B7A5B] mx-auto mb-2" />
+              <p className="text-xs">Carregando propostas vinculadas...</p>
+            </div>
+          ) : propostas.length === 0 ? (
+            <div className="p-6 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 text-center space-y-3">
+              <div className="w-12 h-12 rounded-full bg-emerald-100 text-[#0B7A5B] flex items-center justify-center mx-auto">
+                <FileText className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-800">Nenhuma proposta gerada ainda</p>
+                <p className="text-xs text-slate-500 max-w-md mx-auto mt-0.5">
+                  Clique em &quot;Gerar Proposta&quot; para selecionar um kit solar, calcular a
+                  margem e ativar o link público exclusivo para o cliente.
+                </p>
+              </div>
+              <Button
+                onClick={() => setShowGerarPropostaModal(true)}
+                size="sm"
+                className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold gap-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>Gerar Proposta Solar</span>
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {propostas.map((prop) => {
+                const publicUrl = ProposalsService.getPublicUrl(prop.token_publico)
+                const isAceita = prop.status === 'Aceita'
+                const isRecusada = prop.status === 'Recusada'
+
+                return (
+                  <div
+                    key={prop.id}
+                    className={`p-4 rounded-xl border transition-all ${
+                      isAceita
+                        ? 'border-emerald-300 bg-emerald-50/30'
+                        : isRecusada
+                          ? 'border-rose-200 bg-rose-50/20'
+                          : 'border-slate-200 bg-white hover:border-slate-300 shadow-xs'
+                    }`}
+                  >
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                      {/* Dados Básicos */}
+                      <div className="space-y-1.5 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="text-sm font-extrabold text-slate-900 tracking-tight">
+                            {prop.kit_nome}
+                          </h4>
+                          <Badge
+                            variant="outline"
+                            className={`text-xs px-2 py-0.5 font-bold ${
+                              isAceita
+                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                : prop.status === 'Enviada'
+                                  ? 'bg-blue-100 text-blue-800 border-blue-300'
+                                  : isRecusada
+                                    ? 'bg-rose-100 text-rose-800 border-rose-300'
+                                    : 'bg-slate-100 text-slate-700 border-slate-300'
+                            }`}
+                          >
+                            {prop.status}
+                          </Badge>
+                          {prop.kit_potencia_kw ? (
+                            <span className="text-xs text-slate-500 font-mono-numbers">
+                              {prop.kit_potencia_kw} kWp
+                            </span>
+                          ) : null}
+                          {prop.kit_fabricante ? (
+                            <span className="text-xs text-slate-400">• {prop.kit_fabricante}</span>
+                          ) : null}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                          <span>
+                            Valor da Venda:{' '}
+                            <strong className="text-slate-900 font-bold font-mono-numbers text-sm text-[#0B7A5B]">
+                              {formatBRL(prop.preco_venda)}
+                            </strong>
+                          </span>
+                          <span>
+                            Custo:{' '}
+                            <span className="font-mono-numbers">{formatBRL(prop.custo)}</span>
+                          </span>
+                          <span>
+                            Margem:{' '}
+                            <span className="font-mono-numbers font-semibold">{prop.margem}%</span>
+                          </span>
+                          <span>
+                            Validade até:{' '}
+                            <strong className="text-slate-800 font-mono-numbers">
+                              {formatDateBR(prop.data_validade)}
+                            </strong>
+                          </span>
+                        </div>
+
+                        {isAceita && (
+                          <div className="text-xs text-emerald-800 font-semibold flex items-center gap-1.5 pt-0.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>
+                              Aceita digitalmente em{' '}
+                              {formatDateTimeBR(prop.data_aceite || prop.updated)}
+                              {prop.aceito_por_nome ? ` por ${prop.aceito_por_nome}` : ''}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Ações: Copiar Link, Enviar WhatsApp, Baixar PDF, Abrir Link */}
+                      <div className="flex flex-wrap items-center gap-2 self-start lg:self-center">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleCopyLink(prop.token_publico)}
+                          className="h-8 text-xs font-semibold border-slate-200 text-slate-700 hover:text-[#0B7A5B] gap-1.5"
+                          title="Copiar link exclusivo da proposta"
+                        >
+                          {copiedToken === prop.token_publico ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              <span className="text-emerald-700">Copiado!</span>
+                            </>
+                          ) : (
+                            <>
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>Copiar Link</span>
+                            </>
+                          )}
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          onClick={() => handleSendProposalWhatsApp(prop)}
+                          className="h-8 text-xs font-semibold bg-[#25D366] hover:bg-[#20bd5a] text-white gap-1.5 shadow-xs"
+                          title="Abrir WhatsApp com mensagem pronta"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          <span>WhatsApp</span>
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDownloadPDF(prop)}
+                          className="h-8 text-xs font-semibold border-slate-200 text-slate-700 hover:text-blue-600 gap-1.5"
+                          title="Gerar e imprimir documento PDF"
+                        >
+                          <FileDown className="w-3.5 h-3.5" />
+                          <span>Baixar PDF</span>
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => window.open(publicUrl, '_blank')}
+                          className="h-8 text-xs text-slate-600 hover:text-slate-900 gap-1"
+                          title="Visualizar tela pública do cliente"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>Abrir</span>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Proposta Section (Ações do Funil) */}
       <Card className="border-slate-200/80 shadow-xs bg-white">
         <CardHeader className="pb-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <CardTitle className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
               <FileText className="w-5 h-5 text-[#0B7A5B]" />
-              <span>Proposta Comercial & Ações do Funil</span>
+              <span>Ações do Funil & Anexo Avulso</span>
             </CardTitle>
             <p className="text-xs text-slate-500">
-              Movimente o lead no funil e anexe o documento formal em PDF com os valores de venda
+              Movimente o lead no funil ou anexe arquivos externos de contratos
             </p>
           </div>
 
@@ -1018,6 +1338,19 @@ export default function LeadDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal Gerar Proposta */}
+      {lead && (
+        <GerarPropostaModal
+          open={showGerarPropostaModal}
+          onOpenChange={setShowGerarPropostaModal}
+          lead={lead}
+          onProposalCreated={(nova) => {
+            setPropostas((prev) => [nova, ...prev])
+            fetchLead() // Recarrega para obter possível histórico atualizado
+          }}
+        />
+      )}
     </div>
   )
 }

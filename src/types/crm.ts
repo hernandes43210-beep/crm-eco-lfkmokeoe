@@ -157,3 +157,76 @@ export interface LuvikLogItem {
   payload_bruto?: Record<string, unknown>
   created: string
 }
+
+export type PropostaStatus = 'Rascunho' | 'Enviada' | 'Aceita' | 'Recusada'
+
+export interface Proposta extends RecordModel {
+  id: string
+  lead: string
+  kit?: string
+  criado_por?: string
+  kit_nome: string
+  kit_potencia_kw?: number
+  kit_fabricante?: string
+  custo: number
+  margem: number
+  preco_venda: number
+  validade_dias?: number
+  data_validade: string
+  condicoes_pagamento?: string
+  observacoes?: string
+  status: PropostaStatus
+  token_publico: string
+  data_aceite?: string
+  aceito_por_nome?: string
+  aceito_por_ip?: string
+  created: string
+  updated: string
+  expand?: {
+    lead?: Lead
+    kit?: Kit
+    criado_por?: User
+  }
+}
+
+export interface PublicProposta {
+  id: string
+  token_publico: string
+  status: PropostaStatus
+  kit_nome: string
+  kit_potencia_kw?: number
+  kit_fabricante?: string
+  custo: number
+  margem: number
+  preco_venda: number
+  validade_dias?: number
+  data_validade: string
+  condicoes_pagamento?: string
+  observacoes?: string
+  data_aceite?: string
+  aceito_por_nome?: string
+  created: string
+  lead?: {
+    id: string
+    nome: string
+    email: string
+    telefone?: string
+    cidade?: string
+    estado?: string
+    endereco?: string
+    consumo_mensal_kwh?: number
+    status?: string
+  }
+  kit?: {
+    id: string
+    nome: string
+    fabricante?: string
+    potencia_kw?: number
+    categoria?: string
+    descricao?: string
+  }
+  vendedor?: {
+    name?: string
+    email?: string
+  }
+}
