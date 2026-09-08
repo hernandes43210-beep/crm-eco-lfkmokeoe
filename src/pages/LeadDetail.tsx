@@ -32,6 +32,7 @@ import { WhatsAppService } from '@/services/whatsapp'
 import { ProposalsService } from '@/services/proposals'
 import type { Lead, LeadStatus, HistoricoItem, WhatsAppMessage, Proposta } from '@/types/crm'
 import { GerarPropostaModal } from '@/components/GerarPropostaModal'
+import { InvestmentComparison } from '@/components/InvestmentComparison'
 import { openProposalPDFPrint } from '@/lib/proposalPdf'
 import useRealtime from '@/hooks/use-realtime'
 import { useAuth } from '@/context/AuthContext'
@@ -1183,6 +1184,19 @@ export default function LeadDetail() {
           )}
         </CardContent>
       </Card>
+
+      {/* Comparativo de Investimento em 30 Anos: Solar vs Poupança vs CDB */}
+      {(propostas.length > 0 ||
+        Number(precoVenda) > 0 ||
+        (lead.preco_venda && lead.preco_venda > 0)) && (
+        <InvestmentComparison
+          valorInvestido={propostas[0]?.preco_venda || Number(precoVenda) || lead.preco_venda || 0}
+          economiaMensal={estimatedSavings}
+          anos={30}
+          titulo="Comparativo de Investimento em 30 Anos (Argumento de Venda)"
+          subtitulo="Apresente ao cliente por que instalar energia solar rende muito mais do que deixar o dinheiro na Poupança ou no CDB"
+        />
+      )}
 
       {/* Proposta Section (Ações do Funil) */}
       <Card className="border-slate-200/80 shadow-xs bg-white">

@@ -22,6 +22,7 @@ import { ProposalsService } from '@/services/proposals'
 import type { PublicProposta } from '@/types/crm'
 import { formatBRL, formatDateBR, formatDateTimeBR } from '@/lib/solarUtils'
 import { openProposalPDFPrint } from '@/lib/proposalPdf'
+import { InvestmentComparison } from '@/components/InvestmentComparison'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -398,6 +399,15 @@ export default function PropostaPublica() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Comparativo de Investimento em 30 Anos: Solar vs Poupança vs CDB */}
+        <InvestmentComparison
+          valorInvestido={proposta.preco_venda || 0}
+          economiaMensal={economiaMensal}
+          anos={30}
+          titulo="Quanto rende esse investimento em 30 anos?"
+          subtitulo="Entenda por que aplicar seu capital em Energia Solar supera com folga as opções tradicionais do mercado financeiro"
+        />
 
         {/* Detalhes do Cliente & Consultor */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
