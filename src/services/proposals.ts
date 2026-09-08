@@ -95,16 +95,31 @@ export const ProposalsService = {
 
   // Consulta pública por token (não exige auth)
   async getPublicProposta(token: string): Promise<PublicProposta> {
-    const res = await fetch(`/backend/v1/propostas/public/${token}`, {
-      headers: {
-        Accept: 'application/json',
-      },
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Proposta não encontrada' }))
-      throw new Error(err.error || 'Erro ao carregar proposta')
+    try {
+      const cleanToken = encodeURIComponent(token.trim())
+      return await pb.send<PublicProposta>(`/backend/v1/propostas/public/${cleanToken}`, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+        },
+      })
+    } catch (err: unknown) {
+      if (err && typeof err === 'object') {
+        const pbErr = err as {
+          response?: { error?: string; message?: string }
+          message?: string
+          status?: number
+        }
+        const message = pbErr.response?.error || pbErr.response?.message || pbErr.message
+        if (pbErr.status === 404) {
+          throw new Error('Proposta não encontrada ou link inválido.')
+        }
+        if (message) {
+          throw new Error(message)
+        }
+      }
+      throw new Error('Erro ao carregar proposta')
     }
-    return (await res.json()) as PublicProposta
   },
 
   // Aceite público por token (não exige auth)
@@ -112,18 +127,37 @@ export const ProposalsService = {
     token: string,
     nome?: string,
   ): Promise<{ success: boolean; message: string; status: string; data_aceite: string }> {
-    const res = await fetch(`/backend/v1/propostas/public/${token}/aceitar`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ nome: nome || '' }),
-    })
-    const data = await res.json().catch(() => ({ error: 'Falha na requisição' }))
-    if (!res.ok) {
-      throw new Error(data.error || 'Erro ao aceitar proposta')
+    try {
+      const cleanToken = encodeURIComponent(token.trim())
+      return await pb.send<{
+        success: boolean
+        message: string
+        status: string
+        data_aceite: string
+      }>(`/backend/v1/propostas/public/${cleanToken}/aceitar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: { nome: (nome || '').trim() },
+      })
+    } catch (err: unknown) {
+      if (err && typeof err === 'object') {
+        const pbErr = err as {
+          response?: { error?: string; message?: string }
+          message?: string
+          status?: number
+        }
+        const message = pbErr.response?.error || pbErr.response?.message || pbErr.message
+        if (pbErr.status === 404) {
+          throw new Error('Proposta não encontrada.')
+        }
+        if (message) {
+          throw new Error(message)
+        }
+      }
+      throw new Error('Erro ao aceitar proposta')
     }
-    return data
   },
 }
