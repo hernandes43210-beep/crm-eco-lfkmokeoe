@@ -187,8 +187,8 @@ export default function IntegracoesPage() {
         </div>
         <h2 className="text-lg font-bold text-slate-900">Acesso Restrito</h2>
         <p className="text-xs text-slate-500">
-          Apenas administradores do SolarCRM têm permissão para acessar e configurar as integrações
-          de webhook.
+          Apenas administradores da Ecosolar Energy têm permissão para acessar e configurar as
+          integrações de webhook.
         </p>
       </div>
     )

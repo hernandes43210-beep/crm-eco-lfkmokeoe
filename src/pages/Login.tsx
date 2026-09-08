@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate, useLocation, Link, Navigate } from 'react-router-dom'
-import { Sun, Lock, Mail, Eye, EyeOff, AlertCircle, ArrowRight, Loader2 } from 'lucide-react'
+import { Lock, Mail, Eye, EyeOff, AlertCircle, ArrowRight, Loader2 } from 'lucide-react'
+import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -60,15 +61,22 @@ export default function Login() {
 
       {/* Brand Header */}
       <div className="text-center mb-8 relative z-10 flex flex-col items-center">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#0B7A5B] to-emerald-400 flex items-center justify-center text-amber-300 shadow-xl shadow-emerald-950/60 mb-3 border border-emerald-400/30">
-          <Sun className="w-9 h-9" />
+        <div className="bg-white/95 rounded-2xl p-3 shadow-2xl shadow-black/40 mb-3 border border-white/40 flex items-center justify-center">
+          <img
+            src={logoEcosolar}
+            alt="Ecosolar Energy"
+            className="w-48 h-auto max-h-24 object-contain"
+          />
         </div>
-        <div className="flex items-center gap-1.5 justify-center">
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">Solar</h1>
-          <h1 className="text-3xl font-extrabold text-amber-400 tracking-tight">CRM</h1>
+        <div className="flex items-center gap-1.5 justify-center mt-1">
+          <h1 className="text-2xl font-extrabold text-white tracking-tight">Ecosolar</h1>
+          <h1 className="text-2xl font-extrabold text-amber-400 tracking-tight">Energy</h1>
         </div>
-        <p className="text-sm text-slate-400 mt-1 font-medium">
-          Acelere vendas e elimine atrasos no funil de energia solar
+        <p className="text-sm text-emerald-300 mt-1 font-semibold tracking-wide">
+          A energia do futuro, hoje!
+        </p>
+        <p className="text-xs text-slate-400 mt-0.5">
+          Gestão Comercial e Engenharia Solar Fotovoltaica
         </p>
       </div>
 
@@ -175,7 +183,7 @@ export default function Login() {
 
       {/* Helper Footer */}
       <p className="text-xs text-slate-400 mt-6 relative z-10 text-center">
-        Acesso restrito à equipe autorizada SolarCRM • Todos os direitos reservados.
+        Acesso restrito à equipe autorizada Ecosolar Energy • Todos os direitos reservados.
       </p>
     </div>
   )

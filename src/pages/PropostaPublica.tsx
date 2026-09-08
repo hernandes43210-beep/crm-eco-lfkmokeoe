@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
-  Sun,
   CheckCircle2,
   AlertTriangle,
   Clock,
@@ -18,6 +17,7 @@ import {
   ArrowRight,
   TrendingUp,
 } from 'lucide-react'
+import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
 import { ProposalsService } from '@/services/proposals'
 import type { PublicProposta } from '@/types/crm'
 import { formatBRL, formatDateBR, formatDateTimeBR } from '@/lib/solarUtils'
@@ -137,7 +137,7 @@ export default function PropostaPublica() {
         consumo_mensal_kwh: proposta.lead?.consumo_mensal_kwh,
       },
       vendedor: {
-        name: proposta.vendedor?.name || 'Equipe SolarCRM',
+        name: proposta.vendedor?.name || 'Equipe Ecosolar Energy',
         email: proposta.vendedor?.email,
       },
     })
@@ -146,12 +146,14 @@ export default function PropostaPublica() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#0B7A5B] to-emerald-400 flex items-center justify-center text-amber-300 shadow-lg mb-4 animate-bounce">
-          <Sun className="w-7 h-7" />
+        <div className="w-16 h-16 rounded-2xl bg-white p-2 shadow-lg mb-4 border border-slate-200 animate-bounce flex items-center justify-center">
+          <img src={logoEcosolar} alt="Ecosolar Energy" className="w-full h-full object-contain" />
         </div>
         <Loader2 className="w-6 h-6 animate-spin text-[#0B7A5B] mb-2" />
         <p className="text-sm font-semibold text-slate-700">Carregando sua proposta comercial...</p>
-        <p className="text-xs text-slate-400 mt-1">SolarCRM • Engenharia Fotovoltaica</p>
+        <p className="text-xs text-emerald-700 mt-1 font-semibold">
+          Ecosolar Energy • A energia do futuro, hoje!
+        </p>
       </div>
     )
   }
@@ -197,22 +199,21 @@ export default function PropostaPublica() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 pb-16">
-      {/* Top Navigation Bar with SolarCRM Brand */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-8 py-3.5 shadow-xs">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#0B7A5B] to-emerald-400 flex items-center justify-center text-amber-300 shadow-md">
-              <Sun className="w-5 h-5" />
+      {/* Top Navigation Bar with Ecosolar Energy Brand */}
+      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-8 py-3 shadow-xs">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-white rounded-xl p-1.5 shadow-sm border border-slate-200/90 flex items-center justify-center">
+              <img src={logoEcosolar} alt="Ecosolar Energy" className="w-8 h-8 object-contain" />
             </div>
             <div>
               <div className="flex items-center gap-1">
                 <span className="font-extrabold text-base text-slate-900 tracking-tight">
-                  Solar
+                  ECO<span className="text-amber-500">SOLAR</span> ENERGY
                 </span>
-                <span className="font-extrabold text-base text-amber-500 tracking-tight">CRM</span>
               </div>
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
-                Proposta Oficial de Energia Solar
+              <p className="text-[10px] text-emerald-700 font-medium">
+                A energia do futuro, hoje! • Proposta Comercial Oficial
               </p>
             </div>
           </div>
@@ -486,7 +487,7 @@ export default function PropostaPublica() {
                 <div>
                   <p className="text-xs text-slate-400">Especialista Solar</p>
                   <p className="font-bold text-slate-900">
-                    {proposta.vendedor?.name || 'SolarCRM Engenharia Solar'}
+                    {proposta.vendedor?.name || 'Ecosolar Energy Engenharia Solar'}
                   </p>
                   {proposta.vendedor?.email && (
                     <p className="text-xs text-slate-500">{proposta.vendedor.email}</p>
@@ -703,10 +704,10 @@ export default function PropostaPublica() {
       </main>
 
       {/* Footer */}
-      <footer className="max-w-5xl mx-auto px-4 sm:px-6 mt-12 text-center text-xs text-slate-400 border-t border-slate-200/80 pt-6">
+      <footer className="max-w-5xl mx-auto px-4 sm:px-6 mt-12 text-center text-xs text-slate-500 border-t border-slate-200/80 pt-6 space-y-1">
+        <p className="font-semibold text-slate-700">Ecosolar Energy — A energia do futuro, hoje!</p>
         <p>
-          SolarCRM — Gestão Especializada de Vendas e Engenharia Fotovoltaica • Todos os direitos
-          reservados.
+          Gestão Especializada de Vendas e Engenharia Fotovoltaica • Todos os direitos reservados.
         </p>
       </footer>
     </div>

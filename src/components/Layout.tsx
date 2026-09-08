@@ -12,10 +12,10 @@ import {
   LogOut,
   Menu,
   X,
-  Sun,
   ChevronRight,
   Webhook,
 } from 'lucide-react'
+import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -57,7 +57,7 @@ export default function Layout() {
     if (path === '/whatsapp') return 'WhatsApp & Atendimento Solar'
     if (path === '/integracoes') return 'Integrações & Webhooks (Luvik)'
     if (path === '/equipe') return 'Membros da Equipe'
-    return 'SolarCRM'
+    return 'Ecosolar Energy'
   }
 
   const getInitials = (name?: string, email?: string) => {
@@ -69,7 +69,7 @@ export default function Layout() {
       return parts[0].slice(0, 2).toUpperCase()
     }
     if (email) return email.slice(0, 2).toUpperCase()
-    return 'SC'
+    return 'EE'
   }
 
   const NavLinks = ({ onClickItem }: { onClickItem?: () => void }) => (
@@ -140,17 +140,20 @@ export default function Layout() {
       {/* Desktop Sidebar (Fixed 260px, Navy #0F172A) */}
       <aside className="hidden md:flex w-[260px] flex-col fixed inset-y-0 left-0 bg-[#0F172A] border-r border-slate-800 z-30 select-none">
         {/* Brand / Logo */}
-        <div className="h-16 flex items-center gap-3 px-5 border-b border-slate-800/90">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#0B7A5B] to-emerald-400 flex items-center justify-center text-amber-300 shadow-md shadow-emerald-950/40">
-            <Sun className="w-6 h-6 animate-spin-slow" />
+        <div className="h-18 flex items-center gap-3 px-4 py-3 border-b border-slate-800/90">
+          <div className="bg-white rounded-xl p-1.5 shadow-md shadow-black/30 flex items-center justify-center shrink-0 border border-white/20">
+            <img src={logoEcosolar} alt="Ecosolar Energy Logo" className="w-8 h-8 object-contain" />
           </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-lg text-white tracking-tight">Solar</span>
-              <span className="font-extrabold text-lg text-amber-400 tracking-tight">CRM</span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1 leading-tight">
+              <span className="font-extrabold text-sm text-white tracking-tight">ECO</span>
+              <span className="font-extrabold text-sm text-amber-400 tracking-tight">SOLAR</span>
+              <span className="font-extrabold text-sm text-white tracking-tight ml-0.5">
+                ENERGY
+              </span>
             </div>
-            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
-              Gestão de Vendas Solar
+            <p className="text-[10px] text-emerald-400 tracking-normal font-medium truncate mt-0.5">
+              A energia do futuro, hoje!
             </p>
           </div>
         </div>
@@ -205,12 +208,23 @@ export default function Layout() {
           side="left"
           className="p-0 w-[280px] bg-[#0F172A] border-r-slate-800 text-white flex flex-col"
         >
-          <SheetHeader className="p-5 border-b border-slate-800 flex flex-row items-center justify-between space-y-0">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-tr from-[#0B7A5B] to-emerald-400 flex items-center justify-center text-amber-300">
-                <Sun className="w-5 h-5" />
+          <SheetHeader className="p-4 border-b border-slate-800 flex flex-row items-center justify-between space-y-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="bg-white rounded-lg p-1.5 shadow-sm flex items-center justify-center shrink-0 border border-white/20">
+                <img
+                  src={logoEcosolar}
+                  alt="Ecosolar Energy Logo"
+                  className="w-7 h-7 object-contain"
+                />
               </div>
-              <SheetTitle className="text-white font-bold text-lg">SolarCRM</SheetTitle>
+              <div className="min-w-0">
+                <SheetTitle className="text-white font-bold text-base leading-tight">
+                  Ecosolar Energy
+                </SheetTitle>
+                <p className="text-[10px] text-emerald-400 font-medium truncate">
+                  A energia do futuro, hoje!
+                </p>
+              </div>
             </div>
             <Button
               variant="ghost"

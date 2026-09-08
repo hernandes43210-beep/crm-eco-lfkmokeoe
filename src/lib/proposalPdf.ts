@@ -1,5 +1,6 @@
 import { formatBRL, formatDateBR } from './solarUtils'
 import { calculateInvestmentComparison } from '../utils/investmentComparison'
+import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
 
 export interface ProposalPDFData {
   id?: string
@@ -56,7 +57,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Proposta Comercial Solar - ${data.cliente.nome}</title>
+  <title>Proposta Comercial Ecosolar Energy - ${data.cliente.nome}</title>
   <style>
     @page {
       size: A4 portrait;
@@ -87,35 +88,29 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     .logo-box {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
     }
-    .logo-icon {
-      width: 38px;
-      height: 38px;
-      background: linear-gradient(135deg, #0B7A5B 0%, #10b981 100%);
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fbbf24;
-      font-size: 22px;
-      font-weight: bold;
+    .logo-img {
+      height: 48px;
+      width: auto;
+      object-fit: contain;
     }
     .brand-title {
-      font-size: 20px;
-      font-weight: 800;
+      font-size: 19px;
+      font-weight: 900;
       letter-spacing: -0.5px;
       color: #0f172a;
+      line-height: 1.1;
     }
     .brand-title span {
       color: #f59e0b;
     }
     .brand-sub {
-      font-size: 9px;
-      color: #64748b;
-      text-transform: uppercase;
-      font-weight: 600;
-      letter-spacing: 0.5px;
+      font-size: 9.5px;
+      color: #0B7A5B;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      margin-top: 2px;
     }
     .header-meta {
       text-align: right;
@@ -455,10 +450,10 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
   <!-- Header -->
   <div class="header">
     <div class="logo-box">
-      <div class="logo-icon">☀</div>
+      <img src="${logoEcosolar}" alt="Ecosolar Energy" class="logo-img" />
       <div>
-        <div class="brand-title">Solar<span>CRM</span></div>
-        <div class="brand-sub">Energia Solar Fotovoltaica • Engenharia & Soluções</div>
+        <div class="brand-title">ECO<span>SOLAR</span> ENERGY</div>
+        <div class="brand-sub">A energia do futuro, hoje! • Soluções em Engenharia Solar</div>
       </div>
     </div>
     <div class="header-meta">
@@ -517,11 +512,11 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
       <div class="card-title">Consultor Solar Responsável</div>
       <div class="card-row">
         <span class="label">Especialista:</span>
-        <span class="value">${data.vendedor?.name || 'Equipe de Engenharia Solar'}</span>
+        <span class="value">${data.vendedor?.name || 'Equipe Ecosolar Energy'}</span>
       </div>
       <div class="card-row">
         <span class="label">Contato:</span>
-        <span class="value">${data.vendedor?.email || 'contato@solarcrm.com.br'}</span>
+        <span class="value">${data.vendedor?.email || 'contato@ecosolarenergy.com.br'}</span>
       </div>
       <div class="card-row">
         <span class="label">Consumo Atual Informado:</span>
@@ -706,7 +701,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
   <!-- Assinaturas -->
   <div class="signature-grid">
     <div class="signature-line">
-      <strong>${data.vendedor?.name || 'SolarCRM Soluções em Energia'}</strong>
+      <strong>${data.vendedor?.name || 'Ecosolar Energy Soluções em Energia'}</strong>
       <span>Consultor Técnico Autorizado</span>
     </div>
     <div class="signature-line">
@@ -717,7 +712,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
 
   <!-- Footer -->
   <div class="footer">
-    <div>SolarCRM — Sistema Especializado de Gestão de Vendas e Engenharia Solar</div>
+    <div>Ecosolar Energy — A energia do futuro, hoje! • Sistema de Gestão e Engenharia Solar</div>
     <div>Documento gerado eletronicamente em ${formatDateBR(new Date().toISOString())}</div>
   </div>
 </body>

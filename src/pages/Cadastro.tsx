@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import {
-  Sun,
   User,
   Mail,
   Lock,
@@ -11,6 +10,7 @@ import {
   ArrowRight,
   Loader2,
 } from 'lucide-react'
+import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -93,14 +93,19 @@ export default function Cadastro() {
 
       {/* Brand Header */}
       <div className="text-center mb-6 relative z-10 flex flex-col items-center">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#0B7A5B] to-emerald-400 flex items-center justify-center text-amber-300 shadow-xl shadow-emerald-950/60 mb-2 border border-emerald-400/30">
-          <Sun className="w-8 h-8" />
+        <div className="bg-white/95 rounded-2xl p-2.5 shadow-xl shadow-black/40 mb-2 border border-white/40 flex items-center justify-center">
+          <img
+            src={logoEcosolar}
+            alt="Ecosolar Energy"
+            className="w-40 h-auto max-h-20 object-contain"
+          />
         </div>
-        <div className="flex items-center gap-1.5 justify-center">
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">Solar</h1>
-          <h1 className="text-2xl font-extrabold text-amber-400 tracking-tight">CRM</h1>
+        <div className="flex items-center gap-1.5 justify-center mt-1">
+          <h1 className="text-2xl font-extrabold text-white tracking-tight">Ecosolar</h1>
+          <h1 className="text-2xl font-extrabold text-amber-400 tracking-tight">Energy</h1>
         </div>
-        <p className="text-xs text-slate-400 mt-1 font-medium">
+        <p className="text-xs text-emerald-300 mt-0.5 font-semibold">A energia do futuro, hoje!</p>
+        <p className="text-xs text-slate-400 mt-0.5 font-medium">
           Ativação de novo membro da equipe comercial
         </p>
       </div>
@@ -148,7 +153,7 @@ export default function Cadastro() {
             <p className="text-[11px] text-slate-400">
               Convite demo disponível:{' '}
               <span className="font-mono font-bold text-slate-600">SOL789</span> (para
-              vendedor.demo@solarcrm.com)
+              vendedor.demo@ecosolarenergy.com)
             </p>
           </div>
 
@@ -180,7 +185,7 @@ export default function Cadastro() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="vendedor.demo@solarcrm.com"
+                placeholder="vendedor.demo@ecosolarenergy.com"
                 className="pl-9 h-10 text-sm border-slate-200"
               />
             </div>
