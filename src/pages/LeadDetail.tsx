@@ -228,12 +228,26 @@ export default function LeadDetail() {
     }
   })
 
+  // Normalizar historico caso chegue como string do backend
+  const normalizedHistorico = React.useMemo(() => {
+    if (!lead?.historico) return []
+    if (typeof lead.historico === 'string') {
+      try {
+        const parsed = JSON.parse(lead.historico)
+        return Array.isArray(parsed) ? parsed : []
+      } catch (_) {
+        return []
+      }
+    }
+    return Array.isArray(lead.historico) ? lead.historico : []
+  }, [lead?.historico])
+
   // Pipeline advance/retreat
   const changeStage = async (newStatus: LeadStatus) => {
     if (!lead) return
     try {
       const origStatus = lead.status
-      let historyList = lead.historico || []
+      let historyList = [...normalizedHistorico]
 
       const desc =
         newStatus === 'Fechado Ganho'
@@ -293,7 +307,7 @@ export default function LeadDetail() {
 
       // Add to history
       const historyList = [
-        ...(lead.historico || []),
+        ...normalizedHistorico,
         {
           data: new Date().toISOString(),
           tipo: 'proposta' as const,
@@ -334,7 +348,7 @@ export default function LeadDetail() {
     try {
       setSavingNote(true)
       const historyList: HistoricoItem[] = [
-        ...(lead.historico || []),
+        ...normalizedHistorico,
         {
           data: new Date().toISOString(),
           tipo: 'nota',
@@ -780,18 +794,18 @@ export default function LeadDetail() {
                 Histórico & Timeline de Eventos
               </CardTitle>
               <Badge variant="outline" className="text-xs">
-                {(lead.historico || []).length} registros
+                {normalizedHistorico.length} registros
               </Badge>
             </CardHeader>
             <CardContent className="p-4 space-y-4">
               {/* Timeline Items */}
               <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-                {!lead.historico || lead.historico.length === 0 ? (
+                {normalizedHistorico.length === 0 ? (
                   <p className="text-xs text-slate-400 py-3 text-center">
                     Nenhum evento registrado até o momento.
                   </p>
                 ) : (
-                  [...lead.historico].reverse().map((item, idx) => {
+                  [...normalizedHistorico].reverse().map((item, idx) => {
                     const isSlaAlert = item.tipo === 'alerta_sla'
                     return (
                       <div

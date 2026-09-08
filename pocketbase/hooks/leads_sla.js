@@ -13,19 +13,35 @@ onRecordCreate((e) => {
     const isoStr = deadline.toISOString().replace('T', ' ').substring(0, 19) + 'Z'
     record.set('sla_limite', isoStr)
 
-    let hist = record.get('historico')
-    if (!hist || !Array.isArray(hist)) {
-      hist = []
+    // PocketBase v0.36 JSONField validation:
+    // When unset or raw JS object/array, it must be serialized as JSON string.
+    let rawHist = record.get('historico')
+    let hist = []
+    if (rawHist) {
+      if (typeof rawHist === 'string') {
+        try {
+          const parsed = JSON.parse(rawHist)
+          if (Array.isArray(parsed)) hist = parsed
+        } catch (_) {
+          hist = []
+        }
+      } else if (Array.isArray(rawHist)) {
+        hist = rawHist
+      }
     }
-    if (hist.length === 0) {
-      hist.push({
-        data: new Date().toISOString(),
-        tipo: 'criacao',
-        descricao:
-          "Lead criado no sistema com status inicial '" + record.getString('status') + "'.",
-      })
+    if (!Array.isArray(hist) || hist.length === 0) {
+      hist = [
+        {
+          data: new Date().toISOString(),
+          tipo: 'criacao',
+          descricao:
+            "Lead criado no sistema com status inicial '" +
+            (record.getString('status') || 'Novo') +
+            "'.",
+        },
+      ]
     }
-    record.set('historico', hist)
+    record.set('historico', JSON.stringify(hist))
   } catch (err) {
     console.error('Erro em leads_sla onRecordCreate:', err)
   }
@@ -52,20 +68,35 @@ onRecordUpdate((e) => {
       record.set('sla_limite', isoStr)
     }
 
+    // Parse existing historico
+    let rawHist = record.get('historico')
+    let hist = []
+    if (rawHist) {
+      if (typeof rawHist === 'string') {
+        try {
+          const parsed = JSON.parse(rawHist)
+          if (Array.isArray(parsed)) hist = parsed
+        } catch (_) {
+          hist = []
+        }
+      } else if (Array.isArray(rawHist)) {
+        hist = rawHist
+      }
+    }
+
     // If status changed, append to history
     if (origStatus && newStatus && origStatus !== newStatus) {
-      let hist = record.get('historico')
-      if (!hist || !Array.isArray(hist)) {
-        hist = []
-      }
       hist.push({
         data: new Date().toISOString(),
         tipo: 'status',
         descricao: "Estágio alterado de '" + origStatus + "' para '" + newStatus + "'.",
       })
-      record.set('historico', hist)
     }
-  } catch (_) {}
+
+    record.set('historico', JSON.stringify(hist))
+  } catch (err) {
+    console.error('Erro em leads_sla onRecordUpdate:', err)
+  }
 
   e.next()
 }, 'leads')

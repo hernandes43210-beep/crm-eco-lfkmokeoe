@@ -84,8 +84,19 @@ routerAdd('POST', '/backend/v1/propostas/public/{token}/aceitar', (e) => {
           lead.set('preco_venda', precoVenda)
         }
 
-        let hist = lead.get('historico')
-        if (!hist || !Array.isArray(hist)) hist = []
+        let rawHist = lead.get('historico')
+        let hist = []
+        if (rawHist) {
+          if (typeof rawHist === 'string') {
+            try {
+              hist = JSON.parse(rawHist)
+            } catch (_) {
+              hist = []
+            }
+          } else if (Array.isArray(rawHist)) {
+            hist = rawHist
+          }
+        }
         hist.push({
           data: nowIso,
           tipo: 'fechamento',
@@ -97,7 +108,7 @@ routerAdd('POST', '/backend/v1/propostas/public/{token}/aceitar', (e) => {
             ' via link público! Oportunidade convertida em Fechado Ganho. Valor: R$ ' +
             precoVenda.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
         })
-        lead.set('historico', hist)
+        lead.set('historico', JSON.stringify(hist))
 
         $app.save(lead)
       } catch (errLead) {

@@ -124,7 +124,15 @@ export default function FunilVendas() {
     setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, status: newStatus } : l)))
 
     try {
-      let historyList = targetLead.historico || []
+      let currentHist = targetLead.historico
+      if (typeof currentHist === 'string') {
+        try {
+          currentHist = JSON.parse(currentHist)
+        } catch (_) {
+          currentHist = []
+        }
+      }
+      let historyList = Array.isArray(currentHist) ? currentHist : []
       historyList = [
         ...historyList,
         {
@@ -136,6 +144,7 @@ export default function FunilVendas() {
 
       await LeadsService.updateLead(leadId, {
         status: newStatus,
+        // Enviar como JSON string ou array para compatibilidade
         historico: historyList,
         pr_assinada_ganho: newStatus === 'Fechado Ganho' ? true : targetLead.pr_assinada_ganho,
       })

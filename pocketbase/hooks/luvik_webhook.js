@@ -207,8 +207,19 @@ routerAdd('POST', '/backend/v1/integrations/luvik/webhook/{token}', (e) => {
         if (precoVenda > 0 && !leadRecord.getInt('preco_venda'))
           leadRecord.set('preco_venda', precoVenda)
 
-        let hist = leadRecord.get('historico')
-        if (!hist || !Array.isArray(hist)) hist = []
+        let rawHist = leadRecord.get('historico')
+        let hist = []
+        if (rawHist) {
+          if (typeof rawHist === 'string') {
+            try {
+              hist = JSON.parse(rawHist)
+            } catch (_) {
+              hist = []
+            }
+          } else if (Array.isArray(rawHist)) {
+            hist = rawHist
+          }
+        }
         hist.push({
           data: new Date().toISOString(),
           tipo: 'nota',
@@ -217,7 +228,7 @@ routerAdd('POST', '/backend/v1/integrations/luvik/webhook/{token}', (e) => {
             (dealId || 'N/A') +
             '). Lead já existia e foi conciliado.',
         })
-        leadRecord.set('historico', hist)
+        leadRecord.set('historico', JSON.stringify(hist))
         $app.save(leadRecord)
 
         affectedLeadId = leadRecord.id
@@ -268,7 +279,7 @@ routerAdd('POST', '/backend/v1/integrations/luvik/webhook/{token}', (e) => {
               '.',
           },
         ]
-        newLead.set('historico', hist)
+        newLead.set('historico', JSON.stringify(hist))
 
         // $app.save irá disparar o onRecordCreate de leads_sla.js que calcula sla_limite
         $app.save(newLead)
@@ -287,8 +298,19 @@ routerAdd('POST', '/backend/v1/integrations/luvik/webhook/{token}', (e) => {
         leadRecord.set('pr_assinada_ganho', true)
         leadRecord.set('pr_post_encerramento', new Date().toISOString().substring(0, 10))
 
-        let hist = leadRecord.get('historico')
-        if (!hist || !Array.isArray(hist)) hist = []
+        let rawHist = leadRecord.get('historico')
+        let hist = []
+        if (rawHist) {
+          if (typeof rawHist === 'string') {
+            try {
+              hist = JSON.parse(rawHist)
+            } catch (_) {
+              hist = []
+            }
+          } else if (Array.isArray(rawHist)) {
+            hist = rawHist
+          }
+        }
         hist.push({
           data: new Date().toISOString(),
           tipo: 'fechamento',
@@ -296,7 +318,7 @@ routerAdd('POST', '/backend/v1/integrations/luvik/webhook/{token}', (e) => {
             'Negócio marcado como GANHO no Luvik. Funil atualizado para "Fechado Ganho".' +
             (precoVenda ? ' Valor: R$ ' + precoVenda : ''),
         })
-        leadRecord.set('historico', hist)
+        leadRecord.set('historico', JSON.stringify(hist))
         $app.save(leadRecord)
 
         affectedLeadId = leadRecord.id
@@ -335,7 +357,7 @@ routerAdd('POST', '/backend/v1/integrations/luvik/webhook/{token}', (e) => {
             descricao: 'Lead cadastrado via Webhook Luvik com status direto de "Fechado Ganho".',
           },
         ]
-        newLead.set('historico', hist)
+        newLead.set('historico', JSON.stringify(hist))
         $app.save(newLead)
 
         affectedLeadId = newLead.id
@@ -353,8 +375,19 @@ routerAdd('POST', '/backend/v1/integrations/luvik/webhook/{token}', (e) => {
         const lossReason =
           root.lossReason || root.lossDetails || body.lossReason || body.lossDetails || ''
 
-        let hist = leadRecord.get('historico')
-        if (!hist || !Array.isArray(hist)) hist = []
+        let rawHist = leadRecord.get('historico')
+        let hist = []
+        if (rawHist) {
+          if (typeof rawHist === 'string') {
+            try {
+              hist = JSON.parse(rawHist)
+            } catch (_) {
+              hist = []
+            }
+          } else if (Array.isArray(rawHist)) {
+            hist = rawHist
+          }
+        }
         hist.push({
           data: new Date().toISOString(),
           tipo: 'perda',
@@ -362,7 +395,7 @@ routerAdd('POST', '/backend/v1/integrations/luvik/webhook/{token}', (e) => {
             'Negócio marcado como PERDIDO no Luvik. Funil atualizado para "Fechado Perdido".' +
             (lossReason ? ' Motivo: ' + lossReason : ''),
         })
-        leadRecord.set('historico', hist)
+        leadRecord.set('historico', JSON.stringify(hist))
         $app.save(leadRecord)
 
         affectedLeadId = leadRecord.id

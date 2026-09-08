@@ -14,9 +14,18 @@ cronAdd('cron_overdue_sla', '0 * * * *', () => {
 
     for (let i = 0; i < overdueLeads.length; i++) {
       const lead = overdueLeads[i]
-      let hist = lead.get('historico')
-      if (!hist || !Array.isArray(hist)) {
-        hist = []
+      let rawHist = lead.get('historico')
+      let hist = []
+      if (rawHist) {
+        if (typeof rawHist === 'string') {
+          try {
+            hist = JSON.parse(rawHist)
+          } catch (_) {
+            hist = []
+          }
+        } else if (Array.isArray(rawHist)) {
+          hist = rawHist
+        }
       }
 
       // Check if we already logged overdue today to prevent duplicates
@@ -35,7 +44,7 @@ cronAdd('cron_overdue_sla', '0 * * * *', () => {
           tipo: 'alerta_sla',
           descricao: 'Prazo SLA estourado. Lead requer ação imediata da equipe comercial.',
         })
-        lead.set('historico', hist)
+        lead.set('historico', JSON.stringify(hist))
         $app.save(lead)
       }
     }

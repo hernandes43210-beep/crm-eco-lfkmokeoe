@@ -239,6 +239,13 @@ export default function LeadForm() {
         })
       } else {
         payload.proprietario = ownerId
+        payload.historico = JSON.stringify([
+          {
+            data: new Date().toISOString(),
+            tipo: 'criacao',
+            descricao: `Lead cadastrado no sistema com status inicial '${status || 'Novo'}'.`,
+          },
+        ])
         const created = await LeadsService.createLead(payload as Partial<Lead>)
         savedId = created.id
         toast({

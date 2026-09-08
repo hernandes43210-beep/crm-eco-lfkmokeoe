@@ -156,7 +156,7 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
             data: new Date().toISOString(),
             tipo: 'criacao',
             descricao:
-              "Lead auto-criado via WhatsApp (Evolution API) a partir de mensagem de '" +
+              'Lead cadastrado automaticamente via mensagem do WhatsApp de ' +
               (pushName || phoneNumber) +
               "'.",
           },
@@ -169,7 +169,7 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
               '"',
           },
         ]
-        newLead.set('historico', hist)
+        newLead.set('historico', JSON.stringify(hist))
 
         $app.save(newLead)
         leadRecord = newLead
@@ -179,9 +179,18 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
     } else if (leadRecord && !fromMe) {
       // Se lead já existe e mensagem veio dele, registrar no histórico do lead
       try {
-        let hist = leadRecord.get('historico')
-        if (!hist || !Array.isArray(hist)) {
-          hist = []
+        let rawHist = leadRecord.get('historico')
+        let hist = []
+        if (rawHist) {
+          if (typeof rawHist === 'string') {
+            try {
+              hist = JSON.parse(rawHist)
+            } catch (_) {
+              hist = []
+            }
+          } else if (Array.isArray(rawHist)) {
+            hist = rawHist
+          }
         }
         hist.push({
           data: new Date().toISOString(),
@@ -193,11 +202,10 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
             (text.length > 80 ? text.substring(0, 80) + '...' : text) +
             '"',
         })
-        leadRecord.set('historico', hist)
+        leadRecord.set('historico', JSON.stringify(hist))
         $app.save(leadRecord)
       } catch (_) {}
     }
-
     // Salvar mensagem no whatsapp_messages
     try {
       const msgCol = $app.findCollectionByNameOrId('whatsapp_messages')
