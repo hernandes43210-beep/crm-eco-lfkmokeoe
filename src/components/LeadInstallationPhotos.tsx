@@ -34,6 +34,7 @@ import {
   downloadMontageImage,
   shareMontageOnWhatsApp,
 } from '@/lib/installationMontage'
+import { extractSolarEquipmentFromProposal } from '@/lib/solarEquipmentParser'
 
 interface LeadInstallationPhotosProps {
   lead: Lead
@@ -95,58 +96,22 @@ export const LeadInstallationPhotos: React.FC<LeadInstallationPhotosProps> = ({
     }
   }, [lead?.id])
 
-  // Obtém proposta prioritária (aceita ou primeira) e kit vinculado
-  const primaryProposal = React.useMemo(() => {
-    return propostas.find((p) => p.status === 'Aceita') || propostas[0] || null
-  }, [propostas])
+  // Extrai equipamentos reais (Módulos e Inversor), potência e economia da proposta vinculada ao lead
+  const extractedEquipment = React.useMemo(() => {
+    return extractSolarEquipmentFromProposal(propostas, lead)
+  }, [propostas, lead])
 
-  // Obtém potência instalada prioritária
-  const resolvedPotenciaKw = React.useMemo(() => {
-    if (primaryProposal?.kit_potencia_kw) return primaryProposal.kit_potencia_kw
-    return undefined
-  }, [primaryProposal])
+  // Obtém potência instalada prioritária da proposta/kit
+  const resolvedPotenciaKw = extractedEquipment.potenciaKw
 
-  // Sugestão de economia mensal em R$ estimada
-  const defaultEconomiaEstimada = React.useMemo(() => {
-    const consumo = lead.consumo_mensal_kwh || 0
-    if (consumo > 0) {
-      // 85% de redução com tarifa média estimada R$ 0,92/kWh
-      return Math.round(consumo * 0.92 * 0.85)
-    }
-    // Caso haja potência em kWp calculada, estimar ~120 kWh/kWp * 0.92 * 0.85
-    if (resolvedPotenciaKw && Number(resolvedPotenciaKw) > 0) {
-      return Math.round(Number(resolvedPotenciaKw) * 120 * 0.92 * 0.85)
-    }
-    return 700
-  }, [lead.consumo_mensal_kwh, resolvedPotenciaKw])
-
-  // Pré-preenche os campos inteligentes ao carregar proposta ou lead
+  // Pré-preenche os campos inteligentes com os dados REAIS da proposta/kit ou vazio (sem valores hardcoded de exemplo)
   useEffect(() => {
-    // 1. Módulos
-    if (!modulosInput) {
-      if (primaryProposal?.kit_fabricante) {
-        setModulosInput(`Módulos ${primaryProposal.kit_fabricante}`)
-      } else if (primaryProposal?.kit_nome) {
-        setModulosInput(`Módulos ${primaryProposal.kit_nome}`)
-      } else {
-        setModulosInput('Módulos Sunova 610 Wp')
-      }
-    }
-
-    // 2. Inversor
-    if (!inversorInput) {
-      if (primaryProposal?.kit_fabricante) {
-        setInversorInput(`Inversor ${primaryProposal.kit_fabricante}`)
-      } else {
-        setInversorInput('Inversor PHB 5000 Wp')
-      }
-    }
-
-    // 3. Economia
-    if (!economiaInput) {
-      setEconomiaInput(String(defaultEconomiaEstimada))
-    }
-  }, [primaryProposal, defaultEconomiaEstimada])
+    setModulosInput(extractedEquipment.modulos || '')
+    setInversorInput(extractedEquipment.inversor || '')
+    setEconomiaInput(
+      extractedEquipment.economiaMensal ? String(extractedEquipment.economiaMensal) : '',
+    )
+  }, [extractedEquipment])
 
   // Handler de upload de novas fotos (até 4 no total)
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -256,10 +221,10 @@ export const LeadInstallationPhotos: React.FC<LeadInstallationPhotosProps> = ({
       const canvas = await generateInstallationMontageCanvas({
         photos: photoUrls,
         potenciaKw: resolvedPotenciaKw,
-        modulos: modulosInput,
-        inversor: inversorInput,
-        economiaMensal: economiaInput,
-        observacao: observacaoInput,
+        modulos: modulosInput.trim(),
+        inversor: inversorInput.trim(),
+        economiaMensal: economiaInput.trim(),
+        observacao: observacaoInput.trim(),
         cidade: lead.cidade,
         estado: lead.estado,
         clienteNome: lead.nome,
@@ -556,7 +521,7 @@ export const LeadInstallationPhotos: React.FC<LeadInstallationPhotosProps> = ({
                       setModulosInput(e.target.value)
                       setCachedCanvas(null)
                     }}
-                    placeholder="Ex: Módulos Sunova 610 Wp"
+                    placeholder="Ex: Módulos Winaico 610 Wp"
                     className="h-8.5 text-xs bg-white border-slate-200"
                   />
                 </div>
@@ -575,7 +540,7 @@ export const LeadInstallationPhotos: React.FC<LeadInstallationPhotosProps> = ({
                       setInversorInput(e.target.value)
                       setCachedCanvas(null)
                     }}
-                    placeholder="Ex: Inversor PHB 5000 Wp"
+                    placeholder="Ex: Inversor Growatt 5 kW"
                     className="h-8.5 text-xs bg-white border-slate-200"
                   />
                 </div>

@@ -2,13 +2,13 @@ import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
 
 export interface MontageData {
   photos: string[] // URLs das fotos (1 a 4)
-  potenciaKw?: number | string // Ex: 7.32 ou "7.32 KWp"
-  modulos?: string // Ex: "Módulos Sunova 610 Wp"
-  inversor?: string // Ex: "Inversor PHB 5000 Wp"
+  potenciaKw?: number | string // Ex: 11.38 ou "11.38 KWp"
+  modulos?: string // Ex: "Módulos Winaico 610 Wp" ou vazio
+  inversor?: string // Ex: "Inversor Growatt 5 kW" ou vazio
   economiaMensal?: number | string // Ex: 700 ou "+700 R$/Mês"
   cidade?: string // Ex: "Seringueiras"
   estado?: string // Ex: "RO"
-  observacao?: string // Ex: "Clienete Direto de Portugal" ou observação curta opcional
+  observacao?: string // Ex: "Cliente Direto de Portugal" ou observação curta opcional
   clienteNome?: string // Mantido para compatibilidade e texto de compartilhamento
 }
 
@@ -251,13 +251,13 @@ function drawHeader(
 
 /**
  * Desenha o painel azul royal sobreposto com os dados técnicos do sistema
- * Conforme o post:
- * - Potência em destaque: "Potência 7.32 KWp"
- * - Módulos: "Módulos Sunova 610 Wp"
- * - Inversor: "Inversor PHB 5000 Wp"
- * - Pílula cinza arredondada com texto preto: "Economia +700 R$/Mês"
+ * Conforme o layout oficial do post:
+ * - Potência em destaque: ex: "Potência 11.38 KWp" (ou "Potência Solar" se não informado)
+ * - Módulos: equipamento real da proposta ou em branco se não houver
+ * - Inversor: equipamento real da proposta ou em branco se não houver
+ * - Pílula cinza arredondada com texto preto: ex: "Economia +700 R$/Mês" (ou "Economia na Fatura")
  * - Localização em amarelo negrito: "Localização: Seringueiras-RO"
- * - Observação opcional: "Clienete Direto de Portugal"
+ * - Observação opcional
  */
 function drawInfoCard(
   ctx: CanvasRenderingContext2D,
@@ -278,8 +278,8 @@ function drawInfoCard(
   const padRight = x + width - 38
   let curY = y + 70
 
-  // 1. Potência em destaque grande branco/negrito ("Potência 7.32 KWp")
-  let potStr = 'Potência'
+  // 1. Potência em destaque grande branco/negrito
+  let potStr = ''
   if (data.potenciaKw !== undefined && data.potenciaKw !== null && data.potenciaKw !== '') {
     const rawPot = String(data.potenciaKw).trim()
     if (/kwp/i.test(rawPot)) {
@@ -293,7 +293,7 @@ function drawInfoCard(
       }
     }
   } else {
-    potStr = 'Potência Alta Performance'
+    potStr = 'Potência Solar'
   }
 
   ctx.textAlign = 'left'
@@ -302,21 +302,30 @@ function drawInfoCard(
   ctx.fillText(potStr, padLeft, curY)
   curY += 80
 
-  // 2. Módulos ("Módulos Sunova 610 Wp")
-  const modulosText = (data.modulos || '').trim() || 'Módulos Fotovoltaicos Monocristalinos'
-  ctx.fillStyle = '#FFFFFF'
-  ctx.font = '600 44px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-  ctx.fillText(modulosText, padLeft, curY)
-  curY += 60
+  // 2. Módulos (reais da proposta; sem valores genéricos hardcoded de exemplo)
+  const modulosText = (data.modulos || '').trim()
+  if (modulosText) {
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font = '600 44px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    ctx.fillText(modulosText, padLeft, curY)
+    curY += 60
+  }
 
-  // 3. Inversor ("Inversor PHB 5000 Wp")
-  const inversorText = (data.inversor || '').trim() || 'Inversor Solar Homologado'
-  ctx.fillStyle = '#FFFFFF'
-  ctx.font = '600 44px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-  ctx.fillText(inversorText, padLeft, curY)
-  curY += 80
+  // 3. Inversor (real da proposta; sem valores genéricos hardcoded de exemplo)
+  const inversorText = (data.inversor || '').trim()
+  if (inversorText) {
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font = '600 44px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    ctx.fillText(inversorText, padLeft, curY)
+    curY += 80
+  } else if (!modulosText) {
+    // Se ambos estiverem vazios, ajusta o espaçamento até a pílula de economia
+    curY += 20
+  } else {
+    curY += 40
+  }
 
-  // 4. Pílula cinza claro arredondada com texto preto: "Economia +700 R$/Mês"
+  // 4. Pílula cinza claro arredondada com texto preto: "Economia +X R$/Mês"
   let econStr = ''
   if (
     data.economiaMensal !== undefined &&
@@ -327,7 +336,7 @@ function drawInfoCard(
     if (/r\$/i.test(rawEcon) || /mês/i.test(rawEcon)) {
       econStr = rawEcon.startsWith('Economia') ? rawEcon : `Economia ${rawEcon}`
     } else {
-      const numEcon = Number(rawEcon.replace(/\D/g, '')) || Number(rawEcon)
+      const numEcon = Number(rawEcon.replace(/[^\d.,]/g, '').replace(',', '.'))
       if (!isNaN(numEcon) && numEcon > 0) {
         econStr = `Economia +${Math.round(numEcon)} R$/Mês`
       } else {
