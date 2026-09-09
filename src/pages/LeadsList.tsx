@@ -12,11 +12,6 @@ import {
   ChevronLeft,
   ChevronRight,
   MoreVertical,
-  SunMedium,
-  Zap,
-  CheckCircle,
-  Clock,
-  AlertTriangle,
   FolderOpen,
 } from 'lucide-react'
 import { LeadsService } from '@/services/leads'
@@ -32,16 +27,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { DeleteLeadDialog } from '@/components/DeleteLeadDialog'
 import { toast } from '@/hooks/use-toast'
 
 const ALL_STATUSES: LeadStatus[] = [
@@ -69,8 +58,14 @@ export default function LeadsList() {
   const [loading, setLoading] = useState(true)
 
   const [teamMembers, setTeamMembers] = useState<User[]>([])
-  const [deleteLeadId, setDeleteLeadId] = useState<string | null>(null)
+  const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  const canDeleteLead = (lead: Lead) => {
+    if (isAdmin) return true
+    if (!user) return false
+    return lead.proprietario === user.id
+  }
 
   // Debounce search
   useEffect(() => {
@@ -143,21 +138,37 @@ export default function LeadsList() {
   }
 
   const handleDeleteLead = async () => {
-    if (!deleteLeadId) return
+    if (!leadToDelete) return
+    const leadId = leadToDelete.id
+    const leadNome = leadToDelete.nome
+
     try {
       setIsDeleting(true)
-      await LeadsService.deleteLead(deleteLeadId)
+      await LeadsService.deleteLead(leadId)
+
+      // Atualização otimista imediata na lista
+      setLeads((prev) => prev.filter((l) => l.id !== leadId))
+      setTotalItems((prev) => Math.max(0, prev - 1))
+
       toast({
         title: 'Lead excluído',
-        description: 'O lead foi removido com sucesso do sistema.',
+        description: `O lead "${leadNome}" foi removido com sucesso.`,
       })
-      setDeleteLeadId(null)
+      setLeadToDelete(null)
       fetchLeads()
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error deleting lead:', err)
+      const errorMsg =
+        err &&
+        typeof err === 'object' &&
+        'status' in err &&
+        (err as { status?: number }).status === 403
+          ? 'Você não tem permissão para excluir este lead. Apenas administradores e o responsável podem excluir.'
+          : 'Não foi possível excluir o lead. Tente novamente mais tarde.'
+
       toast({
         title: 'Erro ao excluir',
-        description: 'Você não tem permissão ou houve um erro no servidor.',
+        description: errorMsg,
         variant: 'destructive',
       })
     } finally {
@@ -440,36 +451,54 @@ export default function LeadsList() {
 
                         {/* Actions */}
                         <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
+                          <div className="flex items-center justify-end gap-1">
+                            {canDeleteLead(lead) && (
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-slate-500"
+                                onClick={() => setLeadToDelete(lead)}
+                                title="Excluir lead"
+                                className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
                               >
-                                <MoreVertical className="w-4 h-4" />
+                                <Trash2 className="w-4 h-4" />
                               </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-36">
-                              <DropdownMenuItem onClick={() => navigate(`/leads/${lead.id}`)}>
-                                <Eye className="w-4 h-4 mr-2" />
-                                <span>Ver detalhes</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => navigate(`/leads/${lead.id}/editar`)}
-                              >
-                                <Edit3 className="w-4 h-4 mr-2" />
-                                <span>Editar</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => setDeleteLeadId(lead.id)}
-                                className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                <span>Excluir</span>
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                            )}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-slate-500"
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-36">
+                                <DropdownMenuItem onClick={() => navigate(`/leads/${lead.id}`)}>
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  <span>Ver detalhes</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => navigate(`/leads/${lead.id}/editar`)}
+                                >
+                                  <Edit3 className="w-4 h-4 mr-2" />
+                                  <span>Editar</span>
+                                </DropdownMenuItem>
+                                {canDeleteLead(lead) && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={() => setLeadToDelete(lead)}
+                                      className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" />
+                                      <span>Excluir</span>
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -543,14 +572,16 @@ export default function LeadsList() {
                           <Edit3 className="w-3.5 h-3.5 mr-1" />
                           Editar
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDeleteLeadId(lead.id)}
-                          className="h-8 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+                        {canDeleteLead(lead) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setLeadToDelete(lead)}
+                            className="h-8 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -596,37 +627,13 @@ export default function LeadsList() {
       </div>
 
       {/* Delete Confirmation Modal */}
-      <Dialog open={!!deleteLeadId} onOpenChange={(open) => !open && setDeleteLeadId(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-slate-900">
-              Confirmar Exclusão
-            </DialogTitle>
-            <DialogDescription className="text-sm text-slate-600">
-              Tem certeza que deseja excluir permanentemente este lead? Esta ação não pode ser
-              desfeita.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteLeadId(null)}
-              disabled={isDeleting}
-              className="text-xs"
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteLead}
-              disabled={isDeleting}
-              className="text-xs bg-red-600 hover:bg-red-700"
-            >
-              {isDeleting ? 'Excluindo...' : 'Excluir Lead'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteLeadDialog
+        open={!!leadToDelete}
+        onOpenChange={(open) => !open && setLeadToDelete(null)}
+        leadName={leadToDelete?.nome}
+        isDeleting={isDeleting}
+        onConfirm={handleDeleteLead}
+      />
     </div>
   )
 }

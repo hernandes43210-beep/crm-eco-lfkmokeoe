@@ -1,31 +1,20 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  Plus,
-  MoreVertical,
-  Eye,
-  Edit3,
-  AlertTriangle,
-  MoveRight,
-  Flame,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Sparkles,
-  Zap,
-} from 'lucide-react'
+import { Plus, MoreVertical, Eye, Edit3, Trash2, Sparkles } from 'lucide-react'
 import { LeadsService } from '@/services/leads'
 import type { Lead, LeadStatus, HistoricoItem } from '@/types/crm'
 import useRealtime from '@/hooks/use-realtime'
+import { useAuth } from '@/context/AuthContext'
 import { computeSLAStatus, formatBRL } from '@/lib/solarUtils'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { DeleteLeadDialog } from '@/components/DeleteLeadDialog'
 import { toast } from '@/hooks/use-toast'
 
 interface ColumnDef {
@@ -83,10 +72,15 @@ const KANBAN_COLUMNS: ColumnDef[] = [
 
 export default function FunilVendas() {
   const navigate = useNavigate()
+  const { user, isAdmin } = useAuth()
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null)
   const [dragOverCol, setDragOverCol] = useState<LeadStatus | null>(null)
+
+  // Delete modal state
+  const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const fetchLeads = async () => {
     try {
@@ -177,6 +171,49 @@ export default function FunilVendas() {
         description: 'Não foi possível salvar a alteração. Tente novamente.',
         variant: 'destructive',
       })
+    }
+  }
+
+  const canDeleteLead = (lead: Lead) => {
+    if (isAdmin) return true
+    if (!user) return false
+    return lead.proprietario === user.id
+  }
+
+  const handleDeleteLead = async () => {
+    if (!leadToDelete) return
+    const leadId = leadToDelete.id
+    const leadNome = leadToDelete.nome
+
+    try {
+      setIsDeleting(true)
+      await LeadsService.deleteLead(leadId)
+
+      // Atualização otimista imediata para o cartão sumir na hora
+      setLeads((prev) => prev.filter((l) => l.id !== leadId))
+
+      toast({
+        title: 'Lead excluído',
+        description: `O lead "${leadNome}" foi removido com sucesso.`,
+      })
+      setLeadToDelete(null)
+    } catch (err: unknown) {
+      console.error('Error deleting lead from funil:', err)
+      const errorMsg =
+        err &&
+        typeof err === 'object' &&
+        'status' in err &&
+        (err as { status?: number }).status === 403
+          ? 'Você não tem permissão para excluir este lead. Apenas administradores e o responsável podem excluir.'
+          : 'Não foi possível excluir o lead. Tente novamente mais tarde.'
+
+      toast({
+        title: 'Erro ao excluir lead',
+        description: errorMsg,
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -328,29 +365,58 @@ export default function FunilVendas() {
                               {lead.nome}
                             </h4>
 
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <div
+                              className="flex items-center gap-0.5 -mr-1 -mt-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {canDeleteLead(lead) && (
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-6 w-6 text-slate-400 hover:text-slate-700 -mr-1 -mt-1"
+                                  onClick={() => setLeadToDelete(lead)}
+                                  title="Excluir lead"
+                                  className="h-6 w-6 text-slate-400 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
                                 >
-                                  <MoreVertical className="w-3.5 h-3.5" />
+                                  <Trash2 className="w-3.5 h-3.5" />
                                 </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-36">
-                                <DropdownMenuItem onClick={() => navigate(`/leads/${lead.id}`)}>
-                                  <Eye className="w-3.5 h-3.5 mr-2" />
-                                  <span>Ver Lead</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => navigate(`/leads/${lead.id}/editar`)}
-                                >
-                                  <Edit3 className="w-3.5 h-3.5 mr-2" />
-                                  <span>Editar</span>
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                              )}
+
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-slate-400 hover:text-slate-700"
+                                  >
+                                    <MoreVertical className="w-3.5 h-3.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-36">
+                                  <DropdownMenuItem onClick={() => navigate(`/leads/${lead.id}`)}>
+                                    <Eye className="w-3.5 h-3.5 mr-2" />
+                                    <span>Ver Lead</span>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => navigate(`/leads/${lead.id}/editar`)}
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5 mr-2" />
+                                    <span>Editar</span>
+                                  </DropdownMenuItem>
+                                  {canDeleteLead(lead) && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        onClick={() => setLeadToDelete(lead)}
+                                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                        <span>Excluir</span>
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           </div>
 
                           {/* Email */}
@@ -412,6 +478,15 @@ export default function FunilVendas() {
           })}
         </div>
       )}
+
+      {/* Modal de Confirmação de Exclusão */}
+      <DeleteLeadDialog
+        open={!!leadToDelete}
+        onOpenChange={(open) => !open && setLeadToDelete(null)}
+        leadName={leadToDelete?.nome}
+        isDeleting={isDeleting}
+        onConfirm={handleDeleteLead}
+      />
     </div>
   )
 }
