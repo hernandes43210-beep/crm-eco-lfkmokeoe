@@ -39,4 +39,11 @@ export const EquipeService = {
   async updateUserRole(userId: string, role: 'Admin' | 'Vendedor') {
     return await pb.collection('users').update<User>(userId, { role })
   },
+
+  async adminResetPassword(userId: string, newPassword: string) {
+    return await pb.collection('users').update<User>(userId, {
+      password: newPassword,
+      passwordConfirm: newPassword,
+    })
+  },
 }

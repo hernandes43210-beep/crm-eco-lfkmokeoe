@@ -15,11 +15,13 @@ import {
   X,
   ChevronRight,
   Webhook,
+  KeyRound,
 } from 'lucide-react'
 import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { ChangePasswordModal } from '@/components/ChangePasswordModal'
 import { cn } from '@/lib/utils'
 
 export default function Layout() {
@@ -27,6 +29,7 @@ export default function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false)
 
   // Navigation Items
   const navItems = [
@@ -108,10 +111,10 @@ export default function Layout() {
     </nav>
   )
 
-  const UserSection = () => (
-    <div className="p-3.5 border-t border-slate-800/80 bg-slate-900/60">
+  const UserSection = ({ onOpenChangePassword }: { onOpenChangePassword?: () => void }) => (
+    <div className="p-3 border-t border-slate-800/80 bg-slate-900/60 space-y-2">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-emerald-700/80 border border-emerald-500/30 flex items-center justify-center text-white font-bold text-sm shadow-inner shrink-0">
+        <div className="w-9 h-9 rounded-full bg-emerald-700/80 border border-emerald-500/30 flex items-center justify-center text-white font-bold text-xs shadow-inner shrink-0">
           {getInitials(user?.name, user?.email)}
         </div>
         <div className="flex-1 min-w-0">
@@ -125,12 +128,28 @@ export default function Layout() {
             </p>
           </div>
         </div>
+      </div>
+
+      <div className="flex items-center gap-1.5 pt-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            if (onOpenChangePassword) onOpenChangePassword()
+            setChangePasswordOpen(true)
+          }}
+          className="flex-1 justify-start text-xs text-slate-300 hover:text-white hover:bg-slate-800/90 h-8 px-2.5 gap-2"
+        >
+          <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+          <span>Alterar senha</span>
+        </Button>
+
         <Button
           variant="ghost"
           size="icon"
           onClick={logout}
           title="Sair do sistema"
-          className="text-slate-400 hover:text-rose-400 hover:bg-slate-800/80 h-9 w-9 shrink-0"
+          className="text-slate-400 hover:text-rose-400 hover:bg-slate-800/80 h-8 w-8 shrink-0"
         >
           <LogOut className="w-4 h-4" />
         </Button>
@@ -241,9 +260,12 @@ export default function Layout() {
 
           <NavLinks onClickItem={() => setMobileDrawerOpen(false)} />
 
-          <UserSection />
+          <UserSection onOpenChangePassword={() => setMobileDrawerOpen(false)} />
         </SheetContent>
       </Sheet>
+
+      {/* Modal de Alteração de Senha do Usuário */}
+      <ChangePasswordModal open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
     </div>
   )
 }

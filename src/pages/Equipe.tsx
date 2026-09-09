@@ -14,8 +14,12 @@ import {
   Briefcase,
   Users,
   Loader2,
+  Lock,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { EquipeService } from '@/services/equipe'
+import { useAuth } from '@/context/AuthContext'
 import type { Convidado, User, UserRole } from '@/types/crm'
 import { formatDateBR } from '@/lib/solarUtils'
 import { Button } from '@/components/ui/button'
@@ -33,6 +37,7 @@ import {
 import { toast } from '@/hooks/use-toast'
 
 export default function Equipe() {
+  const { isAdmin } = useAuth()
   const [users, setUsers] = useState<User[]>([])
   const [invites, setInvites] = useState<Convidado[]>([])
   const [loading, setLoading] = useState(true)
@@ -46,6 +51,15 @@ export default function Equipe() {
   const [createdInviteCode, setCreatedInviteCode] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [copiedCode, setCopiedCode] = useState(false)
+
+  // Admin Reset Password State
+  const [resetTargetUser, setResetTargetUser] = useState<User | null>(null)
+  const [adminNewPassword, setAdminNewPassword] = useState('')
+  const [adminConfirmPassword, setAdminConfirmPassword] = useState('')
+  const [showAdminNewPassword, setShowAdminNewPassword] = useState(false)
+  const [showAdminConfirmPassword, setShowAdminConfirmPassword] = useState(false)
+  const [isAdminResetting, setIsAdminResetting] = useState(false)
+  const [resetError, setResetError] = useState<string | null>(null)
 
   const fetchData = async () => {
     try {
@@ -167,6 +181,55 @@ export default function Equipe() {
     }
   }
 
+  const openAdminResetModal = (user: User) => {
+    setResetTargetUser(user)
+    setAdminNewPassword('')
+    setAdminConfirmPassword('')
+    setShowAdminNewPassword(false)
+    setShowAdminConfirmPassword(false)
+    setResetError(null)
+  }
+
+  const handleAdminResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setResetError(null)
+
+    if (!resetTargetUser) return
+
+    if (adminNewPassword.length < 8) {
+      setResetError('A nova senha deve ter no mínimo 8 caracteres.')
+      return
+    }
+
+    if (adminNewPassword !== adminConfirmPassword) {
+      setResetError('A confirmação da nova senha não confere.')
+      return
+    }
+
+    try {
+      setIsAdminResetting(true)
+      await EquipeService.adminResetPassword(resetTargetUser.id, adminNewPassword)
+
+      toast({
+        title: 'Senha redefinida com sucesso!',
+        description: `A nova senha de ${resetTargetUser.name || resetTargetUser.email} foi salva.`,
+      })
+
+      setResetTargetUser(null)
+    } catch (err: unknown) {
+      console.error('Error resetting password by admin:', err)
+      const msg = err instanceof Error ? err.message : 'Falha ao redefinir a senha do usuário.'
+      setResetError(msg)
+      toast({
+        title: 'Erro ao redefinir senha',
+        description: 'Não foi possível salvar a nova senha do usuário.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsAdminResetting(false)
+    }
+  }
+
   return (
     <div className="space-y-8 select-none animate-fade-in-up pb-12">
       {/* Header */}
@@ -221,6 +284,7 @@ export default function Equipe() {
                       <th className="py-3 px-4">Função / Cargo</th>
                       <th className="py-3 px-4">Membro desde</th>
                       <th className="py-3 px-4">Status</th>
+                      {isAdmin && <th className="py-3 px-4 text-right">Ações</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -264,6 +328,21 @@ export default function Equipe() {
                             Ativo
                           </Badge>
                         </td>
+
+                        {isAdmin && (
+                          <td className="py-3 px-4 text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openAdminResetModal(usr)}
+                              className="h-8 text-xs text-slate-700 hover:text-[#0B7A5B] hover:bg-emerald-50 gap-1.5 font-medium"
+                              title={`Redefinir senha de ${usr.name || usr.email}`}
+                            >
+                              <KeyRound className="w-3.5 h-3.5 text-amber-500" />
+                              <span>Redefinir senha</span>
+                            </Button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -525,6 +604,144 @@ export default function Equipe() {
               </DialogFooter>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin Reset Password Modal */}
+      <Dialog
+        open={!!resetTargetUser}
+        onOpenChange={(open) => {
+          if (!open && !isAdminResetting) setResetTargetUser(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-md bg-white border-slate-200 text-slate-900 shadow-xl">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-1 text-[#0B7A5B]">
+              <KeyRound className="w-5 h-5 text-amber-500" />
+              <DialogTitle className="text-lg font-bold text-slate-900">
+                Redefinir Senha do Usuário
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-slate-500">
+              Como administrador, defina uma nova senha de acesso para{' '}
+              <strong className="text-slate-700 font-semibold">
+                {resetTargetUser?.name || resetTargetUser?.email}
+              </strong>{' '}
+              ({resetTargetUser?.email}).
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleAdminResetPassword} className="space-y-4 pt-1">
+            {resetError && (
+              <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                <span>{resetError}</span>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="adminNewPassword" className="text-xs font-semibold text-slate-700">
+                  Nova Senha *
+                </Label>
+                <span className="text-[11px] text-slate-400">Mínimo 8 caracteres</span>
+              </div>
+              <div className="relative">
+                <Input
+                  id="adminNewPassword"
+                  type={showAdminNewPassword ? 'text' : 'password'}
+                  required
+                  minLength={8}
+                  value={adminNewPassword}
+                  onChange={(e) => setAdminNewPassword(e.target.value)}
+                  placeholder="Digite a nova senha para o membro"
+                  className="h-9.5 text-sm pr-10 border-slate-200 focus-visible:ring-[#0B7A5B]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAdminNewPassword(!showAdminNewPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  title={showAdminNewPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                >
+                  {showAdminNewPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="adminConfirmPassword"
+                className="text-xs font-semibold text-slate-700"
+              >
+                Confirmar Nova Senha *
+              </Label>
+              <div className="relative">
+                <Input
+                  id="adminConfirmPassword"
+                  type={showAdminConfirmPassword ? 'text' : 'password'}
+                  required
+                  minLength={8}
+                  value={adminConfirmPassword}
+                  onChange={(e) => setAdminConfirmPassword(e.target.value)}
+                  placeholder="Repita a nova senha"
+                  className="h-9.5 text-sm pr-10 border-slate-200 focus-visible:ring-[#0B7A5B]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAdminConfirmPassword(!showAdminConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  title={showAdminConfirmPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                >
+                  {showAdminConfirmPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+              <p className="text-[11px] text-amber-800 leading-tight">
+                Após salvar, comunique a nova senha ao colaborador com segurança para que ele possa
+                efetuar login.
+              </p>
+            </div>
+
+            <DialogFooter className="pt-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isAdminResetting}
+                onClick={() => setResetTargetUser(null)}
+                className="text-xs"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={isAdminResetting}
+                className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold gap-1.5"
+              >
+                {isAdminResetting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Redefinindo...</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Salvar nova senha</span>
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
