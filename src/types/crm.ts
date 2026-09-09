@@ -55,6 +55,8 @@ export interface Lead extends RecordModel {
   preco_venda?: number
   proprietario: string
   luvik_deal_id?: string
+  tipo_imovel?: string
+  valor_conta_reais?: number
   historico?: HistoricoItem[]
   created: string
   updated: string
@@ -155,6 +157,26 @@ export interface LuvikLogItem {
   deal_id?: string
   mensagem?: string
   payload_bruto?: Record<string, unknown>
+  created: string
+}
+
+export interface SiteFormSettings {
+  id: string
+  form_token: string
+  ativo: boolean
+  site_url?: string
+  created?: string
+  updated?: string
+}
+
+export interface SiteFormLogItem {
+  id: string
+  status_processamento: 'sucesso' | 'ignorado' | 'erro'
+  lead_id?: string
+  lead_nome?: string
+  mensagem?: string
+  payload_bruto?: Record<string, unknown>
+  origem_ip?: string
   created: string
 }
 

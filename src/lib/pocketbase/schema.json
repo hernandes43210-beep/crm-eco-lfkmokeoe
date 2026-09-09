@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-09T16:17:50.912Z",
+  "generatedAt": "2026-09-09T21:45:43.426Z",
   "collections": [
     {
       "name": "users",
@@ -191,6 +191,18 @@
         {
           "name": "luvik_deal_id",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_imovel",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_conta_reais",
+          "type": "number",
           "required": false,
           "system": false
         }
@@ -820,6 +832,122 @@
         "CREATE INDEX idx_lead_photos_lead ON lead_photos (lead)",
         "CREATE INDEX idx_lead_photos_created ON lead_photos (created DESC)",
         "CREATE INDEX idx_lead_photos_ordem ON lead_photos (ordem)"
+      ]
+    },
+    {
+      "name": "site_form_settings",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.role = 'Admin'",
+        "view": "@request.auth.id != '' && @request.auth.role = 'Admin'",
+        "create": "@request.auth.id != '' && @request.auth.role = 'Admin'",
+        "update": "@request.auth.id != '' && @request.auth.role = 'Admin'",
+        "delete": "@request.auth.id != '' && @request.auth.role = 'Admin'"
+      },
+      "fields": [
+        {
+          "name": "form_token",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "site_url",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_site_form_settings_token ON site_form_settings (form_token)"
+      ]
+    },
+    {
+      "name": "site_form_logs",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.role = 'Admin'",
+        "view": "@request.auth.id != '' && @request.auth.role = 'Admin'",
+        "create": null,
+        "update": null,
+        "delete": "@request.auth.id != '' && @request.auth.role = 'Admin'"
+      },
+      "fields": [
+        {
+          "name": "status_processamento",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["sucesso", "ignorado", "erro"]
+        },
+        {
+          "name": "lead_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lead_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "mensagem",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "payload_bruto",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origem_ip",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_site_form_logs_created ON site_form_logs (created DESC)",
+        "CREATE INDEX idx_site_form_logs_status ON site_form_logs (status_processamento)"
       ]
     }
   ]

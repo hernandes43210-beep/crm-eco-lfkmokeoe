@@ -711,16 +711,37 @@ export default function LeadDetail() {
                   </div>
                 </div>
 
-                {lead.luvik_deal_id && (
-                  <Badge
-                    variant="outline"
-                    className="bg-emerald-50 text-emerald-800 border-emerald-300 text-[11px] font-mono"
-                    title={`ID do Negócio no Luvik: ${lead.luvik_deal_id}`}
-                  >
-                    Luvik #{lead.luvik_deal_id.slice(-6)}
-                  </Badge>
-                )}
+                <div className="flex flex-wrap items-center gap-1.5 justify-end">
+                  {lead.tipo_imovel && (
+                    <Badge
+                      variant="outline"
+                      className="text-[11px] font-medium bg-slate-50 text-slate-700 border-slate-200"
+                    >
+                      {lead.tipo_imovel}
+                    </Badge>
+                  )}
+                  {lead.luvik_deal_id && (
+                    <Badge
+                      variant="outline"
+                      className="bg-emerald-50 text-emerald-800 border-emerald-300 text-[11px] font-mono"
+                      title={`ID do Negócio no Luvik: ${lead.luvik_deal_id}`}
+                    >
+                      Luvik #{lead.luvik_deal_id.slice(-6)}
+                    </Badge>
+                  )}
+                </div>
               </div>
+
+              {lead.valor_conta_reais !== undefined && lead.valor_conta_reais > 0 && (
+                <div className="p-2.5 rounded-lg bg-amber-50/70 border border-amber-200/70 text-xs flex items-center justify-between">
+                  <span className="text-amber-900 font-medium">
+                    Valor Médio da Conta de Luz (informado):
+                  </span>
+                  <span className="font-bold text-amber-800 font-mono-numbers">
+                    {formatBRL(lead.valor_conta_reais)}
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
