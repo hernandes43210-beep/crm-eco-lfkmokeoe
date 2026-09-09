@@ -33,6 +33,7 @@ import { ProposalsService } from '@/services/proposals'
 import type { Lead, LeadStatus, HistoricoItem, WhatsAppMessage, Proposta } from '@/types/crm'
 import { GerarPropostaModal } from '@/components/GerarPropostaModal'
 import { InvestmentComparison } from '@/components/InvestmentComparison'
+import { LeadInstallationPhotos } from '@/components/LeadInstallationPhotos'
 import { openProposalPDFPrint } from '@/lib/proposalPdf'
 import useRealtime from '@/hooks/use-realtime'
 import { useAuth } from '@/context/AuthContext'
@@ -70,7 +71,7 @@ const PIPELINE_ORDER: LeadStatus[] = [
 export default function LeadDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
 
   const [lead, setLead] = useState<Lead | null>(null)
   const [loading, setLoading] = useState(true)
@@ -1021,6 +1022,16 @@ export default function LeadDetail() {
           </Card>
         </div>
       </div>
+
+      {/* Seção Fotos da Instalação & Montagem Promocional (Apenas em Fechado Ganho) */}
+      {lead.status === 'Fechado Ganho' && (
+        <LeadInstallationPhotos
+          lead={lead}
+          propostas={propostas}
+          isAdmin={isAdmin}
+          currentUserId={user?.id}
+        />
+      )}
 
       {/* Nova Seção: Propostas Comerciais Geradas com Link Público */}
       <Card className="border-slate-200/80 shadow-xs bg-white">

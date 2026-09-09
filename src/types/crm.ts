@@ -189,6 +189,21 @@ export interface Proposta extends RecordModel {
   }
 }
 
+export interface LeadPhoto extends RecordModel {
+  id: string
+  lead: string
+  criado_por?: string
+  foto: string
+  legenda?: string
+  ordem?: number
+  created: string
+  updated: string
+  expand?: {
+    lead?: Lead
+    criado_por?: User
+  }
+}
+
 export interface PublicProposta {
   id: string
   token_publico: string
