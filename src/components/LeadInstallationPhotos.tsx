@@ -16,6 +16,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -61,6 +63,12 @@ export const LeadInstallationPhotos: React.FC<LeadInstallationPhotosProps> = ({
   // Zoom de foto individual
   const [viewingPhoto, setViewingPhoto] = useState<LeadPhoto | null>(null)
 
+  // Campos editáveis da arte do Instagram
+  const [modulosInput, setModulosInput] = useState('')
+  const [inversorInput, setInversorInput] = useState('')
+  const [economiaInput, setEconomiaInput] = useState('')
+  const [observacaoInput, setObservacaoInput] = useState('')
+
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Carrega fotos vinculadas a este lead
@@ -87,13 +95,58 @@ export const LeadInstallationPhotos: React.FC<LeadInstallationPhotosProps> = ({
     }
   }, [lead?.id])
 
-  // Obtém potência instalada prioritária (da proposta aceita/mais recente ou consumo)
-  const resolvedPotenciaKw = React.useMemo(() => {
-    const aceita = propostas.find((p) => p.status === 'Aceita')
-    if (aceita?.kit_potencia_kw) return aceita.kit_potencia_kw
-    if (propostas[0]?.kit_potencia_kw) return propostas[0].kit_potencia_kw
-    return undefined
+  // Obtém proposta prioritária (aceita ou primeira) e kit vinculado
+  const primaryProposal = React.useMemo(() => {
+    return propostas.find((p) => p.status === 'Aceita') || propostas[0] || null
   }, [propostas])
+
+  // Obtém potência instalada prioritária
+  const resolvedPotenciaKw = React.useMemo(() => {
+    if (primaryProposal?.kit_potencia_kw) return primaryProposal.kit_potencia_kw
+    return undefined
+  }, [primaryProposal])
+
+  // Sugestão de economia mensal em R$ estimada
+  const defaultEconomiaEstimada = React.useMemo(() => {
+    const consumo = lead.consumo_mensal_kwh || 0
+    if (consumo > 0) {
+      // 85% de redução com tarifa média estimada R$ 0,92/kWh
+      return Math.round(consumo * 0.92 * 0.85)
+    }
+    // Caso haja potência em kWp calculada, estimar ~120 kWh/kWp * 0.92 * 0.85
+    if (resolvedPotenciaKw && Number(resolvedPotenciaKw) > 0) {
+      return Math.round(Number(resolvedPotenciaKw) * 120 * 0.92 * 0.85)
+    }
+    return 700
+  }, [lead.consumo_mensal_kwh, resolvedPotenciaKw])
+
+  // Pré-preenche os campos inteligentes ao carregar proposta ou lead
+  useEffect(() => {
+    // 1. Módulos
+    if (!modulosInput) {
+      if (primaryProposal?.kit_fabricante) {
+        setModulosInput(`Módulos ${primaryProposal.kit_fabricante}`)
+      } else if (primaryProposal?.kit_nome) {
+        setModulosInput(`Módulos ${primaryProposal.kit_nome}`)
+      } else {
+        setModulosInput('Módulos Sunova 610 Wp')
+      }
+    }
+
+    // 2. Inversor
+    if (!inversorInput) {
+      if (primaryProposal?.kit_fabricante) {
+        setInversorInput(`Inversor ${primaryProposal.kit_fabricante}`)
+      } else {
+        setInversorInput('Inversor PHB 5000 Wp')
+      }
+    }
+
+    // 3. Economia
+    if (!economiaInput) {
+      setEconomiaInput(String(defaultEconomiaEstimada))
+    }
+  }, [primaryProposal, defaultEconomiaEstimada])
 
   // Handler de upload de novas fotos (até 4 no total)
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -203,6 +256,10 @@ export const LeadInstallationPhotos: React.FC<LeadInstallationPhotosProps> = ({
       const canvas = await generateInstallationMontageCanvas({
         photos: photoUrls,
         potenciaKw: resolvedPotenciaKw,
+        modulos: modulosInput,
+        inversor: inversorInput,
+        economiaMensal: economiaInput,
+        observacao: observacaoInput,
         cidade: lead.cidade,
         estado: lead.estado,
         clienteNome: lead.nome,
@@ -454,31 +511,131 @@ export const LeadInstallationPhotos: React.FC<LeadInstallationPhotosProps> = ({
               ))}
             </div>
 
-            {/* Informações da Instalação usadas na arte */}
-            <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg bg-emerald-50/60 border border-emerald-200/70 text-xs">
-              <div className="flex items-center gap-2 text-emerald-950">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>
-                  Dados que irão na montagem:{' '}
-                  <strong>
-                    {resolvedPotenciaKw ? `${resolvedPotenciaKw} kWp` : 'Potência do kit'}{' '}
+            {/* Campos Editáveis para a Arte do Post do Instagram */}
+            <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/90 space-y-3">
+              <div className="flex items-center justify-between gap-2 border-b border-slate-200/60 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-md bg-[#3B44AC] text-white flex items-center justify-center font-bold text-xs">
+                    IG
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800">
+                      Personalizar Dados do Post de Instagram
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Configure os textos técnicos que aparecem no painel azul do post antes de
+                      gerar.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-slate-600 font-medium">
+                  Potência:{' '}
+                  <strong className="text-[#3B44AC]">
+                    {resolvedPotenciaKw ? `${resolvedPotenciaKw} kWp` : 'Potência do kit'}
+                  </strong>{' '}
+                  • Local:{' '}
+                  <strong className="text-slate-800">
+                    {lead.cidade || 'Cidade'}-{lead.estado || 'UF'}
                   </strong>
-                  • <strong>{lead.cidade || 'Cidade não inf.'}</strong> -{' '}
-                  <strong>{lead.estado || 'UF'}</strong> •{' '}
-                  <span className="text-slate-600">Logo oficial da Ecosolar Energy</span>
-                </span>
+                </div>
               </div>
 
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleGenerateMontage}
-                disabled={generatingMontage}
-                className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold h-7 px-3 gap-1 shadow-xs"
-              >
-                <Sparkles className="w-3 h-3 text-amber-300" />
-                <span>Gerar Arte Agora</span>
-              </Button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="post-modulos"
+                    className="text-[11px] font-semibold text-slate-700"
+                  >
+                    Módulos Fotovoltaicos
+                  </Label>
+                  <Input
+                    id="post-modulos"
+                    value={modulosInput}
+                    onChange={(e) => {
+                      setModulosInput(e.target.value)
+                      setCachedCanvas(null)
+                    }}
+                    placeholder="Ex: Módulos Sunova 610 Wp"
+                    className="h-8.5 text-xs bg-white border-slate-200"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="post-inversor"
+                    className="text-[11px] font-semibold text-slate-700"
+                  >
+                    Inversor Solar
+                  </Label>
+                  <Input
+                    id="post-inversor"
+                    value={inversorInput}
+                    onChange={(e) => {
+                      setInversorInput(e.target.value)
+                      setCachedCanvas(null)
+                    }}
+                    placeholder="Ex: Inversor PHB 5000 Wp"
+                    className="h-8.5 text-xs bg-white border-slate-200"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="post-economia"
+                    className="text-[11px] font-semibold text-slate-700"
+                  >
+                    Economia Estimada (R$/mês)
+                  </Label>
+                  <Input
+                    id="post-economia"
+                    value={economiaInput}
+                    onChange={(e) => {
+                      setEconomiaInput(e.target.value)
+                      setCachedCanvas(null)
+                    }}
+                    placeholder="Ex: 700 ou +700 R$/Mês"
+                    className="h-8.5 text-xs bg-white border-slate-200 font-mono-numbers"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="post-obs" className="text-[11px] font-semibold text-slate-700">
+                    Observação Curta (opcional)
+                  </Label>
+                  <Input
+                    id="post-obs"
+                    value={observacaoInput}
+                    onChange={(e) => {
+                      setObservacaoInput(e.target.value)
+                      setCachedCanvas(null)
+                    }}
+                    placeholder="Ex: Cliente Direto de Portugal"
+                    className="h-8.5 text-xs bg-white border-slate-200"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200/60">
+                <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>
+                    Layout idêntico ao feed @_ecosolar_energy (cabeçalho oficial + painel azul royal
+                    + colagem 1:1).
+                  </span>
+                </div>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleGenerateMontage}
+                  disabled={generatingMontage}
+                  className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold h-8 px-3.5 gap-1.5 shadow-xs"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Atualizar & Visualizar Post</span>
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -494,11 +651,11 @@ export const LeadInstallationPhotos: React.FC<LeadInstallationPhotosProps> = ({
               </div>
               <div>
                 <DialogTitle className="text-lg font-bold text-slate-900">
-                  Montagem Promocional da Obra
+                  Arte Oficial do Post de Instagram da Obra
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500">
-                  Arte em altíssima resolução com as fotos da instalação, logo da Ecosolar Energy,
-                  potência e cidade.
+                  Formato quadrado 1:1 (2000x2000px) com cabeçalho oficial, painel azul royal com
+                  dados técnicos e fotos em colagem orgânica.
                 </DialogDescription>
               </div>
             </div>
