@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, MoreVertical, Eye, Edit3, Trash2, Sparkles } from 'lucide-react'
+import { Plus, MoreVertical, Eye, Edit3, Trash2, Sparkles, Search, X } from 'lucide-react'
 import { LeadsService } from '@/services/leads'
 import type { Lead, LeadStatus, HistoricoItem } from '@/types/crm'
 import useRealtime from '@/hooks/use-realtime'
 import { useAuth } from '@/context/AuthContext'
 import { computeSLAStatus, formatBRL } from '@/lib/solarUtils'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,9 +75,59 @@ export default function FunilVendas() {
   const navigate = useNavigate()
   const { user, isAdmin } = useAuth()
   const [leads, setLeads] = useState<Lead[]>([])
+  const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null)
   const [dragOverCol, setDragOverCol] = useState<LeadStatus | null>(null)
+
+  // Normalizador de texto para busca: minúsculo, sem acentos
+  const normalizeText = (text: string | null | undefined): string => {
+    if (!text) return ''
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+  }
+
+  // Normalizador numérico para telefone
+  const normalizeDigits = (text: string | null | undefined): string => {
+    if (!text) return ''
+    return text.replace(/\D/g, '')
+  }
+
+  // Filtragem instantânea client-side
+  const filteredLeads = React.useMemo(() => {
+    const rawSearch = search.trim()
+    if (!rawSearch) return leads
+
+    const normQuery = normalizeText(rawSearch)
+    const digitsQuery = normalizeDigits(rawSearch)
+
+    return leads.filter((lead) => {
+      // 1. Busca por nome (sem acento, case-insensitive)
+      if (normalizeText(lead.nome).includes(normQuery)) {
+        return true
+      }
+
+      // 2. Busca por e-mail (case-insensitive)
+      if (normalizeText(lead.email).includes(normQuery)) {
+        return true
+      }
+
+      // 3. Busca por telefone (com ou sem formatação de dígitos)
+      if (lead.telefone) {
+        if (normalizeText(lead.telefone).includes(normQuery)) {
+          return true
+        }
+        if (digitsQuery.length > 0 && normalizeDigits(lead.telefone).includes(digitsQuery)) {
+          return true
+        }
+      }
+
+      return false
+    })
+  }, [leads, search])
 
   // Delete modal state
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null)
@@ -269,6 +320,29 @@ export default function FunilVendas() {
         </Button>
       </div>
 
+      {/* Barra de busca fixa no topo das colunas */}
+      <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs">
+        <div className="relative flex items-center">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Pesquisar por nome do cliente, telefone ou e-mail..."
+            className="pl-9 pr-10 h-10 text-sm border-slate-200 focus-visible:ring-[#0B7A5B] bg-slate-50/50 hover:bg-white focus:bg-white transition-colors"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              title="Limpar pesquisa"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
       {loading ? (
         <div className="p-16 text-center text-slate-400">
           <div className="w-8 h-8 border-2 border-[#0B7A5B] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
@@ -292,11 +366,32 @@ export default function FunilVendas() {
             <span>Cadastrar Primeiro Lead</span>
           </Button>
         </div>
+      ) : search.trim() && filteredLeads.length === 0 ? (
+        /* Estado vazio quando a busca não retorna resultados */
+        <div className="bg-white rounded-xl border border-slate-200/80 p-10 text-center flex flex-col items-center justify-center max-w-md mx-auto shadow-xs">
+          <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
+            <Search className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-bold text-slate-800">
+            Nenhum lead encontrado para &ldquo;{search.trim()}&rdquo;
+          </h3>
+          <p className="text-xs text-slate-500 max-w-xs mt-1 mb-4">
+            Tente buscar por outro termo, telefone ou limpe o filtro para ver todos os leads.
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => setSearch('')}
+            className="text-xs font-semibold gap-1.5 h-9 border-slate-300 text-slate-700 hover:bg-slate-50"
+          >
+            <X className="w-3.5 h-3.5" />
+            <span>Limpar busca</span>
+          </Button>
+        </div>
       ) : (
         /* Kanban Board Horizontal Container */
         <div className="flex gap-4 overflow-x-auto pb-6 pt-1 min-h-[calc(100vh-220px)] items-start">
           {KANBAN_COLUMNS.map((col) => {
-            const columnLeads = leads.filter((l) => l.status === col.key)
+            const columnLeads = filteredLeads.filter((l) => l.status === col.key)
             const hasOverdueLeads = columnLeads.some((l) => {
               if (col.key === 'Fechado Ganho' || col.key === 'Fechado Perdido') return false
               const s = computeSLAStatus(l.sla_limite, l.status)
@@ -337,7 +432,7 @@ export default function FunilVendas() {
                 <div className="p-2.5 flex-1 overflow-y-auto space-y-2.5">
                   {columnLeads.length === 0 ? (
                     <div className="py-8 text-center border-2 border-dashed border-slate-200 rounded-lg text-slate-400 text-xs">
-                      Nenhum lead nesta etapa
+                      {search.trim() ? 'Nenhum lead encontrado' : 'Nenhum lead nesta etapa'}
                     </div>
                   ) : (
                     columnLeads.map((lead) => {
