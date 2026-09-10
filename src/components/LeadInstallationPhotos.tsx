@@ -35,6 +35,10 @@ import {
   shareMontageOnWhatsApp,
 } from '@/lib/installationMontage'
 import { extractSolarEquipmentFromProposal } from '@/lib/solarEquipmentParser'
+import {
+  INSTITUTIONAL_INSTALLATION_PHOTOS,
+  type InstitutionalInstallationPhoto,
+} from '@/data/socialProofPhotos'
 
 interface LeadInstallationPhotosProps {
   lead: Lead
@@ -63,6 +67,9 @@ export const LeadInstallationPhotos: React.FC<LeadInstallationPhotosProps> = ({
 
   // Zoom de foto individual
   const [viewingPhoto, setViewingPhoto] = useState<LeadPhoto | null>(null)
+  const [viewingInstPhoto, setViewingInstPhoto] = useState<InstitutionalInstallationPhoto | null>(
+    null,
+  )
 
   // Campos editáveis da arte do Instagram
   const [modulosInput, setModulosInput] = useState('')
@@ -604,7 +611,115 @@ export const LeadInstallationPhotos: React.FC<LeadInstallationPhotosProps> = ({
             </div>
           </div>
         )}
+
+        {/* Galeria de Prova Social Institucional — Obras Concluídas pela Ecosolar Energy */}
+        <div className="pt-4 border-t border-slate-200/80 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 tracking-tight">
+                Galeria Institucional de Obras Realizadas (Prova Social da Empresa)
+              </h4>
+            </div>
+            <span className="text-[11px] text-slate-500 font-medium">
+              Fotos reais integradas automaticamente a todas as propostas comerciais (PDF e Link
+              Público)
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {INSTITUTIONAL_INSTALLATION_PHOTOS.map((inst) => (
+              <div
+                key={inst.id}
+                onClick={() => setViewingInstPhoto(inst)}
+                className="group cursor-pointer rounded-xl overflow-hidden border border-slate-200 bg-white hover:border-[#0A192F] shadow-xs hover:shadow-md transition-all flex flex-col"
+              >
+                <div className="relative aspect-16/10 w-full overflow-hidden bg-slate-900">
+                  <img
+                    src={inst.src}
+                    alt={inst.legenda}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                  <div className="absolute top-2 left-2">
+                    <span className="bg-[#0A192F]/90 text-amber-300 text-[9px] font-extrabold uppercase px-2 py-0.5 rounded border border-amber-400/30">
+                      {inst.tag}
+                    </span>
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2.5">
+                    <span className="text-[10px] text-white font-medium flex items-center gap-1">
+                      <Eye className="w-3 h-3 text-amber-400" />
+                      Clique para ver em tamanho original
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-3 flex-1 flex flex-col justify-between space-y-1 bg-white">
+                  <div>
+                    <span className="text-[10px] font-semibold text-slate-400 block">
+                      {inst.local}
+                    </span>
+                    <strong className="text-xs font-bold text-slate-900 block leading-tight mt-0.5">
+                      {inst.legenda}
+                    </strong>
+                    <p className="text-[11px] text-slate-500 line-clamp-2 mt-1 leading-relaxed">
+                      {inst.descricao}
+                    </p>
+                  </div>
+                  <div className="pt-2 text-[10px] text-emerald-700 font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    <span>Engenharia Homologada</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </CardContent>
+
+      {/* Modal Zoom Foto Institucional */}
+      <Dialog open={!!viewingInstPhoto} onOpenChange={(open) => !open && setViewingInstPhoto(null)}>
+        <DialogContent className="sm:max-w-2xl p-4">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <Badge className="bg-[#0A192F] text-amber-400 font-bold text-xs uppercase px-2 py-0.5">
+                {viewingInstPhoto?.tag}
+              </Badge>
+              <DialogTitle className="text-sm font-bold text-slate-900">
+                {viewingInstPhoto?.titulo}
+              </DialogTitle>
+            </div>
+          </DialogHeader>
+          {viewingInstPhoto && (
+            <div className="space-y-3">
+              <div className="rounded-lg overflow-hidden bg-black/90 flex items-center justify-center max-h-[65vh]">
+                <img
+                  src={viewingInstPhoto.src}
+                  alt={viewingInstPhoto.legenda}
+                  className="max-h-[65vh] w-auto max-w-full object-contain"
+                />
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-1">
+                <p className="font-semibold text-slate-900">{viewingInstPhoto.legenda}</p>
+                <p className="text-[11px] text-slate-500">{viewingInstPhoto.descricao}</p>
+                <span className="text-[10px] text-slate-400 block pt-1">
+                  Localidade: {viewingInstPhoto.local}
+                </span>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setViewingInstPhoto(null)}
+              className="text-xs"
+            >
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de Pré-visualização da Montagem Promocional */}
       <Dialog open={showMontageModal} onOpenChange={setShowMontageModal}>

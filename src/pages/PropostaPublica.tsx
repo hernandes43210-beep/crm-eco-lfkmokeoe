@@ -38,6 +38,11 @@ import {
 import { openProposalPDFPrint } from '@/lib/proposalPdf'
 import { parseKitDetailedItems } from '@/lib/kitItemsParser'
 import { InvestmentComparison } from '@/components/InvestmentComparison'
+import {
+  INSTITUTIONAL_INSTALLATION_PHOTOS,
+  type InstitutionalInstallationPhoto,
+} from '@/data/socialProofPhotos'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -57,6 +62,14 @@ export default function PropostaPublica() {
   const [nomeConfirmacao, setNomeConfirmacao] = useState('')
   const [accepting, setAccepting] = useState(false)
   const [acceptedSuccess, setAcceptedSuccess] = useState(false)
+  const [selectedPhotoModal, setSelectedPhotoModal] = useState<{
+    url: string
+    titulo: string
+    legenda: string
+    descricao: string
+    tag: string
+    local: string
+  } | null>(null)
 
   useEffect(() => {
     if (!token) {
@@ -886,49 +899,153 @@ export default function PropostaPublica() {
           </Card>
         </div>
 
-        {/* 5. Prova Social — Obras Concluídas & Padrão de Instalação */}
-        {proposta.fotos_obra && proposta.fotos_obra.length > 0 && (
-          <Card className="border-slate-200/90 bg-white shadow-xs overflow-hidden">
-            <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Camera className="w-4 h-4 text-[#0A192F]" />
-                  <CardTitle className="text-sm font-bold text-slate-900">
-                    Prova Social — Padrão de Engenharia em Obras Executadas
-                  </CardTitle>
+        {/* 5. Prova Social — Obras Concluídas & Padrão de Engenharia (Fotos Reais) */}
+        {(() => {
+          // Prepara a lista combinando fotos do lead ou as institucionais padrão da empresa
+          const displayPhotos: Array<{
+            id: string
+            url: string
+            titulo: string
+            legenda: string
+            descricao: string
+            tag: string
+            local: string
+          }> = []
+
+          if (proposta.fotos_obra && proposta.fotos_obra.length > 0) {
+            proposta.fotos_obra.forEach((ph, i) => {
+              displayPhotos.push({
+                id: ph.id || `lead-photo-${i}`,
+                url: ph.url || ph.foto || '',
+                titulo: ph.legenda || `Obra Homologada #${i + 1}`,
+                legenda: ph.legenda || `Instalação executada pela Ecosolar`,
+                descricao: 'Instalação homologada com acompanhamento de engenharia e ART assinada.',
+                tag: 'Obra Executada',
+                local: proposta.lead?.cidade
+                  ? `${proposta.lead.cidade}/${proposta.lead.estado || 'RO'}`
+                  : 'Rondônia / RO',
+              })
+            })
+          }
+
+          // Se a proposta tiver menos de 3 fotos (ou nenhuma), completa com a galeria de obras reais da Ecosolar
+          if (displayPhotos.length < 3) {
+            INSTITUTIONAL_INSTALLATION_PHOTOS.forEach((inst: InstitutionalInstallationPhoto) => {
+              if (
+                displayPhotos.length < 3 &&
+                !displayPhotos.some((p) => p.legenda === inst.legenda)
+              ) {
+                displayPhotos.push({
+                  id: inst.id,
+                  url: inst.src,
+                  titulo: inst.titulo,
+                  legenda: inst.legenda,
+                  descricao: inst.descricao,
+                  tag: inst.tag,
+                  local: inst.local,
+                })
+              }
+            })
+          }
+
+          return (
+            <Card className="border border-slate-200/90 bg-white shadow-sm overflow-hidden rounded-2xl">
+              <CardHeader className="pb-4 border-b border-slate-100 bg-gradient-to-r from-[#0A192F] to-[#163868] text-white">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-amber-400 text-slate-950 flex items-center justify-center font-bold">
+                      <Camera className="w-4 h-4 stroke-[2.5]" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-sm sm:text-base font-extrabold text-white tracking-tight">
+                        Prova Social — Obras Reais Executadas & Padrão de Engenharia
+                      </CardTitle>
+                      <p className="text-xs text-sky-200 mt-0.5">
+                        Instalações solares concluídas e homologadas pela equipe própria da Ecosolar
+                        Energy
+                      </p>
+                    </div>
+                  </div>
+                  <Badge className="bg-amber-400 text-slate-950 hover:bg-amber-400 text-xs font-black uppercase px-2.5 py-1 self-start sm:self-auto shrink-0 shadow-sm">
+                    ✓ Galeria de Obras Reais
+                  </Badge>
                 </div>
-                <Badge variant="outline" className="text-xs border-slate-300">
-                  Fotos Reais
-                </Badge>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Conheça a qualidade do acabamento, cabeamento e fixação técnica das instalações
-                realizadas pela Ecosolar Energy
-              </p>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-6">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                {proposta.fotos_obra.slice(0, 4).map((ph, idx) => (
-                  <div
-                    key={`photo-${ph.id || idx}`}
-                    className="group relative aspect-4/3 rounded-xl overflow-hidden border border-slate-200 bg-slate-900 shadow-xs"
-                  >
-                    <img
-                      src={ph.url || ph.foto}
-                      alt={ph.legenda || 'Instalação Solar Concluída'}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-80 group-hover:opacity-100 transition-opacity flex items-end p-2.5">
-                      <span className="text-[11px] text-white font-medium truncate">
-                        {ph.legenda || 'Obra Homologada Ecosolar'}
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 bg-slate-50/50 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {displayPhotos.map((ph, idx) => (
+                    <div
+                      key={`social-proof-${ph.id || idx}`}
+                      onClick={() => setSelectedPhotoModal(ph)}
+                      className="group cursor-pointer rounded-xl overflow-hidden border border-slate-200 bg-white shadow-xs hover:shadow-md transition-all duration-300 hover:border-amber-400/80 flex flex-col"
+                    >
+                      {/* Foto */}
+                      <div className="relative aspect-4/3 w-full overflow-hidden bg-slate-950">
+                        <img
+                          src={ph.url}
+                          alt={ph.legenda}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                        <div className="absolute top-2.5 left-2.5">
+                          <span className="bg-[#0A192F]/90 backdrop-blur-xs text-amber-300 border border-amber-400/30 text-[10px] font-black uppercase px-2 py-0.5 rounded-md shadow-sm">
+                            {ph.tag}
+                          </span>
+                        </div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-60 group-hover:opacity-90 transition-opacity flex items-end p-3">
+                          <span className="text-[11px] text-white/90 font-semibold flex items-center gap-1">
+                            <Camera className="w-3 h-3 text-amber-400" />
+                            <span>Clique para ampliar em alta resolução</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Legenda e Descrição */}
+                      <div className="p-3.5 flex-1 flex flex-col justify-between space-y-2 bg-white">
+                        <div>
+                          <div className="flex items-center justify-between gap-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                            <span>{ph.local}</span>
+                            <span className="text-emerald-700 font-bold">✓ Homologada</span>
+                          </div>
+                          <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-[#0A192F] leading-snug">
+                            {ph.legenda}
+                          </h4>
+                          <p className="text-[11px] text-slate-500 mt-1 leading-relaxed line-clamp-2">
+                            {ph.descricao}
+                          </p>
+                        </div>
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                          <span className="font-semibold text-amber-600 group-hover:text-amber-700 flex items-center gap-1">
+                            Ver detalhes técnicos &rarr;
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            Padrão NR10/NR35
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-xl border border-amber-300/60 bg-amber-50/70 p-3 sm:p-4 text-xs text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-2.5">
+                    <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="block text-slate-900 font-bold">
+                        Garantia de Qualidade de Engenharia Ecosolar
+                      </strong>
+                      <span className="text-slate-600 text-[11px]">
+                        Nossas instalações seguem rigorosamente as normas técnicas vigentes (ABNT
+                        NBR 16690 e NR10/NR35), utilizando ferragens estruturais galvanizadas a
+                        quente e fiação fotovoltaica certificada com proteção anti-UV.
                       </span>
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })()}
 
         {/* Condições de Pagamento e Observações */}
         {(proposta.condicoes_pagamento || proposta.observacoes) && (
@@ -1080,6 +1197,60 @@ export default function PropostaPublica() {
           </CardContent>
         </Card>
       </main>
+
+      {/* Modal de Zoom da Foto da Prova Social */}
+      <Dialog
+        open={!!selectedPhotoModal}
+        onOpenChange={(open) => !open && setSelectedPhotoModal(null)}
+      >
+        <DialogContent className="sm:max-w-3xl p-5 bg-white overflow-hidden">
+          {selectedPhotoModal && (
+            <div className="space-y-4">
+              <DialogHeader>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-[#0A192F] text-amber-400 font-black text-xs uppercase px-2.5 py-0.5">
+                    {selectedPhotoModal.tag}
+                  </Badge>
+                  <DialogTitle className="text-base font-extrabold text-slate-900">
+                    {selectedPhotoModal.titulo}
+                  </DialogTitle>
+                </div>
+              </DialogHeader>
+
+              <div className="rounded-xl overflow-hidden bg-slate-950 border border-slate-300 max-h-[60vh] flex items-center justify-center">
+                <img
+                  src={selectedPhotoModal.url}
+                  alt={selectedPhotoModal.legenda}
+                  className="max-h-[60vh] w-auto max-w-full object-contain"
+                />
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-1">
+                <div className="flex items-center justify-between text-slate-500 text-[11px]">
+                  <span>
+                    Local: <strong>{selectedPhotoModal.local}</strong>
+                  </span>
+                  <span className="font-bold text-emerald-700">✓ Engenharia Ecosolar Energy</span>
+                </div>
+                <p className="text-slate-800 font-medium leading-relaxed">
+                  {selectedPhotoModal.descricao}
+                </p>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedPhotoModal(null)}
+                  className="text-xs"
+                >
+                  Fechar Visualização
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Footer Institucional */}
       <footer className="max-w-6xl mx-auto px-4 sm:px-6 mt-12 text-center text-xs text-slate-500 border-t border-slate-200 pt-6 space-y-1">

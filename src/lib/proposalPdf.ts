@@ -9,6 +9,7 @@ import {
 import { calculateInvestmentComparison } from '../utils/investmentComparison'
 import { parseKitDetailedItems } from './kitItemsParser'
 import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
+import { INSTITUTIONAL_INSTALLATION_PHOTOS } from '@/data/socialProofPhotos'
 
 export interface ProposalPDFData {
   id?: string
@@ -786,32 +787,90 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     /* 5. Prova Social — Galeria de Obras Reais */
     .social-proof {
       border: 1px solid #CBD5E1;
-      border-radius: 6px;
-      padding: 10px 12px;
+      border-radius: 8px;
+      padding: 12px 14px;
       background: #F8FAFC;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
       page-break-inside: avoid;
+      box-shadow: 0 1px 3px rgba(10, 25, 47, 0.05);
+    }
+    .social-proof-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+      border-bottom: 1px solid #E2E8F0;
+      padding-bottom: 4px;
+    }
+    .social-proof-badge {
+      background: #0A192F;
+      color: #FACC15;
+      font-size: 8px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     .photos-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 6px;
-      margin-top: 6px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 8px;
     }
-    .photo-thumb {
-      aspect-ratio: 4/3;
-      border-radius: 4px;
+    .photo-card {
+      border-radius: 6px;
       overflow: hidden;
       border: 1px solid #CBD5E1;
-      background: #0A192F;
+      background: #ffffff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
       display: flex;
-      align-items: center;
-      justify-content: center;
+      flex-direction: column;
+    }
+    .photo-thumb {
+      aspect-ratio: 16/10;
+      width: 100%;
+      overflow: hidden;
+      background: #0A192F;
+      position: relative;
     }
     .photo-thumb img {
       width: 100%;
       height: 100%;
       object-fit: cover;
+      display: block;
+    }
+    .photo-tag {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      background: rgba(10, 25, 47, 0.85);
+      color: #FACC15;
+      font-size: 7.5px;
+      font-weight: 800;
+      padding: 1.5px 5px;
+      border-radius: 3px;
+      border: 1px solid rgba(250, 204, 21, 0.4);
+      text-transform: uppercase;
+    }
+    .photo-caption {
+      padding: 6px 8px;
+      background: #ffffff;
+      border-top: 1px solid #F1F5F9;
+    }
+    .photo-caption strong {
+      display: block;
+      font-size: 9px;
+      color: #0A192F;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    .photo-caption span {
+      display: block;
+      font-size: 7.5px;
+      color: #64748B;
+      margin-top: 2px;
+      line-height: 1.2;
     }
 
     /* 6. Fechamento & Aceite */
@@ -1202,26 +1261,67 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
   </div>
 
   <!-- 5. Prova Social — Fotos de Obras Concluídas -->
-  ${
-    data.fotos_obra && data.fotos_obra.length > 0
-      ? `
+  ${(() => {
+    // Mesclar fotos específicas da proposta com a prova social institucional padrão
+    const fotosParaExibir: Array<{ url: string; legenda: string; tag: string; local?: string }> = []
+
+    if (data.fotos_obra && data.fotos_obra.length > 0) {
+      data.fotos_obra.forEach((ph, i) => {
+        fotosParaExibir.push({
+          url: ph.url || ph.foto || '',
+          legenda: ph.legenda || `Instalação Concluída #${i + 1}`,
+          tag: 'Obra Executada',
+          local: 'Projeto Homologado Ecosolar',
+        })
+      })
+    }
+
+    // Se houver menos que 3 fotos, completa com a prova social institucional da empresa
+    if (fotosParaExibir.length < 3) {
+      INSTITUTIONAL_INSTALLATION_PHOTOS.forEach((inst) => {
+        if (
+          !fotosParaExibir.some((f) => f.legenda === inst.legenda) &&
+          fotosParaExibir.length < 3
+        ) {
+          fotosParaExibir.push({
+            url: inst.src,
+            legenda: inst.legenda,
+            tag: inst.tag,
+            local: inst.local,
+          })
+        }
+      })
+    }
+
+    return `
   <div class="social-proof">
-    <div class="section-title" style="margin-bottom: 4px;">Prova Social — Padrão de Engenharia em Obras Executadas</div>
-    <p style="font-size: 9px; color: #475569; margin-bottom: 6px;">Confira fotos reais de instalações homologadas e executadas pela equipe Ecosolar Energy:</p>
+    <div class="social-proof-header">
+      <div class="section-title" style="margin-bottom: 0;">Prova Social — Padrão de Engenharia em Obras Executadas</div>
+      <span class="social-proof-badge">✓ Fotos Reais de Obras Homologadas</span>
+    </div>
+    <p style="font-size: 8.5px; color: #475569; margin-top: 2px; margin-bottom: 6px;">
+      Conheça o acabamento, a robustez das estruturas metálicas e a precisão do cabeamento técnico executados pelos engenheiros e instaladores da <strong>Ecosolar Energy</strong>:
+    </p>
     <div class="photos-grid">
-      ${data.fotos_obra
-        .slice(0, 4)
+      ${fotosParaExibir
+        .slice(0, 3)
         .map(
           (ph) => `
-        <div class="photo-thumb">
-          <img src="${ph.url || ph.foto}" alt="Instalação Ecosolar Energy" />
+        <div class="photo-card">
+          <div class="photo-thumb">
+            <span class="photo-tag">${ph.tag}</span>
+            <img src="${ph.url}" alt="${ph.legenda}" />
+          </div>
+          <div class="photo-caption">
+            <strong>${ph.legenda}</strong>
+            <span>${ph.local || 'Engenharia Ecosolar Energy'}</span>
+          </div>
         </div>`,
         )
         .join('')}
     </div>
   </div>`
-      : ''
-  }
+  })()}
 
   <!-- Condições de Pagamento e Observações -->
   ${
