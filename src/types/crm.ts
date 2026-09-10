@@ -22,6 +22,8 @@ export type LeadStatus =
 
 export type LeadOrigem = 'Indicação' | 'Site' | 'Redes Sociais' | 'Evento' | 'Parceria' | 'Outros'
 
+export type LeadQualificacaoStatus = 'aguardando' | 'qualificado' | 'descartado'
+
 export interface HistoricoItem {
   data: string
   tipo:
@@ -33,6 +35,8 @@ export interface HistoricoItem {
     | 'perda'
     | 'alerta_sla'
     | 'nota'
+    | 'qualificacao'
+    | 'descarte'
   descricao: string
 }
 
@@ -47,6 +51,10 @@ export interface Lead extends RecordModel {
   cidade?: string
   estado?: string
   status: LeadStatus
+  status_qualificacao?: LeadQualificacaoStatus
+  qualificado_em?: string
+  qualificado_por?: string
+  motivo_descarte?: string
   pr_post_encerramento?: string
   sla_dias: number
   sla_limite?: string
@@ -62,6 +70,7 @@ export interface Lead extends RecordModel {
   updated: string
   expand?: {
     proprietario?: User
+    qualificado_por?: User
   }
 }
 

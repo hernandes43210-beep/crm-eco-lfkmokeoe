@@ -343,6 +343,7 @@ routerAdd('POST', '/backend/v1/integrations/site-form/submit', (e) => {
     }
     leadRec.set('origem', 'Site')
     leadRec.set('status', 'Novo')
+    leadRec.set('status_qualificacao', 'aguardando')
     leadRec.set('sla_dias', 7)
     leadRec.set('consumo_mensal_kwh', finalConsumo)
 
@@ -367,7 +368,7 @@ routerAdd('POST', '/backend/v1/integrations/site-form/submit', (e) => {
     if (finalConsumo > 0) detalhesLead.push('Consumo: ' + finalConsumo + ' kWh/mês')
 
     const descHistorico =
-      'Lead recebido via site ecoenergy.net.br.' +
+      'Lead recebido via site ecoenergy.net.br → aguardando qualificação.' +
       (detalhesLead.length > 0 ? ' Dados: ' + detalhesLead.join(' | ') : '')
 
     leadRec.set('historico', [
@@ -378,10 +379,11 @@ routerAdd('POST', '/backend/v1/integrations/site-form/submit', (e) => {
       },
     ])
 
-    // Salvar o lead. Disparará leads_sla onRecordCreate para calcular sla_limite
+    // Salvar o lead. leads_sla não criará sla_limite enquanto estiver aguardando qualificação
     $app.save(leadRec)
     leadId = leadRec.id
-    mensagemLog = 'Lead criado com sucesso via site ecoenergy.net.br no estágio "Novo".'
+    mensagemLog =
+      'Lead criado com sucesso via site ecoenergy.net.br na fila "Aguardando Qualificação".'
   } catch (err) {
     statusProcessamento = 'erro'
     mensagemLog = 'Erro ao salvar lead do site: ' + err.message

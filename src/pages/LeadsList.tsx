@@ -13,7 +13,22 @@ import {
   ChevronRight,
   MoreVertical,
   FolderOpen,
+  CheckCircle2,
+  UserX,
+  Clock,
+  Inbox,
+  AlertTriangle,
 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { LeadsService } from '@/services/leads'
 import { EquipeService } from '@/services/equipe'
 import type { Lead, LeadStatus, User } from '@/types/crm'
@@ -57,6 +72,17 @@ export default function LeadsList() {
   const [sortBy, setSortBy] = useState<string>('-created')
   const [loading, setLoading] = useState(true)
 
+  // Aba ativa: 'funil' (leads no funil), 'aguardando' (fila de pré-qualificação do site), 'descartados' (triagem descartada)
+  const [tabView, setTabView] = useState<'funil' | 'aguardando' | 'descartados'>('funil')
+  const [countAguardando, setCountAguardando] = useState(0)
+
+  // Ações de qualificação e descarte
+  const [qualifyingId, setQualifyingId] = useState<string | null>(null)
+  const [leadToDiscard, setLeadToDiscard] = useState<Lead | null>(null)
+  const [motivoDescarte, setMotivoDescarte] = useState('Fora da área de cobertura')
+  const [motivoCustom, setMotivoCustom] = useState('')
+  const [isDiscarding, setIsDiscarding] = useState(false)
+
   const [teamMembers, setTeamMembers] = useState<User[]>([])
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -85,21 +111,44 @@ export default function LeadsList() {
     }
   }, [isAdmin])
 
+  // Atualiza contador de leads aguardando qualificação
+  const refreshCounterAguardando = useCallback(async () => {
+    try {
+      const c = await LeadsService.countAguardandoQualificacao()
+      setCountAguardando(c)
+    } catch {
+      // noop
+    }
+  }, [])
+
   // Fetch leads
   const fetchLeads = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await LeadsService.getLeads({
+      const params: Parameters<typeof LeadsService.getLeads>[0] = {
         page,
         perPage: 20,
         search: debouncedSearch,
-        status: selectedStatuses.length > 0 ? selectedStatuses : undefined,
         proprietario: selectedOwner !== 'all' ? selectedOwner : undefined,
         sort: sortBy,
-      })
+      }
+
+      if (tabView === 'aguardando') {
+        params.statusQualificacao = 'aguardando'
+      } else if (tabView === 'descartados') {
+        params.statusQualificacao = 'descartado'
+      } else {
+        params.statusQualificacao = 'funil_ativo'
+        if (selectedStatuses.length > 0) {
+          params.status = selectedStatuses
+        }
+      }
+
+      const res = await LeadsService.getLeads(params)
       setLeads(res.items)
       setTotalItems(res.totalItems)
       setTotalPages(res.totalPages || 1)
+      refreshCounterAguardando()
     } catch (err) {
       console.error('Error fetching leads:', err)
       toast({
@@ -110,7 +159,15 @@ export default function LeadsList() {
     } finally {
       setLoading(false)
     }
-  }, [page, debouncedSearch, selectedStatuses, selectedOwner, sortBy])
+  }, [
+    page,
+    debouncedSearch,
+    selectedStatuses,
+    selectedOwner,
+    sortBy,
+    tabView,
+    refreshCounterAguardando,
+  ])
 
   useEffect(() => {
     fetchLeads()
@@ -119,7 +176,66 @@ export default function LeadsList() {
   // Real-time subscription
   useRealtime<Lead>('leads', () => {
     fetchLeads()
+    refreshCounterAguardando()
   })
+
+  // Ação de Qualificar lead
+  const handleQualificar = async (lead: Lead) => {
+    try {
+      setQualifyingId(lead.id)
+      await LeadsService.qualificar(lead.id, {
+        id: user?.id || '',
+        nome: user?.name,
+        email: user?.email,
+      })
+      toast({
+        title: 'Lead qualificado com sucesso!',
+        description: `"${lead.nome}" foi transferido para o funil no estágio "Novo". SLA de 7 dias iniciado.`,
+      })
+      fetchLeads()
+      refreshCounterAguardando()
+    } catch (err) {
+      console.error('Error qualifying lead:', err)
+      toast({
+        title: 'Erro ao qualificar lead',
+        description: 'Não foi possível mover o lead para o funil. Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setQualifyingId(null)
+    }
+  }
+
+  // Ação de Descartar lead
+  const handleConfirmarDescarte = async () => {
+    if (!leadToDiscard) return
+    const motivoFinal = motivoDescarte === 'Outro' ? motivoCustom.trim() : motivoDescarte
+    try {
+      setIsDiscarding(true)
+      await LeadsService.descartar(leadToDiscard.id, motivoFinal, {
+        id: user?.id || '',
+        nome: user?.name,
+        email: user?.email,
+      })
+      toast({
+        title: 'Lead descartado',
+        description: `"${leadToDiscard.nome}" foi removido da fila de qualificação.`,
+      })
+      setLeadToDiscard(null)
+      setMotivoCustom('')
+      fetchLeads()
+      refreshCounterAguardando()
+    } catch (err) {
+      console.error('Error discarding lead:', err)
+      toast({
+        title: 'Erro ao descartar lead',
+        description: 'Não foi possível descartar o lead. Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDiscarding(false)
+    }
+  }
 
   const toggleStatusFilter = (st: LeadStatus) => {
     setPage(1)
@@ -187,9 +303,17 @@ export default function LeadsList() {
       {/* Header with Title and Quick Action */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            Leads Comerciais
-          </h2>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+              Leads Comerciais
+            </h2>
+            {countAguardando > 0 && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
+                <Clock className="w-3 h-3 text-amber-700" />
+                {countAguardando} aguardando
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-500 mt-0.5">
             Gerencie contatos, prazos de SLA e proposta de cada oportunidade solar
           </p>
@@ -213,6 +337,66 @@ export default function LeadsList() {
             <span>Cadastrar Lead</span>
           </Button>
         </div>
+      </div>
+
+      {/* Abas de Navegação: Funil Principal vs Aguardando Qualificação vs Descartados */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+        <button
+          type="button"
+          onClick={() => {
+            setTabView('funil')
+            setPage(1)
+          }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+            tabView === 'funil'
+              ? 'bg-[#0B7A5B] text-white shadow-sm'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <FolderOpen className="w-4 h-4" />
+          <span>Funil Comercial</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setTabView('aguardando')
+            setPage(1)
+          }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all relative ${
+            tabView === 'aguardando'
+              ? 'bg-amber-500 text-white shadow-sm'
+              : 'text-slate-700 hover:bg-amber-50 hover:text-amber-900'
+          }`}
+        >
+          <Inbox className="w-4 h-4" />
+          <span>Aguardando Qualificação</span>
+          {countAguardando > 0 && (
+            <span
+              className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                tabView === 'aguardando' ? 'bg-white text-amber-800' : 'bg-amber-500 text-white'
+              }`}
+            >
+              {countAguardando}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setTabView('descartados')
+            setPage(1)
+          }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+            tabView === 'descartados'
+              ? 'bg-slate-700 text-white shadow-sm'
+              : 'text-slate-500 hover:bg-slate-100'
+          }`}
+        >
+          <UserX className="w-4 h-4" />
+          <span>Descartados</span>
+        </button>
       </div>
 
       {/* Search & Filter Bar */}
@@ -281,30 +465,53 @@ export default function LeadsList() {
           )}
         </div>
 
-        {/* Status Multi-select Chips */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1 flex items-center gap-1">
-            <Filter className="w-3 h-3" />
-            Etapas:
-          </span>
-          {ALL_STATUSES.map((st) => {
-            const isSelected = selectedStatuses.includes(st)
-            return (
-              <button
-                key={st}
-                type="button"
-                onClick={() => toggleStatusFilter(st)}
-                className={`text-xs px-2.5 py-1 rounded-md border font-medium transition-all ${
-                  isSelected
-                    ? 'bg-[#0B7A5B] text-white border-[#0B7A5B] shadow-xs'
-                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-100'
-                }`}
-              >
-                {st}
-              </button>
-            )
-          })}
-        </div>
+        {/* Status Multi-select Chips (apenas no Funil) */}
+        {tabView === 'funil' && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1 flex items-center gap-1">
+              <Filter className="w-3 h-3" />
+              Etapas:
+            </span>
+            {ALL_STATUSES.map((st) => {
+              const isSelected = selectedStatuses.includes(st)
+              return (
+                <button
+                  key={st}
+                  type="button"
+                  onClick={() => toggleStatusFilter(st)}
+                  className={`text-xs px-2.5 py-1 rounded-md border font-medium transition-all ${
+                    isSelected
+                      ? 'bg-[#0B7A5B] text-white border-[#0B7A5B] shadow-xs'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-100'
+                  }`}
+                >
+                  {st}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {tabView === 'aguardando' && (
+          <div className="pt-2 border-t border-amber-100 flex items-center gap-2 text-xs text-amber-800 bg-amber-50/70 p-2.5 rounded-lg border">
+            <Inbox className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>
+              <strong>Fila de Pré-Qualificação:</strong> leads recebidos através do formulário do
+              site <em>ecoenergy.net.br</em>. Eles não entram no funil principal e o SLA de 7 dias
+              só começa quando forem qualificados.
+            </span>
+          </div>
+        )}
+
+        {tabView === 'descartados' && (
+          <div className="pt-2 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border">
+            <UserX className="w-4 h-4 text-slate-500 shrink-0" />
+            <span>
+              <strong>Leads Descartados na Triagem:</strong> contatos filtrados por estarem fora da
+              região de atendimento, testes ou não atenderem aos critérios comerciais.
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Main Content: Desktop Table & Mobile Cards */}
@@ -356,28 +563,61 @@ export default function LeadsList() {
                   <tr className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                     <th className="py-3 px-4">Lead</th>
                     <th className="py-3 px-4">Contato</th>
-                    <th className="py-3 px-4">Consumo</th>
-                    <th className="py-3 px-4">Estágio</th>
-                    <th className="py-3 px-4">SLA (Prazo)</th>
+                    <th className="py-3 px-4">Consumo / Conta</th>
+                    <th className="py-3 px-4">
+                      {tabView === 'aguardando'
+                        ? 'Origem'
+                        : tabView === 'descartados'
+                          ? 'Motivo Descarte'
+                          : 'Estágio'}
+                    </th>
+                    <th className="py-3 px-4">
+                      {tabView === 'aguardando'
+                        ? 'Status Fila'
+                        : tabView === 'descartados'
+                          ? 'Descartado em'
+                          : 'SLA (Prazo)'}
+                    </th>
                     <th className="py-3 px-4">Proprietário</th>
-                    <th className="py-3 px-4">Criado em</th>
+                    <th className="py-3 px-4">Recebido em</th>
                     <th className="py-3 px-4 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {leads.map((lead) => {
-                    const sla = computeSLAStatus(lead.sla_limite, lead.status)
+                    const isAguardando = lead.status_qualificacao === 'aguardando'
+                    const isDescartado = lead.status_qualificacao === 'descartado'
+                    const sla = computeSLAStatus(
+                      lead.sla_limite,
+                      lead.status,
+                      lead.status_qualificacao,
+                    )
                     const ownerName = getOwnerName(lead)
+
                     return (
                       <tr
                         key={lead.id}
                         onClick={() => navigate(`/leads/${lead.id}`)}
-                        className="hover:bg-slate-50/80 cursor-pointer transition-colors group"
+                        className={`hover:bg-slate-50/80 cursor-pointer transition-colors group ${
+                          isAguardando
+                            ? 'bg-amber-50/30'
+                            : isDescartado
+                              ? 'bg-slate-50/50 opacity-80'
+                              : ''
+                        }`}
                       >
                         {/* Name & Initials */}
                         <td className="py-3.5 px-4 font-semibold text-slate-900 group-hover:text-[#0B7A5B]">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center border border-slate-200 shrink-0">
+                            <div
+                              className={`w-8 h-8 rounded-full font-bold text-xs flex items-center justify-center border shrink-0 ${
+                                isAguardando
+                                  ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                  : isDescartado
+                                    ? 'bg-slate-200 text-slate-600 border-slate-300'
+                                    : 'bg-slate-100 text-slate-700 border-slate-200'
+                              }`}
+                            >
                               {lead.nome.slice(0, 2).toUpperCase()}
                             </div>
                             <div className="min-w-0">
@@ -388,11 +628,14 @@ export default function LeadsList() {
                               >
                                 {lead.nome}
                               </span>
-                              {lead.cidade && (
-                                <span className="text-[11px] text-slate-400 font-normal">
-                                  {lead.cidade}/{lead.estado}
-                                </span>
-                              )}
+                              <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-normal">
+                                {lead.cidade && (
+                                  <span>
+                                    {lead.cidade}/{lead.estado}
+                                  </span>
+                                )}
+                                {lead.tipo_imovel && <span>• {lead.tipo_imovel}</span>}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -405,38 +648,69 @@ export default function LeadsList() {
 
                         {/* Consumption */}
                         <td className="py-3.5 px-4 text-xs font-semibold text-slate-800 font-mono-numbers">
-                          {lead.consumo_mensal_kwh} kWh
+                          {lead.consumo_mensal_kwh > 0 ? `${lead.consumo_mensal_kwh} kWh` : '-'}
                           <div className="text-[11px] font-normal text-slate-400">
-                            {formatBRL(lead.preco_venda)}
+                            {lead.valor_conta_reais && lead.valor_conta_reais > 0
+                              ? `Conta: ${formatBRL(lead.valor_conta_reais)}`
+                              : formatBRL(lead.preco_venda)}
                           </div>
                         </td>
 
-                        {/* Status Chip */}
+                        {/* Column 4: Estágio / Origem / Motivo */}
                         <td className="py-3.5 px-4">
-                          <Badge
-                            variant="outline"
-                            className={`text-xs px-2 py-0.5 rounded-md font-medium border ${getStatusBadgeStyle(
-                              lead.status,
-                            )}`}
-                          >
-                            {lead.status}
-                          </Badge>
-                        </td>
-
-                        {/* SLA Status Chip */}
-                        <td className="py-3.5 px-4">
-                          <div className="flex flex-col items-start gap-0.5">
-                            <span
-                              className={`text-[11px] px-2 py-0.5 rounded-full border ${sla.chipClass}`}
+                          {tabView === 'aguardando' ? (
+                            <Badge
+                              variant="outline"
+                              className="text-xs bg-sky-50 text-sky-700 border-sky-300"
                             >
-                              {sla.label}
+                              Site ({lead.origem || 'Site'})
+                            </Badge>
+                          ) : tabView === 'descartados' ? (
+                            <span className="text-xs text-slate-600 font-medium">
+                              {lead.motivo_descarte || 'Sem motivo especificado'}
                             </span>
-                            {lead.sla_limite && (
-                              <span className="text-[10px] text-slate-400">
-                                Limite: {formatDateBR(lead.sla_limite)}
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className={`text-xs px-2 py-0.5 rounded-md font-medium border ${getStatusBadgeStyle(
+                                lead.status,
+                              )}`}
+                            >
+                              {lead.status}
+                            </Badge>
+                          )}
+                        </td>
+
+                        {/* Column 5: SLA Status / Status da Fila */}
+                        <td className="py-3.5 px-4">
+                          {isAguardando ? (
+                            <div className="flex flex-col items-start gap-0.5">
+                              <span className="text-[11px] px-2 py-0.5 rounded-full border bg-amber-50 text-amber-800 border-amber-300 font-medium flex items-center gap-1">
+                                <Clock className="w-3 h-3 text-amber-600" />
+                                Aguardando Qualificação
                               </span>
-                            )}
-                          </div>
+                              <span className="text-[10px] text-slate-400">
+                                SLA iniciará após qualificar
+                              </span>
+                            </div>
+                          ) : isDescartado ? (
+                            <span className="text-xs text-slate-400">
+                              {lead.updated ? formatDateBR(lead.updated) : '-'}
+                            </span>
+                          ) : (
+                            <div className="flex flex-col items-start gap-0.5">
+                              <span
+                                className={`text-[11px] px-2 py-0.5 rounded-full border ${sla.chipClass}`}
+                              >
+                                {sla.label}
+                              </span>
+                              {lead.sla_limite && (
+                                <span className="text-[10px] text-slate-400">
+                                  Limite: {formatDateBR(lead.sla_limite)}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </td>
 
                         {/* Owner */}
@@ -451,18 +725,47 @@ export default function LeadsList() {
 
                         {/* Actions */}
                         <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-end gap-1">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* Botões diretos para Aguardando Qualificação */}
+                            {isAguardando && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleQualificar(lead)}
+                                  disabled={qualifyingId === lead.id}
+                                  className="h-8 px-2.5 text-xs bg-[#0B7A5B] hover:bg-[#095C44] text-white gap-1 font-semibold shadow-xs"
+                                  title="Qualificar lead e transferir para o funil no estágio Novo"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>
+                                    {qualifyingId === lead.id ? 'Qualificando...' : 'Qualificar'}
+                                  </span>
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setLeadToDiscard(lead)}
+                                  className="h-8 px-2 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                  title="Descartar lead"
+                                >
+                                  <UserX className="w-3.5 h-3.5" />
+                                  <span>Descartar</span>
+                                </Button>
+                              </>
+                            )}
+
                             {canDeleteLead(lead) && (
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => setLeadToDelete(lead)}
-                                title="Excluir lead"
+                                title="Excluir lead permanentemente"
                                 className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
                             )}
+
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button
@@ -473,11 +776,26 @@ export default function LeadsList() {
                                   <MoreVertical className="w-4 h-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-36">
+                              <DropdownMenuContent align="end" className="w-44">
                                 <DropdownMenuItem onClick={() => navigate(`/leads/${lead.id}`)}>
                                   <Eye className="w-4 h-4 mr-2" />
                                   <span>Ver detalhes</span>
                                 </DropdownMenuItem>
+                                {isAguardando && (
+                                  <>
+                                    <DropdownMenuItem onClick={() => handleQualificar(lead)}>
+                                      <CheckCircle2 className="w-4 h-4 mr-2 text-emerald-600" />
+                                      <span className="text-emerald-700 font-medium">
+                                        Qualificar Lead
+                                      </span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setLeadToDiscard(lead)}>
+                                      <UserX className="w-4 h-4 mr-2 text-red-600" />
+                                      <span className="text-red-600">Descartar Lead</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                  </>
+                                )}
                                 <DropdownMenuItem
                                   onClick={() => navigate(`/leads/${lead.id}/editar`)}
                                 >
@@ -510,12 +828,20 @@ export default function LeadsList() {
             {/* Mobile Cards View */}
             <div className="md:hidden divide-y divide-slate-100">
               {leads.map((lead) => {
-                const sla = computeSLAStatus(lead.sla_limite, lead.status)
+                const isAguardando = lead.status_qualificacao === 'aguardando'
+                const isDescartado = lead.status_qualificacao === 'descartado'
+                const sla = computeSLAStatus(lead.sla_limite, lead.status, lead.status_qualificacao)
                 return (
                   <div
                     key={lead.id}
                     onClick={() => navigate(`/leads/${lead.id}`)}
-                    className="p-4 space-y-3 cursor-pointer hover:bg-slate-50/80 transition-colors"
+                    className={`p-4 space-y-3 cursor-pointer hover:bg-slate-50/80 transition-colors ${
+                      isAguardando
+                        ? 'bg-amber-50/30'
+                        : isDescartado
+                          ? 'bg-slate-50/50 opacity-80'
+                          : ''
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
@@ -528,12 +854,21 @@ export default function LeadsList() {
                         </h4>
                         <p className="text-xs text-slate-500">{lead.email}</p>
                       </div>
-                      <Badge
-                        variant="outline"
-                        className={`text-xs px-2 py-0.5 border ${getStatusBadgeStyle(lead.status)}`}
-                      >
-                        {lead.status}
-                      </Badge>
+                      {isAguardando ? (
+                        <Badge
+                          variant="outline"
+                          className="text-xs bg-amber-50 text-amber-800 border-amber-300"
+                        >
+                          Aguardando
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className={`text-xs px-2 py-0.5 border ${getStatusBadgeStyle(lead.status)}`}
+                        >
+                          {lead.status}
+                        </Badge>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 pt-1">
@@ -542,15 +877,17 @@ export default function LeadsList() {
                           Consumo:
                         </span>
                         <span className="font-semibold text-slate-800">
-                          {lead.consumo_mensal_kwh} kWh/mês
+                          {lead.consumo_mensal_kwh > 0 ? `${lead.consumo_mensal_kwh} kWh/mês` : '-'}
                         </span>
                       </div>
                       <div>
                         <span className="text-slate-400 block text-[10px] uppercase font-bold">
-                          Valor Estimado:
+                          {lead.valor_conta_reais ? 'Valor Conta:' : 'Valor Estimado:'}
                         </span>
                         <span className="font-semibold text-slate-800 font-mono-numbers">
-                          {formatBRL(lead.preco_venda)}
+                          {lead.valor_conta_reais && lead.valor_conta_reais > 0
+                            ? formatBRL(lead.valor_conta_reais)
+                            : formatBRL(lead.preco_venda)}
                         </span>
                       </div>
                     </div>
@@ -563,6 +900,28 @@ export default function LeadsList() {
                       </span>
 
                       <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        {isAguardando && (
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() => handleQualificar(lead)}
+                              disabled={qualifyingId === lead.id}
+                              className="h-8 px-2 text-xs bg-[#0B7A5B] hover:bg-[#095C44] text-white"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                              Qualificar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setLeadToDiscard(lead)}
+                              className="h-8 px-2 text-xs text-red-600 border-red-200"
+                            >
+                              <UserX className="w-3.5 h-3.5 mr-1" />
+                              Descartar
+                            </Button>
+                          </>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -625,6 +984,86 @@ export default function LeadsList() {
           </>
         )}
       </div>
+
+      {/* Modal de Descarte de Lead com Confirmação e Motivo */}
+      <Dialog open={!!leadToDiscard} onOpenChange={(open) => !open && setLeadToDiscard(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-2">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <DialogTitle className="text-lg font-bold text-slate-900">
+              Descartar Lead da Qualificação?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              O lead <strong>"{leadToDiscard?.nome}"</strong> será marcado como descartado e não
+              entrará no funil de vendas.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div>
+              <Label className="text-xs font-semibold text-slate-700">Motivo do Descarte</Label>
+              <select
+                value={motivoDescarte}
+                onChange={(e) => setMotivoDescarte(e.target.value)}
+                className="w-full mt-1.5 h-9 px-3 text-xs bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+              >
+                <option value="Fora da área de cobertura">
+                  Fora da área de cobertura / Região não atendida
+                </option>
+                <option value="Lead de teste / Dados inválidos">
+                  Lead de teste / Dados inválidos / Incompleto
+                </option>
+                <option value="Concorrente / Pesquisa de mercado">
+                  Concorrente / Pesquisa de mercado
+                </option>
+                <option value="Sem interesse / Contato por engano">
+                  Sem interesse / Contato por engano
+                </option>
+                <option value="Consumo ou conta muito baixa">
+                  Consumo ou conta muito baixa (inviável)
+                </option>
+                <option value="Outro">Outro motivo...</option>
+              </select>
+            </div>
+
+            {motivoDescarte === 'Outro' && (
+              <div>
+                <Label className="text-xs font-semibold text-slate-700">Descreva o motivo</Label>
+                <Textarea
+                  value={motivoCustom}
+                  onChange={(e) => setMotivoCustom(e.target.value)}
+                  placeholder="Ex: Já possui energia solar instalada"
+                  className="mt-1.5 text-xs"
+                  rows={3}
+                />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isDiscarding}
+              onClick={() => setLeadToDiscard(null)}
+              className="text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={isDiscarding || (motivoDescarte === 'Outro' && !motivoCustom.trim())}
+              onClick={handleConfirmarDescarte}
+              className="text-xs bg-red-600 hover:bg-red-700"
+            >
+              {isDiscarding ? 'Descartando...' : 'Confirmar Descarte'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Modal */}
       <DeleteLeadDialog

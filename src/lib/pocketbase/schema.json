@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-10T02:02:30.732Z",
+  "generatedAt": "2026-09-10T12:34:08.168Z",
   "collections": [
     {
       "name": "users",
@@ -205,6 +205,32 @@
           "type": "number",
           "required": false,
           "system": false
+        },
+        {
+          "name": "status_qualificacao",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["aguardando", "qualificado", "descartado"]
+        },
+        {
+          "name": "qualificado_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "qualificado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "motivo_descarte",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -212,7 +238,8 @@
         "CREATE INDEX idx_leads_sla_limite ON leads (sla_limite)",
         "CREATE INDEX idx_leads_proprietario ON leads (proprietario)",
         "CREATE UNIQUE INDEX idx_leads_email ON leads (email)",
-        "CREATE INDEX `idx_leads_luvik_deal_id` ON `leads` (luvik_deal_id)"
+        "CREATE INDEX `idx_leads_luvik_deal_id` ON `leads` (luvik_deal_id)",
+        "CREATE INDEX `idx_leads_qualificacao` ON `leads` (status_qualificacao)"
       ]
     },
     {

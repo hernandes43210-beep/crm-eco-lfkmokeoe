@@ -135,20 +135,22 @@ export default function FunilVendas() {
 
   const fetchLeads = async () => {
     try {
-      const data = await LeadsService.getAllLeads()
+      // Exclui leads da fila de pré-qualificação e descartados para que só apareçam após qualificação no estágio "Novo"
+      const data = await LeadsService.getAllLeads(
+        'status_qualificacao != "aguardando" && status_qualificacao != "descartado"',
+      )
       setLeads(data)
     } catch (err) {
       console.error('Error fetching leads for funil:', err)
       toast({
         title: 'Erro ao carregar funil',
-        description: 'Não foi possível carregar as etapas de vendas.',
+        description: 'Não foi possível carregar os dados do funil de vendas.',
         variant: 'destructive',
       })
     } finally {
       setLoading(false)
     }
   }
-
   useEffect(() => {
     fetchLeads()
   }, [])

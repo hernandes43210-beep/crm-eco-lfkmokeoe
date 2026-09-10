@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -16,9 +16,12 @@ import {
   ChevronRight,
   Webhook,
   KeyRound,
+  Inbox,
 } from 'lucide-react'
 import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
 import { useAuth } from '@/context/AuthContext'
+import { LeadsService } from '@/services/leads'
+import useRealtime from '@/hooks/use-realtime'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { ChangePasswordModal } from '@/components/ChangePasswordModal'
@@ -30,11 +33,34 @@ export default function Layout() {
   const location = useLocation()
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
+  const [countAguardando, setCountAguardando] = useState(0)
+
+  const refreshCountAguardando = useCallback(async () => {
+    try {
+      const c = await LeadsService.countAguardandoQualificacao()
+      setCountAguardando(c)
+    } catch {
+      // noop
+    }
+  }, [])
+
+  useEffect(() => {
+    refreshCountAguardando()
+  }, [refreshCountAguardando])
+
+  useRealtime('leads', () => {
+    refreshCountAguardando()
+  })
 
   // Navigation Items
   const navItems = [
     { label: 'Painel', path: '/', icon: LayoutDashboard },
-    { label: 'Leads', path: '/leads', icon: Users },
+    {
+      label: 'Leads',
+      path: '/leads',
+      icon: Users,
+      badge: countAguardando > 0 ? countAguardando : undefined,
+    },
     { label: 'Importar Leads', path: '/leads/importar', icon: FileSpreadsheet },
     { label: 'Funil de Vendas', path: '/funil', icon: GitBranch },
     { label: 'Propostas', path: '/propostas', icon: FileText },
@@ -104,7 +130,16 @@ export default function Layout() {
               )}
             />
             <span>{item.label}</span>
-            {isActive && <ChevronRight className="w-4 h-4 ml-auto text-emerald-200/70" />}
+            {item.badge ? (
+              <span
+                title={`${item.badge} lead(s) aguardando qualificação`}
+                className="ml-auto px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-500 text-white animate-pulse"
+              >
+                {item.badge}
+              </span>
+            ) : isActive ? (
+              <ChevronRight className="w-4 h-4 ml-auto text-emerald-200/70" />
+            ) : null}
           </NavLink>
         )
       })}

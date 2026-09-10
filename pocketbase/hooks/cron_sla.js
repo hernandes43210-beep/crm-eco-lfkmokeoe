@@ -6,7 +6,9 @@ cronAdd('cron_overdue_sla', '0 * * * *', () => {
   try {
     const overdueLeads = $app.findRecordsByFilter(
       'leads',
-      "sla_limite < '" + nowIso + "' && status != 'Fechado Ganho' && status != 'Fechado Perdido'",
+      "sla_limite != '' && sla_limite < '" +
+        nowIso +
+        "' && status != 'Fechado Ganho' && status != 'Fechado Perdido' && status_qualificacao != 'aguardando' && status_qualificacao != 'descartado'",
       '-sla_limite',
       100,
       0,

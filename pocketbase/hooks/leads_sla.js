@@ -2,16 +2,23 @@
 onRecordCreate((e) => {
   try {
     const record = e.record
+    const statusQualificacao = record.getString('status_qualificacao')
+
     let slaDias = record.getInt('sla_dias')
     if (!slaDias || slaDias <= 0) {
       slaDias = 7
       record.set('sla_dias', 7)
     }
 
-    const now = new Date()
-    const deadline = new Date(now.getTime() + slaDias * 86400000)
-    const isoStr = deadline.toISOString().replace('T', ' ').substring(0, 19) + 'Z'
-    record.set('sla_limite', isoStr)
+    // Se o lead estiver aguardando qualificação ou descartado, não inicia o SLA ainda
+    if (statusQualificacao === 'aguardando' || statusQualificacao === 'descartado') {
+      record.set('sla_limite', '')
+    } else {
+      const now = new Date()
+      const deadline = new Date(now.getTime() + slaDias * 86400000)
+      const isoStr = deadline.toISOString().replace('T', ' ').substring(0, 19) + 'Z'
+      record.set('sla_limite', isoStr)
+    }
 
     // Handle historico: if string, array, or byte array/object
     let rawHist = record.get('historico')
@@ -72,8 +79,18 @@ onRecordUpdate((e) => {
     const origSlaDias = orig ? orig.getInt('sla_dias') : 0
     const newSlaDias = record.getInt('sla_dias')
 
-    // If status changed or SLA days changed, recalculate SLA limit
-    if (origStatus !== newStatus || origSlaDias !== newSlaDias) {
+    const origQualif = orig ? orig.getString('status_qualificacao') : ''
+    const newQualif = record.getString('status_qualificacao')
+
+    // Se o lead for qualificado agora (mudou de "aguardando" para "qualificado" ou entrou em qualificado)
+    const acabouDeQualificar =
+      (origQualif === 'aguardando' || !origQualif) && newQualif === 'qualificado'
+
+    if (newQualif === 'aguardando' || newQualif === 'descartado') {
+      // Leads aguardando ou descartados não possuem prazo de SLA ativo
+      record.set('sla_limite', '')
+    } else if (acabouDeQualificar || origStatus !== newStatus || origSlaDias !== newSlaDias) {
+      // Inicia ou recalcula SLA a partir de agora
       const days = newSlaDias > 0 ? newSlaDias : 7
       const now = new Date()
       const deadline = new Date(now.getTime() + days * 86400000)

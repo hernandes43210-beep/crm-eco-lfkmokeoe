@@ -20,6 +20,7 @@ import {
   Terminal,
   Send,
   FileCode2,
+  Clock,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -546,11 +547,11 @@ export default function IntegracoesPage() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] text-slate-600">
                       <div className="p-2 bg-white rounded border border-slate-200">
                         <strong className="block text-slate-900">Nome</strong>
-                        <span>Estágio Novo</span>
+                        <span className="text-amber-700 font-medium">Aguardando Qualificação</span>
                       </div>
                       <div className="p-2 bg-white rounded border border-slate-200">
                         <strong className="block text-slate-900">WhatsApp / Fone</strong>
-                        <span>Telefone & SLA</span>
+                        <span>Telefone (SLA pós-triagem)</span>
                       </div>
                       <div className="p-2 bg-white rounded border border-slate-200">
                         <strong className="block text-slate-900">Cidade</strong>
@@ -568,6 +569,14 @@ export default function IntegracoesPage() {
                         <strong className="block text-slate-900">Consumo (kWh)</strong>
                         <span>Dimensionamento</span>
                       </div>
+                    </div>
+                    <div className="p-2.5 bg-amber-50/80 rounded border border-amber-200 text-[11px] text-amber-900 flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>
+                        <strong>Fluxo de Pré-Qualificação Ativo:</strong> leads preenchidos no site
+                        entram na fila "Aguardando Qualificação" fora do funil. O SLA de 7 dias só
+                        começa quando você clicar em <em>Qualificar</em>.
+                      </span>
                     </div>
                     <p className="text-[11px] text-slate-500 pt-1">
                       O endpoint é tolerante e aceita letras maiúsculas ou minúsculas (ex:{' '}

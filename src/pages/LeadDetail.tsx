@@ -26,7 +26,9 @@ import {
   Sparkles,
   MessageSquare,
   ExternalLink,
+  UserX,
 } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
 import { LeadsService } from '@/services/leads'
 import { WhatsAppService } from '@/services/whatsapp'
 import { ProposalsService } from '@/services/proposals'
@@ -301,6 +303,67 @@ export default function LeadDetail() {
     return []
   }, [lead?.historico])
 
+  // Qualificar lead que está na fila de pré-qualificação
+  const [qualifying, setQualifying] = useState(false)
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false)
+  const [motivoDescarte, setMotivoDescarte] = useState('Fora da área de cobertura')
+  const [motivoCustom, setMotivoCustom] = useState('')
+  const [discarding, setDiscarding] = useState(false)
+
+  const handleQualificarLead = async () => {
+    if (!lead) return
+    try {
+      setQualifying(true)
+      const updated = await LeadsService.qualificar(lead.id, {
+        id: user?.id || '',
+        nome: user?.name,
+        email: user?.email,
+      })
+      setLead(updated)
+      toast({
+        title: 'Lead qualificado com sucesso!',
+        description: 'O lead entrou no estágio "Novo" do funil e o SLA de 7 dias foi iniciado.',
+      })
+    } catch (err) {
+      console.error('Error qualifying lead:', err)
+      toast({
+        title: 'Erro ao qualificar',
+        description: 'Não foi possível qualificar o lead.',
+        variant: 'destructive',
+      })
+    } finally {
+      setQualifying(false)
+    }
+  }
+
+  const handleDescartarLead = async () => {
+    if (!lead) return
+    try {
+      setDiscarding(true)
+      const motivoFinal = motivoDescarte === 'Outro' ? motivoCustom.trim() : motivoDescarte
+      const updated = await LeadsService.descartar(lead.id, motivoFinal, {
+        id: user?.id || '',
+        nome: user?.name,
+        email: user?.email,
+      })
+      setLead(updated)
+      setShowDiscardDialog(false)
+      toast({
+        title: 'Lead descartado',
+        description: 'O lead foi removido da fila de qualificação.',
+      })
+    } catch (err) {
+      console.error('Error discarding lead:', err)
+      toast({
+        title: 'Erro ao descartar',
+        description: 'Não foi possível descartar o lead.',
+        variant: 'destructive',
+      })
+    } finally {
+      setDiscarding(false)
+    }
+  }
+
   // Pipeline advance/retreat
   const changeStage = async (newStatus: LeadStatus) => {
     if (!lead) return
@@ -469,7 +532,9 @@ export default function LeadDetail() {
 
   if (!lead) return null
 
-  const sla = computeSLAStatus(lead.sla_limite, lead.status)
+  const isAguardando = lead.status_qualificacao === 'aguardando'
+  const isDescartado = lead.status_qualificacao === 'descartado'
+  const sla = computeSLAStatus(lead.sla_limite, lead.status, lead.status_qualificacao)
   const currentIdx = PIPELINE_ORDER.indexOf(lead.status)
   const nextStatus = currentIdx >= 0 && currentIdx < 4 ? PIPELINE_ORDER[currentIdx + 1] : null
   const prevStatus = currentIdx > 0 && currentIdx < 5 ? PIPELINE_ORDER[currentIdx - 1] : null
@@ -603,13 +668,35 @@ export default function LeadDetail() {
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          <Button
-            onClick={() => setShowGerarPropostaModal(true)}
-            className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-bold gap-1.5 h-9 shadow-sm"
-          >
-            <Sparkles className="w-4 h-4 text-amber-300" />
-            <span>Gerar Proposta</span>
-          </Button>
+          {isAguardando ? (
+            <>
+              <Button
+                onClick={handleQualificarLead}
+                disabled={qualifying}
+                className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-bold gap-1.5 h-9 shadow-sm"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{qualifying ? 'Qualificando...' : 'Qualificar Lead'}</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDiscardDialog(true)}
+                className="text-xs font-semibold gap-1.5 h-9 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              >
+                <UserX className="w-4 h-4" />
+                <span>Descartar</span>
+              </Button>
+            </>
+          ) : (
+            <Button
+              onClick={() => setShowGerarPropostaModal(true)}
+              className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-bold gap-1.5 h-9 shadow-sm"
+            >
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              <span>Gerar Proposta</span>
+            </Button>
+          )}
 
           <Button
             variant="outline"
@@ -632,6 +719,58 @@ export default function LeadDetail() {
           </Button>
         </div>
       </div>
+
+      {/* Card de Alerta se estiver Aguardando Qualificação */}
+      {isAguardando && (
+        <div className="bg-amber-50 border border-amber-300/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-950">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-amber-200/60 text-amber-800 flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5 text-amber-700 animate-pulse" />
+            </div>
+            <div>
+              <h4 className="font-bold text-sm">Lead Aguardando Pré-Qualificação</h4>
+              <p className="text-xs text-amber-800 mt-0.5">
+                Este lead veio do formulário do site <em>ecoenergy.net.br</em> e está fora do funil
+                comercial principal. O SLA de 7 dias começará a contar assim que for qualificado.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              onClick={handleQualificarLead}
+              disabled={qualifying}
+              className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold h-8.5 px-3 gap-1.5"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Qualificar Agora</span>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowDiscardDialog(true)}
+              className="border-red-300 text-red-700 hover:bg-red-100/70 text-xs font-semibold h-8.5 px-3 gap-1.5"
+            >
+              <UserX className="w-4 h-4" />
+              <span>Descartar</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Card de Alerta se tiver sido Descartado */}
+      {isDescartado && (
+        <div className="bg-slate-100 border border-slate-300 rounded-xl p-4 flex items-center gap-3 text-slate-700">
+          <div className="w-10 h-10 rounded-lg bg-slate-200 text-slate-600 flex items-center justify-center shrink-0">
+            <UserX className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="font-bold text-sm">Lead Descartado da Qualificação</h4>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Motivo: <strong>{lead.motivo_descarte || 'Não informado'}</strong>. Este lead não
+              participa das métricas ativas do funil.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Two Column Layout (Desktop) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -1425,6 +1564,86 @@ export default function LeadDetail() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Modal de Confirmação de Descarte */}
+      <Dialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-2">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <DialogTitle className="text-lg font-bold text-slate-900">
+              Descartar Lead da Qualificação?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              O lead <strong>"{lead.nome}"</strong> será marcado como descartado e não participará
+              do funil.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div>
+              <Label className="text-xs font-semibold text-slate-700">Motivo do Descarte</Label>
+              <select
+                value={motivoDescarte}
+                onChange={(e) => setMotivoDescarte(e.target.value)}
+                className="w-full mt-1.5 h-9 px-3 text-xs bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+              >
+                <option value="Fora da área de cobertura">
+                  Fora da área de cobertura / Região não atendida
+                </option>
+                <option value="Lead de teste / Dados inválidos">
+                  Lead de teste / Dados inválidos / Incompleto
+                </option>
+                <option value="Concorrente / Pesquisa de mercado">
+                  Concorrente / Pesquisa de mercado
+                </option>
+                <option value="Sem interesse / Contato por engano">
+                  Sem interesse / Contato por engano
+                </option>
+                <option value="Consumo ou conta muito baixa">
+                  Consumo ou conta muito baixa (inviável)
+                </option>
+                <option value="Outro">Outro motivo...</option>
+              </select>
+            </div>
+
+            {motivoDescarte === 'Outro' && (
+              <div>
+                <Label className="text-xs font-semibold text-slate-700">Descreva o motivo</Label>
+                <Textarea
+                  value={motivoCustom}
+                  onChange={(e) => setMotivoCustom(e.target.value)}
+                  placeholder="Ex: Já possui energia solar instalada"
+                  className="mt-1.5 text-xs"
+                  rows={3}
+                />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={discarding}
+              onClick={() => setShowDiscardDialog(false)}
+              className="text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={discarding || (motivoDescarte === 'Outro' && !motivoCustom.trim())}
+              onClick={handleDescartarLead}
+              className="text-xs bg-red-600 hover:bg-red-700"
+            >
+              {discarding ? 'Descartando...' : 'Confirmar Descarte'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Modal */}
       <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>

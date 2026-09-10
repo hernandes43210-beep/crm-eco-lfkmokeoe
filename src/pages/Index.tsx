@@ -75,11 +75,22 @@ export default function Index() {
       .filter((l) => l.status !== 'Fechado Perdido')
       .reduce((acc, curr) => acc + (curr.preco_venda || 0), 0)
 
-    // Overdue leads
-    const overdueLeads = leads
+    // Leads aguardando qualificação do site (fora do funil ativo)
+    const aguardandoQualificacao = leads.filter((l) => l.status_qualificacao === 'aguardando')
+
+    // Leads descartados na triagem
+    const descartados = leads.filter((l) => l.status_qualificacao === 'descartado')
+
+    // Leads ativos no funil comercial (exclui aguardando e descartados)
+    const leadsNoFunil = leads.filter(
+      (l) => l.status_qualificacao !== 'aguardando' && l.status_qualificacao !== 'descartado',
+    )
+
+    // Overdue leads: apenas leads ativos no funil que estouraram o prazo
+    const overdueLeads = leadsNoFunil
       .filter((l) => {
         if (l.status === 'Fechado Ganho' || l.status === 'Fechado Perdido') return false
-        const sla = computeSLAStatus(l.sla_limite, l.status)
+        const sla = computeSLAStatus(l.sla_limite, l.status, l.status_qualificacao)
         return sla.isOverdue
       })
       .sort((a, b) => {
@@ -88,7 +99,7 @@ export default function Index() {
         return tA - tB // Most overdue first
       })
 
-    // Stage counts
+    // Stage counts (apenas leads ativos no funil; não conta "aguardando" como "Novo")
     const stageCounts: Record<LeadStatus, number> = {
       Novo: 0,
       'Contato Feito': 0,
@@ -97,7 +108,7 @@ export default function Index() {
       'Fechado Ganho': 0,
       'Fechado Perdido': 0,
     }
-    leads.forEach((l) => {
+    leadsNoFunil.forEach((l) => {
       if (stageCounts[l.status] !== undefined) {
         stageCounts[l.status]++
       }
@@ -112,6 +123,8 @@ export default function Index() {
       overdueLeads,
       stageCounts,
       propostasOuAlem,
+      aguardandoQualificacao,
+      descartados,
     }
   }, [leads])
 
@@ -174,6 +187,43 @@ export default function Index() {
           </Button>
         </div>
       </div>
+
+      {/* Destaque: Leads Aguardando Qualificação (Site ecoenergy.net.br) */}
+      {stats.aguardandoQualificacao.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 rounded-xl p-4 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-amber-400/40 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5 text-white animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-sm tracking-wide">
+                  {stats.aguardandoQualificacao.length}{' '}
+                  {stats.aguardandoQualificacao.length === 1
+                    ? 'novo lead do site aguardando qualificação'
+                    : 'novos leads do site aguardando qualificação'}
+                </h4>
+                <span className="bg-white text-amber-900 text-[10px] font-black uppercase px-2 py-0.5 rounded-full">
+                  ecoenergy.net.br
+                </span>
+              </div>
+              <p className="text-xs text-amber-100 mt-0.5">
+                Estes contatos estão fora do funil comercial e sem contagem de SLA até você realizar
+                a triagem (Qualificar ou Descartar).
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={() => navigate('/leads')}
+            variant="outline"
+            size="sm"
+            className="bg-white text-amber-900 hover:bg-amber-50 border-white text-xs font-bold shrink-0 shadow-xs"
+          >
+            Abrir Fila de Qualificação
+            <ChevronRight className="w-3.5 h-3.5 ml-1" />
+          </Button>
+        </div>
+      )}
 
       {/* 4 KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -470,7 +520,7 @@ export default function Index() {
               </div>
             ) : (
               stats.overdueLeads.slice(0, 5).map((lead) => {
-                const sla = computeSLAStatus(lead.sla_limite, lead.status)
+                const sla = computeSLAStatus(lead.sla_limite, lead.status, lead.status_qualificacao)
                 return (
                   <div
                     key={lead.id}
@@ -551,7 +601,7 @@ export default function Index() {
               </div>
             ) : (
               leads.slice(0, 5).map((lead) => {
-                const sla = computeSLAStatus(lead.sla_limite, lead.status)
+                const sla = computeSLAStatus(lead.sla_limite, lead.status, lead.status_qualificacao)
                 return (
                   <div
                     key={lead.id}

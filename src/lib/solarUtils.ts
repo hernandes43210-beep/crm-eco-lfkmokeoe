@@ -60,7 +60,35 @@ export interface SLAStatusInfo {
   badgeClass: string
 }
 
-export function computeSLAStatus(slaLimite?: string | null, status?: string): SLAStatusInfo {
+export function computeSLAStatus(
+  slaLimite?: string | null,
+  status?: string,
+  statusQualificacao?: string,
+): SLAStatusInfo {
+  if (statusQualificacao === 'aguardando') {
+    return {
+      state: 'ok',
+      label: 'Aguardando Qualificação',
+      shortLabel: 'Aguardando',
+      daysDiff: 0,
+      isOverdue: false,
+      chipClass: 'bg-amber-50 text-amber-800 border-amber-300 font-medium',
+      badgeClass: 'bg-amber-500',
+    }
+  }
+
+  if (statusQualificacao === 'descartado') {
+    return {
+      state: 'ok',
+      label: 'Descartado',
+      shortLabel: 'Descartado',
+      daysDiff: 0,
+      isOverdue: false,
+      chipClass: 'bg-slate-100 text-slate-500 border-slate-200 line-through',
+      badgeClass: 'bg-slate-400',
+    }
+  }
+
   if (status === 'Fechado Ganho' || status === 'Fechado Perdido') {
     return {
       state: 'ok',
