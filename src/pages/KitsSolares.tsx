@@ -16,6 +16,8 @@ import {
   Sparkles,
   Calculator,
   SlidersHorizontal,
+  Search,
+  X,
 } from 'lucide-react'
 import { KitsService } from '@/services/kits'
 import type { Kit, KitCategoria } from '@/types/crm'
@@ -84,6 +86,10 @@ export default function KitsSolares() {
   // Delete modal state
   const [deleteKitId, setDeleteKitId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Filtros de busca e categoria
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCategoria, setSelectedCategoria] = useState<string>('all')
 
   const fetchKits = async () => {
     try {
@@ -309,12 +315,29 @@ export default function KitsSolares() {
     }
   }
 
+  // Lista filtrada de kits
+  const filteredKits = useMemo(() => {
+    return kits.filter((kit) => {
+      const matchesCategoria = selectedCategoria === 'all' || kit.categoria === selectedCategoria
+      const term = searchTerm.toLowerCase().trim()
+      if (!term) return matchesCategoria
+
+      const matchesTerm =
+        kit.nome.toLowerCase().includes(term) ||
+        (kit.fabricante && kit.fabricante.toLowerCase().includes(term)) ||
+        (kit.descricao && kit.descricao.toLowerCase().includes(term)) ||
+        `${kit.potencia_kw}`.includes(term)
+
+      return matchesCategoria && matchesTerm
+    })
+  }, [kits, selectedCategoria, searchTerm])
+
   return (
     <div className="space-y-6 select-none animate-fade-in-up pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
               Catálogo de Kits Solares
             </h2>
@@ -329,15 +352,79 @@ export default function KitsSolares() {
           </p>
         </div>
 
-        {isAdmin && (
+        {/* Botão em destaque de Adicionar / Criar Kit */}
+        <Button
+          onClick={openCreateModal}
+          size="default"
+          className="bg-[#0B7A5B] hover:bg-[#095C44] text-white font-bold shadow-md shadow-[#0B7A5B]/30 gap-2 h-10 px-5 rounded-lg self-start sm:self-auto shrink-0 transition-all hover:scale-[1.02] active:scale-95"
+        >
+          <Plus className="w-4 h-4 stroke-[3]" />
+          <span>Novo Kit</span>
+        </Button>
+      </div>
+
+      {/* Barra de Filtros e Busca */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between bg-white p-3 rounded-xl border border-slate-200/90 shadow-2xs">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por nome, inversor, painel ou potência..."
+            className="pl-9 pr-8 h-9 text-xs sm:text-sm border-slate-200 focus-visible:ring-[#0B7A5B]"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200/80 text-xs font-medium">
+            <button
+              type="button"
+              onClick={() => setSelectedCategoria('all')}
+              className={`px-2.5 py-1 rounded-md transition-all ${
+                selectedCategoria === 'all'
+                  ? 'bg-white text-slate-900 font-bold shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Todos ({kits.length})
+            </button>
+            {CATEGORIAS.map((cat) => {
+              const count = kits.filter((k) => k.categoria === cat).length
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelectedCategoria(cat)}
+                  className={`px-2.5 py-1 rounded-md transition-all ${
+                    selectedCategoria === cat
+                      ? 'bg-white text-[#0B7A5B] font-bold shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {cat} ({count})
+                </button>
+              )
+            })}
+          </div>
+
           <Button
             onClick={openCreateModal}
-            className="bg-[#0B7A5B] hover:bg-[#095C44] text-white font-medium shadow-sm shadow-[#0B7A5B]/30 gap-1.5 h-9.5 px-4 rounded-lg self-start sm:self-auto"
+            variant="outline"
+            size="sm"
+            className="hidden sm:inline-flex border-dashed border-[#0B7A5B] text-[#0B7A5B] hover:bg-emerald-50 h-9 font-semibold text-xs gap-1.5"
           >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Novo Kit Solar</span>
+            <Plus className="w-3.5 h-3.5" />
+            <span>Adicionar</span>
           </Button>
-        )}
+        </div>
       </div>
 
       {loading ? (
@@ -352,20 +439,37 @@ export default function KitsSolares() {
           <p className="text-xs text-slate-500 mt-1 mb-4">
             Cadastre os kits solares padrão para agilizar as propostas comerciais da equipe.
           </p>
-          {isAdmin && (
-            <Button
-              onClick={openCreateModal}
-              className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold gap-1.5"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Cadastrar Primeiro Kit</span>
-            </Button>
-          )}
+          <Button
+            onClick={openCreateModal}
+            className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold gap-1.5"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Cadastrar Primeiro Kit</span>
+          </Button>
+        </div>
+      ) : filteredKits.length === 0 ? (
+        <div className="p-12 text-center bg-white rounded-xl border border-slate-200">
+          <Boxes className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+          <h3 className="text-sm font-bold text-slate-800">Nenhum kit encontrado</h3>
+          <p className="text-xs text-slate-500 mt-1 mb-3">
+            Nenhum kit solar corresponde aos filtros aplicados.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSearchTerm('')
+              setSelectedCategoria('all')
+            }}
+            className="text-xs"
+          >
+            Limpar filtros
+          </Button>
         </div>
       ) : (
         /* Responsive Grid of Kit Cards */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {kits.map((kit) => (
+          {filteredKits.map((kit) => (
             <div
               key={kit.id}
               className="card-lift bg-white rounded-xl border border-slate-200/90 shadow-2xs hover:border-slate-300 p-5 flex flex-col justify-between transition-all group"
@@ -387,22 +491,22 @@ export default function KitsSolares() {
                     </div>
                   </div>
 
-                  {isAdmin && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-slate-400 hover:text-slate-700 -mr-1.5 -mt-1"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-32">
-                        <DropdownMenuItem onClick={() => openEditModal(kit)}>
-                          <Edit3 className="w-3.5 h-3.5 mr-2" />
-                          <span>Editar</span>
-                        </DropdownMenuItem>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-slate-400 hover:text-slate-700 -mr-1.5 -mt-1"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-32">
+                      <DropdownMenuItem onClick={() => openEditModal(kit)}>
+                        <Edit3 className="w-3.5 h-3.5 mr-2" />
+                        <span>Editar</span>
+                      </DropdownMenuItem>
+                      {isAdmin && (
                         <DropdownMenuItem
                           onClick={() => setDeleteKitId(kit.id)}
                           className="text-red-600 focus:text-red-600 focus:bg-red-50"
@@ -410,9 +514,9 @@ export default function KitsSolares() {
                           <Trash2 className="w-3.5 h-3.5 mr-2" />
                           <span>Excluir</span>
                         </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
                 {/* Potência & Categoria Badges */}
