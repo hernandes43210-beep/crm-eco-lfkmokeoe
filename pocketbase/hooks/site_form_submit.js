@@ -7,6 +7,7 @@
 // 1. Cria lead no estágio "Novo"
 // 2. Proprietário = primeiro usuário admin/cadastrado
 // 3. Preenche nome, telefone/whatsapp, cidade, consumo_mensal_kwh, valor_conta_reais, tipo_imovel, origem = "Site"
+//    (com extração tolerante de consumo e valor da conta de dentro do campo 'message' quando não enviados como campos dedicados)
 // 4. Inicia SLA de 7 dias
 // 5. Registra no histórico: "Lead recebido via site ecoenergy.net.br"
 // 6. Registra log em site_form_logs
@@ -76,11 +77,9 @@ routerAdd('POST', '/backend/v1/integrations/site-form/submit', (e) => {
   }
 
   // 3. Extração tolerante de campos do payload (JSON ou form-urlencoded)
-  // Hostinger Horizons ou custom code pode enviar com variações de maiúsculas/acentos
   const body = rawBody || {}
-
-  // Helper para buscar campo em maiúsculas/minúsculas/variações
   const keys = Object.keys(body)
+
   const getField = (possibleNames) => {
     for (let i = 0; i < possibleNames.length; i++) {
       const target = possibleNames[i].toLowerCase().replace(/[^a-z0-9]/g, '')
@@ -98,6 +97,55 @@ routerAdd('POST', '/backend/v1/integrations/site-form/submit', (e) => {
       }
     }
     return ''
+  }
+
+  // Parser numérico robusto pt-BR (mesma lógica do leadImport)
+  const parseNumberSafe = (val, fallback) => {
+    if (val === null || val === undefined) return fallback
+    if (typeof val === 'number') return isNaN(val) ? fallback : val
+
+    const rawStr = String(val).trim()
+    if (!rawStr) return fallback
+
+    const hadR$ = /R\$/i.test(rawStr)
+    let str = rawStr.replace(/R\$/gi, '').replace(/[\s\u00A0]/g, '')
+    if (!str) return fallback
+
+    const hasComma = str.indexOf(',') !== -1
+    const hasDot = str.indexOf('.') !== -1
+
+    if (hasComma && hasDot) {
+      const lastComma = str.lastIndexOf(',')
+      const lastDot = str.lastIndexOf('.')
+      if (lastComma > lastDot) {
+        // Formato brasileiro: 1.234.567,89
+        str = str.replace(/\./g, '').replace(',', '.')
+      } else {
+        // Formato US: 1,234,567.89
+        str = str.replace(/,/g, '')
+      }
+    } else if (hasComma) {
+      const commaParts = str.split(',')
+      if (commaParts.length > 2) {
+        str = commaParts.join('')
+      } else {
+        str = str.replace(',', '.')
+      }
+    } else if (hasDot) {
+      const parts = str.split('.')
+      if (parts.length > 2) {
+        str = parts.join('')
+      } else if (parts.length === 2) {
+        // Ex: R$ 5.000 ou 5.000
+        if (hadR$ && parts[1].length === 3) {
+          str = parts.join('')
+        }
+      }
+    }
+
+    str = str.replace(/[^0-9.-]/g, '')
+    const n = parseFloat(str)
+    return isNaN(n) ? fallback : n
   }
 
   const rawNome = getField(['nome', 'name', 'nome_completo', 'fullname', 'cliente'])
@@ -120,6 +168,8 @@ routerAdd('POST', '/backend/v1/integrations/site-form/submit', (e) => {
     'imovel',
     'tipo',
     'property_type',
+    'service_type',
+    'servicetype',
     'tipoimovel',
     'tipo_propriedade',
     'categoria_imovel',
@@ -146,6 +196,7 @@ routerAdd('POST', '/backend/v1/integrations/site-form/submit', (e) => {
     'consumomensal',
     'energy_consumption',
   ])
+  const rawMessage = getField(['message', 'mensagem', 'msg', 'observacao', 'obs', 'detalhes'])
 
   // Validação mínima de campos obrigatórios: precisa ter pelo menos Nome E Telefone/WhatsApp
   const cleanPhone = rawTelefone.replace(/\D/g, '')
@@ -163,14 +214,8 @@ routerAdd('POST', '/backend/v1/integrations/site-form/submit', (e) => {
   // Parsing do Consumo em kWh
   let finalConsumo = 0
   if (rawConsumo) {
-    // Trata "500 kWh", "500,50", "1.200"
-    const cleanedConsumo = rawConsumo
-      .replace(/kwh/gi, '')
-      .replace(/\s/g, '')
-      .replace(/\./g, '')
-      .replace(',', '.')
-    const parsed = parseFloat(cleanedConsumo)
-    if (!isNaN(parsed) && parsed > 0) {
+    const parsed = parseNumberSafe(rawConsumo, 0)
+    if (parsed > 0) {
       finalConsumo = Math.round(parsed)
     }
   }
@@ -178,15 +223,66 @@ routerAdd('POST', '/backend/v1/integrations/site-form/submit', (e) => {
   // Parsing do Valor da Conta (R$)
   let finalValorConta = 0
   if (rawValorConta) {
-    // Trata "R$ 450,00", "450.00", "1.200,50"
-    const cleanedValor = rawValorConta
-      .replace(/r\$/gi, '')
-      .replace(/\s/g, '')
-      .replace(/\./g, '')
-      .replace(',', '.')
-    const parsed = parseFloat(cleanedValor)
-    if (!isNaN(parsed) && parsed > 0) {
+    const parsed = parseNumberSafe(rawValorConta, 0)
+    if (parsed > 0) {
       finalValorConta = Math.round(parsed * 100) / 100
+    }
+  }
+
+  // Extração de consumo e valor da conta de dentro de `message` como fallback
+  if (rawMessage) {
+    if (finalConsumo <= 0) {
+      // 1. Padrão com rótulo consumo
+      // Ex: "Consumo: 900 kWh/mês", "consumo médio de 3000+ kwh/mês", "Consumo: 1.500 kWh"
+      const matchRotulo = rawMessage.match(
+        /consumo(?:\s+m[eé]dio)?(?:\s+de)?(?:\s*[:=-])?\s*([0-9]+(?:[.,][0-9]+)?|\d{1,3}(?:\.\d{3})+)\s*\+?\s*(?:kwh(?:\s*[\/|\s]m[eê]s)?)?/i,
+      )
+      if (matchRotulo && matchRotulo[1]) {
+        const parsed = parseNumberSafe(matchRotulo[1], 0)
+        if (parsed > 0) {
+          finalConsumo = Math.round(parsed)
+        }
+      }
+
+      // 2. Padrão com unidade kWh se ainda zerado
+      if (finalConsumo <= 0) {
+        const matchKwh = rawMessage.match(
+          /([0-9]+(?:[.,][0-9]+)?|\d{1,3}(?:\.\d{3})+)\s*\+?\s*kwh(?:\s*[\/|\s]m[eê]s)?/i,
+        )
+        if (matchKwh && matchKwh[1]) {
+          const parsed = parseNumberSafe(matchKwh[1], 0)
+          if (parsed > 0) {
+            finalConsumo = Math.round(parsed)
+          }
+        }
+      }
+    }
+
+    if (finalValorConta <= 0) {
+      // 1. Padrão com rótulo (valor/conta/fatura)
+      // Ex: "Valor médio da conta: R$ 600.", "Valor médio da conta: R$ 5000.", "conta de R$ 5.000"
+      const matchRotulo = rawMessage.match(
+        /(?:valor(?:\s+m[eé]dio)?(?:\s+da)?(?:\s+conta|\s+fatura)?|conta(?:\s+de)?|fatura(?:\s+de)?)\s*[:=-]?\s*(?:r\$\s*)?([0-9]+(?:[.,][0-9]+)?|\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?)/i,
+      )
+      if (matchRotulo && matchRotulo[1]) {
+        const parsed = parseNumberSafe(matchRotulo[1], 0)
+        if (parsed > 0) {
+          finalValorConta = Math.round(parsed * 100) / 100
+        }
+      }
+
+      // 2. Padrão com R$ se ainda zerado
+      if (finalValorConta <= 0) {
+        const matchRS = rawMessage.match(
+          /r\$\s*([0-9]+(?:[.,][0-9]+)?|\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?)/i,
+        )
+        if (matchRS && matchRS[1]) {
+          const parsed = parseNumberSafe(matchRS[1], 0)
+          if (parsed > 0) {
+            finalValorConta = Math.round(parsed * 100) / 100
+          }
+        }
+      }
     }
   }
 
@@ -274,8 +370,6 @@ routerAdd('POST', '/backend/v1/integrations/site-form/submit', (e) => {
       'Lead recebido via site ecoenergy.net.br.' +
       (detalhesLead.length > 0 ? ' Dados: ' + detalhesLead.join(' | ') : '')
 
-    // Formato correto de historico: array serializado ou array direto
-    // leads_sla hook cuidará da criação inicial e do sla_limite se historico vier vazio ou pré-preenchido
     leadRec.set('historico', [
       {
         data: new Date().toISOString(),
