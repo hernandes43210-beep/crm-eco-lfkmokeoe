@@ -3,6 +3,7 @@ import {
   Boxes,
   Plus,
   Edit3,
+  Copy,
   Trash2,
   Sun,
   Zap,
@@ -30,6 +31,8 @@ import {
   sugerirNomeKit,
   sugerirFabricanteKit,
   sugerirDescricaoTecnica,
+  gerarNomeKitClonado,
+  extrairComponentesKit,
 } from '@/lib/quickKitUtils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -62,6 +65,7 @@ export default function KitsSolares() {
   // Modal create/edit state
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingKit, setEditingKit] = useState<Kit | null>(null)
+  const [isCloning, setIsCloning] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [errorBanner, setErrorBanner] = useState('')
 
@@ -148,9 +152,9 @@ export default function KitsSolares() {
     return Math.round(calculated * 100) / 100
   }, [custo, margem])
 
-  // Sincroniza campos do kit quando estiver no modo pré-pronto (criação)
+  // Sincroniza campos do kit quando estiver no modo pré-pronto (criação nova padrão, não clonagem)
   useEffect(() => {
-    if (isQuickMode && !editingKit) {
+    if (isQuickMode && !editingKit && !isCloning) {
       if (quickKwpInfo.kwp > 0) {
         setPotenciaKw(quickKwpInfo.kwp)
       }
@@ -173,6 +177,7 @@ export default function KitsSolares() {
   }, [
     isQuickMode,
     editingKit,
+    isCloning,
     quickKwpInfo.kwp,
     suggestedName,
     suggestedFab,
@@ -185,6 +190,7 @@ export default function KitsSolares() {
 
   const openCreateModal = () => {
     setEditingKit(null)
+    setIsCloning(false)
     setIsQuickMode(true)
     setQtdPaineis(10)
     setPotenciaPainelW(610)
@@ -216,6 +222,7 @@ export default function KitsSolares() {
 
   const openEditModal = (kit: Kit) => {
     setEditingKit(kit)
+    setIsCloning(false)
     setIsQuickMode(false)
     setNome(kit.nome)
     setFabricante(kit.fabricante || '')
@@ -226,6 +233,49 @@ export default function KitsSolares() {
     setDescricao(kit.descricao || '')
     setErrorBanner('')
     setIsModalOpen(true)
+  }
+
+  /**
+   * Abre o formulário clonando todos os dados do kit informado.
+   * Não altera o kit original ao salvar; abre o formulário pronto para edição.
+   */
+  const handleCloneKit = (kit: Kit) => {
+    setEditingKit(null) // garante que criará um NOVO kit
+    setIsCloning(true)
+
+    // Analisa se o kit tem itens/quantidades compatíveis com a montagem pré-pronta
+    const componentes = extrairComponentesKit(kit)
+
+    // Ajusta estado dos componentes pré-prontos
+    setQtdPaineis(componentes.qtdPaineis)
+    setPotenciaPainelW(componentes.potenciaPainelW)
+    const isCustomW = !(POTENCIAS_COMUNS_PAINEIS as readonly number[]).includes(
+      componentes.potenciaPainelW,
+    )
+    setIsCustomPotenciaW(isCustomW)
+    setMarcaPaineis(componentes.marcaPaineis)
+    setQtdInversores(componentes.qtdInversores)
+    setMarcaInversor(componentes.marcaInversor)
+
+    // Se o kit puder ser mapeado em pré-pronto, abre em modo pré-pronto; caso contrário modo completo
+    setIsQuickMode(componentes.isPrePronto)
+
+    // Campos preenchidos duplicados do kit original com sufixo "— Cópia"
+    const novoNome = gerarNomeKitClonado(kit.nome)
+    setNome(novoNome)
+    setFabricante(kit.fabricante || '')
+    setPotenciaKw(kit.potencia_kw)
+    setCategoria(kit.categoria)
+    setCusto(kit.custo)
+    setMargem(kit.margem)
+    setDescricao(kit.descricao || '')
+    setErrorBanner('')
+    setIsModalOpen(true)
+
+    toast({
+      title: 'Kit clonado para edição',
+      description: `Editando "${novoNome}". Altere os campos e clique em Salvar para criar o novo kit.`,
+    })
   }
 
   const handleSaveKit = async (e: React.FormEvent) => {
@@ -265,11 +315,14 @@ export default function KitsSolares() {
       } else {
         await KitsService.createKit(payload)
         toast({
-          title: 'Kit solar cadastrado',
-          description: 'Novo kit disponível para a equipe de vendas.',
+          title: isCloning ? 'Kit clonado com sucesso!' : 'Kit solar cadastrado',
+          description: isCloning
+            ? `O kit "${payload.nome}" foi criado como novo registro no catálogo.`
+            : 'Novo kit disponível para a equipe de vendas.',
         })
       }
 
+      setIsCloning(false)
       setIsModalOpen(false)
       fetchKits()
     } catch (err: unknown) {
@@ -490,33 +543,50 @@ export default function KitsSolares() {
                       </h4>
                     </div>
                   </div>
+                  <div className="flex items-center gap-1 -mr-1.5 -mt-1">
+                    {/* Botão Clonar direto no card para fácil acesso por qualquer usuário */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleCloneKit(kit)}
+                      title="Clonar este kit"
+                      className="h-7 w-7 text-slate-400 hover:text-[#0B7A5B] hover:bg-emerald-50 transition-colors"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span className="sr-only">Clonar</span>
+                    </Button>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-slate-400 hover:text-slate-700 -mr-1.5 -mt-1"
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-32">
-                      <DropdownMenuItem onClick={() => openEditModal(kit)}>
-                        <Edit3 className="w-3.5 h-3.5 mr-2" />
-                        <span>Editar</span>
-                      </DropdownMenuItem>
-                      {isAdmin && (
-                        <DropdownMenuItem
-                          onClick={() => setDeleteKitId(kit.id)}
-                          className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-slate-400 hover:text-slate-700"
                         >
-                          <Trash2 className="w-3.5 h-3.5 mr-2" />
-                          <span>Excluir</span>
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-36">
+                        <DropdownMenuItem onClick={() => handleCloneKit(kit)}>
+                          <Copy className="w-3.5 h-3.5 mr-2 text-[#0B7A5B]" />
+                          <span>Clonar kit</span>
                         </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                        <DropdownMenuItem onClick={() => openEditModal(kit)}>
+                          <Edit3 className="w-3.5 h-3.5 mr-2" />
+                          <span>Editar</span>
+                        </DropdownMenuItem>
+                        {isAdmin && (
+                          <DropdownMenuItem
+                            onClick={() => setDeleteKitId(kit.id)}
+                            className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-2" />
+                            <span>Excluir</span>
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>{' '}
                 </div>
 
                 {/* Potência & Categoria Badges */}
@@ -581,7 +651,19 @@ export default function KitsSolares() {
           <DialogHeader>
             <div className="flex items-center justify-between gap-2">
               <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <span>{editingKit ? 'Editar Kit Solar' : 'Novo Kit Solar'}</span>
+                <span>
+                  {editingKit
+                    ? 'Editar Kit Solar'
+                    : isCloning
+                      ? 'Clonar Kit Solar'
+                      : 'Novo Kit Solar'}
+                </span>
+                {isCloning && (
+                  <Badge className="bg-amber-100 text-amber-800 border-amber-300 font-semibold text-[11px] gap-1 hover:bg-amber-100">
+                    <Copy className="w-3 h-3 text-amber-700" />
+                    <span>Duplicação</span>
+                  </Badge>
+                )}
                 {!editingKit && isQuickMode && (
                   <Badge className="bg-emerald-100 text-[#0B7A5B] border-emerald-300 font-semibold text-[11px] gap-1 hover:bg-emerald-100">
                     <Sparkles className="w-3 h-3 text-[#0B7A5B]" />
@@ -591,9 +673,11 @@ export default function KitsSolares() {
               </DialogTitle>
             </div>
             <DialogDescription className="text-xs text-slate-500">
-              {isQuickMode
-                ? 'Informe painéis e inversores para calcular a potência pico (kWp) e sugerir o nome do kit automaticamente.'
-                : 'Insira as especificações técnicas, custo base e margem desejada. O preço de venda é calculado em tempo real.'}
+              {isCloning
+                ? 'Kit duplicado com sucesso. Edite os parâmetros desejados abaixo antes de salvar como um novo kit.'
+                : isQuickMode
+                  ? 'Informe painéis e inversores para calcular a potência pico (kWp) e sugerir o nome do kit automaticamente.'
+                  : 'Insira as especificações técnicas, custo base e margem desejada. O preço de venda é calculado em tempo real.'}
             </DialogDescription>
           </DialogHeader>
 

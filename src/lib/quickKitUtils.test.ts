@@ -4,6 +4,8 @@ import {
   sugerirNomeKit,
   sugerirFabricanteKit,
   sugerirDescricaoTecnica,
+  gerarNomeKitClonado,
+  extrairComponentesKit,
 } from './quickKitUtils'
 
 describe('quickKitUtils', () => {
@@ -64,5 +66,46 @@ describe('quickKitUtils', () => {
     expect(desc).toContain('10x Módulo fotovoltaico 610Wp (Canadian Solar)')
     expect(desc).toContain('1x Inversor solar Growatt 5000')
     expect(desc).toContain('Total 6,1 kWp')
+  })
+
+  it('gera nome duplicado com sufixo "— Cópia"', () => {
+    expect(gerarNomeKitClonado('Kit Solar 6,1 kWp — Canadian')).toBe(
+      'Kit Solar 6,1 kWp — Canadian — Cópia',
+    )
+    expect(gerarNomeKitClonado('Kit Solar 6,1 kWp — Cópia')).toBe('Kit Solar 6,1 kWp — Cópia 2')
+    expect(gerarNomeKitClonado('Kit Solar 6,1 kWp — Cópia 2')).toBe('Kit Solar 6,1 kWp — Cópia 3')
+    expect(gerarNomeKitClonado('')).toBe('Novo Kit Solar — Cópia')
+  })
+
+  it('extrai componentes para pré-preenchimento da montagem pré-pronta', () => {
+    const kitPrePronto = {
+      nome: 'Kit Solar 6,3 kWp-SOLO — TSUN + 5KW AUXSOL-BELENERGY',
+      potencia_kw: 6.3,
+      fabricante: 'TSUN / 5KW AUXSOL',
+      descricao:
+        '10x Módulo fotovoltaico 630Wp (TSUN) — Total 6,3 kWp\n1x Inversor solar 5KW AUXSOL\nEstrutura inclusa.',
+    }
+
+    const componentes = extrairComponentesKit(kitPrePronto)
+    expect(componentes.isPrePronto).toBe(true)
+    expect(componentes.qtdPaineis).toBe(10)
+    expect(componentes.potenciaPainelW).toBe(630)
+    expect(componentes.marcaPaineis).toBe('TSUN')
+    expect(componentes.qtdInversores).toBe(1)
+    expect(componentes.marcaInversor).toContain('5KW AUXSOL')
+  })
+
+  it('extrai componentes de kit manual com fallback seguro', () => {
+    const kitManual = {
+      nome: 'Kit Sob Demanda Especial',
+      potencia_kw: 5.5,
+      fabricante: 'WEG',
+      descricao: 'Estrutura personalizada sob encomenda.',
+    }
+
+    const comp = extrairComponentesKit(kitManual)
+    expect(comp.isPrePronto).toBe(true)
+    expect(comp.qtdPaineis).toBeGreaterThan(0)
+    expect(comp.potenciaPainelW).toBe(610)
   })
 })
