@@ -1,5 +1,6 @@
 import { formatBRL, formatDateBR } from './solarUtils'
 import { calculateInvestmentComparison } from '../utils/investmentComparison'
+import { parseKitDetailedItems } from './kitItemsParser'
 import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
 
 export interface ProposalPDFData {
@@ -32,19 +33,35 @@ export interface ProposalPDFData {
     name?: string
     email?: string
   }
+  kit_descricao?: string
+  fotos_obra?: Array<{
+    id: string
+    url?: string
+    foto?: string
+    legenda?: string
+  }>
 }
 
 export function generateProposalPrintHTML(data: ProposalPDFData): string {
-  const cleanPhone = (data.cliente.telefone || '').replace(/\D/g, '')
   const validadeFormatted = data.data_validade ? formatDateBR(data.data_validade) : '15 dias'
   const emissaoFormatted = data.created
     ? formatDateBR(data.created)
     : formatDateBR(new Date().toISOString())
-  const potencia = data.kit_potencia_kw ? `${data.kit_potencia_kw} kWp` : 'Potência personalizada'
+
+  // Decompor o kit com os itens reais cadastrados no sistema
+  const specs = parseKitDetailedItems({
+    kitNome: data.kit_nome,
+    kitPotenciaKw: data.kit_potencia_kw,
+    kitFabricante: data.kit_fabricante,
+    descricao: data.kit_descricao,
+    observacoes: data.observacoes,
+    consumoKwh: data.cliente.consumo_mensal_kwh,
+  })
 
   // Estimativas solares calculadas
   const consumoKwh = data.cliente.consumo_mensal_kwh || 400
-  const geracaoEstimadaKwh = Math.round((data.kit_potencia_kw || consumoKwh / 120) * 125)
+  const geracaoEstimadaKwh =
+    specs.geracaoMensalEstimadaKwh || Math.round((data.kit_potencia_kw || consumoKwh / 120) * 125)
   const economiaMensal = consumoKwh * 0.92 * 0.85
   const economiaAnual = economiaMensal * 12
   const economia25Anos = economiaAnual * 25
@@ -53,436 +70,580 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
   const sim = calculateInvestmentComparison(data.preco_venda || 0, economiaMensal, 30)
   const marcos = [5, 10, 15, 20, 25, 30]
 
+  // Proposta ID formatada
+  const proposalCode = (data.id || 'ECO').slice(-6).toUpperCase()
+
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Proposta Comercial Ecosolar Energy - ${data.cliente.nome}</title>
+  <title>Proposta Comercial Nº ${proposalCode} — ${data.cliente.nome} | Ecosolar Energy</title>
   <style>
     @page {
       size: A4 portrait;
-      margin: 14mm 16mm;
+      margin: 10mm 12mm;
     }
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
     body {
       color: #0f172a;
       background: #ffffff;
-      font-size: 12px;
+      font-size: 11px;
       line-height: 1.45;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
+
+    /* 1. Capa & Header Institucional Azul-Marinho */
     .header {
+      background: linear-gradient(135deg, #0A192F 0%, #0F284E 50%, #163868 100%);
+      color: #ffffff;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 12px;
+      border-bottom: 3px solid #EAB308;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 2px solid #0B7A5B;
-      padding-bottom: 12px;
-      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(10, 25, 47, 0.12);
     }
-    .logo-box {
+    .brand-box {
       display: flex;
       align-items: center;
       gap: 12px;
     }
-    .logo-img {
+    .brand-logo-img {
       height: 48px;
       width: auto;
       object-fit: contain;
+      background: #ffffff;
+      border-radius: 6px;
+      padding: 4px;
     }
     .brand-title {
       font-size: 19px;
       font-weight: 900;
       letter-spacing: -0.5px;
-      color: #0f172a;
+      color: #ffffff;
       line-height: 1.1;
     }
     .brand-title span {
-      color: #f59e0b;
+      color: #FACC15;
     }
     .brand-sub {
-      font-size: 9.5px;
-      color: #0B7A5B;
+      font-size: 9px;
+      color: #93C5FD;
       font-weight: 700;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.5px;
       margin-top: 2px;
+      text-transform: uppercase;
     }
     .header-meta {
       text-align: right;
-      font-size: 11px;
-      color: #475569;
+      font-size: 10.5px;
+      color: #CBD5E1;
+      line-height: 1.4;
     }
     .header-meta strong {
-      color: #0f172a;
+      color: #ffffff;
     }
     .badge-status {
       display: inline-block;
       margin-top: 4px;
       padding: 2px 8px;
       border-radius: 9999px;
-      font-size: 10px;
-      font-weight: 700;
+      font-size: 9.5px;
+      font-weight: 800;
       text-transform: uppercase;
-      background: ${data.status === 'Aceita' ? '#dcfce7' : '#e0f2fe'};
-      color: ${data.status === 'Aceita' ? '#15803d' : '#0369a1'};
-      border: 1px solid ${data.status === 'Aceita' ? '#86efac' : '#bae6fd'};
+      background: ${data.status === 'Aceita' ? '#22C55E' : '#EAB308'};
+      color: ${data.status === 'Aceita' ? '#ffffff' : '#0A192F'};
     }
+
+    /* 2. Sumário Executivo Comercial */
+    .hero-summary {
+      background: #F8FAFC;
+      border: 1px solid #CBD5E1;
+      border-left: 5px solid #0A192F;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+    .hero-left h2 {
+      font-size: 16px;
+      font-weight: 900;
+      color: #0A192F;
+      letter-spacing: -0.3px;
+    }
+    .hero-left p {
+      font-size: 11px;
+      color: #334155;
+      margin-top: 3px;
+    }
+    .hero-badges {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+      font-size: 9.5px;
+      font-weight: 700;
+    }
+    .hero-badge-item {
+      background: #0A192F;
+      color: #FACC15;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .hero-price-box {
+      text-align: right;
+      background: linear-gradient(135deg, #0A192F 0%, #163868 100%);
+      color: #ffffff;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid #EAB308;
+      min-width: 190px;
+      flex-shrink: 0;
+    }
+    .hero-price-box .price-label {
+      font-size: 9.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #93C5FD;
+      font-weight: 700;
+    }
+    .hero-price-box .price-amount {
+      font-size: 23px;
+      font-weight: 900;
+      color: #FACC15;
+      letter-spacing: -0.5px;
+      margin: 2px 0;
+    }
+    .hero-price-box .price-sub {
+      font-size: 9px;
+      color: #E2E8F0;
+    }
+
+    /* Grid 2 Colunas */
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      margin-bottom: 16px;
+      gap: 12px;
+      margin-bottom: 12px;
     }
     .card {
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 12px 14px;
-      background: #f8fafc;
+      border: 1px solid #E2E8F0;
+      border-radius: 6px;
+      padding: 10px 12px;
+      background: #FFFFFF;
     }
     .card-title {
-      font-size: 11px;
-      font-weight: 700;
+      font-size: 10px;
+      font-weight: 800;
       text-transform: uppercase;
-      color: #0B7A5B;
+      color: #0A192F;
       letter-spacing: 0.5px;
-      margin-bottom: 8px;
-      border-bottom: 1px solid #e2e8f0;
+      margin-bottom: 6px;
+      border-bottom: 2px solid #E2E8F0;
       padding-bottom: 4px;
-    }
-    .card-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 4px;
-      font-size: 11px;
-    }
-    .card-row .label {
-      color: #64748b;
-    }
-    .card-row .value {
-      font-weight: 600;
-      color: #1e293b;
-      text-align: right;
-    }
-    .hero-solar {
-      background: linear-gradient(135deg, #0B7A5B 0%, #064e3b 100%);
-      color: #ffffff;
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 16px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-    .hero-info h2 {
-      font-size: 18px;
-      font-weight: 800;
-      margin-bottom: 4px;
+    .card-title span.accent {
+      color: #EAB308;
     }
-    .hero-info p {
-      font-size: 12px;
-      opacity: 0.9;
+    .card-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 3.5px;
+      font-size: 10.5px;
     }
-    .hero-price {
-      text-align: right;
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 8px;
-      padding: 8px 14px;
+    .card-row .label {
+      color: #64748B;
     }
-    .hero-price .label {
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      opacity: 0.85;
-    }
-    .hero-price .amount {
-      font-size: 24px;
-      font-weight: 900;
-      color: #fef08a;
-      letter-spacing: -0.5px;
-    }
-    .table-section {
-      margin-bottom: 16px;
-    }
-    .table-section h3 {
-      font-size: 12px;
+    .card-row .value {
       font-weight: 700;
+      color: #0F172A;
+      text-align: right;
+    }
+
+    /* KPIs de Retorno Comercial */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .kpi-card {
+      border: 1px solid #CBD5E1;
+      border-radius: 6px;
+      padding: 8px 10px;
+      background: #F8FAFC;
+      text-align: center;
+    }
+    .kpi-card.highlight {
+      border: 1.5px solid #0A192F;
+      background: #EFF6FF;
+    }
+    .kpi-label {
+      font-size: 9px;
+      font-weight: 800;
+      color: #475569;
       text-transform: uppercase;
-      color: #334155;
+      letter-spacing: 0.3px;
+    }
+    .kpi-card.highlight .kpi-label {
+      color: #1E3A8A;
+    }
+    .kpi-val {
+      font-size: 15px;
+      font-weight: 900;
+      color: #0A192F;
+      margin-top: 2px;
+    }
+    .kpi-card.highlight .kpi-val {
+      color: #0F284E;
+    }
+    .kpi-sub {
+      font-size: 8.5px;
+      color: #64748B;
+      margin-top: 2px;
+    }
+
+    /* 3. Seção Técnica Organizada: Tabela Item a Item */
+    .section-title {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #0A192F;
+      letter-spacing: 0.5px;
       margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .section-title::before {
+      content: "";
+      display: inline-block;
+      width: 4px;
+      height: 12px;
+      background: #EAB308;
+      border-radius: 2px;
+    }
+    .table-container {
+      margin-bottom: 12px;
+      border: 1px solid #CBD5E1;
+      border-radius: 6px;
+      overflow: hidden;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 11px;
+      font-size: 10px;
     }
     th {
-      background: #f1f5f9;
-      color: #334155;
+      background: #0A192F;
+      color: #ffffff;
       text-align: left;
-      padding: 8px 10px;
-      font-weight: 700;
-      border-bottom: 1px solid #cbd5e1;
+      padding: 6px 8px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      font-size: 9px;
     }
-    td {
-      padding: 8px 10px;
-      border-bottom: 1px solid #e2e8f0;
-      color: #1e293b;
-    }
-    .kpi-row {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-    .kpi-card {
-      border: 1px solid #bbf7d0;
-      background: #f0fdf4;
-      border-radius: 6px;
-      padding: 10px;
+    th.text-center {
       text-align: center;
     }
-    .kpi-card .kpi-label {
-      font-size: 10px;
-      font-weight: 600;
-      color: #166534;
+    th.text-right {
+      text-align: right;
+    }
+    td {
+      padding: 5.5px 8px;
+      border-bottom: 1px solid #E2E8F0;
+      color: #1E293B;
+    }
+    tr:nth-child(even) td {
+      background: #F8FAFC;
+    }
+    .td-qty {
+      text-align: center;
+      font-weight: 800;
+      color: #0A192F;
+      font-size: 11px;
+    }
+    .td-status {
+      text-align: right;
+      font-weight: 800;
+      color: #15803D;
+    }
+
+    /* Faixa de resumo técnico (Potência, Geração e Área) */
+    .tech-summary-bar {
+      background: #F1F5F9;
+      border: 1px solid #CBD5E1;
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      font-size: 10.5px;
+    }
+    .tech-item {
+      text-align: center;
+    }
+    .tech-item .label {
+      font-size: 8.5px;
+      color: #64748B;
+      font-weight: 700;
       text-transform: uppercase;
     }
-    .kpi-card .kpi-val {
-      font-size: 16px;
-      font-weight: 800;
-      color: #15803d;
-      margin-top: 2px;
+    .tech-item .val {
+      font-size: 13px;
+      font-weight: 900;
+      color: #0A192F;
     }
-    .box-notes {
-      border: 1px solid #e2e8f0;
+
+    /* 4. Apresentação Financeira e Relatório de 30 Anos */
+    .comp-section {
+      border: 1px solid #CBD5E1;
       border-radius: 6px;
       padding: 10px 12px;
-      background: #ffffff;
-      margin-bottom: 16px;
-    }
-    .box-notes h4 {
-      font-size: 11px;
-      font-weight: 700;
-      color: #475569;
-      margin-bottom: 4px;
-    }
-    .box-notes p {
-      font-size: 11px;
-      color: #334155;
-      white-space: pre-line;
-    }
-    .comp-section {
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      padding: 12px 14px;
-      background: #ffffff;
-      margin-bottom: 16px;
+      background: #FFFFFF;
+      margin-bottom: 12px;
       page-break-inside: avoid;
     }
     .comp-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
-      border-bottom: 1px solid #e2e8f0;
-      padding-bottom: 6px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid #E2E8F0;
+      padding-bottom: 4px;
     }
     .comp-header h3 {
-      font-size: 12px;
-      font-weight: 800;
-      color: #0f172a;
+      font-size: 11px;
+      font-weight: 900;
+      color: #0A192F;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px;
     }
     .comp-kpis {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-bottom: 10px;
+      gap: 6px;
+      margin-bottom: 8px;
     }
     .comp-kpi-card {
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      padding: 8px;
-      background: #f8fafc;
+      border: 1px solid #E2E8F0;
+      border-radius: 4px;
+      padding: 6px 8px;
+      background: #F8FAFC;
     }
     .comp-kpi-card.winner {
-      border: 2px solid #0B7A5B;
-      background: #f0fdf4;
+      border: 1.5px solid #0A192F;
+      background: #EFF6FF;
     }
     .comp-kpi-title {
-      font-size: 9px;
-      font-weight: 700;
+      font-size: 8.5px;
+      font-weight: 800;
       text-transform: uppercase;
-      color: #64748b;
+      color: #64748B;
     }
     .comp-kpi-card.winner .comp-kpi-title {
-      color: #166534;
+      color: #1E3A8A;
     }
     .comp-kpi-val {
-      font-size: 15px;
+      font-size: 13px;
       font-weight: 900;
-      color: #0f172a;
-      margin-top: 2px;
+      color: #0F172A;
     }
     .comp-kpi-card.winner .comp-kpi-val {
-      color: #0B7A5B;
+      color: #0A192F;
     }
     .comp-kpi-sub {
-      font-size: 9px;
-      color: #64748b;
-      margin-top: 1px;
+      font-size: 8px;
+      color: #64748B;
     }
     .comp-kpi-card.winner .comp-kpi-sub {
-      color: #15803d;
-      font-weight: 600;
-    }
-    .comp-highlight {
-      background: #ecfdf5;
-      border: 1px solid #a7f3d0;
-      border-radius: 6px;
-      padding: 8px 10px;
-      font-size: 10px;
-      color: #065f46;
-      margin-bottom: 10px;
-      line-height: 1.4;
+      color: #15803D;
+      font-weight: 700;
     }
     .comp-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 10px;
-      margin-bottom: 8px;
+      font-size: 9.5px;
+      margin-bottom: 6px;
     }
     .comp-table th {
-      background: #f1f5f9;
-      padding: 5px 6px;
+      background: #F1F5F9;
+      color: #334155;
+      padding: 4px 6px;
       font-weight: 700;
-      border-bottom: 1px solid #cbd5e1;
+      border-bottom: 1px solid #CBD5E1;
+      font-size: 8.5px;
     }
     .comp-table td {
-      padding: 5px 6px;
-      border-bottom: 1px solid #e2e8f0;
+      padding: 4px 6px;
+      border-bottom: 1px solid #E2E8F0;
     }
     .comp-table tr.highlight-30 td {
-      background: #ecfdf5;
+      background: #EFF6FF;
       font-weight: 800;
-      color: #065f46;
+      color: #1E3A8A;
     }
     .comp-notes {
-      font-size: 8.5px;
-      color: #64748b;
-      line-height: 1.35;
-      border-top: 1px dashed #e2e8f0;
-      padding-top: 6px;
+      font-size: 8px;
+      color: #64748B;
+      line-height: 1.3;
+      border-top: 1px dashed #E2E8F0;
+      padding-top: 4px;
     }
+
+    /* 5. Prova Social — Galeria de Obras Reais */
+    .social-proof {
+      border: 1px solid #CBD5E1;
+      border-radius: 6px;
+      padding: 10px 12px;
+      background: #F8FAFC;
+      margin-bottom: 12px;
+      page-break-inside: avoid;
+    }
+    .photos-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .photo-thumb {
+      aspect-ratio: 4/3;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #CBD5E1;
+      background: #0A192F;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .photo-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* 6. Fechamento & Aceite */
     .acceptance-box {
-      border: 2px dashed #0B7A5B;
-      border-radius: 8px;
-      padding: 12px 16px;
-      background: #f0fdf4;
+      border: 2px dashed #0A192F;
+      border-radius: 6px;
+      padding: 10px 14px;
+      background: #F0F9FF;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 14px;
+      margin-bottom: 12px;
+      page-break-inside: avoid;
     }
     .acceptance-box h4 {
-      font-size: 12px;
-      font-weight: 800;
-      color: #064e3b;
+      font-size: 11px;
+      font-weight: 900;
+      color: #0A192F;
     }
     .acceptance-box p {
-      font-size: 10px;
-      color: #166534;
-      margin-top: 2px;
+      font-size: 9.5px;
+      color: #1E3A8A;
+      margin-top: 1px;
     }
     .acceptance-link {
-      font-size: 10px;
+      font-size: 9px;
       font-family: monospace;
-      color: #0B7A5B;
+      color: #0A192F;
       font-weight: 700;
       word-break: break-all;
     }
+
     .signature-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 40px;
-      margin-top: 36px;
-      padding-top: 10px;
+      gap: 36px;
+      margin-top: 24px;
+      padding-top: 6px;
+      page-break-inside: avoid;
     }
     .signature-line {
-      border-top: 1px solid #94a3b8;
+      border-top: 1px solid #94A3B8;
       text-align: center;
-      padding-top: 6px;
-      font-size: 11px;
+      padding-top: 4px;
+      font-size: 10px;
       color: #475569;
     }
     .signature-line strong {
-      color: #0f172a;
+      color: #0A192F;
       display: block;
     }
+
+    /* Footer */
     .footer {
-      margin-top: 24px;
-      border-top: 1px solid #e2e8f0;
-      padding-top: 8px;
+      margin-top: 16px;
+      border-top: 1px solid #E2E8F0;
+      padding-top: 6px;
       display: flex;
       justify-content: space-between;
-      font-size: 9px;
-      color: #94a3b8;
-    }
-    @media print {
-      body {
-        print-color-adjust: exact;
-        -webkit-print-color-adjust: exact;
-      }
-      .no-print {
-        display: none !important;
-      }
+      font-size: 8.5px;
+      color: #94A3B8;
     }
   </style>
 </head>
 <body>
-  <!-- Header -->
+  <!-- 1. Capa Institucional Azul-Marinho -->
   <div class="header">
-    <div class="logo-box">
-      <img src="${logoEcosolar}" alt="Ecosolar Energy" class="logo-img" />
+    <div class="brand-box">
+      <img src="${logoEcosolar}" alt="Ecosolar Energy" class="brand-logo-img" />
       <div>
         <div class="brand-title">ECO<span>SOLAR</span> ENERGY</div>
         <div class="brand-sub">A energia do futuro, hoje! • Soluções em Engenharia Solar</div>
       </div>
     </div>
     <div class="header-meta">
-      <div><strong>Proposta Comercial #${(data.id || 'NOVA').slice(-6).toUpperCase()}</strong></div>
+      <div><strong>PROPOSTA COMERCIAL Nº ${proposalCode}</strong></div>
       <div>Emissão: <strong>${emissaoFormatted}</strong></div>
       <div>Validade até: <strong>${validadeFormatted}</strong></div>
-      <div><span class="badge-status">${data.status || 'Enviada'}</span></div>
+      <div><span class="badge-status">${data.status === 'Aceita' ? '✓ Proposta Aceita' : 'Aguardando Aceite'}</span></div>
     </div>
   </div>
 
-  <!-- Hero Highlight -->
-  <div class="hero-solar">
-    <div class="hero-info">
+  <!-- 2. Sumário Executivo Comercial -->
+  <div class="hero-summary">
+    <div class="hero-left">
       <h2>${data.kit_nome}</h2>
-      <p>Sistema Fotovoltaico Conectado à Rede (On-Grid) • Potência: <strong>${potencia}</strong></p>
-      ${data.kit_fabricante ? `<p style="font-size: 11px; opacity: 0.85; margin-top: 2px;">Fabricante / Módulos: ${data.kit_fabricante}</p>` : ''}
+      <p>Sistema Fotovoltaico Turnkey de Alta Performance dimensionado sob medida para suprir <strong>${consumoKwh} kWh/mês</strong> do cliente <strong>${data.cliente.nome}</strong>.</p>
+      <div class="hero-badges">
+        <span class="hero-badge-item">Potência Total: ${specs.potenciaTotalFormatada}</span>
+        <span class="hero-badge-item">Geração Média: ~${geracaoEstimadaKwh} kWh/mês</span>
+        <span class="hero-badge-item">Fabricantes: ${specs.fabricantesPrincipais}</span>
+      </div>
     </div>
-    <div class="hero-price">
-      <div class="label">Investimento Total</div>
-      <div class="amount">${formatBRL(data.preco_venda)}</div>
+    <div class="hero-price-box">
+      <div class="price-label">Investimento Total Turnkey</div>
+      <div class="price-amount">${formatBRL(data.preco_venda)}</div>
+      <div class="price-sub">Equipamentos + Engenharia + Instalação</div>
     </div>
   </div>
 
-  <!-- Grid 2: Cliente & Vendedor -->
+  <!-- Dados do Cliente e do Consultor -->
   <div class="grid-2">
     <div class="card">
-      <div class="card-title">Dados do Cliente</div>
+      <div class="card-title">
+        <span>Dados do Cliente Contratante</span>
+        <span class="accent">👤</span>
+      </div>
       <div class="card-row">
-        <span class="label">Nome:</span>
+        <span class="label">Nome Completo:</span>
         <span class="value">${data.cliente.nome}</span>
       </div>
       <div class="card-row">
@@ -490,11 +651,11 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
         <span class="value">${data.cliente.email || '-'}</span>
       </div>
       <div class="card-row">
-        <span class="label">Telefone:</span>
+        <span class="label">Telefone / WhatsApp:</span>
         <span class="value">${data.cliente.telefone || '-'}</span>
       </div>
       <div class="card-row">
-        <span class="label">Local de Instalação:</span>
+        <span class="label">Local da Instalação:</span>
         <span class="value">${[data.cliente.cidade, data.cliente.estado].filter(Boolean).join(' - ') || 'Brasil'}</span>
       </div>
       ${
@@ -509,13 +670,16 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     </div>
 
     <div class="card">
-      <div class="card-title">Consultor Solar Responsável</div>
+      <div class="card-title">
+        <span>Consultor Solar & Responsabilidade Técnica</span>
+        <span class="accent">⚡</span>
+      </div>
       <div class="card-row">
-        <span class="label">Especialista:</span>
+        <span class="label">Consultor Responsável:</span>
         <span class="value">${data.vendedor?.name || 'Equipe Ecosolar Energy'}</span>
       </div>
       <div class="card-row">
-        <span class="label">Contato:</span>
+        <span class="label">Contato Comercial:</span>
         <span class="value">${data.vendedor?.email || 'contato@ecosolarenergy.com.br'}</span>
       </div>
       <div class="card-row">
@@ -523,71 +687,124 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
         <span class="value">${consumoKwh} kWh/mês</span>
       </div>
       <div class="card-row">
-        <span class="label">Geração Média Estimada:</span>
+        <span class="label">Geração Prevista:</span>
         <span class="value">${geracaoEstimadaKwh} kWh/mês</span>
+      </div>
+      <div class="card-row">
+        <span class="label">Área Estimada Telhado:</span>
+        <span class="value">${specs.areaEstimadaM2 ? `~${specs.areaEstimadaM2} m²` : 'Sob Demanda'}</span>
       </div>
     </div>
   </div>
 
-  <!-- Estimativas de Economia -->
+  <!-- KPIs de Retorno Financeiro -->
   <div class="kpi-row">
-    <div class="kpi-card">
+    <div class="kpi-card highlight">
       <div class="kpi-label">Economia Mensal Est.</div>
       <div class="kpi-val">${formatBRL(economiaMensal)}</div>
+      <div class="kpi-sub">Alívio imediato na fatura</div>
     </div>
-    <div class="kpi-card">
+    <div class="kpi-card highlight">
       <div class="kpi-label">Economia Anual Est.</div>
       <div class="kpi-val">${formatBRL(economiaAnual)}</div>
+      <div class="kpi-sub">Capital livre reinvestível</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Economia em 25 Anos</div>
-      <div class="kpi-val">${formatBRL(economia25Anos)}</div>
+      <div class="kpi-label">Payback Estimado</div>
+      <div class="kpi-val">~${sim.paybackEstimadoAnos || 3} anos</div>
+      <div class="kpi-sub">Retorno do investimento</div>
+    </div>
+    <div class="kpi-card highlight">
+      <div class="kpi-label">Retorno em 30 Anos</div>
+      <div class="kpi-val">${formatBRL(sim.finalSolar)}</div>
+      <div class="kpi-sub">+${sim.ganhoSolarVsCdbPercent}% superior ao CDB</div>
     </div>
   </div>
 
-  <!-- Comparativo Financeiro em 30 Anos: Solar vs Poupança vs CDB -->
+  <!-- 3. Seção Técnica Organizada: Tabela Item a Item com Quantidades Reais -->
+  <div class="section-title">Composição do Kit Solar — Detalhamento Item a Item com Quantidades Reais</div>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 55px;" class="text-center">Qtd.</th>
+          <th>Componente / Serviço Inclusos</th>
+          <th>Fabricante / Modelo Cadastrado</th>
+          <th>Especificações Técnicas</th>
+          <th style="width: 70px;" class="text-right">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${specs.itens
+          .map(
+            (it) => `
+        <tr>
+          <td class="td-qty">${it.quantidade}${it.unidade !== 'un' ? ` ${it.unidade}` : 'x'}</td>
+          <td><strong>${it.nome}</strong></td>
+          <td>${it.fabricanteModelo}</td>
+          <td style="color: #64748B;">${it.especificacao || '-'}</td>
+          <td class="td-status">Incluso</td>
+        </tr>`,
+          )
+          .join('')}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tech-summary-bar">
+    <div class="tech-item">
+      <div class="label">Potência Total do Gerador</div>
+      <div class="val">${specs.potenciaTotalFormatada}</div>
+    </div>
+    <div class="tech-item">
+      <div class="label">Módulos Instalados</div>
+      <div class="val">${specs.quantidadeModulosTotal ? `${specs.quantidadeModulosTotal} painéis` : '-'}</div>
+    </div>
+    <div class="tech-item">
+      <div class="label">Geração Média Mensal</div>
+      <div class="val">~${geracaoEstimadaKwh} kWh/mês</div>
+    </div>
+    <div class="tech-item">
+      <div class="label">Área Telhado Estimada</div>
+      <div class="val">${specs.areaEstimadaM2 ? `~${specs.areaEstimadaM2} m²` : '-'}</div>
+    </div>
+  </div>
+
+  <!-- 4. Apresentação Financeira e Comparativo em 30 Anos -->
   <div class="comp-section">
     <div class="comp-header">
-      <h3>Comparativo de Investimento em 30 Anos (Solar vs Poupança vs CDB)</h3>
-      <span style="font-size: 9px; font-weight: 700; color: #0B7A5B; background: #dcfce7; padding: 2px 6px; border-radius: 4px;">
-        Horizonte de 30 anos
+      <h3>Comparativo Financeiro em 30 Anos (Solar vs Poupança vs CDB Líquido)</h3>
+      <span style="font-size: 8.5px; font-weight: 800; color: #1E3A8A; background: #DBEAFE; padding: 2px 6px; border-radius: 4px;">
+        Relatório de Rentabilidade Financeira
       </span>
     </div>
 
-    <!-- Cards de Acúmulo -->
     <div class="comp-kpis">
       <div class="comp-kpi-card">
-        <div class="comp-kpi-title">🪙 Poupança (6,17% a.a.)</div>
+        <div class="comp-kpi-title">🪙 Poupança Tradicional (6,17% a.a.)</div>
         <div class="comp-kpi-val">${formatBRL(sim.finalPoupanca)}</div>
-        <div class="comp-kpi-sub">Rendimento: ${formatBRL(sim.finalPoupanca - sim.valorInvestido)}</div>
+        <div class="comp-kpi-sub">Rendimento acumulado: ${formatBRL(sim.finalPoupanca - sim.valorInvestido)}</div>
       </div>
-
       <div class="comp-kpi-card">
-        <div class="comp-kpi-title">🏦 CDB (100% CDI Líq.)</div>
+        <div class="comp-kpi-title">🏦 CDB (100% CDI Líq. de IR 15%)</div>
         <div class="comp-kpi-val">${formatBRL(sim.finalCdb)}</div>
-        <div class="comp-kpi-sub">Líquido de IR (15% no resgate)</div>
+        <div class="comp-kpi-sub">Líquido de imposto regressivo</div>
       </div>
-
       <div class="comp-kpi-card winner">
-        <div class="comp-kpi-title">☀ Energia Solar (Vencedor)</div>
+        <div class="comp-kpi-title">☀ Energia Solar (Vencedor Absoluto)</div>
         <div class="comp-kpi-val">${formatBRL(sim.finalSolar)}</div>
-        <div class="comp-kpi-sub">+${sim.ganhoSolarVsCdbPercent}% superior ao CDB (+${formatBRL(sim.ganhoSolarVsCdbValor)})</div>
+        <div class="comp-kpi-sub">+${sim.ganhoSolarVsCdbPercent}% superior (+${formatBRL(sim.ganhoSolarVsCdbValor)})</div>
       </div>
     </div>
 
-    <div class="comp-highlight">
-      <strong>Veredito Financeiro:</strong> Investir em Energia Solar gera <strong>+${sim.ganhoSolarVsPoupancaPercent}% a mais que a poupança</strong> (${formatBRL(sim.ganhoSolarVsPoupancaValor)} de ganho excedente) e <strong>+${sim.ganhoSolarVsCdbPercent}% a mais que o CDB</strong> (${formatBRL(sim.ganhoSolarVsCdbValor)} de vantagem), além de proteger contra a inflação energética.
-    </div>
-
-    <!-- Tabela Resumida de 5 em 5 anos -->
     <table class="comp-table">
       <thead>
         <tr>
           <th>Marco Temporal</th>
           <th style="text-align: right;">Poupança (6,17% a.a.)</th>
           <th style="text-align: right;">CDB 100% CDI Líquido</th>
-          <th style="text-align: right; background: #dcfce7; color: #065f46;">☀ Energia Solar</th>
-          <th style="text-align: right; background: #dcfce7; color: #065f46;">Vantagem Solar vs CDB</th>
+          <th style="text-align: right; background: #DBEAFE; color: #1E3A8A;">☀ Energia Solar</th>
+          <th style="text-align: right; background: #DBEAFE; color: #1E3A8A;">Vantagem Solar vs CDB</th>
         </tr>
       </thead>
       <tbody>
@@ -601,8 +818,8 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
               <td><strong>Ano ${ano}</strong></td>
               <td style="text-align: right;">${formatBRL(row.poupanca)}</td>
               <td style="text-align: right;">${formatBRL(row.cdb)}</td>
-              <td style="text-align: right; font-weight: 700; color: #0B7A5B;">${formatBRL(row.solar)}</td>
-              <td style="text-align: right; font-weight: 700; color: ${diffCdb >= 0 ? '#0B7A5B' : '#64748b'};">
+              <td style="text-align: right; font-weight: 800; color: #0A192F;">${formatBRL(row.solar)}</td>
+              <td style="text-align: right; font-weight: 800; color: ${diffCdb >= 0 ? '#15803D' : '#64748B'};">
                 ${diffCdb >= 0 ? '+' : ''}${formatBRL(diffCdb)}
               </td>
             </tr>`
@@ -612,89 +829,81 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     </table>
 
     <div class="comp-notes">
-      <strong>Premissas Transparentes:</strong> Poupança: 6,17% a.a. isento. CDB: 10,50% a.a. bruto com alíquota regressiva de IR (15% acima de 2 anos). Solar: valor investido é o preço do kit com reinvestimento da economia na poupança (6,17% a.a.) e dedução de degradação padrão de 0,5% a.a. dos módulos.
+      <strong>Veredito Comercial:</strong> Investir em Energia Solar gera <strong>+${sim.ganhoSolarVsPoupancaPercent}% a mais que a poupança</strong> e <strong>+${sim.ganhoSolarVsCdbPercent}% a mais que o CDB</strong>, blindando sua residência/empresa contra reajustes tarifários da concessionária e valorizando imediatamente o patrimônio imobiliário em cerca de 6% a 8%.
     </div>
   </div>
 
-  <!-- Escopo & Especificações -->
-  <div class="table-section">
-    <h3>Detalhamento do Sistema e Serviços Inclusos</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Item / Descrição</th>
-          <th>Especificação</th>
-          <th style="text-align: right;">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>Gerador Fotovoltaico</strong><br><span style="color:#64748b; font-size:10px;">Módulos fotovoltaicos Tier 1 e inversor de alta performance</span></td>
-          <td>${data.kit_nome} (${potencia})</td>
-          <td style="text-align: right; font-weight: 600; color:#0B7A5B;">Incluso</td>
-        </tr>
-        <tr>
-          <td><strong>Projeto de Engenharia & Homologação</strong><br><span style="color:#64748b; font-size:10px;">ART de engenharia e trâmite completo junto à concessionária</span></td>
-          <td>Engenheiro eletricista responsável</td>
-          <td style="text-align: right; font-weight: 600; color:#0B7A5B;">Incluso</td>
-        </tr>
-        <tr>
-          <td><strong>Instalação Padrão & Estrutura de Fixação</strong><br><span style="color:#64748b; font-size:10px;">Cabos solares, proteções CC/CA (String Box) e fixadores em alumínio</span></td>
-          <td>Equipe técnica qualificada NR10/NR35</td>
-          <td style="text-align: right; font-weight: 600; color:#0B7A5B;">Incluso</td>
-        </tr>
-        <tr>
-          <td><strong>Monitoramento em Tempo Real</strong><br><span style="color:#64748b; font-size:10px;">Aplicativo no celular para acompanhamento da produção 24/7</span></td>
-          <td>Módulo Wi-Fi incluso</td>
-          <td style="text-align: right; font-weight: 600; color:#0B7A5B;">Incluso</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- Condições & Observações -->
+  <!-- 5. Prova Social — Fotos de Obras Concluídas -->
   ${
-    data.condicoes_pagamento
+    data.fotos_obra && data.fotos_obra.length > 0
       ? `
-  <div class="box-notes">
-    <h4>Condições de Pagamento</h4>
-    <p>${data.condicoes_pagamento}</p>
+  <div class="social-proof">
+    <div class="section-title" style="margin-bottom: 4px;">Prova Social — Padrão de Engenharia em Obras Executadas</div>
+    <p style="font-size: 9px; color: #475569; margin-bottom: 6px;">Confira fotos reais de instalações homologadas e executadas pela equipe Ecosolar Energy:</p>
+    <div class="photos-grid">
+      ${data.fotos_obra
+        .slice(0, 4)
+        .map(
+          (ph) => `
+        <div class="photo-thumb">
+          <img src="${ph.url || ph.foto}" alt="Instalação Ecosolar Energy" />
+        </div>`,
+        )
+        .join('')}
+    </div>
   </div>`
       : ''
   }
 
+  <!-- Condições de Pagamento e Observações -->
   ${
-    data.observacoes
+    data.condicoes_pagamento || data.observacoes
       ? `
-  <div class="box-notes">
-    <h4>Observações Importantes</h4>
-    <p>${data.observacoes}</p>
+  <div class="grid-2">
+    ${
+      data.condicoes_pagamento
+        ? `
+    <div class="card">
+      <div class="card-title">Condições de Pagamento</div>
+      <p style="font-size: 9.5px; color: #334155; line-height: 1.4; white-space: pre-line;">${data.condicoes_pagamento}</p>
+    </div>`
+        : ''
+    }
+    ${
+      data.observacoes
+        ? `
+    <div class="card">
+      <div class="card-title">Observações Técnicas & Contratuais</div>
+      <p style="font-size: 9.5px; color: #334155; line-height: 1.4; white-space: pre-line;">${data.observacoes}</p>
+    </div>`
+        : ''
+    }
   </div>`
       : ''
   }
 
-  <!-- Link de Aceite Online -->
+  <!-- 6. Fechamento com CTA & Aceite Online -->
   <div class="acceptance-box">
     <div>
-      <h4>${data.status === 'Aceita' ? '✓ Proposta Formalmente Aceita' : 'Aceite Online Disponível'}</h4>
+      <h4>${data.status === 'Aceita' ? '✓ Proposta Formalmente Aceita' : 'Aceite Online Disponível e Seguro'}</h4>
       <p>
         ${
           data.status === 'Aceita'
-            ? `Aceita por <strong>${data.aceito_por_nome || data.cliente.nome}</strong> em ${formatDateBR(data.data_aceite || data.created || new Date().toISOString())}.`
-            : 'O cliente pode aceitar esta proposta online com um clique através do link exclusivo abaixo.'
+            ? `Aceita formalmente por <strong>${data.aceito_por_nome || data.cliente.nome}</strong> em ${formatDateBR(data.data_aceite || data.created || new Date().toISOString())}.`
+            : 'Esta proposta pode ser aceita digitalmente através do link exclusivo abaixo, dispensando cartório.'
         }
       </p>
       ${
         data.token_publico
           ? `
-      <div class="acceptance-link" style="margin-top: 4px;">
+      <div class="acceptance-link" style="margin-top: 3px;">
         Link público: ${window.location.origin}/proposta/${data.token_publico}
       </div>`
           : ''
       }
     </div>
     <div style="text-align: right;">
-      <span style="font-size: 11px; font-weight: 700; color: #0B7A5B;">Validade: ${validadeFormatted}</span>
+      <span style="font-size: 10px; font-weight: 800; color: #0A192F;">Validade: ${validadeFormatted}</span>
     </div>
   </div>
 
@@ -712,8 +921,8 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
 
   <!-- Footer -->
   <div class="footer">
-    <div>Ecosolar Energy — A energia do futuro, hoje! • Sistema de Gestão e Engenharia Solar</div>
-    <div>Documento gerado eletronicamente em ${formatDateBR(new Date().toISOString())}</div>
+    <div>Ecosolar Energy — A energia do futuro, hoje! • Soluções em Engenharia Solar</div>
+    <div>Documento gerado eletronicamente em ${formatDateBR(new Date().toISOString())} • Proposta Nº ${proposalCode}</div>
   </div>
 </body>
 </html>`
@@ -731,7 +940,6 @@ export function openProposalPDFPrint(data: ProposalPDFData): void {
   printWindow.document.write(html)
   printWindow.document.close()
 
-  // Executa impressão / Salvar como PDF após carregamento dos estilos
   printWindow.focus()
   setTimeout(() => {
     try {

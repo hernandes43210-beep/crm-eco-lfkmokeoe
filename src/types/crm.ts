@@ -266,4 +266,10 @@ export interface PublicProposta {
     name?: string
     email?: string
   }
+  fotos_obra?: Array<{
+    id: string
+    foto: string
+    legenda?: string
+    url?: string
+  }>
 }

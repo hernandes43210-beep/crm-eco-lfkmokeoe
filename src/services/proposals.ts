@@ -154,6 +154,37 @@ export const ProposalsService = {
             }
           | undefined
 
+        // Fallback: tentar carregar fotos_obra se disponível
+        let fallbackFotos: Array<{ id: string; foto: string; legenda?: string; url?: string }> = []
+        try {
+          const leadId = found.lead
+          let records: any[] = []
+          if (leadId) {
+            const res = await pb.collection('lead_photos').getList(1, 4, {
+              filter: `lead = "${leadId}"`,
+              sort: 'ordem,created',
+            })
+            records = res.items
+          }
+          if (records.length === 0) {
+            const res = await pb.collection('lead_photos').getList(1, 4, {
+              filter: `foto != ""`,
+              sort: '-created',
+            })
+            records = res.items
+          }
+          if (records.length > 0) {
+            fallbackFotos = records.map((p) => ({
+              id: p.id,
+              foto: p.foto,
+              legenda: p.legenda,
+              url: pb.files.getURL(p, p.foto, { thumb: '800x600' }),
+            }))
+          }
+        } catch {
+          /* intentionally ignored */
+        }
+
         return {
           id: found.id,
           token_publico: found.token_publico,
@@ -200,6 +231,7 @@ export const ProposalsService = {
                 email: expandedVendedor.email,
               }
             : null,
+          fotos_obra: fallbackFotos,
         }
       } catch (fallbackErr: unknown) {
         // Se ambos falharem, tratar mensagem de erro amigável

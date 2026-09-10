@@ -530,6 +530,7 @@ export default function LeadDetail() {
       data_aceite: prop.data_aceite,
       aceito_por_nome: prop.aceito_por_nome,
       created: prop.created,
+      kit_descricao: prop.expand?.kit?.descricao,
       cliente: {
         nome: lead.nome,
         email: lead.email,

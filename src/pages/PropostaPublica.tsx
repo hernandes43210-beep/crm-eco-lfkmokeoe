@@ -10,18 +10,25 @@ import {
   Phone,
   Mail,
   MapPin,
-  Calendar,
   Sparkles,
   Loader2,
   Building2,
   ArrowRight,
   TrendingUp,
+  Award,
+  ChevronRight,
+  Home,
+  Check,
+  Camera,
+  Layers,
+  Percent,
 } from 'lucide-react'
 import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
 import { ProposalsService } from '@/services/proposals'
 import type { PublicProposta } from '@/types/crm'
 import { formatBRL, formatDateBR, formatDateTimeBR } from '@/lib/solarUtils'
 import { openProposalPDFPrint } from '@/lib/proposalPdf'
+import { parseKitDetailedItems } from '@/lib/kitItemsParser'
 import { InvestmentComparison } from '@/components/InvestmentComparison'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -94,7 +101,7 @@ export default function PropostaPublica() {
       toast({
         title: 'Proposta Aceita com Sucesso!',
         description:
-          'Seu aceite formal foi registrado no sistema. Nossa equipe técnica entrará em contato em breve para os próximos passos.',
+          'Seu aceite formal foi registrado no sistema. Nossa equipe técnica de engenharia dará início imediato ao projeto executivo e homologação.',
       })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Falha ao aceitar proposta.'
@@ -127,6 +134,7 @@ export default function PropostaPublica() {
       data_aceite: proposta.data_aceite,
       aceito_por_nome: proposta.aceito_por_nome,
       created: proposta.created,
+      kit_descricao: proposta.kit?.descricao,
       cliente: {
         nome: proposta.lead?.nome || 'Cliente',
         email: proposta.lead?.email,
@@ -140,19 +148,22 @@ export default function PropostaPublica() {
         name: proposta.vendedor?.name || 'Equipe Ecosolar Energy',
         email: proposta.vendedor?.email,
       },
+      fotos_obra: proposta.fotos_obra,
     })
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <div className="w-16 h-16 rounded-2xl bg-white p-2 shadow-lg mb-4 border border-slate-200 animate-bounce flex items-center justify-center">
+      <div className="min-h-screen bg-[#0A192F] flex flex-col items-center justify-center p-4 text-white">
+        <div className="w-20 h-20 rounded-2xl bg-white p-3 shadow-2xl mb-4 border border-amber-400/40 animate-pulse flex items-center justify-center">
           <img src={logoEcosolar} alt="Ecosolar Energy" className="w-full h-full object-contain" />
         </div>
-        <Loader2 className="w-6 h-6 animate-spin text-[#0B7A5B] mb-2" />
-        <p className="text-sm font-semibold text-slate-700">Carregando sua proposta comercial...</p>
-        <p className="text-xs text-emerald-700 mt-1 font-semibold">
-          Ecosolar Energy • A energia do futuro, hoje!
+        <Loader2 className="w-7 h-7 animate-spin text-amber-400 mb-2" />
+        <p className="text-base font-bold text-slate-100">
+          Carregando Proposta Comercial Oficial...
+        </p>
+        <p className="text-xs text-amber-300 mt-1 font-semibold">
+          ECOSOLAR ENERGY • Soluções em Engenharia Solar
         </p>
       </div>
     )
@@ -160,8 +171,8 @@ export default function PropostaPublica() {
 
   if (errorMsg || !proposta) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl p-8 border border-slate-200 shadow-sm text-center space-y-4">
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl p-8 border border-slate-200 shadow-xl text-center space-y-4">
           <div className="w-14 h-14 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
             <AlertTriangle className="w-8 h-8" />
           </div>
@@ -171,7 +182,8 @@ export default function PropostaPublica() {
           </p>
           <div className="pt-2">
             <p className="text-xs text-slate-400 mb-4">
-              Caso você seja o cliente, por favor solicite um novo link ao seu consultor solar.
+              Caso você seja o cliente, por favor solicite um novo link ao seu consultor solar
+              Ecosolar Energy.
             </p>
             <Link to="/">
               <Button variant="outline" size="sm" className="text-xs">
@@ -184,9 +196,21 @@ export default function PropostaPublica() {
     )
   }
 
+  // Decompor o kit em itens reais cadastrados no sistema
+  const specs = parseKitDetailedItems({
+    kitNome: proposta.kit_nome,
+    kitPotenciaKw: proposta.kit_potencia_kw,
+    kitFabricante: proposta.kit_fabricante,
+    descricao: proposta.kit?.descricao,
+    observacoes: proposta.observacoes,
+    consumoKwh: proposta.lead?.consumo_mensal_kwh,
+  })
+
   // Cálculos solares
   const consumoKwh = proposta.lead?.consumo_mensal_kwh || 400
-  const geracaoEstimadaKwh = Math.round((proposta.kit_potencia_kw || consumoKwh / 120) * 125)
+  const geracaoEstimadaKwh =
+    specs.geracaoMensalEstimadaKwh ||
+    Math.round((proposta.kit_potencia_kw || consumoKwh / 120) * 125)
   const economiaMensal = consumoKwh * 0.92 * 0.85
   const economiaAnual = economiaMensal * 12
   const economia25Anos = economiaAnual * 25
@@ -197,23 +221,29 @@ export default function PropostaPublica() {
   hoje.setHours(0, 0, 0, 0)
   const isExpirada = dataValidade < hoje && proposta.status !== 'Aceita'
 
+  const proposalNumber = (proposta.id || 'ECO').slice(-6).toUpperCase()
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 pb-16">
-      {/* Top Navigation Bar with Ecosolar Energy Brand */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-8 py-3 shadow-xs">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
+    <div className="min-h-screen bg-[#F4F6F9] text-slate-900 pb-20">
+      {/* 1. Capa Institucional / Top Navigation Bar — Azul-Marinho Navy (#0A192F) */}
+      <header className="sticky top-0 z-30 bg-[#0A192F] text-white border-b-2 border-amber-400 px-4 sm:px-8 py-3.5 shadow-md">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="bg-white rounded-xl p-1.5 shadow-sm border border-slate-200/90 flex items-center justify-center">
               <img src={logoEcosolar} alt="Ecosolar Energy" className="w-8 h-8 object-contain" />
             </div>
             <div>
-              <div className="flex items-center gap-1">
-                <span className="font-extrabold text-base text-slate-900 tracking-tight">
-                  ECO<span className="text-amber-500">SOLAR</span> ENERGY
+              <div className="flex items-center gap-1.5">
+                <span className="font-extrabold text-base text-white tracking-tight">
+                  ECO<span className="text-amber-400">SOLAR</span> ENERGY
+                </span>
+                <span className="hidden sm:inline-block text-[10px] bg-amber-400/20 text-amber-300 font-bold px-2 py-0.5 rounded">
+                  Engenharia Solar
                 </span>
               </div>
-              <p className="text-[10px] text-emerald-700 font-medium">
-                A energia do futuro, hoje! • Proposta Comercial Oficial
+              <p className="text-[11px] text-slate-300 font-medium">
+                Proposta Comercial Nº <strong className="text-white">{proposalNumber}</strong> •
+                Emissão: {formatDateBR(proposta.created)}
               </p>
             </div>
           </div>
@@ -224,11 +254,11 @@ export default function PropostaPublica() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="text-xs font-semibold gap-1.5 h-8.5 border-slate-200 text-slate-700 hover:text-[#0B7A5B]"
+                  className="text-xs font-semibold gap-1.5 h-8.5 bg-white/10 hover:bg-white/20 text-white border-white/20"
                 >
                   <ArrowRight className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Ver Ficha do Lead</span>
-                  <span className="sm:hidden">Lead</span>
+                  <span className="hidden sm:inline">Ver Ficha no CRM</span>
+                  <span className="sm:hidden">CRM</span>
                 </Button>
               </Link>
             )}
@@ -236,9 +266,9 @@ export default function PropostaPublica() {
               variant="outline"
               size="sm"
               onClick={handleDownloadPDF}
-              className="text-xs font-semibold gap-1.5 h-8.5 border-slate-200 hover:text-[#0B7A5B]"
+              className="text-xs font-bold gap-1.5 h-8.5 bg-amber-400 hover:bg-amber-300 text-slate-950 border-amber-400 shadow-sm"
             >
-              <FileDown className="w-3.5 h-3.5" />
+              <FileDown className="w-4 h-4 stroke-[2.5]" />
               <span className="hidden sm:inline">Baixar em PDF</span>
               <span className="sm:hidden">PDF</span>
             </Button>
@@ -246,177 +276,314 @@ export default function PropostaPublica() {
         </div>
       </header>
 
-      {/* Top Banner for authenticated CRM user */}
+      {/* Top Banner para usuário autenticado do CRM */}
       {isAuthenticated && proposta.lead?.id && (
-        <div className="bg-slate-900 text-white text-xs px-4 py-2">
-          <div className="max-w-5xl mx-auto flex items-center justify-between">
+        <div className="bg-slate-950 text-white text-xs px-4 py-2 border-b border-slate-800">
+          <div className="max-w-6xl mx-auto flex items-center justify-between">
             <span className="text-slate-300">
-              Você está visualizando a <strong>página pública da proposta</strong> como membro
-              logado do CRM.
+              Visualização da proposta como consultor comercial do CRM Ecosolar Energy.
             </span>
             <Link
               to={`/leads/${proposta.lead.id}`}
-              className="font-semibold text-amber-400 hover:underline flex items-center gap-1"
+              className="font-bold text-amber-400 hover:underline flex items-center gap-1"
             >
-              Ir para detalhes do lead &rarr;
+              Voltar ao Lead &rarr;
             </Link>
           </div>
         </div>
       )}
 
-      {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
-        {/* Banner de Status quando Aceita */}
+      {/* Main Content Container */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+        {/* Banner de Aceite Concluído */}
         {acceptedSuccess && (
-          <div className="p-4 sm:p-5 rounded-2xl bg-emerald-600 text-white shadow-md flex items-start sm:items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-              <CheckCircle2 className="w-6 h-6 text-white" />
+          <div className="p-5 rounded-2xl bg-emerald-600 text-white shadow-lg flex items-start sm:items-center gap-4 border border-emerald-500">
+            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-7 h-7 text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-extrabold text-base sm:text-lg">
+              <h3 className="font-black text-lg sm:text-xl">
                 ✓ Proposta Formalmente Aceita com Sucesso!
               </h3>
-              <p className="text-xs sm:text-sm text-emerald-100 mt-0.5">
-                Obrigado pela confiança, {proposta.aceito_por_nome || proposta.lead?.nome}! Nossa
-                equipe de engenharia já foi notificada e dará início aos trâmites de homologação e
-                agendamento da instalação.
+              <p className="text-xs sm:text-sm text-emerald-100 mt-0.5 leading-relaxed">
+                Parabéns, {proposta.aceito_por_nome || proposta.lead?.nome}! Seu aceite digital foi
+                registrado eletronicamente no sistema. Nossa equipe técnica de engenharia já recebeu
+                a notificação e está iniciando a elaboração da ART e projeto de homologação na
+                concessionária.
               </p>
             </div>
           </div>
         )}
 
         {isExpirada && (
-          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center gap-3">
+          <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
             <p className="text-xs leading-relaxed">
-              <strong>Atenção:</strong> O prazo original desta proposta expirou em{' '}
+              <strong>Atenção:</strong> O prazo original de validade desta proposta expirou em{' '}
               {formatDateBR(proposta.data_validade)}. Entre em contato com seu consultor solar para
-              confirmar a validade das condições comerciais.
+              confirmar a validade dos valores e condições comerciais.
             </p>
           </div>
         )}
 
-        {/* Hero Card da Proposta */}
-        <div className="rounded-2xl bg-gradient-to-br from-[#0F172A] via-[#095C44] to-[#0B7A5B] text-white p-6 sm:p-8 shadow-xl relative overflow-hidden">
-          <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-64 h-64 rounded-full bg-white/5 pointer-events-none blur-2xl"></div>
+        {/* 2. Sumário Executivo Comercial — Foco em Benefício & Azul-Marinho */}
+        <div className="rounded-2xl bg-gradient-to-br from-[#0A192F] via-[#0F284E] to-[#163868] text-white p-6 sm:p-8 shadow-xl relative overflow-hidden border-t-4 border-amber-400">
+          <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-80 h-80 rounded-full bg-amber-400/10 pointer-events-none blur-3xl"></div>
 
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-2 max-w-xl">
-              <div className="flex items-center gap-2">
-                <Badge className="bg-amber-400 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase px-2.5 py-0.5">
-                  Proposta Exclusiva
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-3 max-w-2xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="bg-amber-400 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase px-3 py-1">
+                  Proposta Nº {proposalNumber}
                 </Badge>
                 <Badge
                   variant="outline"
-                  className="text-white border-white/30 text-xs font-semibold"
+                  className="text-white border-white/30 text-xs font-semibold bg-white/10"
                 >
-                  Validade: {formatDateBR(proposta.data_validade)}
+                  <Clock className="w-3.5 h-3.5 mr-1 text-amber-300" />
+                  Validade: {formatDateBR(proposta.data_validade)} (15 dias)
                 </Badge>
+                {proposta.status === 'Aceita' && (
+                  <Badge className="bg-emerald-500 text-white font-bold text-xs uppercase px-2.5 py-0.5">
+                    ✓ Aceita
+                  </Badge>
+                )}
               </div>
 
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight leading-tight">
                 {proposta.kit_nome}
               </h1>
 
-              <p className="text-sm text-emerald-100 leading-relaxed">
-                Sistema Solar Fotovoltaico On-Grid preparado para suprir o consumo de{' '}
-                <strong>{consumoKwh} kWh/mês</strong> do cliente{' '}
-                <strong>{proposta.lead?.nome}</strong>.
+              <p className="text-sm sm:text-base text-slate-200 leading-relaxed">
+                Sistema Solar Fotovoltaico On-Grid Turnkey projetado sob medida para suprir o
+                consumo médio de <strong>{consumoKwh} kWh/mês</strong> do cliente{' '}
+                <strong>{proposta.lead?.nome}</strong>, gerando economia imediata na conta de
+                energia e proteção definitiva contra reajustes tarifários.
               </p>
 
-              {proposta.kit_potencia_kw && (
-                <div className="flex items-center gap-3 pt-1 text-xs text-emerald-200">
-                  <span>
-                    Potência: <strong>{proposta.kit_potencia_kw} kWp</strong>
-                  </span>
-                  {proposta.kit_fabricante && (
-                    <span>
-                      • Fabricante: <strong>{proposta.kit_fabricante}</strong>
-                    </span>
-                  )}
-                </div>
-              )}
+              {/* Badges de Destaque Técnico */}
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                <span className="bg-white/15 px-3 py-1 rounded-md font-semibold flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 text-amber-400" />
+                  Potência Total: <strong>{specs.potenciaTotalFormatada}</strong>
+                </span>
+                <span className="bg-white/15 px-3 py-1 rounded-md font-semibold">
+                  Módulos: <strong>{specs.quantidadeModulosTotal || '-'} unidades</strong>
+                </span>
+                <span className="bg-white/15 px-3 py-1 rounded-md font-semibold">
+                  Fabricantes: <strong>{specs.fabricantesPrincipais}</strong>
+                </span>
+              </div>
             </div>
 
-            {/* Price Box */}
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/20 text-right shrink-0 md:min-w-[240px]">
-              <span className="text-[11px] uppercase tracking-wider font-semibold text-emerald-200 block">
-                Investimento Total
+            {/* Box Comercial do Investimento */}
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-amber-400/50 text-right shrink-0 lg:min-w-[280px] shadow-lg">
+              <span className="text-[11px] uppercase tracking-wider font-extrabold text-amber-300 block">
+                Investimento Total Turnkey
               </span>
-              <span className="text-3xl sm:text-4xl font-black text-amber-300 font-mono-numbers block tracking-tight my-1">
+              <span className="text-3xl sm:text-4xl font-black text-amber-300 font-mono-numbers block tracking-tight my-1.5">
                 {formatBRL(proposta.preco_venda)}
               </span>
-              <span className="text-xs text-emerald-100 block">
-                Projeto + Equipamentos + Instalação inclusos
+              <span className="text-xs text-slate-200 block font-medium">
+                Projeto Executivo + Equipamentos + Instalação Completa
               </span>
+              <div className="mt-3 pt-3 border-t border-white/20 text-[11px] text-slate-300 flex items-center justify-between">
+                <span>Economia no 1º Ano:</span>
+                <strong className="text-white font-mono-numbers">{formatBRL(economiaAnual)}</strong>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Três Métricas de Economia */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card className="border-slate-200/80 bg-white shadow-xs">
-            <CardContent className="p-5 text-center">
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto mb-2">
-                <Zap className="w-5 h-5" />
+        {/* 4 Cards de Benefício Financeiro Comercial */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="border-slate-200/90 bg-white shadow-xs">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase font-extrabold text-slate-500">
+                  Economia Mensal Est.
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+                  <TrendingUp className="w-4 h-4" />
+                </div>
               </div>
-              <p className="text-xs uppercase font-bold text-slate-400">Geração Mensal Média</p>
-              <p className="text-2xl font-extrabold text-slate-900 font-mono-numbers mt-1">
-                ~{geracaoEstimadaKwh} <span className="text-xs font-normal">kWh/mês</span>
+              <p className="text-2xl font-black text-emerald-700 font-mono-numbers mt-2">
+                {formatBRL(economiaMensal)}
+              </p>
+              <p className="text-[11px] text-slate-500 mt-1">Alívio imediato no orçamento mensal</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200/90 bg-white shadow-xs">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase font-extrabold text-slate-500">
+                  Geração Média Estimada
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                  <Zap className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-slate-900 font-mono-numbers mt-2">
+                ~{geracaoEstimadaKwh}{' '}
+                <span className="text-xs font-normal text-slate-500">kWh/mês</span>
               </p>
               <p className="text-[11px] text-slate-500 mt-1">
-                Geração limpa e renovável gerada no telhado
+                Energia limpa e inesgotável no telhado
               </p>
             </CardContent>
           </Card>
 
-          <Card className="border-slate-200/80 bg-white shadow-xs">
-            <CardContent className="p-5 text-center">
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto mb-2">
-                <TrendingUp className="w-5 h-5" />
+          <Card className="border-slate-200/90 bg-white shadow-xs">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase font-extrabold text-slate-500">
+                  Economia em 25 Anos
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center font-bold">
+                  <Award className="w-4 h-4" />
+                </div>
               </div>
-              <p className="text-xs uppercase font-bold text-slate-400">Economia Anual Est.</p>
-              <p className="text-2xl font-extrabold text-emerald-700 font-mono-numbers mt-1">
-                {formatBRL(economiaAnual)}
-              </p>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Cerca de {formatBRL(economiaMensal)} por mês de alívio na conta
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200/80 bg-white shadow-xs">
-            <CardContent className="p-5 text-center">
-              <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center mx-auto mb-2">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <p className="text-xs uppercase font-bold text-slate-400">Economia em 25 Anos</p>
-              <p className="text-2xl font-extrabold text-slate-900 font-mono-numbers mt-1">
+              <p className="text-2xl font-black text-slate-900 font-mono-numbers mt-2">
                 {formatBRL(economia25Anos)}
               </p>
               <p className="text-[11px] text-slate-500 mt-1">
-                Vida útil garantida dos painéis fotovoltaicos
+                Garantia linear de geração dos módulos
               </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200/90 bg-white shadow-xs">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase font-extrabold text-slate-500">
+                  Valorização Imobiliária
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold">
+                  <Home className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-indigo-950 font-mono-numbers mt-2">
+                +6% a +8%
+              </p>
+              <p className="text-[11px] text-slate-500 mt-1">Valorização patrimonial instantânea</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Comparativo de Investimento em 30 Anos: Solar vs Poupança vs CDB */}
+        {/* 3. Seção Técnica Organizada: Tabela Item a Item com Quantidades Reais */}
+        <Card className="border-slate-200/90 bg-white shadow-sm overflow-hidden">
+          <CardHeader className="bg-[#0A192F] text-white p-5 border-b-2 border-amber-400">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Layers className="w-5 h-5 text-amber-400" />
+                  <CardTitle className="text-base sm:text-lg font-black tracking-tight text-white">
+                    Composição do Kit Solar — Detalhamento Item a Item
+                  </CardTitle>
+                </div>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  Lista detalhada dos componentes homologados e serviços incluídos com as
+                  quantidades reais registradas no sistema
+                </p>
+              </div>
+
+              <Badge className="self-start sm:self-center bg-amber-400 text-slate-950 font-black text-xs uppercase px-2.5 py-1">
+                Potência Total: {specs.potenciaTotalFormatada}
+              </Badge>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-0">
+            {/* Tabela de Itens */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-extrabold uppercase text-[10px] tracking-wider">
+                    <th className="p-3 text-center w-16">Qtd.</th>
+                    <th className="p-3">Componente / Item</th>
+                    <th className="p-3">Fabricante / Modelo Cadastrado</th>
+                    <th className="p-3">Especificações Técnicas</th>
+                    <th className="p-3 text-right w-24">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {specs.itens.map((it, idx) => (
+                    <tr key={`item-${idx}`} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="p-3 text-center font-black text-sm text-[#0A192F]">
+                        {it.quantidade}
+                        {it.unidade !== 'un' ? ` ${it.unidade}` : 'x'}
+                      </td>
+                      <td className="p-3 font-bold text-slate-900 text-xs sm:text-sm">{it.nome}</td>
+                      <td className="p-3 font-semibold text-slate-800">{it.fabricanteModelo}</td>
+                      <td className="p-3 text-slate-500 text-xs leading-relaxed">
+                        {it.especificacao || '-'}
+                      </td>
+                      <td className="p-3 text-right font-bold text-emerald-700">
+                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200">
+                          <Check className="w-3 h-3 stroke-[3]" />
+                          Incluso
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Faixa Resumo Técnico */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+              <div>
+                <p className="text-[10px] font-extrabold uppercase text-slate-400">
+                  Potência Total
+                </p>
+                <p className="text-base font-black text-[#0A192F] mt-0.5">
+                  {specs.potenciaTotalFormatada}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] font-extrabold uppercase text-slate-400">
+                  Total de Módulos
+                </p>
+                <p className="text-base font-black text-[#0A192F] mt-0.5">
+                  {specs.quantidadeModulosTotal ? `${specs.quantidadeModulosTotal} painéis` : '-'}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] font-extrabold uppercase text-slate-400">
+                  Geração Prevista
+                </p>
+                <p className="text-base font-black text-[#0A192F] mt-0.5">
+                  ~{geracaoEstimadaKwh} kWh/mês
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] font-extrabold uppercase text-slate-400">Área Estimada</p>
+                <p className="text-base font-black text-[#0A192F] mt-0.5">
+                  {specs.areaEstimadaM2 ? `~${specs.areaEstimadaM2} m²` : 'Sob Demanda'}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 4. Apresentação Financeira — Relatório de 30 Anos */}
         <InvestmentComparison
           valorInvestido={proposta.preco_venda || 0}
           economiaMensal={economiaMensal}
           anos={30}
-          titulo="Quanto rende esse investimento em 30 anos?"
-          subtitulo="Entenda por que aplicar seu capital em Energia Solar supera com folga as opções tradicionais do mercado financeiro"
+          mostrarTabelaPadrao={true}
+          titulo="Relatório Financeiro Comparativo em 30 Anos"
+          subtitulo="Demonstrativo transparente: por que alocar seu capital em Energia Solar supera com folga a Poupança e o CDB Líquido"
         />
 
-        {/* Detalhes do Cliente & Consultor */}
+        {/* Dados do Cliente & Consultor */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Cliente */}
-          <Card className="border-slate-200/80 bg-white shadow-xs">
-            <CardHeader className="pb-3 border-b border-slate-100">
-              <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Dados do Cliente Contratante
+          <Card className="border-slate-200/90 bg-white shadow-xs">
+            <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
+                <span>Dados do Cliente Contratante</span>
+                <span className="text-slate-400">👤</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-3 text-sm">
@@ -448,7 +615,7 @@ export default function PropostaPublica() {
                     <Phone className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs text-slate-400">Telefone</p>
+                    <p className="text-xs text-slate-400">Telefone / WhatsApp</p>
                     <p className="font-medium text-slate-800">{proposta.lead?.telefone}</p>
                   </div>
                 </div>
@@ -460,7 +627,7 @@ export default function PropostaPublica() {
                     <MapPin className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs text-slate-400">Endereço da Instalação</p>
+                    <p className="text-xs text-slate-400">Local da Instalação</p>
                     <p className="font-medium text-slate-800">
                       {[proposta.lead?.endereco, proposta.lead?.cidade, proposta.lead?.estado]
                         .filter(Boolean)
@@ -472,22 +639,22 @@ export default function PropostaPublica() {
             </CardContent>
           </Card>
 
-          {/* Consultor */}
-          <Card className="border-slate-200/80 bg-white shadow-xs">
-            <CardHeader className="pb-3 border-b border-slate-100">
-              <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Consultor & Engenharia Responsável
+          <Card className="border-slate-200/90 bg-white shadow-xs">
+            <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
+                <span>Consultor & Engenharia Responsável</span>
+                <span className="text-slate-400">⚡</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-3 text-sm">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-[#0B7A5B] flex items-center justify-center shrink-0 font-bold">
+                <div className="w-8 h-8 rounded-lg bg-[#0A192F] text-amber-400 flex items-center justify-center shrink-0 font-bold">
                   ☀
                 </div>
                 <div>
                   <p className="text-xs text-slate-400">Especialista Solar</p>
                   <p className="font-bold text-slate-900">
-                    {proposta.vendedor?.name || 'Ecosolar Energy Engenharia Solar'}
+                    {proposta.vendedor?.name || 'Equipe Técnica Ecosolar Energy'}
                   </p>
                   {proposta.vendedor?.email && (
                     <p className="text-xs text-slate-500">{proposta.vendedor.email}</p>
@@ -496,79 +663,76 @@ export default function PropostaPublica() {
               </div>
 
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5 text-xs text-slate-600">
-                <p className="font-semibold text-slate-800 flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-[#0B7A5B]" />
+                <p className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
                   Garantias & Padrão de Engenharia
                 </p>
                 <ul className="list-disc list-inside space-y-1 text-slate-600 pt-1">
-                  <li>25 anos de garantia linear de geração dos módulos solares</li>
-                  <li>10 a 12 anos de garantia de fábrica do inversor fotovoltaico</li>
-                  <li>Homologação 100% inclusa junto à concessionária de energia</li>
-                  <li>Instalação realizada conforme normas técnicas NR10 e NR35</li>
+                  <li>
+                    25 anos de garantia linear de geração de energia dos módulos fotovoltaicos
+                  </li>
+                  <li>10 a 12 anos de garantia de fábrica do inversor fotovoltaico homologado</li>
+                  <li>Homologação 100% inclusa com emissão de ART assinada por engenheiro</li>
+                  <li>Instalação realizada rigorosamente conforme normas técnicas NR10 e NR35</li>
                 </ul>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Escopo Técnico Completo */}
-        <Card className="border-slate-200/80 bg-white shadow-xs">
-          <CardHeader className="pb-3 border-b border-slate-100">
-            <CardTitle className="text-sm font-bold text-slate-900">
-              Itens e Serviços Inclusos na Solução Turnkey
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-slate-100 text-xs">
-              <div className="p-4 flex items-start gap-3">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-bold text-slate-900 text-sm">Gerador Solar Fotovoltaico</p>
-                  <p className="text-slate-600 mt-0.5">
-                    Módulos monocristalinos de alta eficiência Tier 1 e inversor de alta performance
-                    com conexão Wi-Fi para monitoramento via celular.
-                  </p>
+        {/* 5. Prova Social — Obras Concluídas & Padrão de Instalação */}
+        {proposta.fotos_obra && proposta.fotos_obra.length > 0 && (
+          <Card className="border-slate-200/90 bg-white shadow-xs overflow-hidden">
+            <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Camera className="w-4 h-4 text-[#0A192F]" />
+                  <CardTitle className="text-sm font-bold text-slate-900">
+                    Prova Social — Padrão de Engenharia em Obras Executadas
+                  </CardTitle>
                 </div>
+                <Badge variant="outline" className="text-xs border-slate-300">
+                  Fotos Reais
+                </Badge>
               </div>
-
-              <div className="p-4 flex items-start gap-3">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-bold text-slate-900 text-sm">
-                    Projeto Executivo de Engenharia & Homologação
-                  </p>
-                  <p className="text-slate-600 mt-0.5">
-                    Elaboração de diagramas unifilares, emissão de ART assinada por engenheiro e
-                    trâmite completo com a concessionária até a troca do medidor bidirecional.
-                  </p>
-                </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Conheça a qualidade do acabamento, cabeamento e fixação técnica das instalações
+                realizadas pela Ecosolar Energy
+              </p>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                {proposta.fotos_obra.slice(0, 4).map((ph, idx) => (
+                  <div
+                    key={`photo-${ph.id || idx}`}
+                    className="group relative aspect-4/3 rounded-xl overflow-hidden border border-slate-200 bg-slate-900 shadow-xs"
+                  >
+                    <img
+                      src={ph.url || ph.foto}
+                      alt={ph.legenda || 'Instalação Solar Concluída'}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-80 group-hover:opacity-100 transition-opacity flex items-end p-2.5">
+                      <span className="text-[11px] text-white font-medium truncate">
+                        {ph.legenda || 'Obra Homologada Ecosolar'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
+            </CardContent>
+          </Card>
+        )}
 
-              <div className="p-4 flex items-start gap-3">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-bold text-slate-900 text-sm">
-                    Instalação Elétrica e Fixação Mecânica
-                  </p>
-                  <p className="text-slate-600 mt-0.5">
-                    Estrutura de fixação adequada ao tipo de telhado em alumínio anodizado, string
-                    box com proteções contra surtos (DPS) e disjuntores específicos para corrente
-                    contínua.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Condições de Pagamento & Observações */}
+        {/* Condições de Pagamento e Observações */}
         {(proposta.condicoes_pagamento || proposta.observacoes) && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {proposta.condicoes_pagamento && (
-              <Card className="border-slate-200/80 bg-white shadow-xs">
-                <CardHeader className="pb-2 border-b border-slate-100">
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Condições de Pagamento
+              <Card className="border-slate-200/90 bg-white shadow-xs">
+                <CardHeader className="pb-2 border-b border-slate-100 bg-slate-50/50">
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <Percent className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Condições e Formas de Pagamento</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 text-xs text-slate-700 leading-relaxed whitespace-pre-line">
@@ -578,10 +742,11 @@ export default function PropostaPublica() {
             )}
 
             {proposta.observacoes && (
-              <Card className="border-slate-200/80 bg-white shadow-xs">
-                <CardHeader className="pb-2 border-b border-slate-100">
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Observações Importantes
+              <Card className="border-slate-200/90 bg-white shadow-xs">
+                <CardHeader className="pb-2 border-b border-slate-100 bg-slate-50/50">
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Observações Técnicas & Contratuais</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 text-xs text-slate-700 leading-relaxed whitespace-pre-line">
@@ -592,26 +757,30 @@ export default function PropostaPublica() {
           </div>
         )}
 
-        {/* Bloco de Aceite Digital da Proposta */}
+        {/* 6. Fechamento com CTA & Aceite Online com Assinatura Digital */}
         <Card
           id="aceite-proposta"
-          className={`border shadow-md transition-all ${
+          className={`border-2 shadow-lg transition-all ${
             acceptedSuccess
-              ? 'border-emerald-300 bg-emerald-50/50'
-              : 'border-[#0B7A5B]/40 bg-gradient-to-b from-emerald-50/40 to-white'
+              ? 'border-emerald-500 bg-emerald-50/50'
+              : 'border-[#0A192F] bg-gradient-to-b from-slate-50 to-white'
           }`}
         >
-          <CardHeader className="pb-3 border-b border-slate-100">
+          <CardHeader className="pb-3 border-b border-slate-200 bg-[#0A192F] text-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-[#0B7A5B]" />
-                <CardTitle className="text-base font-bold text-slate-900">
-                  {acceptedSuccess ? 'Proposta Aceita Formalmente' : 'Aceite Online da Proposta'}
+                <CheckCircle2 className="w-5 h-5 text-amber-400" />
+                <CardTitle className="text-base font-bold text-white">
+                  {acceptedSuccess
+                    ? 'Proposta Aceita Formalmente'
+                    : 'Aceite Digital Online da Proposta'}
                 </CardTitle>
               </div>
               <Badge
                 className={
-                  acceptedSuccess ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-800'
+                  acceptedSuccess
+                    ? 'bg-emerald-500 text-white font-bold text-xs'
+                    : 'bg-amber-400 text-slate-950 font-black text-xs uppercase'
                 }
               >
                 {acceptedSuccess ? 'Concluído' : 'Aguardando Aceite'}
@@ -620,11 +789,11 @@ export default function PropostaPublica() {
           </CardHeader>
           <CardContent className="p-6">
             {acceptedSuccess ? (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-emerald-800 text-sm font-semibold">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-emerald-800 text-sm font-bold">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                   <span>
-                    Aceita por{' '}
+                    Aceita digitalmente por{' '}
                     <strong className="text-slate-900">
                       {proposta.aceito_por_nome || proposta.lead?.nome}
                     </strong>{' '}
@@ -632,32 +801,33 @@ export default function PropostaPublica() {
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  O registro eletrônico do seu aceite foi gravado no histórico do projeto. Você pode
-                  baixar a via completa em PDF a qualquer momento pelo botão abaixo.
+                  O registro eletrônico do seu aceite foi gravado no sistema com IP e data/hora.
+                  Você pode baixar o documento oficial assinado em PDF a qualquer momento pelo botão
+                  abaixo.
                 </p>
                 <div className="pt-2">
                   <Button
                     onClick={handleDownloadPDF}
-                    className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold gap-2"
+                    className="bg-[#0A192F] hover:bg-[#163868] text-white text-xs font-bold gap-2 shadow-sm"
                   >
-                    <FileDown className="w-4 h-4" />
-                    <span>Baixar Via Formal em PDF</span>
+                    <FileDown className="w-4 h-4 text-amber-400" />
+                    <span>Baixar Documento Oficial em PDF</span>
                   </Button>
                 </div>
               </div>
             ) : (
               <form onSubmit={handleAcceptProposal} className="space-y-4">
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Ao clicar em <strong>&quot;Aceitar Proposta&quot;</strong>, você concorda com os
-                  valores de investimento de <strong>{formatBRL(proposta.preco_venda)}</strong> e o
-                  escopo técnico apresentado. O status do projeto avançará automaticamente para
-                  início imediato dos trâmites de homologação.
+                  Ao clicar em <strong>&quot;Aceitar Proposta Agora&quot;</strong>, você concorda
+                  com o valor de investimento de <strong>{formatBRL(proposta.preco_venda)}</strong>{' '}
+                  e o escopo técnico com os itens discriminados. O projeto avançará automaticamente
+                  para o início dos trâmites de engenharia e homologação.
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="nomeAceite" className="text-xs font-semibold text-slate-700">
-                      Seu Nome Completo (para formalização)
+                  <div className="space-y-1.5">
+                    <Label htmlFor="nomeAceite" className="text-xs font-bold text-slate-800">
+                      Nome Completo do Cliente Contratante (para assinatura eletrônica)
                     </Label>
                     <Input
                       id="nomeAceite"
@@ -665,7 +835,7 @@ export default function PropostaPublica() {
                       onChange={(e) => setNomeConfirmacao(e.target.value)}
                       placeholder="Ex: João da Silva"
                       required
-                      className="h-10 text-xs bg-white"
+                      className="h-10 text-xs bg-white border-slate-300 font-semibold"
                     />
                   </div>
 
@@ -673,16 +843,16 @@ export default function PropostaPublica() {
                     <Button
                       type="submit"
                       disabled={accepting || isExpirada}
-                      className="w-full h-10 bg-[#0B7A5B] hover:bg-[#095C44] text-white font-bold text-sm shadow-md gap-2"
+                      className="w-full h-10 bg-[#0A192F] hover:bg-[#163868] text-amber-400 hover:text-amber-300 font-black text-sm shadow-md gap-2 border border-amber-400/50"
                     >
                       {accepting ? (
                         <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Registrando Aceite...</span>
+                          <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                          <span>Registrando Assinatura Eletrônica...</span>
                         </>
                       ) : (
                         <>
-                          <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+                          <CheckCircle2 className="w-4 h-4 text-amber-400 stroke-[2.5]" />
                           <span>Aceitar Proposta Agora</span>
                         </>
                       )}
@@ -690,11 +860,13 @@ export default function PropostaPublica() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
-                  <span>Validade garantida até: {formatDateBR(proposta.data_validade)}</span>
-                  <span className="flex items-center gap-1 text-slate-400">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                    Ambiente seguro e criptografado
+                <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-200">
+                  <span>
+                    Validade das condições garantida até: {formatDateBR(proposta.data_validade)}
+                  </span>
+                  <span className="flex items-center gap-1 text-slate-500 font-medium">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    Ambiente seguro e auditável com registro de IP
                   </span>
                 </div>
               </form>
@@ -703,11 +875,12 @@ export default function PropostaPublica() {
         </Card>
       </main>
 
-      {/* Footer */}
-      <footer className="max-w-5xl mx-auto px-4 sm:px-6 mt-12 text-center text-xs text-slate-500 border-t border-slate-200/80 pt-6 space-y-1">
-        <p className="font-semibold text-slate-700">Ecosolar Energy — A energia do futuro, hoje!</p>
+      {/* Footer Institucional */}
+      <footer className="max-w-6xl mx-auto px-4 sm:px-6 mt-12 text-center text-xs text-slate-500 border-t border-slate-200 pt-6 space-y-1">
+        <p className="font-bold text-slate-800">ECOSOLAR ENERGY — A energia do futuro, hoje!</p>
         <p>
-          Gestão Especializada de Vendas e Engenharia Fotovoltaica • Todos os direitos reservados.
+          Soluções em Engenharia Solar Fotovoltaica e Eficiência Energética • Todos os direitos
+          reservados.
         </p>
       </footer>
     </div>

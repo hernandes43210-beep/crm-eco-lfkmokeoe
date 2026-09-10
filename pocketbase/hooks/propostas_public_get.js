@@ -73,6 +73,42 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
       } catch (_) {}
     }
 
+    // Buscar fotos de obras já instaladas para prova social no modelo da proposta
+    let fotosObra = []
+    try {
+      // Priorizar fotos do próprio lead (se houver), ou de outros leads com fotos cadastradas
+      let photosList = []
+      if (leadId) {
+        photosList = $app.findRecordsByFilter(
+          'lead_photos',
+          "lead = '" + leadId + "'",
+          'ordem,created',
+          4,
+          0,
+        )
+      }
+      if (!photosList || photosList.length === 0) {
+        photosList = $app.findRecordsByFilter('lead_photos', "foto != ''", '-created', 4, 0)
+      }
+
+      if (photosList && photosList.length > 0) {
+        for (let i = 0; i < photosList.length; i++) {
+          const p = photosList[i]
+          const fileName = p.getString('foto')
+          if (fileName) {
+            fotosObra.push({
+              id: p.id,
+              collectionId: p.collection().id,
+              collectionName: p.collection().name,
+              foto: fileName,
+              legenda: p.getString('legenda'),
+              url: '/api/files/' + p.collection().id + '/' + p.id + '/' + fileName,
+            })
+          }
+        }
+      }
+    } catch (_) {}
+
     const resp = {
       id: proposta.id,
       token_publico: proposta.getString('token_publico'),
@@ -93,6 +129,7 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
       lead: leadData,
       kit: kitData,
       vendedor: vendedorData,
+      fotos_obra: fotosObra,
     }
 
     return e.json(200, resp)

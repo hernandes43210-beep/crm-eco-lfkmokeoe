@@ -114,23 +114,23 @@ export const InvestmentComparison: React.FC<InvestmentComparisonProps> = ({
 
   return (
     <Card className={`border-slate-200/90 shadow-sm bg-white overflow-hidden ${className}`}>
-      {/* Header */}
-      <CardHeader className="pb-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-emerald-50/40">
+      {/* Header — Estilo Executivo Azul-Marinho Navy (#0A192F) */}
+      <CardHeader className="pb-4 border-b-2 border-amber-400 bg-[#0A192F] text-white">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-100 text-[#0B7A5B] flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-amber-400 text-slate-950 flex items-center justify-center shrink-0 font-bold">
                 <TrendingUp className="w-4 h-4" />
               </div>
-              <CardTitle className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">
+              <CardTitle className="text-base sm:text-lg font-black text-white tracking-tight">
                 {titulo}
               </CardTitle>
             </div>
-            <p className="text-xs text-slate-500 pl-10 sm:pl-10">{subtitulo}</p>
+            <p className="text-xs text-slate-300 pl-10 sm:pl-10">{subtitulo}</p>
           </div>
 
-          <Badge className="self-start sm:self-center bg-emerald-100 text-[#0B7A5B] hover:bg-emerald-100 border-emerald-300 font-bold text-xs gap-1 py-1 px-2.5">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+          <Badge className="self-start sm:self-center bg-amber-400 text-slate-950 hover:bg-amber-300 border-amber-400 font-black text-xs uppercase gap-1 py-1 px-2.5">
+            <Sparkles className="w-3.5 h-3.5 text-slate-950" />
             Horizonte de {anos} anos
           </Badge>
         </div>
@@ -231,31 +231,31 @@ export const InvestmentComparison: React.FC<InvestmentComparisonProps> = ({
             </div>
           </div>
 
-          {/* Card 3: Solar Fotovoltaico (Vencedor) */}
-          <div className="p-4 rounded-xl border-2 border-[#0B7A5B] bg-gradient-to-b from-emerald-50/80 to-white flex flex-col justify-between relative shadow-sm">
-            <div className="absolute -top-2.5 right-3 bg-[#0B7A5B] text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider shadow-xs">
+          {/* Card 3: Solar Fotovoltaico (Vencedor Comercial) */}
+          <div className="p-4 rounded-xl border-2 border-[#0A192F] bg-gradient-to-b from-amber-50/40 to-white flex flex-col justify-between relative shadow-sm">
+            <div className="absolute -top-2.5 right-3 bg-[#0A192F] text-amber-300 text-[10px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider shadow-xs border border-amber-400">
               ★ Mais Rentável
             </div>
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5 uppercase tracking-wide">
+                <span className="text-xs font-black text-[#0A192F] flex items-center gap-1.5 uppercase tracking-wide">
                   <Sun className="w-4 h-4 text-amber-500" />
                   Energia Solar
                 </span>
               </div>
-              <p className="text-[11px] text-emerald-700 mt-1">Economia na conta reinvestida</p>
+              <p className="text-[11px] text-slate-600 mt-1">Economia na conta reinvestida</p>
               <div className="mt-3">
-                <span className="text-2xl sm:text-3xl font-black text-[#0B7A5B] font-mono-numbers block">
+                <span className="text-2xl sm:text-3xl font-black text-[#0A192F] font-mono-numbers block">
                   {formatBRL(sim.finalSolar)}
                 </span>
-                <span className="text-[11px] text-emerald-800 font-semibold">
+                <span className="text-[11px] text-emerald-700 font-extrabold">
                   +{sim.ganhoSolarVsCdbPercent}% superior ao CDB
                 </span>
               </div>
             </div>
-            <div className="mt-3 pt-2.5 border-t border-emerald-200/80 text-[11px] text-emerald-900 flex items-center justify-between font-medium">
+            <div className="mt-3 pt-2.5 border-t border-slate-200 text-[11px] text-slate-800 flex items-center justify-between font-medium">
               <span>Economia mensal inicial:</span>
-              <span className="font-bold font-mono-numbers">
+              <span className="font-bold font-mono-numbers text-[#0A192F]">
                 {formatBRL(sim.economiaMensalInicial)}/mês
               </span>
             </div>
