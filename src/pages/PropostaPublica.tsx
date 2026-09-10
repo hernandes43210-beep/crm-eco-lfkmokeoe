@@ -928,25 +928,20 @@ export default function PropostaPublica() {
             })
           }
 
-          // Se a proposta tiver menos de 3 fotos (ou nenhuma), completa com a galeria de obras reais da Ecosolar
-          if (displayPhotos.length < 3) {
-            INSTITUTIONAL_INSTALLATION_PHOTOS.forEach((inst: InstitutionalInstallationPhoto) => {
-              if (
-                displayPhotos.length < 3 &&
-                !displayPhotos.some((p) => p.legenda === inst.legenda)
-              ) {
-                displayPhotos.push({
-                  id: inst.id,
-                  url: inst.src,
-                  titulo: inst.titulo,
-                  legenda: inst.legenda,
-                  descricao: inst.descricao,
-                  tag: inst.tag,
-                  local: inst.local,
-                })
-              }
-            })
-          }
+          // Se a proposta tiver fotos específicas, mescla; completa com a galeria institucional completa da Ecosolar
+          INSTITUTIONAL_INSTALLATION_PHOTOS.forEach((inst: InstitutionalInstallationPhoto) => {
+            if (!displayPhotos.some((p) => p.legenda === inst.legenda)) {
+              displayPhotos.push({
+                id: inst.id,
+                url: inst.src,
+                titulo: inst.titulo,
+                legenda: inst.legenda,
+                descricao: inst.descricao,
+                tag: inst.tag,
+                local: inst.local,
+              })
+            }
+          })
 
           return (
             <Card className="border border-slate-200/90 bg-white shadow-sm overflow-hidden rounded-2xl">
@@ -972,7 +967,7 @@ export default function PropostaPublica() {
                 </div>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 bg-slate-50/50 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {displayPhotos.map((ph, idx) => (
                     <div
                       key={`social-proof-${ph.id || idx}`}

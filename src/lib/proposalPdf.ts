@@ -788,9 +788,9 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     .social-proof {
       border: 1px solid #CBD5E1;
       border-radius: 8px;
-      padding: 12px 14px;
+      padding: 10px 12px;
       background: #F8FAFC;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
       page-break-inside: avoid;
       box-shadow: 0 1px 3px rgba(10, 25, 47, 0.05);
     }
@@ -815,17 +815,18 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     .photos-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-top: 8px;
+      gap: 7px;
+      margin-top: 6px;
     }
     .photo-card {
-      border-radius: 6px;
+      border-radius: 5px;
       overflow: hidden;
       border: 1px solid #CBD5E1;
       background: #ffffff;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
       display: flex;
       flex-direction: column;
+      page-break-inside: avoid;
     }
     .photo-thumb {
       aspect-ratio: 16/10;
@@ -842,35 +843,35 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     }
     .photo-tag {
       position: absolute;
-      top: 4px;
-      left: 4px;
-      background: rgba(10, 25, 47, 0.85);
+      top: 3px;
+      left: 3px;
+      background: rgba(10, 25, 47, 0.9);
       color: #FACC15;
-      font-size: 7.5px;
+      font-size: 7px;
       font-weight: 800;
-      padding: 1.5px 5px;
+      padding: 1px 4px;
       border-radius: 3px;
       border: 1px solid rgba(250, 204, 21, 0.4);
       text-transform: uppercase;
     }
     .photo-caption {
-      padding: 6px 8px;
+      padding: 5px 6px;
       background: #ffffff;
       border-top: 1px solid #F1F5F9;
     }
     .photo-caption strong {
       display: block;
-      font-size: 9px;
+      font-size: 8.5px;
       color: #0A192F;
       font-weight: 800;
-      line-height: 1.2;
+      line-height: 1.15;
     }
     .photo-caption span {
       display: block;
-      font-size: 7.5px;
+      font-size: 7px;
       color: #64748B;
-      margin-top: 2px;
-      line-height: 1.2;
+      margin-top: 1px;
+      line-height: 1.15;
     }
 
     /* 6. Fechamento & Aceite */
@@ -1276,35 +1277,30 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
       })
     }
 
-    // Se houver menos que 3 fotos, completa com a prova social institucional da empresa
-    if (fotosParaExibir.length < 3) {
-      INSTITUTIONAL_INSTALLATION_PHOTOS.forEach((inst) => {
-        if (
-          !fotosParaExibir.some((f) => f.legenda === inst.legenda) &&
-          fotosParaExibir.length < 3
-        ) {
-          fotosParaExibir.push({
-            url: inst.src,
-            legenda: inst.legenda,
-            tag: inst.tag,
-            local: inst.local,
-          })
-        }
-      })
-    }
+    // Completa com a prova social institucional da empresa até cobrir todas as obras cadastradas (6 fotos)
+    INSTITUTIONAL_INSTALLATION_PHOTOS.forEach((inst) => {
+      if (!fotosParaExibir.some((f) => f.legenda === inst.legenda) && fotosParaExibir.length < 6) {
+        fotosParaExibir.push({
+          url: inst.src,
+          legenda: inst.legenda,
+          tag: inst.tag,
+          local: inst.local,
+        })
+      }
+    })
 
     return `
   <div class="social-proof">
     <div class="social-proof-header">
       <div class="section-title" style="margin-bottom: 0;">Prova Social — Padrão de Engenharia em Obras Executadas</div>
-      <span class="social-proof-badge">✓ Fotos Reais de Obras Homologadas</span>
+      <span class="social-proof-badge">✓ Fotos Reais de Obras Homologadas (${fotosParaExibir.length} Obras)</span>
     </div>
     <p style="font-size: 8.5px; color: #475569; margin-top: 2px; margin-bottom: 6px;">
       Conheça o acabamento, a robustez das estruturas metálicas e a precisão do cabeamento técnico executados pelos engenheiros e instaladores da <strong>Ecosolar Energy</strong>:
     </p>
     <div class="photos-grid">
       ${fotosParaExibir
-        .slice(0, 3)
+        .slice(0, 6)
         .map(
           (ph) => `
         <div class="photo-card">

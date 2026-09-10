@@ -627,7 +627,7 @@ export const LeadInstallationPhotos: React.FC<LeadInstallationPhotosProps> = ({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {INSTITUTIONAL_INSTALLATION_PHOTOS.map((inst) => (
               <div
                 key={inst.id}
