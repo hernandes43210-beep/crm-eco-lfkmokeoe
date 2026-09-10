@@ -89,6 +89,7 @@ export default function LeadForm() {
   const [estado, setEstado] = useState('SP')
   const [status, setStatus] = useState<LeadStatus>('Novo')
   const [prPostEncerramento, setPrPostEncerramento] = useState('')
+  const [proximoContato, setProximoContato] = useState('')
   const [slaDias, setSlaDias] = useState<number>(7)
   const [precoVenda, setPrecoVenda] = useState<number | string>(18000)
 
@@ -109,6 +110,7 @@ export default function LeadForm() {
           setPrPostEncerramento(
             lead.pr_post_encerramento ? lead.pr_post_encerramento.substring(0, 10) : '',
           )
+          setProximoContato(lead.proximo_contato || '')
           setSlaDias(lead.sla_dias || 7)
           setPrecoVenda(lead.preco_venda || '')
         })
@@ -223,6 +225,7 @@ export default function LeadForm() {
         status: status || 'Novo',
         sla_dias: Math.max(1, Number(slaDias) || 7),
         preco_venda: Math.max(0, Number(precoVenda) || 0),
+        proximo_contato: proximoContato.trim(),
       }
 
       if (formattedPrPost) {
@@ -542,6 +545,22 @@ export default function LeadForm() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-5 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="proximoContato" className="text-xs font-semibold text-slate-700">
+                Próximo Contato
+              </Label>
+              <Input
+                id="proximoContato"
+                value={proximoContato}
+                onChange={(e) => setProximoContato(e.target.value)}
+                placeholder="Ex.: Ligar quinta às 14h, cliente quer fechar"
+                className="h-10 text-sm border-slate-200 focus-visible:ring-[#0B7A5B]"
+              />
+              <p className="text-[11px] text-slate-400">
+                Lembrete de follow-up que aparece com destaque no funil e na ficha do cliente.
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="status" className="text-xs font-semibold text-slate-700">

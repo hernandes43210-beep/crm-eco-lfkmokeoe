@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, MoreVertical, Eye, Edit3, Trash2, Sparkles, Search, X } from 'lucide-react'
+import { Plus, MoreVertical, Eye, Edit3, Trash2, Sparkles, Search, X, Clock } from 'lucide-react'
 import { LeadsService } from '@/services/leads'
 import type { Lead, LeadStatus, HistoricoItem } from '@/types/crm'
 import useRealtime from '@/hooks/use-realtime'
@@ -519,6 +519,24 @@ export default function FunilVendas() {
                           {/* Email */}
                           <p className="text-[11px] text-slate-500 truncate mt-0.5">{lead.email}</p>
 
+                          {/* Próximo Contato (Destaque visual se preenchido) */}
+                          {lead.proximo_contato && lead.proximo_contato.trim() && (
+                            <div
+                              className="mt-2 p-1.5 rounded-md bg-amber-50/90 border border-amber-200/90 text-amber-950 flex items-start gap-1.5"
+                              title={`Próximo contato: ${lead.proximo_contato}`}
+                            >
+                              <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                              <div className="min-w-0 flex-1">
+                                <span className="text-[9px] font-bold uppercase tracking-wider text-amber-800 block leading-tight">
+                                  Próximo Contato
+                                </span>
+                                <p className="text-[11px] text-amber-950 font-medium leading-snug line-clamp-2 break-words">
+                                  {lead.proximo_contato.trim()}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Consumption & Price */}
                           <div className="flex items-center justify-between text-xs pt-2 mt-2 border-t border-slate-100">
                             <span className="font-semibold text-slate-700 font-mono-numbers">
@@ -531,11 +549,23 @@ export default function FunilVendas() {
 
                           {/* Card Footer: SLA Chip & Owner Avatar */}
                           <div className="flex items-center justify-between pt-2 mt-2">
-                            <span
-                              className={`text-[10px] px-2 py-0.5 rounded-full border ${sla.chipClass}`}
-                            >
-                              {sla.label}
-                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span
+                                className={`text-[10px] px-2 py-0.5 rounded-full border ${sla.chipClass}`}
+                              >
+                                {sla.label}
+                              </span>
+
+                              {lead.proximo_contato && lead.proximo_contato.trim() && (
+                                <span
+                                  className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-semibold inline-flex items-center gap-0.5"
+                                  title="Follow-up agendado"
+                                >
+                                  <Clock className="w-2.5 h-2.5 text-amber-700" />
+                                  <span>Follow-up</span>
+                                </span>
+                              )}
+                            </div>
 
                             <div
                               title={`Proprietário: ${lead.expand?.proprietario?.name || 'Equipe'}`}

@@ -37,6 +37,7 @@ export interface HistoricoItem {
     | 'nota'
     | 'qualificacao'
     | 'descarte'
+    | 'contato'
   descricao: string
 }
 
@@ -55,6 +56,7 @@ export interface Lead extends RecordModel {
   qualificado_em?: string
   qualificado_por?: string
   motivo_descarte?: string
+  proximo_contato?: string
   pr_post_encerramento?: string
   sla_dias: number
   sla_limite?: string

@@ -100,6 +100,11 @@ export default function LeadDetail() {
   const [novaNota, setNovaNota] = useState('')
   const [savingNote, setSavingNote] = useState(false)
 
+  // Próximo contato
+  const [proximoContato, setProximoContato] = useState('')
+  const [savingProximoContato, setSavingProximoContato] = useState(false)
+  const [proximoContatoSaved, setProximoContatoSaved] = useState(false)
+
   // WhatsApp integration in LeadDetail
   const [waMessages, setWaMessages] = useState<WhatsAppMessage[]>([])
   const [loadingWa, setLoadingWa] = useState(false)
@@ -133,6 +138,7 @@ export default function LeadDetail() {
       setLead(data)
       setPrecoVenda(data.preco_venda || '')
       setPrAssinada(data.pr_assinada_ganho || false)
+      setProximoContato(data.proximo_contato || '')
       fetchWaMessages(data)
       fetchPropostas(data.id)
     } catch (err) {
@@ -240,6 +246,8 @@ export default function LeadDetail() {
       setLead(e.record)
       setPrecoVenda(e.record.preco_venda || '')
       setPrAssinada(e.record.pr_assinada_ganho || false)
+      // Se o usuário não estiver editando ativamente outro valor, sincroniza
+      setProximoContato((prev) => (savingProximoContato ? prev : e.record.proximo_contato || ''))
     }
   })
 
@@ -462,6 +470,57 @@ export default function LeadDetail() {
       })
     } finally {
       setSavingProposal(false)
+    }
+  }
+
+  // Salvar próximo contato (inline ou botão salvar)
+  const handleSaveProximoContato = async (textToSave?: string) => {
+    if (!lead) return
+    const novoTexto = (textToSave !== undefined ? textToSave : proximoContato).trim()
+    const valorAtual = (lead.proximo_contato || '').trim()
+
+    // Se o valor não mudou, não dispara requisição
+    if (novoTexto === valorAtual) return
+
+    try {
+      setSavingProximoContato(true)
+
+      const historyList: HistoricoItem[] = [
+        ...normalizedHistorico,
+        {
+          data: new Date().toISOString(),
+          tipo: 'contato',
+          descricao: novoTexto
+            ? `Próximo contato atualizado: "${novoTexto}"`
+            : 'Próximo contato removido.',
+        },
+      ]
+
+      const updated = await LeadsService.updateLead(lead.id, {
+        proximo_contato: novoTexto,
+        historico: historyList,
+      })
+
+      setLead(updated)
+      setProximoContato(updated.proximo_contato || '')
+      setProximoContatoSaved(true)
+      setTimeout(() => setProximoContatoSaved(false), 2500)
+
+      toast({
+        title: 'Próximo contato salvo',
+        description: novoTexto
+          ? 'Informações do próximo follow-up registradas com sucesso.'
+          : 'Anotação de próximo contato limpa com sucesso.',
+      })
+    } catch (err) {
+      console.error('Error saving proximo_contato:', err)
+      toast({
+        title: 'Erro ao salvar próximo contato',
+        description: 'Não foi possível salvar a anotação. Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingProximoContato(false)
     }
   }
 
@@ -888,6 +947,68 @@ export default function LeadDetail() {
             </CardContent>
           </Card>
 
+          {/* Card: Próximo Contato (Follow-up) */}
+          <Card className="border-amber-200/80 shadow-xs bg-white overflow-hidden ring-1 ring-amber-100">
+            <CardHeader className="pb-3 border-b border-amber-100 bg-amber-50/50 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-bold text-amber-950 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-amber-600" />
+                <span>Próximo Contato</span>
+              </CardTitle>
+              {proximoContatoSaved && (
+                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1 animate-fade-in">
+                  <Check className="w-3 h-3 stroke-[2.5]" />
+                  <span>Salvo!</span>
+                </span>
+              )}
+            </CardHeader>
+            <CardContent className="p-4 space-y-3">
+              <p className="text-xs text-slate-500">
+                Anote compromissos, lembretes de ligação ou data/horário do próximo retorno com este
+                cliente.
+              </p>
+
+              <div className="space-y-2">
+                <Textarea
+                  value={proximoContato}
+                  onChange={(e) => setProximoContato(e.target.value)}
+                  onBlur={() => handleSaveProximoContato()}
+                  placeholder="Ex.: Ligar quinta às 14h, cliente quer fechar"
+                  rows={3}
+                  className="text-xs border-amber-200/70 focus-visible:ring-amber-500 bg-amber-50/20 focus:bg-white resize-none"
+                />
+
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <span className="text-[11px] text-slate-400">
+                    Salva automaticamente ao sair do campo
+                  </span>
+
+                  <Button
+                    type="button"
+                    onClick={() => handleSaveProximoContato()}
+                    disabled={
+                      savingProximoContato ||
+                      proximoContato.trim() === (lead.proximo_contato || '').trim()
+                    }
+                    size="sm"
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs h-8 px-3 gap-1.5 shadow-xs"
+                  >
+                    {savingProximoContato ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Salvando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Salvar</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Card 2: Consumo & Economia Estimada */}
           <Card className="border-slate-200/80 shadow-xs bg-white overflow-hidden">
             <CardHeader className="pb-3 border-b border-slate-100 bg-emerald-50/40">
@@ -1050,13 +1171,17 @@ export default function LeadDetail() {
                                   ? 'bg-emerald-100 text-emerald-700'
                                   : item.tipo === 'proposta'
                                     ? 'bg-amber-100 text-amber-700'
-                                    : 'bg-slate-200 text-slate-600'
+                                    : item.tipo === 'contato'
+                                      ? 'bg-amber-100 text-amber-800'
+                                      : 'bg-slate-200 text-slate-600'
                           }`}
                         >
                           {isSlaAlert ? (
                             <AlertTriangle className="w-3 h-3" />
                           ) : item.tipo === 'proposta' ? (
                             <Eye className="w-3 h-3" />
+                          ) : item.tipo === 'contato' ? (
+                            <Calendar className="w-3 h-3 text-amber-700" />
                           ) : (
                             <Clock className="w-3 h-3" />
                           )}{' '}

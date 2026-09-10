@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-10T18:54:01.680Z",
+  "generatedAt": "2026-09-10T21:00:34.287Z",
   "collections": [
     {
       "name": "users",
@@ -228,6 +228,18 @@
         },
         {
           "name": "motivo_descarte",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo_descarte",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "proximo_contato",
           "type": "text",
           "required": false,
           "system": false
