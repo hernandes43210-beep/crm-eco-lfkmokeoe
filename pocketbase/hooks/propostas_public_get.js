@@ -1,5 +1,6 @@
 // GET /backend/v1/propostas/public/{token}
 // Endpoint público para consulta de proposta por token único sem exigir autenticação
+// Registra automaticamente data e hora de acesso, contagem e atualiza o histórico do lead no primeiro acesso.
 
 routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
   let token = ''
@@ -24,14 +25,133 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
     }
 
     const proposta = list[0]
+    const leadId = proposta.getString('lead')
+
+    // Rastrear visualização com deduplicação de 60 segundos
+    const now = new Date()
+    const nowIso = now.toISOString()
+    const nowFormatted = nowIso.replace('T', ' ').substring(0, 19) + 'Z'
+
+    const ultimaVisStr = proposta.getString('ultima_visualizacao')
+    let deveRegistrar = true
+    if (ultimaVisStr) {
+      try {
+        const ultDate = new Date(ultimaVisStr)
+        const diffMs = now.getTime() - ultDate.getTime()
+        // Deduplicar se acessado há menos de 60 segundos (ex: reload rápido da página)
+        if (diffMs < 60000 && diffMs >= 0) {
+          deveRegistrar = false
+        }
+      } catch (_) {}
+    }
+
+    if (deveRegistrar) {
+      try {
+        let clientIp = ''
+        try {
+          clientIp = e.realIP() || e.remoteIP() || ''
+        } catch (_) {
+          try {
+            clientIp = e.requestInfo().remoteIP || ''
+          } catch (_) {}
+        }
+
+        let userAgent = ''
+        try {
+          userAgent = e.requestInfo().headers['user-agent'] || ''
+          if (userAgent.length > 200) {
+            userAgent = userAgent.substring(0, 200)
+          }
+        } catch (_) {}
+
+        const currentCount = proposta.getInt('visualizacoes_count') || 0
+        const isPrimeiraVez = currentCount === 0 || !proposta.getString('primeira_visualizacao')
+
+        proposta.set('visualizacoes_count', currentCount + 1)
+        proposta.set('ultima_visualizacao', nowFormatted)
+        if (isPrimeiraVez) {
+          proposta.set('primeira_visualizacao', nowFormatted)
+        }
+        if (clientIp) {
+          proposta.set('ultimo_ip_visualizacao', clientIp)
+        }
+        if (userAgent) {
+          proposta.set('ultimo_user_agent', userAgent)
+        }
+
+        // Histórico de acessos na própria proposta (limite dos últimos 20 acessos)
+        let histAcessos = []
+        try {
+          const rawAcessos = proposta.get('historico_acessos')
+          if (rawAcessos) {
+            if (typeof rawAcessos === 'string') {
+              histAcessos = JSON.parse(rawAcessos)
+            } else if (Array.isArray(rawAcessos)) {
+              histAcessos = rawAcessos
+            }
+          }
+        } catch (_) {
+          histAcessos = []
+        }
+        if (!Array.isArray(histAcessos)) {
+          histAcessos = []
+        }
+        histAcessos.push({
+          data: nowIso,
+          ip: clientIp || undefined,
+          origem: 'link_publico',
+        })
+        if (histAcessos.length > 20) {
+          histAcessos = histAcessos.slice(-20)
+        }
+        proposta.set('historico_acessos', JSON.stringify(histAcessos))
+
+        $app.save(proposta)
+
+        // Se for o primeiro acesso da proposta (ou a cada 5 acessos relevantes), registrar no histórico do Lead
+        if (leadId && isPrimeiraVez) {
+          try {
+            const lead = $app.findFirstRecordByData('leads', 'id', leadId)
+            let rawHist = lead.get('historico')
+            let hist = []
+            if (rawHist) {
+              if (typeof rawHist === 'string') {
+                try {
+                  hist = JSON.parse(rawHist)
+                } catch (_) {
+                  hist = []
+                }
+              } else if (Array.isArray(rawHist)) {
+                hist = rawHist
+              }
+            }
+
+            const kitNome = proposta.getString('kit_nome') || 'Sistema Solar'
+            hist.push({
+              data: nowIso,
+              tipo: 'proposta',
+              descricao:
+                'Cliente visualizou a proposta comercial (' +
+                kitNome +
+                ') pela 1ª vez através do link público.',
+            })
+            lead.set('historico', JSON.stringify(hist))
+            $app.save(lead)
+          } catch (errLead) {
+            console.error('Erro ao atualizar histórico do lead no primeiro acesso:', errLead)
+          }
+        }
+      } catch (errTracking) {
+        console.error('Erro ao registrar rastreamento de proposta:', errTracking)
+      }
+    }
+
     let leadData = null
     let kitData = null
     let vendedorData = null
 
-    const leadId = proposta.getString('lead')
     if (leadId) {
       try {
-        const leadRec = $app.findCollectionByNameOrId('leads')
         const lead = $app.findFirstRecordByData('leads', 'id', leadId)
         leadData = {
           id: lead.id,
@@ -76,7 +196,6 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
     // Buscar fotos de obras já instaladas para prova social no modelo da proposta
     let fotosObra = []
     try {
-      // Priorizar fotos do próprio lead (se houver), ou de outros leads com fotos cadastradas
       let photosList = []
       if (leadId) {
         photosList = $app.findRecordsByFilter(
@@ -125,6 +244,9 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
       observacoes: proposta.getString('observacoes'),
       data_aceite: proposta.getString('data_aceite'),
       aceito_por_nome: proposta.getString('aceito_por_nome'),
+      visualizacoes_count: proposta.getInt('visualizacoes_count') || 0,
+      primeira_visualizacao: proposta.getString('primeira_visualizacao'),
+      ultima_visualizacao: proposta.getString('ultima_visualizacao'),
       created: proposta.getString('created'),
       lead: leadData,
       kit: kitData,

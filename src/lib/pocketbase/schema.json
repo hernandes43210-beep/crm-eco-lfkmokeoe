@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-10T13:05:21.277Z",
+  "generatedAt": "2026-09-10T14:31:34.668Z",
   "collections": [
     {
       "name": "users",
@@ -787,6 +787,42 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "visualizacoes_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "primeira_visualizacao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ultima_visualizacao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ultimo_ip_visualizacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ultimo_user_agent",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "historico_acessos",
+          "type": "json",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

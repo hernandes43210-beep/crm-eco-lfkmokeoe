@@ -27,6 +27,7 @@ import {
   MessageSquare,
   ExternalLink,
   UserX,
+  Eye,
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { LeadsService } from '@/services/leads'
@@ -1047,14 +1048,18 @@ export default function LeadDetail() {
                                 ? 'bg-blue-100 text-blue-700'
                                 : item.tipo === 'fechamento'
                                   ? 'bg-emerald-100 text-emerald-700'
-                                  : 'bg-slate-200 text-slate-600'
+                                  : item.tipo === 'proposta'
+                                    ? 'bg-amber-100 text-amber-700'
+                                    : 'bg-slate-200 text-slate-600'
                           }`}
                         >
                           {isSlaAlert ? (
                             <AlertTriangle className="w-3 h-3" />
+                          ) : item.tipo === 'proposta' ? (
+                            <Eye className="w-3 h-3" />
                           ) : (
                             <Clock className="w-3 h-3" />
-                          )}
+                          )}{' '}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium leading-relaxed">{item.descricao}</p>
@@ -1318,6 +1323,33 @@ export default function LeadDetail() {
                               {formatDateBR(prop.data_validade)}
                             </strong>
                           </span>
+                        </div>
+
+                        {/* Rastreamento de visualizações pelo cliente */}
+                        <div className="pt-1">
+                          {prop.visualizacoes_count && prop.visualizacoes_count > 0 ? (
+                            <div className="inline-flex flex-wrap items-center gap-2 px-2.5 py-1 rounded-md bg-amber-50 border border-amber-200/80 text-[11px] text-amber-900 font-medium">
+                              <span className="inline-flex items-center gap-1 font-bold text-amber-950">
+                                <Eye className="w-3.5 h-3.5 text-amber-600" />
+                                {prop.visualizacoes_count === 1
+                                  ? 'Visualizada 1 vez pelo cliente'
+                                  : `Visualizada ${prop.visualizacoes_count} vezes pelo cliente`}
+                              </span>
+                              {prop.ultima_visualizacao && (
+                                <span className="text-amber-800">
+                                  • Última em{' '}
+                                  <strong className="font-semibold text-amber-950">
+                                    {formatDateTimeBR(prop.ultima_visualizacao)}
+                                  </strong>
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] text-slate-400 bg-slate-50 border border-slate-200">
+                              <Eye className="w-3 h-3 text-slate-400" />
+                              <span>Ainda não visualizada pelo cliente</span>
+                            </div>
+                          )}
                         </div>
 
                         {isAceita && (

@@ -201,6 +201,9 @@ export const ProposalsService = {
           observacoes: found.observacoes,
           data_aceite: found.data_aceite,
           aceito_por_nome: found.aceito_por_nome,
+          visualizacoes_count: found.visualizacoes_count,
+          primeira_visualizacao: found.primeira_visualizacao,
+          ultima_visualizacao: found.ultima_visualizacao,
           created: found.created,
           lead: expandedLead
             ? {

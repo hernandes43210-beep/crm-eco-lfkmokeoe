@@ -191,6 +191,12 @@ export interface SiteFormLogItem {
 
 export type PropostaStatus = 'Rascunho' | 'Enviada' | 'Aceita' | 'Recusada'
 
+export interface PropostaAcessoItem {
+  data: string
+  ip?: string
+  origem?: string
+}
+
 export interface Proposta extends RecordModel {
   id: string
   lead: string
@@ -211,6 +217,12 @@ export interface Proposta extends RecordModel {
   data_aceite?: string
   aceito_por_nome?: string
   aceito_por_ip?: string
+  visualizacoes_count?: number
+  primeira_visualizacao?: string
+  ultima_visualizacao?: string
+  ultimo_ip_visualizacao?: string
+  ultimo_user_agent?: string
+  historico_acessos?: PropostaAcessoItem[] | string
   created: string
   updated: string
   expand?: {
@@ -251,6 +263,9 @@ export interface PublicProposta {
   observacoes?: string
   data_aceite?: string
   aceito_por_nome?: string
+  visualizacoes_count?: number
+  primeira_visualizacao?: string
+  ultima_visualizacao?: string
   created: string
   lead?: {
     id: string

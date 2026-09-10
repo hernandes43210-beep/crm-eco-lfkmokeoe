@@ -379,6 +379,27 @@ export default function PropostasList() {
                         </span>
                       </div>
 
+                      {/* Rastreamento de visualizações */}
+                      <div className="pt-0.5">
+                        {prop.visualizacoes_count && prop.visualizacoes_count > 0 ? (
+                          <div className="inline-flex flex-wrap items-center gap-1.5 text-xs text-amber-900 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded">
+                            <span className="font-semibold text-amber-950">
+                              Visualizada {prop.visualizacoes_count}{' '}
+                              {prop.visualizacoes_count === 1 ? 'vez' : 'vezes'}
+                            </span>
+                            {prop.ultima_visualizacao && (
+                              <span className="text-amber-800">
+                                (última em {formatDateTimeBR(prop.ultima_visualizacao)})
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-slate-400">
+                            Ainda não visualizada pelo cliente
+                          </span>
+                        )}
+                      </div>
+
                       {isAceita && (
                         <div className="text-xs text-emerald-800 font-semibold flex items-center gap-1.5 pt-0.5">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
