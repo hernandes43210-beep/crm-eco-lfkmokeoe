@@ -258,15 +258,40 @@ export default function LeadForm() {
     } catch (err: unknown) {
       console.error('Error saving lead:', err)
       const fieldErrors = extractFieldErrors(err)
-      const friendlyMsg = getErrorMessage(err)
+      let friendlyMsg = getErrorMessage(err)
+
+      // Tratamento específico e claro para erro de unicidade de e-mail se a constraint ocorrer
+      if (
+        fieldErrors.email &&
+        (fieldErrors.email.toLowerCase().includes('unique') ||
+          fieldErrors.email.toLowerCase().includes('e-mail') ||
+          fieldErrors.email.toLowerCase().includes('email'))
+      ) {
+        fieldErrors.email = 'Já existe um lead com este e-mail.'
+      }
 
       // Montar mensagem detalhada caso haja erros de campos específicos
       let displayError = friendlyMsg
       const specificFieldList = Object.entries(fieldErrors)
-        .map(([field, msg]) => `• ${msg}`)
+        .map(([field, msg]) => {
+          const fieldLabel =
+            field === 'email'
+              ? 'E-mail'
+              : field === 'nome'
+                ? 'Nome'
+                : field === 'consumo_mensal_kwh'
+                  ? 'Consumo'
+                  : field === 'proprietario'
+                    ? 'Proprietário'
+                    : field
+          return `• ${fieldLabel}: ${msg}`
+        })
         .join('\n')
 
-      if (specificFieldList && !friendlyMsg.includes('•')) {
+      if (fieldErrors.email && fieldErrors.email.includes('Já existe')) {
+        friendlyMsg = 'Já existe um lead com este e-mail.'
+        displayError = 'Já existe um lead com este e-mail.'
+      } else if (specificFieldList && !friendlyMsg.includes('•')) {
         displayError = `${friendlyMsg}\n${specificFieldList}`
       }
 
