@@ -72,6 +72,10 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
 
   // Proposta ID formatada
   const proposalCode = (data.id || 'ECO').slice(-6).toUpperCase()
+  const localCliente =
+    [data.cliente.cidade, data.cliente.estado].filter(Boolean).join(' - ') || 'Brasil'
+  const consultorNome = data.vendedor?.name || 'Equipe Ecosolar Energy'
+  const consultorEmail = data.vendedor?.email || 'contato@ecosolarenergy.com.br'
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -98,7 +102,268 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
       print-color-adjust: exact;
     }
 
-    /* 1. Capa & Header Institucional Azul-Marinho */
+    /* Capa de Página Inteira (Página 1 do PDF) */
+    .cover-page {
+      width: 100%;
+      min-height: 277mm;
+      box-sizing: border-box;
+      background: linear-gradient(145deg, #060F1E 0%, #0A192F 35%, #0F284E 75%, #163868 100%);
+      color: #ffffff;
+      border-radius: 12px;
+      padding: 36px 36px 28px 36px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+      page-break-after: always;
+      break-after: page;
+      border: 1px solid rgba(234, 179, 8, 0.35);
+      box-shadow: 0 10px 30px rgba(10, 25, 47, 0.25);
+    }
+
+    /* Padrão geométrico de fundo evocando painéis solares / energia */
+    .cover-bg-grid {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.14;
+      background-size: 38px 38px;
+      background-image:
+        linear-gradient(to right, rgba(250, 204, 21, 0.4) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(250, 204, 21, 0.4) 1px, transparent 1px);
+    }
+    .cover-bg-accent-1 {
+      position: absolute;
+      top: -90px;
+      right: -90px;
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(234, 179, 8, 0.22) 0%, rgba(234, 179, 8, 0) 70%);
+      pointer-events: none;
+    }
+    .cover-bg-accent-2 {
+      position: absolute;
+      bottom: 80px;
+      left: -60px;
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.18) 0%, rgba(59, 130, 246, 0) 70%);
+      pointer-events: none;
+    }
+    .cover-bg-solar-cells {
+      position: absolute;
+      right: 28px;
+      top: 140px;
+      width: 180px;
+      height: 180px;
+      opacity: 0.18;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+      transform: rotate(12deg);
+      pointer-events: none;
+    }
+    .cover-solar-cell {
+      border: 1.5px solid #FACC15;
+      border-radius: 3px;
+      background: rgba(250, 204, 21, 0.05);
+    }
+
+    .cover-header {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+      padding-bottom: 20px;
+    }
+    .cover-brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .cover-logo-img {
+      height: 64px;
+      width: auto;
+      object-fit: contain;
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 6px 10px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+    }
+    .cover-brand-title {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      color: #ffffff;
+      line-height: 1.1;
+    }
+    .cover-brand-title span {
+      color: #FACC15;
+    }
+    .cover-brand-sub {
+      font-size: 10px;
+      color: #93C5FD;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      margin-top: 3px;
+      text-transform: uppercase;
+    }
+    .cover-badge-num {
+      text-align: right;
+    }
+    .cover-badge-pill {
+      display: inline-block;
+      background: rgba(234, 179, 8, 0.18);
+      border: 1.5px solid #EAB308;
+      color: #FACC15;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .cover-body {
+      position: relative;
+      z-index: 2;
+      margin: auto 0;
+      padding: 30px 0;
+    }
+    .cover-pretitle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: #FACC15;
+      background: rgba(250, 204, 21, 0.12);
+      padding: 4px 12px;
+      border-radius: 4px;
+      margin-bottom: 14px;
+    }
+    .cover-pretitle::before {
+      content: "☀";
+      font-size: 13px;
+    }
+    .cover-main-title {
+      font-size: 34px;
+      font-weight: 900;
+      letter-spacing: -0.8px;
+      line-height: 1.15;
+      color: #ffffff;
+      margin-bottom: 18px;
+      max-width: 580px;
+    }
+    .cover-main-title .highlight-yellow {
+      color: #FACC15;
+      display: inline;
+    }
+    .cover-gold-bar {
+      width: 72px;
+      height: 4px;
+      background: linear-gradient(90deg, #FACC15 0%, #EAB308 100%);
+      border-radius: 2px;
+      margin-bottom: 26px;
+    }
+
+    /* Caixa em destaque do cliente */
+    .cover-client-card {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1.5px solid rgba(250, 204, 21, 0.4);
+      border-left: 6px solid #FACC15;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      backdrop-filter: blur(4px);
+    }
+    .cover-client-label {
+      font-size: 9.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #93C5FD;
+      font-weight: 800;
+    }
+    .cover-client-name {
+      font-size: 22px;
+      font-weight: 900;
+      color: #ffffff;
+      margin-top: 4px;
+      letter-spacing: -0.3px;
+    }
+    .cover-client-location {
+      font-size: 12px;
+      color: #CBD5E1;
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+    }
+
+    /* Grid de Metadados da Capa */
+    .cover-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .cover-meta-item {
+      background: rgba(10, 25, 47, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+    .cover-meta-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #94A3B8;
+      font-weight: 700;
+    }
+    .cover-meta-val {
+      font-size: 12.5px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-top: 3px;
+    }
+    .cover-meta-val.accent {
+      color: #FACC15;
+    }
+
+    /* Rodapé da Capa */
+    .cover-footer {
+      position: relative;
+      z-index: 2;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+      padding-top: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 9.5px;
+      color: #CBD5E1;
+    }
+    .cover-footer-left strong {
+      color: #ffffff;
+      font-size: 10.5px;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .cover-footer-contacts {
+      text-align: right;
+      line-height: 1.5;
+    }
+    .cover-footer-contacts span {
+      margin-left: 10px;
+    }
+
+    /* 1. Header Institucional Azul-Marinho (a partir da página 2) */
     .header {
       background: linear-gradient(135deg, #0A192F 0%, #0F284E 50%, #163868 100%);
       color: #ffffff;
@@ -110,6 +375,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
       justify-content: space-between;
       align-items: center;
       box-shadow: 0 2px 8px rgba(10, 25, 47, 0.12);
+      page-break-inside: avoid;
     }
     .brand-box {
       display: flex;
@@ -235,6 +501,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
       grid-template-columns: 1fr 1fr;
       gap: 12px;
       margin-bottom: 12px;
+      page-break-inside: avoid;
     }
     .card {
       border: 1px solid #E2E8F0;
@@ -279,6 +546,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
       grid-template-columns: repeat(4, 1fr);
       gap: 8px;
       margin-bottom: 12px;
+      page-break-inside: avoid;
     }
     .kpi-card {
       border: 1px solid #CBD5E1;
@@ -341,6 +609,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
       border: 1px solid #CBD5E1;
       border-radius: 6px;
       overflow: hidden;
+      page-break-inside: avoid;
     }
     table {
       width: 100%;
@@ -600,7 +869,93 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
   </style>
 </head>
 <body>
-  <!-- 1. Capa Institucional Azul-Marinho -->
+  <!-- ========================================== -->
+  <!-- FOLHA 1: CAPA DE PÁGINA INTEIRA EXECUTIVA -->
+  <!-- ========================================== -->
+  <div class="cover-page">
+    <div class="cover-bg-grid"></div>
+    <div class="cover-bg-accent-1"></div>
+    <div class="cover-bg-accent-2"></div>
+    <div class="cover-bg-solar-cells">
+      <div class="cover-solar-cell"></div>
+      <div class="cover-solar-cell"></div>
+      <div class="cover-solar-cell"></div>
+      <div class="cover-solar-cell"></div>
+      <div class="cover-solar-cell"></div>
+      <div class="cover-solar-cell"></div>
+      <div class="cover-solar-cell"></div>
+      <div class="cover-solar-cell"></div>
+      <div class="cover-solar-cell"></div>
+    </div>
+
+    <!-- Header da Capa -->
+    <div class="cover-header">
+      <div class="cover-brand-wrap">
+        <img src="${logoEcosolar}" alt="Ecosolar Energy" class="cover-logo-img" />
+        <div>
+          <div class="cover-brand-title">ECO<span>SOLAR</span> ENERGY</div>
+          <div class="cover-brand-sub">A energia do futuro, hoje! • Engenharia Fotovoltaica</div>
+        </div>
+      </div>
+      <div class="cover-badge-num">
+        <span class="cover-badge-pill">Proposta Nº ${proposalCode}</span>
+      </div>
+    </div>
+
+    <!-- Corpo Central da Capa -->
+    <div class="cover-body">
+      <div class="cover-pretitle">Solução Personalizada em Geração Distribuída</div>
+      <h1 class="cover-main-title">
+        Proposta Comercial de <span class="highlight-yellow">Energia Solar</span>
+      </h1>
+      <div class="cover-gold-bar"></div>
+
+      <!-- Destaque do Cliente -->
+      <div class="cover-client-card">
+        <div class="cover-client-label">Proposta Preparada Especialmente Para</div>
+        <div class="cover-client-name">${data.cliente.nome}</div>
+        <div class="cover-client-location">
+          <span>📍 Localidade:</span>
+          <strong>${localCliente}</strong>
+          ${data.cliente.consumo_mensal_kwh ? `<span>• Consumo Médio: <strong>${data.cliente.consumo_mensal_kwh} kWh/mês</strong></span>` : ''}
+        </div>
+      </div>
+
+      <!-- Metadados da Capa em 3 Colunas -->
+      <div class="cover-meta-grid">
+        <div class="cover-meta-item">
+          <div class="cover-meta-label">Consultor Responsável</div>
+          <div class="cover-meta-val">${consultorNome}</div>
+        </div>
+        <div class="cover-meta-item">
+          <div class="cover-meta-label">Data de Emissão</div>
+          <div class="cover-meta-val">${emissaoFormatted}</div>
+        </div>
+        <div class="cover-meta-item">
+          <div class="cover-meta-label">Data de Validade (15 dias)</div>
+          <div class="cover-meta-val accent">${validadeFormatted}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rodapé da Capa -->
+    <div class="cover-footer">
+      <div class="cover-footer-left">
+        <strong>ECOSOLAR ENERGY SOLUÇÕES EM ENERGIA SOLAR</strong>
+        <span>Projetos de Engenharia • Homologação Turnkey • Instalação Homologada</span>
+      </div>
+      <div class="cover-footer-contacts">
+        <div>E-mail: <strong>${consultorEmail}</strong></div>
+        <div>WhatsApp / Suporte: <strong>${data.cliente.telefone ? '(Atendimento Especializado)' : 'contato@ecosolarenergy.com.br'}</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- FOLHA 2 EM DIANTE: CONTEÚDO TÉCNICO & FINANCEIRO -->
+  <!-- ========================================== -->
+
+  <!-- 1. Header Institucional Azul-Marinho -->
   <div class="header">
     <div class="brand-box">
       <img src="${logoEcosolar}" alt="Ecosolar Energy" class="brand-logo-img" />

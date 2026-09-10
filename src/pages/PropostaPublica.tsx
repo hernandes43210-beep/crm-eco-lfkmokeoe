@@ -222,10 +222,14 @@ export default function PropostaPublica() {
   const isExpirada = dataValidade < hoje && proposta.status !== 'Aceita'
 
   const proposalNumber = (proposta.id || 'ECO').slice(-6).toUpperCase()
+  const localCliente =
+    [proposta.lead?.cidade, proposta.lead?.estado].filter(Boolean).join(' - ') || 'Brasil'
+  const consultorNome = proposta.vendedor?.name || 'Equipe Ecosolar Energy'
+  const consultorEmail = proposta.vendedor?.email || 'contato@ecosolarenergy.com.br'
 
   return (
     <div className="min-h-screen bg-[#F4F6F9] text-slate-900 pb-20">
-      {/* 1. Capa Institucional / Top Navigation Bar — Azul-Marinho Navy (#0A192F) */}
+      {/* 1. Top Navigation Bar — Acesso rápido e ações */}
       <header className="sticky top-0 z-30 bg-[#0A192F] text-white border-b-2 border-amber-400 px-4 sm:px-8 py-3.5 shadow-md">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -293,8 +297,194 @@ export default function PropostaPublica() {
         </div>
       )}
 
+      {/* ======================================================== */}
+      {/* CAPA DE PÁGINA INTEIRA (PRIMEIRO SCREEN DA PROPOSTA)     */}
+      {/* ======================================================== */}
+      <section
+        aria-label="Capa Comercial da Proposta"
+        className="relative min-h-[92vh] sm:min-h-[88vh] bg-gradient-to-br from-[#060F1E] via-[#0A192F] to-[#163868] text-white flex flex-col justify-between overflow-hidden border-b-4 border-amber-400 px-4 sm:px-8 lg:px-12 py-8 sm:py-12"
+      >
+        {/* Padrão geométrico de fundo evocando células solares */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-[0.14]"
+          style={{
+            backgroundImage:
+              'linear-gradient(to right, rgba(250, 204, 21, 0.4) 1px, transparent 1px), linear-gradient(to bottom, rgba(250, 204, 21, 0.4) 1px, transparent 1px)',
+            backgroundSize: '40px 40px',
+          }}
+        />
+
+        {/* Círculos e gradientes luminosos de energia solar */}
+        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-amber-400/20 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-12 -left-24 w-80 h-80 rounded-full bg-blue-600/15 blur-3xl pointer-events-none" />
+
+        {/* Efeito sutil de painel fotovoltaico inclinado no canto */}
+        <div className="hidden lg:grid absolute right-12 top-24 w-44 h-44 grid-cols-3 gap-1.5 opacity-20 rotate-12 pointer-events-none">
+          {Array.from({ length: 9 }).map((_, i) => (
+            <div key={i} className="border border-amber-400 bg-amber-400/10 rounded-xs" />
+          ))}
+        </div>
+
+        {/* Header da Capa */}
+        <div className="relative z-10 max-w-6xl w-full mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-white/15">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-2xl p-2.5 shadow-2xl border border-slate-200/90 flex items-center justify-center shrink-0">
+              <img
+                src={logoEcosolar}
+                alt="Ecosolar Energy"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-black text-2xl sm:text-3xl text-white tracking-tight">
+                  ECO<span className="text-amber-400">SOLAR</span> ENERGY
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-sky-200 font-semibold tracking-wide uppercase mt-0.5">
+                A energia do futuro, hoje! • Soluções em Engenharia Solar
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 sm:text-right">
+            <Badge className="bg-amber-400 text-slate-950 hover:bg-amber-400 font-black text-xs uppercase px-3 py-1 shadow-md">
+              Proposta Nº {proposalNumber}
+            </Badge>
+            {proposta.status === 'Aceita' && (
+              <Badge className="bg-emerald-500 text-white font-bold text-xs uppercase px-2.5 py-1">
+                ✓ Aceita
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* Centro da Capa */}
+        <div className="relative z-10 max-w-6xl w-full mx-auto py-10 sm:py-16 my-auto space-y-6">
+          <div className="inline-flex items-center gap-2 bg-amber-400/15 border border-amber-400/40 text-amber-300 text-xs sm:text-sm font-bold uppercase tracking-wider px-3.5 py-1.5 rounded-full">
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <span>Engenharia Fotovoltaica & Eficiência Energética</span>
+          </div>
+
+          <div className="space-y-3">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight max-w-4xl">
+              Proposta Comercial de <span className="text-amber-400">Energia Solar</span>
+            </h1>
+            <div className="w-20 h-1.5 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full" />
+            <p className="text-sm sm:text-base text-slate-300 max-w-2xl font-medium pt-1">
+              Dimensionamento executivo sob medida, viabilidade técnica de homologação e retorno
+              financeiro acelerado para geração própria de energia.
+            </p>
+          </div>
+
+          {/* Card em destaque com o nome do cliente */}
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 sm:p-7 border border-amber-400/50 border-l-8 border-l-amber-400 max-w-3xl shadow-2xl">
+            <span className="text-[11px] uppercase tracking-wider font-extrabold text-sky-200 block">
+              Proposta Preparada Especialmente Para
+            </span>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight mt-1.5 break-words">
+              {proposta.lead?.nome || 'Cliente'}
+            </h2>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs sm:text-sm text-slate-200 mt-3 font-semibold">
+              <span className="flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>
+                  Cidade: <strong>{localCliente}</strong>
+                </span>
+              </span>
+              {proposta.lead?.consumo_mensal_kwh ? (
+                <span className="flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>
+                    Consumo Médio: <strong>{proposta.lead.consumo_mensal_kwh} kWh/mês</strong>
+                  </span>
+                </span>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Grid de Metadados da Capa */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 max-w-3xl pt-2">
+            <div className="bg-[#0A192F]/80 backdrop-blur-sm border border-white/15 rounded-xl p-3.5">
+              <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
+                Consultor Responsável
+              </span>
+              <p className="text-sm font-extrabold text-white mt-1 truncate">{consultorNome}</p>
+              <p className="text-[11px] text-slate-300 truncate">{consultorEmail}</p>
+            </div>
+
+            <div className="bg-[#0A192F]/80 backdrop-blur-sm border border-white/15 rounded-xl p-3.5">
+              <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
+                Data de Emissão
+              </span>
+              <p className="text-sm font-extrabold text-white mt-1">
+                {formatDateBR(proposta.created)}
+              </p>
+              <p className="text-[11px] text-slate-300">Documento Oficial</p>
+            </div>
+
+            <div className="bg-[#0A192F]/80 backdrop-blur-sm border border-amber-400/40 rounded-xl p-3.5">
+              <span className="text-[10px] uppercase tracking-wider text-amber-300 font-bold block">
+                Data de Validade (15 dias)
+              </span>
+              <p className="text-sm font-black text-amber-400 mt-1">
+                {formatDateBR(proposta.data_validade)}
+              </p>
+              <p className="text-[11px] text-slate-300">Condições garantidas</p>
+            </div>
+          </div>
+
+          {/* Botões de Ação na Capa */}
+          <div className="flex flex-wrap items-center gap-3 pt-4">
+            <a href="#detalhes-proposta">
+              <Button
+                size="lg"
+                className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs sm:text-sm gap-2 h-11 px-5 shadow-lg border border-amber-400"
+              >
+                <span>Ver Detalhes do Projeto & Itens</span>
+                <ChevronRight className="w-4 h-4 stroke-[3]" />
+              </Button>
+            </a>
+
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={handleDownloadPDF}
+              className="bg-white/10 hover:bg-white/20 text-white border-white/25 text-xs sm:text-sm font-bold gap-2 h-11 px-5"
+            >
+              <FileDown className="w-4 h-4 text-amber-400" />
+              <span>Baixar Proposta Oficial em PDF</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Rodapé da Capa com dados de contato da Ecosolar Energy */}
+        <div className="relative z-10 max-w-6xl w-full mx-auto pt-6 border-t border-white/15 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-300">
+          <div>
+            <strong className="text-white block font-bold">
+              ECOSOLAR ENERGY SOLUÇÕES EM ENERGIA SOLAR
+            </strong>
+            <span className="text-[11px] text-slate-400">
+              Projetos Turnkey • Homologação de Engenharia • Instalação Homologada conforme
+              NR10/NR35
+            </span>
+          </div>
+
+          <div className="sm:text-right text-[11px] space-y-0.5">
+            <div>
+              Contato Comercial:{' '}
+              <strong className="text-white font-semibold">{consultorEmail}</strong>
+            </div>
+            <div>
+              Atendimento Especializado •{' '}
+              <strong className="text-amber-300">ecosolarenergy.com.br</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Main Content Container */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+      <main id="detalhes-proposta" className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 space-y-6">
         {/* Banner de Aceite Concluído */}
         {acceptedSuccess && (
           <div className="p-5 rounded-2xl bg-emerald-600 text-white shadow-lg flex items-start sm:items-center gap-4 border border-emerald-500">
