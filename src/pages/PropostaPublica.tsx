@@ -26,7 +26,15 @@ import {
 import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
 import { ProposalsService } from '@/services/proposals'
 import type { PublicProposta } from '@/types/crm'
-import { formatBRL, formatDateBR, formatDateTimeBR } from '@/lib/solarUtils'
+import {
+  formatBRL,
+  formatDateBR,
+  formatDateTimeBR,
+  calcularGeracaoMensalKwh,
+  calcularEconomiaMensal,
+  IRRADIACAO_MEDIA_DIARIA_HORAS,
+  FATOR_PERDAS_SISTEMA,
+} from '@/lib/solarUtils'
 import { openProposalPDFPrint } from '@/lib/proposalPdf'
 import { parseKitDetailedItems } from '@/lib/kitItemsParser'
 import { InvestmentComparison } from '@/components/InvestmentComparison'
@@ -210,8 +218,10 @@ export default function PropostaPublica() {
   const consumoKwh = proposta.lead?.consumo_mensal_kwh || 400
   const geracaoEstimadaKwh =
     specs.geracaoMensalEstimadaKwh ||
-    Math.round((proposta.kit_potencia_kw || consumoKwh / 120) * 125)
-  const economiaMensal = consumoKwh * 0.92 * 0.85
+    (proposta.kit_potencia_kw
+      ? calcularGeracaoMensalKwh(proposta.kit_potencia_kw)
+      : Math.round(consumoKwh))
+  const economiaMensal = calcularEconomiaMensal(consumoKwh)
   const economiaAnual = economiaMensal * 12
   const economia25Anos = economiaAnual * 25
 
@@ -619,7 +629,9 @@ export default function PropostaPublica() {
                 <span className="text-xs font-normal text-slate-500">kWh/mês</span>
               </p>
               <p className="text-[11px] text-slate-500 mt-1">
-                Energia limpa e inesgotável no telhado
+                Irradiação de {IRRADIACAO_MEDIA_DIARIA_HORAS.toString().replace('.', ',')} h/dia •
+                perdas de {Math.round((1 - FATOR_PERDAS_SISTEMA) * 100)}% (fator{' '}
+                {FATOR_PERDAS_SISTEMA.toFixed(2).replace('.', ',')})
               </p>
             </CardContent>
           </Card>
@@ -746,6 +758,10 @@ export default function PropostaPublica() {
                 <p className="text-base font-black text-[#0A192F] mt-0.5">
                   ~{geracaoEstimadaKwh} kWh/mês
                 </p>
+                <span className="text-[9px] text-slate-400 block">
+                  Irradiação {IRRADIACAO_MEDIA_DIARIA_HORAS.toString().replace('.', ',')}h • Perdas{' '}
+                  {Math.round((1 - FATOR_PERDAS_SISTEMA) * 100)}%
+                </span>
               </div>
               <div>
                 <p className="text-[10px] font-extrabold uppercase text-slate-400">Área Estimada</p>

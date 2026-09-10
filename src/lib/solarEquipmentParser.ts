@@ -1,4 +1,10 @@
 import type { Proposta, Kit, Lead } from '@/types/crm'
+import {
+  calcularEconomiaMensal,
+  calcularGeracaoMensalKwh,
+  TARIFA_ENERGIA_KWH,
+  PARCELA_COMPENSADA_PERCENTUAL,
+} from './solarUtils'
 
 export interface SolarEquipmentExtracted {
   modulos: string
@@ -331,16 +337,18 @@ export function extractSolarEquipmentFromProposal(
 
   // Economia Mensal (R$/mês)
   // Calculada com base na proposta/orçamento real do lead:
-  // Se o lead tem consumo informado: (consumo * 0.92 * 0.85)
-  // Ou com base na potência do kit: ~120 kWh/kWp gerados * 0.92 * 0.85
+  // Se o lead tem consumo informado: Consumo (kWh) × R$ 1,15 × 85%
+  // Ou com base na potência do kit: Geração mensal estimada (kWp × 4,6 × 0,80 × 30) × R$ 1,15 × 85%
   let economiaCalculada: number | undefined
   const consumoLead = lead?.consumo_mensal_kwh || 0
 
   if (consumoLead > 0) {
-    economiaCalculada = Math.round(consumoLead * 0.92 * 0.85)
+    economiaCalculada = Math.round(calcularEconomiaMensal(consumoLead))
   } else if (potenciaKw && potenciaKw > 0) {
-    // Estimativa solar típica: 1 kWp gera ~120-130 kWh/mês
-    economiaCalculada = Math.round(potenciaKw * 125 * 0.92 * 0.85)
+    const geracaoEstimadaKwh = calcularGeracaoMensalKwh(potenciaKw)
+    economiaCalculada = Math.round(
+      geracaoEstimadaKwh * TARIFA_ENERGIA_KWH * PARCELA_COMPENSADA_PERCENTUAL,
+    )
   }
 
   const economiaDisplay = formatEconomiaDisplay(economiaCalculada)

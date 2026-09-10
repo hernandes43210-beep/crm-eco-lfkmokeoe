@@ -1,3 +1,5 @@
+import { calcularGeracaoMensalKwh } from './solarUtils'
+
 export interface KitItemDetail {
   tipo:
     | 'modulo'
@@ -441,11 +443,14 @@ export function parseKitDetailedItems(params: {
   // Área estimada de telhado: cada módulo moderno ~2,58 m² (~2,8 m² incluindo folgas de instalação)
   const areaEstimadaM2 = totalModulos ? Math.round(totalModulos * 2.8) : undefined
 
-  // Geração mensal estimada: ~125 kWh por kWp instalado no Brasil médio
-  const consumoBase = consumoKwh || (finalPotKwp ? finalPotKwp * 125 : 400)
+  // Geração mensal estimada: kWp × 4,6 h/dia × 0,80 (fator de perdas) × 30 dias
+  // Fallbacks: se houver potência calculada ou do kit, usa a nova fórmula;
+  // se não houver potência nenhuma e a geração for assumida igual ao consumo, mantém esse comportamento.
   const geracaoMensalEstimadaKwh = finalPotKwp
-    ? Math.round(finalPotKwp * 125)
-    : Math.round(consumoBase)
+    ? calcularGeracaoMensalKwh(finalPotKwp)
+    : consumoKwh
+      ? Math.round(consumoKwh)
+      : 400
 
   // Fabricantes principais
   const fabs = [kitFabricante, modulosBrand, inversorBrand].filter(Boolean)

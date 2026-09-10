@@ -79,9 +79,9 @@ describe('solarEquipmentParser', () => {
     expect(result.inversor).toBe('Inversor Growatt')
     expect(result.potenciaKw).toBe(4.5)
     expect(result.potenciaDisplay).toBe('4,5 KWp')
-    // Consumo 500 * 0.92 * 0.85 = 391
-    expect(result.economiaMensal).toBe(391)
-    expect(result.economiaDisplay).toBe('Economia +391 R$/Mês')
+    // Nova tarifa: Consumo 500 * 1.15 * 0.85 = 488.75 ≈ 489
+    expect(result.economiaMensal).toBe(489)
+    expect(result.economiaDisplay).toBe('Economia +489 R$/Mês')
   })
 
   it('prioriza proposta aceita em relação a propostas enviadas mais recentes', () => {
@@ -200,7 +200,8 @@ describe('solarEquipmentParser', () => {
     expect(result.modulos).toBe('Módulos TSUN 630 Wp')
     expect(result.inversor).toBe('Inversor Sungrow 10 kW')
     expect(result.potenciaKw).toBe(13.8)
-    // Sem consumo informado, calcula economia pela potência do kit: 13.8 * 125 * 0.92 * 0.85 = ~1349
+    // Sem consumo informado, calcula economia pela geração estimada da potência do kit:
+    // 13.8 * 4.6 * 0.80 * 30 = 1524 kWh/mês * 1.15 * 0.85 = ~1490
     expect(result.economiaMensal).toBeGreaterThan(1000)
   })
 })

@@ -1,4 +1,11 @@
-import { formatBRL, formatDateBR } from './solarUtils'
+import {
+  formatBRL,
+  formatDateBR,
+  calcularGeracaoMensalKwh,
+  calcularEconomiaMensal,
+  IRRADIACAO_MEDIA_DIARIA_HORAS,
+  FATOR_PERDAS_SISTEMA,
+} from './solarUtils'
 import { calculateInvestmentComparison } from '../utils/investmentComparison'
 import { parseKitDetailedItems } from './kitItemsParser'
 import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
@@ -61,8 +68,9 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
   // Estimativas solares calculadas
   const consumoKwh = data.cliente.consumo_mensal_kwh || 400
   const geracaoEstimadaKwh =
-    specs.geracaoMensalEstimadaKwh || Math.round((data.kit_potencia_kw || consumoKwh / 120) * 125)
-  const economiaMensal = consumoKwh * 0.92 * 0.85
+    specs.geracaoMensalEstimadaKwh ||
+    (data.kit_potencia_kw ? calcularGeracaoMensalKwh(data.kit_potencia_kw) : Math.round(consumoKwh))
+  const economiaMensal = calcularEconomiaMensal(consumoKwh)
   const economiaAnual = economiaMensal * 12
   const economia25Anos = economiaAnual * 25
 
@@ -1049,6 +1057,10 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
         <span class="label">Área Estimada Telhado:</span>
         <span class="value">${specs.areaEstimadaM2 ? `~${specs.areaEstimadaM2} m²` : 'Sob Demanda'}</span>
       </div>
+      <div class="card-row" style="border-top: 1px dashed #E2E8F0; padding-top: 5px; margin-top: 2px;">
+        <span class="label" style="font-size: 8.5px; color: #64748B;">Base do Cálculo:</span>
+        <span class="value" style="font-size: 8.5px; color: #475569; font-weight: normal;">Irradiação: ${IRRADIACAO_MEDIA_DIARIA_HORAS.toString().replace('.', ',')} h/dia | Perdas: ${Math.round((1 - FATOR_PERDAS_SISTEMA) * 100)}% (fator ${FATOR_PERDAS_SISTEMA.toFixed(2).replace('.', ',')})</span>
+      </div>
     </div>
   </div>
 
@@ -1118,6 +1130,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     <div class="tech-item">
       <div class="label">Geração Média Mensal</div>
       <div class="val">~${geracaoEstimadaKwh} kWh/mês</div>
+      <div style="font-size: 7.5px; color: #64748B; margin-top: 2px;">Irradiação ${IRRADIACAO_MEDIA_DIARIA_HORAS.toString().replace('.', ',')} h/dia • Perdas ${Math.round((1 - FATOR_PERDAS_SISTEMA) * 100)}%</div>
     </div>
     <div class="tech-item">
       <div class="label">Área Telhado Estimada</div>

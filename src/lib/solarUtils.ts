@@ -1,3 +1,51 @@
+/**
+ * Parâmetros centrais do dimensionamento solar e tarifas da Ecosolar Energy
+ */
+export const IRRADIACAO_MEDIA_DIARIA_HORAS = 4.6 // Irradiação solar média diária (h/dia)
+export const FATOR_PERDAS_SISTEMA = 0.8 // Fator de desempenho (perdas de 20% do sistema fotovoltaico)
+export const DIAS_MES_COMERCIAL = 30 // Dias considerados no cálculo mensal
+export const TARIFA_ENERGIA_KWH = 1.15 // Valor da tarifa em R$/kWh (substitui R$ 0,92)
+export const PARCELA_COMPENSADA_PERCENTUAL = 0.85 // Parcela de economia média compensada (85%)
+
+/**
+ * Nota descritiva e transparente dos parâmetros para exibição em propostas (PDF e página pública)
+ */
+export const PARAMETROS_GERACAO_NOTA = `Parâmetros adotados no dimensionamento: Irradiação de ${IRRADIACAO_MEDIA_DIARIA_HORAS.toString().replace('.', ',')} h/dia, fator de perdas de ${Math.round((1 - FATOR_PERDAS_SISTEMA) * 100)}% (desempenho ${Math.round(FATOR_PERDAS_SISTEMA * 100)}%) e mês de ${DIAS_MES_COMERCIAL} dias.`
+
+/**
+ * Geração diária estimada em kWh/dia = Potência (kWp) × Irradiação (4,6 h/dia) × Fator de perdas (0,80)
+ * Ex.: 6,1 kWp × 4,6 × 0,80 = 22,448 kWh/dia
+ */
+export function calcularGeracaoDiariaKwh(potenciaKwp: number): number {
+  if (!potenciaKwp || potenciaKwp <= 0) return 0
+  return potenciaKwp * IRRADIACAO_MEDIA_DIARIA_HORAS * FATOR_PERDAS_SISTEMA
+}
+
+/**
+ * Geração mensal estimada em kWh/mês = Geração diária × 30 dias
+ * Ex.: 6,1 kWp × 4,6 × 0,80 × 30 = 673,44 ≈ 673 kWh/mês
+ */
+export function calcularGeracaoMensalKwh(potenciaKwp: number): number {
+  if (!potenciaKwp || potenciaKwp <= 0) return 0
+  return Math.round(calcularGeracaoDiariaKwh(potenciaKwp) * DIAS_MES_COMERCIAL)
+}
+
+/**
+ * Economia mensal estimada em R$/mês = Consumo (kWh) × R$ 1,15 × 85%
+ */
+export function calcularEconomiaMensal(consumoKwh: number): number {
+  if (!consumoKwh || consumoKwh <= 0) return 0
+  return consumoKwh * TARIFA_ENERGIA_KWH * PARCELA_COMPENSADA_PERCENTUAL
+}
+
+/**
+ * Fatura mensal estimada em R$/mês = Consumo (kWh) × R$ 1,15
+ */
+export function calcularFaturaMensalEstimada(consumoKwh: number): number {
+  if (!consumoKwh || consumoKwh <= 0) return 0
+  return consumoKwh * TARIFA_ENERGIA_KWH
+}
+
 export function formatBRL(value?: number | null): string {
   if (value === undefined || value === null || isNaN(value)) {
     return 'R$ 0,00'

@@ -45,6 +45,8 @@ import {
   formatDateTimeBR,
   computeSLAStatus,
   getStatusBadgeStyle,
+  calcularEconomiaMensal,
+  calcularFaturaMensalEstimada,
 } from '@/lib/solarUtils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -539,9 +541,9 @@ export default function LeadDetail() {
   const nextStatus = currentIdx >= 0 && currentIdx < 4 ? PIPELINE_ORDER[currentIdx + 1] : null
   const prevStatus = currentIdx > 0 && currentIdx < 5 ? PIPELINE_ORDER[currentIdx - 1] : null
 
-  // Monthly estimated bill economy calculation: estimated 85% reduction, kWh * 0.95 tariff
-  const estimatedBill = (lead.consumo_mensal_kwh || 0) * 0.92
-  const estimatedSavings = estimatedBill * 0.85
+  // Monthly estimated bill economy calculation: Consumo (kWh) × R$ 1,15 × 85%
+  const estimatedBill = calcularFaturaMensalEstimada(lead.consumo_mensal_kwh || 0)
+  const estimatedSavings = calcularEconomiaMensal(lead.consumo_mensal_kwh || 0)
 
   // SLA bar calculation: total SLA days vs remaining days
   const totalDays = lead.sla_dias || 7

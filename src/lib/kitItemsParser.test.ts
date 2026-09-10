@@ -16,7 +16,8 @@ describe('kitItemsParser', () => {
 
     expect(res.potenciaTotalKwp).toBe(13.8)
     expect(res.quantidadeModulosTotal).toBe(22)
-    expect(res.geracaoMensalEstimadaKwh).toBe(Math.round(13.8 * 125))
+    // Nova fórmula: 13.8 * 4.6 * 0.80 * 30 = 1523.52 ≈ 1524 kWh/mês
+    expect(res.geracaoMensalEstimadaKwh).toBe(Math.round(13.8 * 4.6 * 0.8 * 30))
 
     const moduloItem = res.itens.find((i) => i.tipo === 'modulo')
     expect(moduloItem).toBeDefined()
@@ -47,6 +48,8 @@ describe('kitItemsParser', () => {
     })
 
     expect(res.potenciaTotalKwp).toBe(6.1)
+    // Validação do exemplo do usuário: 6,1 kWp × 4,6 × 0,80 = 22,4 kWh/dia ≈ 673 kWh/mês
+    expect(res.geracaoMensalEstimadaKwh).toBe(673)
     const modulo = res.itens.find((i) => i.tipo === 'modulo')
     expect(modulo).toBeDefined()
     expect(modulo?.quantidade).toBe(10)
