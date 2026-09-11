@@ -43,6 +43,19 @@ export interface ProposalPDFData {
   }
   kit_descricao?: string
   kit_string_box?: string
+  kit_marca_painel?: string
+  kit_marca_inversor?: string
+  kit_tipo_estrutura?: string
+  kit?: {
+    descricao?: string
+    string_box?: string
+    marca_painel?: string
+    marca_inversor?: string
+    tipo_estrutura?: string
+  }
+  lead?: {
+    consumo_mensal_kwh?: number
+  }
   fotos_obra?: Array<{
     id: string
     url?: string
@@ -62,12 +75,14 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     kitNome: data.kit_nome,
     kitPotenciaKw: data.kit_potencia_kw,
     kitFabricante: data.kit_fabricante,
-    descricao: data.kit_descricao,
+    descricao: data.kit_descricao || data.kit?.descricao,
     observacoes: data.observacoes,
-    consumoKwh: data.cliente.consumo_mensal_kwh,
-    stringBox: (data as any).kit_string_box || undefined,
+    consumoKwh: data.lead?.consumo_mensal_kwh || data.cliente?.consumo_mensal_kwh,
+    stringBox: data.kit_string_box || data.kit?.string_box,
+    marcaPainel: data.kit_marca_painel || data.kit?.marca_painel,
+    marcaInversor: data.kit_marca_inversor || data.kit?.marca_inversor,
+    tipoEstrutura: data.kit_tipo_estrutura || data.kit?.tipo_estrutura,
   })
-
   // Estimativas solares calculadas
   const consumoKwh = data.cliente.consumo_mensal_kwh || 400
   const geracaoEstimadaKwh =

@@ -7,6 +7,8 @@ import {
   gerarNomeKitClonado,
   extrairComponentesKit,
   formatarRotuloStringBox,
+  formatarRotuloEstrutura,
+  formatarNomeItemEstrutura,
 } from './quickKitUtils'
 
 describe('quickKitUtils', () => {
@@ -71,13 +73,30 @@ describe('quickKitUtils', () => {
     const descComSb = sugerirDescricaoTecnica({
       qtdPaineis: 10,
       potenciaPainelW: 610,
-      marcaPaineis: 'Canadian Solar',
+      marcaPaineis: 'OSDA',
       qtdInversores: 1,
-      marcaInversor: 'Growatt 5000',
+      marcaInversor: 'Sungrow',
       kwp: 6.1,
       stringBox: '2_entradas',
+      tipoEstrutura: 'solo_monoposte',
     })
     expect(descComSb).toContain('1x String box 2 entradas / 2 saídas')
+    expect(descComSb).toContain('Estrutura de fixação: Solo monoposte')
+  })
+
+  it('formata rotulos de estrutura e nome de item com precisão', () => {
+    expect(formatarRotuloEstrutura('solo_monoposte')).toBe('Solo monoposte')
+    expect(formatarRotuloEstrutura('mini_trilho')).toBe('Mini trilho')
+    expect(formatarRotuloEstrutura('fibrocimento')).toBe('Fibrocimento')
+
+    const monoposteItem = formatarNomeItemEstrutura('solo_monoposte')
+    expect(monoposteItem.nome).toContain('Solo Monoposte')
+
+    const miniTrilhoItem = formatarNomeItemEstrutura('mini_trilho')
+    expect(miniTrilhoItem.nome).toContain('Mini Trilho')
+
+    const fibrocimentoItem = formatarNomeItemEstrutura('fibrocimento')
+    expect(fibrocimentoItem.nome).toContain('Fibrocimento')
   })
 
   it('formata rotulo amigavel de string box', () => {
@@ -102,6 +121,9 @@ describe('quickKitUtils', () => {
       nome: 'Kit Solar 6,3 kWp-SOLO — TSUN + 5KW AUXSOL-BELENERGY',
       potencia_kw: 6.3,
       fabricante: 'TSUN / 5KW AUXSOL',
+      marca_painel: 'TSUN POWER',
+      marca_inversor: 'AUSXOL',
+      tipo_estrutura: 'solo_monoposte',
       descricao:
         '10x Módulo fotovoltaico 630Wp (TSUN) — Total 6,3 kWp\n1x Inversor solar 5KW AUXSOL\nEstrutura inclusa.',
     }
@@ -110,9 +132,10 @@ describe('quickKitUtils', () => {
     expect(componentes.isPrePronto).toBe(true)
     expect(componentes.qtdPaineis).toBe(10)
     expect(componentes.potenciaPainelW).toBe(630)
-    expect(componentes.marcaPaineis).toBe('TSUN')
+    expect(componentes.marcaPaineis).toBe('TSUN POWER')
     expect(componentes.qtdInversores).toBe(1)
-    expect(componentes.marcaInversor).toContain('5KW AUXSOL')
+    expect(componentes.marcaInversor).toBe('AUSXOL')
+    expect(componentes.tipoEstrutura).toBe('solo_monoposte')
   })
 
   it('extrai componentes de kit manual com fallback seguro', () => {

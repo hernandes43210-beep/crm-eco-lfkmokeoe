@@ -125,7 +125,9 @@ export function EditarPropostaModal({
     setSelectedKitId(kit.id)
     setKitNome(kit.nome)
     setKitPotenciaKw(kit.potencia_kw)
-    setKitFabricante(kit.fabricante || '')
+    const fabFinal =
+      kit.fabricante || [kit.marca_painel, kit.marca_inversor].filter(Boolean).join(' / ')
+    setKitFabricante(fabFinal)
     setCusto(kit.custo)
     setMargem(kit.margem)
 

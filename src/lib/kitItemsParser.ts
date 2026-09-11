@@ -1,4 +1,5 @@
 import { calcularGeracaoMensalKwh } from './solarUtils'
+import { formatarNomeItemEstrutura } from './quickKitUtils'
 
 export interface KitItemDetail {
   tipo:
@@ -67,6 +68,9 @@ export function parseKitDetailedItems(params: {
   observacoes?: string
   consumoKwh?: number
   stringBox?: string
+  marcaPainel?: string
+  marcaInversor?: string
+  tipoEstrutura?: string
 }): KitSpecsDetailed {
   const {
     kitNome = '',
@@ -76,6 +80,9 @@ export function parseKitDetailedItems(params: {
     observacoes = '',
     consumoKwh,
     stringBox: paramStringBox = '',
+    marcaPainel: paramMarcaPainel = '',
+    marcaInversor: paramMarcaInversor = '',
+    tipoEstrutura: paramTipoEstrutura = '',
   } = params
 
   const itens: KitItemDetail[] = []
@@ -133,19 +140,25 @@ export function parseKitDetailedItems(params: {
       const wVal = potMatch ? parseInt(potMatch[1], 10) : 0
 
       // Marca
-      let brand = ''
-      if (/CANADIAN/i.test(block)) brand = 'Canadian Solar'
-      else if (/JINKO/i.test(block)) brand = 'Jinko Solar'
-      else if (/JA\s+SOLAR/i.test(block)) brand = 'JA Solar'
-      else if (/TRINA/i.test(block)) brand = 'Trina Solar'
-      else if (/LONGI/i.test(block)) brand = 'LONGi Solar'
-      else if (/TSUN/i.test(block)) brand = 'TSUN Power'
-      else if (/SUNGROW/i.test(block)) brand = 'Sungrow'
-      else if (/RISEN/i.test(block)) brand = 'Risen'
-      else if (/DAH/i.test(block)) brand = 'DAH Solar'
-      else if (/WINAICO/i.test(block)) brand = 'Winaico'
-      else if (/OSDA/i.test(block)) brand = 'OSDA Solar'
-      else if (/ASTRONERGY/i.test(block)) brand = 'Astronergy'
+      let brand = paramMarcaPainel || ''
+      if (!brand) {
+        if (/OSDA/i.test(block)) brand = 'OSDA'
+        else if (/DMEG/i.test(block)) brand = 'DMEGC'
+        else if (/TSUN/i.test(block)) brand = 'TSUN POWER'
+        else if (/CANADIAN/i.test(block)) brand = 'Canadian Solar'
+        else if (/BYD/i.test(block)) brand = 'BYD'
+        else if (/ELGIN/i.test(block)) brand = 'ELGIN'
+        else if (/WEG/i.test(block)) brand = 'WEG'
+        else if (/JINKO/i.test(block)) brand = 'Jinko Solar'
+        else if (/JA\s+SOLAR/i.test(block)) brand = 'JA Solar'
+        else if (/TRINA/i.test(block)) brand = 'Trina Solar'
+        else if (/LONGI/i.test(block)) brand = 'LONGi Solar'
+        else if (/SUNGROW/i.test(block)) brand = 'Sungrow'
+        else if (/RISEN/i.test(block)) brand = 'Risen'
+        else if (/DAH/i.test(block)) brand = 'DAH Solar'
+        else if (/WINAICO/i.test(block)) brand = 'Winaico'
+        else if (/ASTRONERGY/i.test(block)) brand = 'Astronergy'
+      }
 
       // Modelo e especificações
       let spec = ''
@@ -192,20 +205,24 @@ export function parseKitDetailedItems(params: {
       }
 
       // Marca do inversor
-      let brand = ''
-      if (/GROWATT/i.test(block)) brand = 'Growatt'
-      else if (/SUNGROW/i.test(block)) brand = 'Sungrow'
-      else if (/DEYE/i.test(block)) brand = 'Deye'
-      else if (/HUAWEI/i.test(block)) brand = 'Huawei'
-      else if (/SOLIS/i.test(block)) brand = 'Solis'
-      else if (/SOFAR/i.test(block)) brand = 'Sofar'
-      else if (/HOYMILES/i.test(block)) brand = 'Hoymiles'
-      else if (/SAJ/i.test(block)) brand = 'SAJ'
-      else if (/FRONIUS/i.test(block)) brand = 'Fronius'
-      else if (/WEG/i.test(block)) brand = 'WEG'
-      else if (/INTELBRAS/i.test(block)) brand = 'Intelbras'
-      else if (/PHB/i.test(block)) brand = 'PHB'
-      else if (/TSUN/i.test(block)) brand = 'TSUN'
+      let brand = paramMarcaInversor || ''
+      if (!brand) {
+        if (/SUNGROW/i.test(block)) brand = 'Sungrow'
+        else if (/HUAWEI/i.test(block)) brand = 'HUAWEI'
+        else if (/AUSXOL|AUXSOL/i.test(block)) brand = 'AUSXOL'
+        else if (/PHB/i.test(block)) brand = 'PHB'
+        else if (/GOODWE/i.test(block)) brand = 'GOODWE'
+        else if (/GROWATT/i.test(block)) brand = 'Growatt'
+        else if (/DEYE/i.test(block)) brand = 'Deye'
+        else if (/SOLIS/i.test(block)) brand = 'Solis'
+        else if (/SOFAR/i.test(block)) brand = 'Sofar'
+        else if (/HOYMILES/i.test(block)) brand = 'Hoymiles'
+        else if (/FRONIUS/i.test(block)) brand = 'Fronius'
+        else if (/WEG/i.test(block)) brand = 'WEG'
+        else if (/INTELBRAS/i.test(block)) brand = 'Intelbras'
+        else if (/SAJ/i.test(block)) brand = 'SAJ'
+        else if (/TSUN/i.test(block)) brand = 'TSUN'
+      }
 
       let spec = ''
       if (/MONOFASICO|MONOFÁSICO/i.test(block)) spec += 'Monofásico '
@@ -279,13 +296,22 @@ export function parseKitDetailedItems(params: {
 
     // Detectar Estrutura / Cabos se declarados explicitamente
     if (upper.includes('ESTRUTURA') || upper.includes('FIXADORES') || upper.includes('PERFIL')) {
+      let tipoDetectado = paramTipoEstrutura || ''
+      if (!tipoDetectado) {
+        if (upper.includes('MONOPOSTE')) tipoDetectado = 'solo_monoposte'
+        else if (upper.includes('MINI TRILHO') || upper.includes('MINITRILHO'))
+          tipoDetectado = 'mini_trilho'
+        else if (upper.includes('FIBROCIMENTO')) tipoDetectado = 'fibrocimento'
+        else if (upper.includes('SOLO')) tipoDetectado = 'solo_monoposte'
+      }
+      const estrutInfo = formatarNomeItemEstrutura(tipoDetectado)
       itens.push({
         tipo: 'estrutura',
         quantidade: 1,
         unidade: 'kit',
-        nome: 'Estrutura de Fixação em Alumínio Anodizado',
+        nome: estrutInfo.nome,
         fabricanteModelo: 'Estrutura Solar de Alta Resistência Eólica',
-        especificacao: 'Trilhos, grampos intermediários/finais e suportes em aço inox/alumínio',
+        especificacao: estrutInfo.especificacao,
       })
       continue
     }
@@ -300,29 +326,39 @@ export function parseKitDetailedItems(params: {
     // Ex: "Kit Solar 6,1 kWp — Canadian Solar + Growatt", ou "Kit Residencial 6,6 kWp"
     let qtd = 0
     let potWp = 0
-    let brand = ''
 
     // Tentar identificar marca
-    const brandsList = [
-      'Canadian Solar',
-      'Jinko Solar',
-      'JA Solar',
-      'Trina Solar',
-      'LONGi',
-      'TSUN',
-      'Sungrow',
-      'Winaico',
-      'Deye',
-      'Growatt',
-    ]
-    for (const b of brandsList) {
-      if (new RegExp(b, 'i').test(textToScan)) {
-        if (
-          !/Growatt|Deye|Solis|Sungrow 10|Sungrow 7|Huawei|Fronius|Hoymiles/i.test(b) ||
-          /TSUN|Canadian|Jinko|JA|Trina|LONGi|Winaico/i.test(b)
-        ) {
-          brand = b
-          break
+    let brand = paramMarcaPainel || ''
+    if (!brand) {
+      const brandsList = [
+        'OSDA',
+        'DMEGC',
+        'DMEGG',
+        'TSUN POWER',
+        'TSUN',
+        'Canadian Solar',
+        'BYD',
+        'ELGIN',
+        'WEG',
+        'Jinko Solar',
+        'JA Solar',
+        'Trina Solar',
+        'LONGi',
+        'Risen',
+        'Sungrow',
+        'Winaico',
+      ]
+      for (const b of brandsList) {
+        if (new RegExp(b, 'i').test(textToScan)) {
+          if (
+            !/Growatt|Deye|Solis|Sungrow 10|Sungrow 7|Huawei|Fronius|Hoymiles|Goodwe|Ausxol|Phb/i.test(
+              b,
+            ) ||
+            /TSUN|Canadian|Jinko|JA|Trina|LONGi|Winaico|OSDA|DMEG|BYD|ELGIN/i.test(b)
+          ) {
+            brand = b === 'DMEGG' ? 'DMEGC' : b
+            break
+          }
         }
       }
     }
@@ -363,26 +399,31 @@ export function parseKitDetailedItems(params: {
 
   if (!hasInversor) {
     // Tentar achar inversor no fabricante ou no nome
-    let invBrand = ''
+    let invBrand = paramMarcaInversor || ''
     let invPot = ''
-    const invertersList = [
-      'Growatt',
-      'Sungrow',
-      'Deye',
-      'Huawei',
-      'Solis',
-      'Sofar',
-      'Hoymiles',
-      'Fronius',
-      'WEG',
-      'Intelbras',
-      'SAJ',
-      'PHB',
-    ]
-    for (const b of invertersList) {
-      if (new RegExp(b, 'i').test(textToScan)) {
-        invBrand = b
-        break
+    if (!invBrand) {
+      const invertersList = [
+        'Sungrow',
+        'Huawei',
+        'AUSXOL',
+        'AUXSOL',
+        'PHB',
+        'GOODWE',
+        'Growatt',
+        'Deye',
+        'Solis',
+        'Sofar',
+        'Hoymiles',
+        'Fronius',
+        'WEG',
+        'Intelbras',
+        'SAJ',
+      ]
+      for (const b of invertersList) {
+        if (new RegExp(b, 'i').test(textToScan)) {
+          invBrand = b
+          break
+        }
       }
     }
 
@@ -426,13 +467,21 @@ export function parseKitDetailedItems(params: {
 
   const hasEstrutura = itens.some((it) => it.tipo === 'estrutura')
   if (!hasEstrutura) {
+    let tipoFinal = paramTipoEstrutura || ''
+    if (!tipoFinal) {
+      if (/monoposte|solo.*monoposte/i.test(textToScan)) tipoFinal = 'solo_monoposte'
+      else if (/mini\s*trilho/i.test(textToScan)) tipoFinal = 'mini_trilho'
+      else if (/fibrocimento/i.test(textToScan)) tipoFinal = 'fibrocimento'
+      else if (/\bsolo\b/i.test(textToScan)) tipoFinal = 'solo_monoposte'
+    }
+    const estrutInfo = formatarNomeItemEstrutura(tipoFinal)
     itens.push({
       tipo: 'estrutura',
       quantidade: 1,
       unidade: 'kit',
-      nome: 'Estrutura Completa de Fixação Mecânica',
+      nome: estrutInfo.nome,
       fabricanteModelo: 'Perfis e Suportes em Alumínio Anodizado e Aço Inox',
-      especificacao: 'Projetada para suportar ventos severos sem danificar a cobertura do imóvel',
+      especificacao: estrutInfo.especificacao,
     })
   }
 

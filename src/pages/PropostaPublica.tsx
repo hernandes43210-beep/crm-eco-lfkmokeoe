@@ -232,9 +232,11 @@ export default function PropostaPublica() {
     descricao: proposta.kit?.descricao,
     observacoes: proposta.observacoes,
     consumoKwh: proposta.lead?.consumo_mensal_kwh,
-    stringBox: proposta.kit?.string_box || undefined,
+    stringBox: proposta.kit?.string_box,
+    marcaPainel: proposta.kit?.marca_painel,
+    marcaInversor: proposta.kit?.marca_inversor,
+    tipoEstrutura: proposta.kit?.tipo_estrutura,
   })
-
   // Cálculos solares
   const consumoKwh = proposta.lead?.consumo_mensal_kwh || 400
   const geracaoEstimadaKwh =

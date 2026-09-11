@@ -64,14 +64,18 @@ export function FormalizacaoDocEditorModal({
 
   // Extração inicial dos itens do kit
   const specs = React.useMemo(() => {
+    const kitObj = (proposta?.expand?.kit || (proposta as any)?.kit) as any
     return parseKitDetailedItems({
       kitNome: proposta?.kit_nome || '',
       kitPotenciaKw: proposta?.kit_potencia_kw,
       kitFabricante: proposta?.kit_fabricante,
-      descricao: (proposta as any)?.kit_descricao || (proposta as any)?.kit?.descricao,
+      descricao: (proposta as any)?.kit_descricao || kitObj?.descricao,
       observacoes: proposta?.observacoes,
       consumoKwh: lead.consumo_mensal_kwh,
-      stringBox: (proposta as any)?.kit_string_box || (proposta as any)?.kit?.string_box,
+      stringBox: (proposta as any)?.kit_string_box || kitObj?.string_box,
+      marcaPainel: (proposta as any)?.kit_marca_painel || kitObj?.marca_painel,
+      marcaInversor: (proposta as any)?.kit_marca_inversor || kitObj?.marca_inversor,
+      tipoEstrutura: (proposta as any)?.kit_tipo_estrutura || kitObj?.tipo_estrutura,
     })
   }, [proposta, lead])
 

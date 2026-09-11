@@ -21,13 +21,16 @@ import {
   X,
 } from 'lucide-react'
 import { KitsService } from '@/services/kits'
-import type { Kit, KitCategoria } from '@/types/crm'
+import type { Kit, KitCategoria, KitTipoEstrutura } from '@/types/crm'
 import useRealtime from '@/hooks/use-realtime'
 import { useAuth } from '@/context/AuthContext'
 import { toPortugueseErrorMessage } from '@/lib/errors'
 import { formatBRL } from '@/lib/solarUtils'
 import {
   POTENCIAS_COMUNS_PAINEIS,
+  MARCAS_PAINEIS_SUGERIDAS,
+  MARCAS_INVERSORES_SUGERIDAS,
+  TIPOS_ESTRUTURA_OPCOES,
   calcularKwpPrePronto,
   sugerirNomeKit,
   sugerirFabricanteKit,
@@ -35,6 +38,7 @@ import {
   gerarNomeKitClonado,
   extrairComponentesKit,
   formatarRotuloStringBox,
+  formatarRotuloEstrutura,
 } from '@/lib/quickKitUtils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -74,29 +78,33 @@ export default function KitsSolares() {
   // Form Fields
   const [nome, setNome] = useState('')
   const [fabricante, setFabricante] = useState('')
-  const [potenciaKw, setPotenciaKw] = useState<number | string>(5.5)
+  const [potenciaKw, setPotenciaKw] = useState<number | string>(6.3)
   const [categoria, setCategoria] = useState<KitCategoria>('Residencial')
   const [custo, setCusto] = useState<number | string>(15000)
   const [margem, setMargem] = useState<number | string>(30)
   const [descricao, setDescricao] = useState('')
   const [stringBox, setStringBox] = useState<string>('')
+  const [tipoEstrutura, setTipoEstrutura] = useState<string>('solo_monoposte')
 
   // Modo montagem pré-pronta / rápida
   const [isQuickMode, setIsQuickMode] = useState(true)
   const [qtdPaineis, setQtdPaineis] = useState<number | string>(10)
-  const [potenciaPainelW, setPotenciaPainelW] = useState<number | string>(610)
+  const [potenciaPainelW, setPotenciaPainelW] = useState<number | string>(630)
   const [isCustomPotenciaW, setIsCustomPotenciaW] = useState(false)
-  const [marcaPaineis, setMarcaPaineis] = useState('Canadian Solar')
+  const [marcaPaineis, setMarcaPaineis] = useState('TSUN POWER')
+  const [isCustomMarcaPainel, setIsCustomMarcaPainel] = useState(false)
   const [qtdInversores, setQtdInversores] = useState<number | string>(1)
-  const [marcaInversor, setMarcaInversor] = useState('Growatt 5000')
+  const [marcaInversor, setMarcaInversor] = useState('Sungrow')
+  const [isCustomMarcaInversor, setIsCustomMarcaInversor] = useState(false)
 
   // Delete modal state
   const [deleteKitId, setDeleteKitId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Filtros de busca e categoria
+  // Filtros de busca, categoria e estrutura
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategoria, setSelectedCategoria] = useState<string>('all')
+  const [selectedEstrutura, setSelectedEstrutura] = useState<string>('all')
 
   const fetchKits = async () => {
     try {
@@ -175,6 +183,7 @@ export default function KitsSolares() {
         marcaInversor,
         kwp: quickKwpInfo.kwp,
         stringBox,
+        tipoEstrutura,
       })
       setDescricao(descGerada)
     }
@@ -191,6 +200,7 @@ export default function KitsSolares() {
     qtdInversores,
     marcaInversor,
     stringBox,
+    tipoEstrutura,
   ])
 
   const openCreateModal = () => {
@@ -198,16 +208,19 @@ export default function KitsSolares() {
     setIsCloning(false)
     setIsQuickMode(true)
     setQtdPaineis(10)
-    setPotenciaPainelW(610)
+    setPotenciaPainelW(630)
     setIsCustomPotenciaW(false)
-    setMarcaPaineis('Canadian Solar')
+    setMarcaPaineis('TSUN POWER')
+    setIsCustomMarcaPainel(false)
     setQtdInversores(1)
-    setMarcaInversor('Growatt 5000')
+    setMarcaInversor('Sungrow')
+    setIsCustomMarcaInversor(false)
     setStringBox('')
+    setTipoEstrutura('solo_monoposte')
 
-    const initialKwp = calcularKwpPrePronto(10, 610).kwp
-    setNome('Kit Solar 6,1 kWp — Canadian Solar + Growatt 5000')
-    setFabricante('Canadian Solar / Growatt 5000')
+    const initialKwp = calcularKwpPrePronto(10, 630).kwp
+    setNome('Kit Solar 6,3 kWp — TSUN POWER + Sungrow')
+    setFabricante('TSUN POWER / Sungrow')
     setPotenciaKw(initialKwp)
     setCategoria('Residencial')
     setCusto(14000)
@@ -215,12 +228,13 @@ export default function KitsSolares() {
     setDescricao(
       sugerirDescricaoTecnica({
         qtdPaineis: 10,
-        potenciaPainelW: 610,
-        marcaPaineis: 'Canadian Solar',
+        potenciaPainelW: 630,
+        marcaPaineis: 'TSUN POWER',
         qtdInversores: 1,
-        marcaInversor: 'Growatt 5000',
+        marcaInversor: 'Sungrow',
         kwp: initialKwp,
         stringBox: '',
+        tipoEstrutura: 'solo_monoposte',
       }),
     )
     setErrorBanner('')
@@ -239,6 +253,29 @@ export default function KitsSolares() {
     setMargem(kit.margem)
     setDescricao(kit.descricao || '')
     setStringBox(kit.string_box || '')
+    setTipoEstrutura(kit.tipo_estrutura || '')
+
+    // Extrair para pré-preenchimento
+    const componentes = extrairComponentesKit(kit)
+    setQtdPaineis(componentes.qtdPaineis)
+    setPotenciaPainelW(componentes.potenciaPainelW)
+    setMarcaPaineis(kit.marca_painel || componentes.marcaPaineis || 'TSUN POWER')
+    setIsCustomMarcaPainel(
+      !(MARCAS_PAINEIS_SUGERIDAS as readonly string[]).includes(
+        kit.marca_painel || componentes.marcaPaineis,
+      ),
+    )
+    setQtdInversores(componentes.qtdInversores)
+    setMarcaInversor(kit.marca_inversor || componentes.marcaInversor || 'Sungrow')
+    setIsCustomMarcaInversor(
+      !(MARCAS_INVERSORES_SUGERIDAS as readonly string[]).includes(
+        kit.marca_inversor || componentes.marcaInversor,
+      ),
+    )
+    if (!kit.tipo_estrutura && componentes.tipoEstrutura) {
+      setTipoEstrutura(componentes.tipoEstrutura)
+    }
+
     setErrorBanner('')
     setIsModalOpen(true)
   }
@@ -261,10 +298,17 @@ export default function KitsSolares() {
       componentes.potenciaPainelW,
     )
     setIsCustomPotenciaW(isCustomW)
-    setMarcaPaineis(componentes.marcaPaineis)
+    const mPainel = kit.marca_painel || componentes.marcaPaineis || 'TSUN POWER'
+    setMarcaPaineis(mPainel)
+    setIsCustomMarcaPainel(!(MARCAS_PAINEIS_SUGERIDAS as readonly string[]).includes(mPainel))
+
     setQtdInversores(componentes.qtdInversores)
-    setMarcaInversor(componentes.marcaInversor)
+    const mInv = kit.marca_inversor || componentes.marcaInversor || 'Sungrow'
+    setMarcaInversor(mInv)
+    setIsCustomMarcaInversor(!(MARCAS_INVERSORES_SUGERIDAS as readonly string[]).includes(mInv))
+
     setStringBox(kit.string_box || componentes.stringBox || '')
+    setTipoEstrutura(kit.tipo_estrutura || componentes.tipoEstrutura || 'solo_monoposte')
 
     // Se o kit puder ser mapeado em pré-pronto, abre em modo pré-pronto; caso contrário modo completo
     setIsQuickMode(componentes.isPrePronto)
@@ -314,6 +358,9 @@ export default function KitsSolares() {
         preco_venda: livePriceCalculated,
         descricao: descricao.trim(),
         string_box: (stringBox as any) || '',
+        marca_painel: marcaPaineis.trim(),
+        marca_inversor: marcaInversor.trim(),
+        tipo_estrutura: (tipoEstrutura as KitTipoEstrutura) || '',
       }
 
       if (editingKit) {
@@ -382,18 +429,38 @@ export default function KitsSolares() {
   const filteredKits = useMemo(() => {
     return kits.filter((kit) => {
       const matchesCategoria = selectedCategoria === 'all' || kit.categoria === selectedCategoria
+
+      let matchesEstrutura = true
+      if (selectedEstrutura !== 'all') {
+        const estKit =
+          kit.tipo_estrutura ||
+          (kit.descricao && /monoposte|solo.*monoposte/i.test(kit.descricao)
+            ? 'solo_monoposte'
+            : kit.descricao && /mini\s*trilho/i.test(kit.descricao)
+              ? 'mini_trilho'
+              : kit.descricao && /fibrocimento/i.test(kit.descricao)
+                ? 'fibrocimento'
+                : kit.nome && /solo/i.test(kit.nome)
+                  ? 'solo_monoposte'
+                  : '')
+        matchesEstrutura = estKit === selectedEstrutura
+      }
+
       const term = searchTerm.toLowerCase().trim()
-      if (!term) return matchesCategoria
+      if (!term) return matchesCategoria && matchesEstrutura
 
       const matchesTerm =
         kit.nome.toLowerCase().includes(term) ||
         (kit.fabricante && kit.fabricante.toLowerCase().includes(term)) ||
         (kit.descricao && kit.descricao.toLowerCase().includes(term)) ||
+        (kit.marca_painel && kit.marca_painel.toLowerCase().includes(term)) ||
+        (kit.marca_inversor && kit.marca_inversor.toLowerCase().includes(term)) ||
+        (kit.tipo_estrutura && kit.tipo_estrutura.toLowerCase().includes(term)) ||
         `${kit.potencia_kw}`.includes(term)
 
-      return matchesCategoria && matchesTerm
+      return matchesCategoria && matchesEstrutura && matchesTerm
     })
-  }, [kits, selectedCategoria, searchTerm])
+  }, [kits, selectedCategoria, selectedEstrutura, searchTerm])
 
   return (
     <div className="space-y-6 select-none animate-fade-in-up pb-12">
@@ -478,6 +545,21 @@ export default function KitsSolares() {
             })}
           </div>
 
+          {/* Filtro rápido por tipo de estrutura */}
+          <select
+            value={selectedEstrutura}
+            onChange={(e) => setSelectedEstrutura(e.target.value)}
+            className="h-9 px-2 text-xs bg-white border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-[#0B7A5B]"
+            title="Filtrar por tipo de estrutura"
+          >
+            <option value="all">Todas as estruturas</option>
+            {TIPOS_ESTRUTURA_OPCOES.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+
           <Button
             onClick={openCreateModal}
             variant="outline"
@@ -489,7 +571,6 @@ export default function KitsSolares() {
           </Button>
         </div>
       </div>
-
       {loading ? (
         <div className="p-16 text-center text-slate-400">
           <div className="w-8 h-8 border-2 border-[#0B7A5B] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
@@ -626,8 +707,34 @@ export default function KitsSolares() {
                       <span>{formatarRotuloStringBox(kit.string_box)}</span>
                     </Badge>
                   )}
-                </div>
 
+                  {(kit.tipo_estrutura ||
+                    (kit.descricao && /solo.*monoposte|monoposte/i.test(kit.descricao)
+                      ? 'solo_monoposte'
+                      : kit.descricao && /mini\s*trilho/i.test(kit.descricao)
+                        ? 'mini_trilho'
+                        : kit.descricao && /fibrocimento/i.test(kit.descricao)
+                          ? 'fibrocimento'
+                          : kit.nome && /solo/i.test(kit.nome)
+                            ? 'solo_monoposte'
+                            : null)) && (
+                    <Badge
+                      variant="outline"
+                      className="bg-blue-50 border-blue-200 text-blue-800 text-[11px] font-medium"
+                    >
+                      {formatarRotuloEstrutura(
+                        kit.tipo_estrutura ||
+                          (kit.descricao && /solo.*monoposte|monoposte/i.test(kit.descricao)
+                            ? 'solo_monoposte'
+                            : kit.descricao && /mini\s*trilho/i.test(kit.descricao)
+                              ? 'mini_trilho'
+                              : kit.descricao && /fibrocimento/i.test(kit.descricao)
+                                ? 'fibrocimento'
+                                : 'solo_monoposte'),
+                      )}
+                    </Badge>
+                  )}
+                </div>
                 {/* Description */}
                 <p className="text-xs text-slate-500 mt-3 line-clamp-2 leading-relaxed">
                   {kit.descricao ||
@@ -858,13 +965,55 @@ export default function KitsSolares() {
                       >
                         Marca dos Painéis
                       </Label>
-                      <Input
-                        id="quickMarcaPaineis"
-                        value={marcaPaineis}
-                        onChange={(e) => setMarcaPaineis(e.target.value)}
-                        placeholder="Ex: Canadian Solar, TSUN"
-                        className="h-9 text-sm border-slate-200"
-                      />
+                      {isCustomMarcaPainel ? (
+                        <div className="flex gap-1.5">
+                          <Input
+                            id="quickMarcaPaineis"
+                            value={marcaPaineis}
+                            onChange={(e) => setMarcaPaineis(e.target.value)}
+                            placeholder="Ex: OSDA, DMEGC, TSUN..."
+                            className="h-9 text-sm border-slate-200"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsCustomMarcaPainel(false)}
+                            className="h-9 px-2 text-[11px]"
+                          >
+                            Lista
+                          </Button>
+                        </div>
+                      ) : (
+                        <select
+                          id="quickMarcaPaineis"
+                          value={marcaPaineis}
+                          onChange={(e) => {
+                            if (e.target.value === 'custom') {
+                              setIsCustomMarcaPainel(true)
+                            } else {
+                              setMarcaPaineis(e.target.value)
+                            }
+                          }}
+                          className="w-full h-9 px-3 text-xs sm:text-sm font-semibold bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+                        >
+                          <optgroup label="Marcas em Destaque">
+                            <option value="OSDA">OSDA</option>
+                            <option value="DMEGC">DMEGC</option>
+                            <option value="TSUN POWER">TSUN POWER</option>
+                          </optgroup>
+                          <optgroup label="Outras Marcas Frequentes">
+                            {MARCAS_PAINEIS_SUGERIDAS.filter(
+                              (m) => !['OSDA', 'DMEGC', 'TSUN POWER'].includes(m),
+                            ).map((m) => (
+                              <option key={m} value={m}>
+                                {m}
+                              </option>
+                            ))}
+                          </optgroup>
+                          <option value="custom">Outra marca (digitar)...</option>
+                        </select>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -900,13 +1049,57 @@ export default function KitsSolares() {
                       >
                         Marca / Modelo do Inversor
                       </Label>
-                      <Input
-                        id="quickMarcaInv"
-                        value={marcaInversor}
-                        onChange={(e) => setMarcaInversor(e.target.value)}
-                        placeholder="Ex: Growatt 5000, Sungrow 10kW, Deye"
-                        className="h-9 text-sm border-slate-200"
-                      />
+                      {isCustomMarcaInversor ? (
+                        <div className="flex gap-1.5">
+                          <Input
+                            id="quickMarcaInv"
+                            value={marcaInversor}
+                            onChange={(e) => setMarcaInversor(e.target.value)}
+                            placeholder="Ex: Sungrow, HUAWEI, AUSXOL, PHB, GOODWE..."
+                            className="h-9 text-sm border-slate-200"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsCustomMarcaInversor(false)}
+                            className="h-9 px-2 text-[11px]"
+                          >
+                            Lista
+                          </Button>
+                        </div>
+                      ) : (
+                        <select
+                          id="quickMarcaInv"
+                          value={marcaInversor}
+                          onChange={(e) => {
+                            if (e.target.value === 'custom') {
+                              setIsCustomMarcaInversor(true)
+                            } else {
+                              setMarcaInversor(e.target.value)
+                            }
+                          }}
+                          className="w-full h-9 px-3 text-xs sm:text-sm font-semibold bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+                        >
+                          <optgroup label="Marcas em Destaque">
+                            <option value="Sungrow">Sungrow</option>
+                            <option value="HUAWEI">HUAWEI</option>
+                            <option value="AUSXOL">AUSXOL</option>
+                            <option value="PHB">PHB</option>
+                            <option value="GOODWE">GOODWE</option>
+                          </optgroup>
+                          <optgroup label="Outras Marcas Frequentes">
+                            {MARCAS_INVERSORES_SUGERIDAS.filter(
+                              (m) => !['Sungrow', 'HUAWEI', 'AUSXOL', 'PHB', 'GOODWE'].includes(m),
+                            ).map((m) => (
+                              <option key={m} value={m}>
+                                {m}
+                              </option>
+                            ))}
+                          </optgroup>
+                          <option value="custom">Outra marca (digitar)...</option>
+                        </select>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -937,6 +1130,7 @@ export default function KitsSolares() {
                           marcaInversor,
                           kwp: quickKwpInfo.kwp,
                           stringBox,
+                          tipoEstrutura,
                         }),
                       )
                     }}
@@ -948,55 +1142,108 @@ export default function KitsSolares() {
               </div>
             )}
 
-            {/* Seletor de String Box (visível em ambos os modos: Montagem Pré-Pronta e Manual/Completo) */}
-            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 space-y-2">
-              <div className="flex items-center justify-between">
-                <Label
-                  htmlFor="kitStringBox"
-                  className="text-xs font-semibold text-slate-800 flex items-center gap-1.5"
+            {/* Seletores Técnicos: Tipo de Estrutura & String Box */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* Seletor Tipo de Estrutura */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label
+                    htmlFor="kitTipoEstrutura"
+                    className="text-xs font-semibold text-slate-800 flex items-center gap-1.5"
+                  >
+                    <Building className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Tipo de Estrutura</span>
+                  </Label>
+                  {tipoEstrutura && (
+                    <span className="text-[11px] font-bold text-blue-800 bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-full">
+                      {formatarRotuloEstrutura(tipoEstrutura)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 leading-snug">
+                  Defina a estrutura de sustentação dos painéis:
+                </p>
+                <select
+                  id="kitTipoEstrutura"
+                  value={tipoEstrutura}
+                  onChange={(e) => {
+                    const novaEstrut = e.target.value
+                    setTipoEstrutura(novaEstrut)
+                    if (isQuickMode && !editingKit && !isCloning) {
+                      setDescricao(
+                        sugerirDescricaoTecnica({
+                          qtdPaineis,
+                          potenciaPainelW,
+                          marcaPaineis,
+                          qtdInversores,
+                          marcaInversor,
+                          kwp: quickKwpInfo.kwp,
+                          stringBox,
+                          tipoEstrutura: novaEstrut,
+                        }),
+                      )
+                    }
+                  }}
+                  className="w-full h-9.5 px-3 text-xs sm:text-sm bg-white border border-slate-200 rounded-lg text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
                 >
-                  <Boxes className="w-3.5 h-3.5 text-amber-600" />
-                  <span>String Box de Proteção (Opcional)</span>
-                </Label>
-                {stringBox && (
-                  <span className="text-[11px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
-                    {formatarRotuloStringBox(stringBox)}
-                  </span>
-                )}
+                  <option value="">Não especificado</option>
+                  {TIPOS_ESTRUTURA_OPCOES.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <p className="text-[11px] text-slate-500 leading-snug">
-                Escolha o número de entradas da string box CC. Todas as opções já incluem as
-                respectivas saídas e constam na decomposição do kit na proposta.
-              </p>
-              <select
-                id="kitStringBox"
-                value={stringBox}
-                onChange={(e) => {
-                  const novoSb = e.target.value
-                  setStringBox(novoSb)
-                  if (isQuickMode && !editingKit && !isCloning) {
-                    setDescricao(
-                      sugerirDescricaoTecnica({
-                        qtdPaineis,
-                        potenciaPainelW,
-                        marcaPaineis,
-                        qtdInversores,
-                        marcaInversor,
-                        kwp: quickKwpInfo.kwp,
-                        stringBox: novoSb,
-                      }),
-                    )
-                  }
-                }}
-                className="w-full h-9.5 px-3 text-xs sm:text-sm bg-white border border-slate-200 rounded-lg text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
-              >
-                <option value="">Sem string box (não incluir no kit)</option>
-                <option value="1_entrada">1 entrada (String box 1 entrada / 1 saída)</option>
-                <option value="2_entradas">2 entradas (String box 2 entradas / 2 saídas)</option>
-                <option value="3_entradas">3 entradas (String box 3 entradas / 3 saídas)</option>
-              </select>
-            </div>
 
+              {/* Seletor de String Box */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label
+                    htmlFor="kitStringBox"
+                    className="text-xs font-semibold text-slate-800 flex items-center gap-1.5"
+                  >
+                    <Boxes className="w-3.5 h-3.5 text-amber-600" />
+                    <span>String Box (Opcional)</span>
+                  </Label>
+                  {stringBox && (
+                    <span className="text-[11px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
+                      {formatarRotuloStringBox(stringBox)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 leading-snug">
+                  Proteção CC com DPS e disjuntor:
+                </p>
+                <select
+                  id="kitStringBox"
+                  value={stringBox}
+                  onChange={(e) => {
+                    const novoSb = e.target.value
+                    setStringBox(novoSb)
+                    if (isQuickMode && !editingKit && !isCloning) {
+                      setDescricao(
+                        sugerirDescricaoTecnica({
+                          qtdPaineis,
+                          potenciaPainelW,
+                          marcaPaineis,
+                          qtdInversores,
+                          marcaInversor,
+                          kwp: quickKwpInfo.kwp,
+                          stringBox: novoSb,
+                          tipoEstrutura,
+                        }),
+                      )
+                    }
+                  }}
+                  className="w-full h-9.5 px-3 text-xs sm:text-sm bg-white border border-slate-200 rounded-lg text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+                >
+                  <option value="">Sem string box</option>
+                  <option value="1_entrada">1 entrada (1E / 1S)</option>
+                  <option value="2_entradas">2 entradas (2E / 2S)</option>
+                  <option value="3_entradas">3 entradas (3E / 3S)</option>
+                </select>
+              </div>
+            </div>
             {/* Campos Principais do Kit (pré-preenchidos ou editáveis) */}
             <div className="space-y-3.5 pt-1">
               <div className="space-y-1">

@@ -143,6 +143,8 @@ export type KitCategoria = 'Residencial' | 'Comercial' | 'Rural'
 
 export type KitStringBox = '1_entrada' | '2_entradas' | '3_entradas'
 
+export type KitTipoEstrutura = 'solo_monoposte' | 'mini_trilho' | 'fibrocimento' | 'outro'
+
 export interface Kit extends RecordModel {
   id: string
   nome: string
@@ -154,6 +156,9 @@ export interface Kit extends RecordModel {
   preco_venda: number
   descricao?: string
   string_box?: KitStringBox | ''
+  marca_painel?: string
+  marca_inversor?: string
+  tipo_estrutura?: KitTipoEstrutura | ''
   created: string
   updated: string
 }
@@ -354,6 +359,9 @@ export interface PublicProposta {
     categoria?: string
     descricao?: string
     string_box?: KitStringBox | ''
+    marca_painel?: string
+    marca_inversor?: string
+    tipo_estrutura?: KitTipoEstrutura | ''
   }
   vendedor?: {
     name?: string

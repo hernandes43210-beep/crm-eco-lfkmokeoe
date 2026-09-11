@@ -4,6 +4,73 @@
 
 export const POTENCIAS_COMUNS_PAINEIS = [550, 575, 610, 630] as const
 
+/**
+ * Marcas solicitadas de painéis / módulos:
+ * OSDA, DMEGC, TSUN POWER + marcas consolidadas do sistema (Canadian Solar, JA Solar, Jinko, etc.)
+ */
+export const MARCAS_PAINEIS_SUGERIDAS = [
+  'OSDA',
+  'DMEGC',
+  'TSUN POWER',
+  'Canadian Solar',
+  'BYD',
+  'ELGIN',
+  'WEG',
+  'JA Solar',
+  'Jinko Solar',
+  'Trina Solar',
+  'Risen',
+  'LONGi Solar',
+  'Astronergy',
+  'DAH Solar',
+] as const
+
+/**
+ * Marcas solicitadas de inversores solares:
+ * Sungrow, HUAWEI, AUSXOL (AUXSOL), PHB, GOODWE + outras comuns (Growatt, Deye, Solis, etc.)
+ */
+export const MARCAS_INVERSORES_SUGERIDAS = [
+  'Sungrow',
+  'HUAWEI',
+  'AUSXOL',
+  'PHB',
+  'GOODWE',
+  'Growatt',
+  'Deye',
+  'Solis',
+  'Hoymiles',
+  'WEG',
+  'Fronius',
+  'Intelbras',
+  'SAJ',
+  'Sofar',
+] as const
+
+/**
+ * Tipos de estrutura solicitados:
+ * - Solo monoposte
+ * - Mini trilho
+ * - Fibrocimento
+ */
+export const TIPOS_ESTRUTURA_OPCOES = [
+  { value: 'solo_monoposte', label: 'Solo monoposte', nomeItem: 'Estrutura de Solo Monoposte' },
+  {
+    value: 'mini_trilho',
+    label: 'Mini trilho',
+    nomeItem: 'Estrutura Mini Trilho para Telhado Metálico',
+  },
+  {
+    value: 'fibrocimento',
+    label: 'Fibrocimento',
+    nomeItem: 'Estrutura de Fixação para Telhado de Fibrocimento',
+  },
+  {
+    value: 'outro',
+    label: 'Outro tipo de estrutura',
+    nomeItem: 'Estrutura de Fixação Solar Completa',
+  },
+] as const
+
 export interface MontagemPreProntaState {
   qtdPaineis: number | string
   potenciaPainelW: number | string
@@ -11,6 +78,77 @@ export interface MontagemPreProntaState {
   qtdInversores: number | string
   marcaInversor: string
   stringBox?: string
+  tipoEstrutura?: string
+}
+
+/**
+ * Formata o rótulo legível do tipo de estrutura de fixação
+ */
+export function formatarRotuloEstrutura(val?: string | null): string {
+  if (!val) return ''
+  const trimmed = val.trim().toLowerCase()
+  if (trimmed === 'solo_monoposte' || trimmed === 'solo monoposte') {
+    return 'Solo monoposte'
+  }
+  if (trimmed === 'mini_trilho' || trimmed === 'mini trilho') {
+    return 'Mini trilho'
+  }
+  if (trimmed === 'fibrocimento') {
+    return 'Fibrocimento'
+  }
+  if (trimmed === 'outro') {
+    return 'Outra estrutura'
+  }
+  const match = TIPOS_ESTRUTURA_OPCOES.find(
+    (opt) => opt.value === trimmed || opt.label.toLowerCase() === trimmed,
+  )
+  if (match) return match.label
+  return val
+}
+
+/**
+ * Retorna o nome/descrição técnica do item de estrutura para a composição e contrato
+ */
+export function formatarNomeItemEstrutura(val?: string | null): {
+  nome: string
+  especificacao: string
+} {
+  const rotulo = formatarRotuloEstrutura(val)
+  if (!rotulo) {
+    return {
+      nome: 'Estrutura Completa de Fixação Mecânica',
+      especificacao: 'Perfis e suportes em alumínio anodizado e aço inox para fixação dos módulos',
+    }
+  }
+
+  const rotuloLower = rotulo.toLowerCase()
+  if (rotuloLower.includes('solo monoposte')) {
+    return {
+      nome: 'Estrutura de Solo Monoposte em Aço Galvanizado',
+      especificacao:
+        'Estrutura de fixação de solo tipo monoposte com alta resistência eólica e fundação dimensionada',
+    }
+  }
+  if (rotuloLower.includes('mini trilho')) {
+    return {
+      nome: 'Estrutura Mini Trilho em Alumínio Anodizado',
+      especificacao:
+        'Fixação direta em telha metálica/trapezoidal com mini trilhos de alumínio, parafusos autobrocantes e fita EPDM estanque',
+    }
+  }
+  if (rotuloLower.includes('fibrocimento')) {
+    return {
+      nome: 'Estrutura de Fixação para Telhado de Fibrocimento',
+      especificacao:
+        'Parafusos prisioneiros (haste roscada em aço inox) com vedação e perfis de alumínio anodizado',
+    }
+  }
+
+  return {
+    nome: `Estrutura de Fixação (${rotulo})`,
+    especificacao:
+      'Trilhos, suportes e grampos intermediários/finais em alumínio anodizado e aço inoxidável',
+  }
 }
 
 /**
@@ -126,6 +264,7 @@ export function sugerirDescricaoTecnica(params: {
   marcaInversor: string
   kwp: number
   stringBox?: string
+  tipoEstrutura?: string
 }): string {
   const {
     qtdPaineis,
@@ -135,6 +274,7 @@ export function sugerirDescricaoTecnica(params: {
     marcaInversor,
     kwp,
     stringBox,
+    tipoEstrutura,
   } = params
 
   const qP = Number(qtdPaineis) || 0
@@ -163,7 +303,12 @@ export function sugerirDescricaoTecnica(params: {
     }
   }
 
-  linhas.push('Estrutura de fixação e cabeamento completo inclusos.')
+  const rotuloEstrutura = formatarRotuloEstrutura(tipoEstrutura)
+  if (rotuloEstrutura) {
+    linhas.push(`Estrutura de fixação: ${rotuloEstrutura}. Cabeamento completo incluso.`)
+  } else {
+    linhas.push('Estrutura de fixação e cabeamento completo inclusos.')
+  }
 
   return linhas.join('\n')
 }
@@ -199,6 +344,7 @@ export interface ExtractedKitComponents {
   qtdInversores: number
   marcaInversor: string
   stringBox: string
+  tipoEstrutura: string
 }
 
 /**
@@ -211,6 +357,9 @@ export function extrairComponentesKit(kit: {
   potencia_kw?: number
   descricao?: string
   string_box?: string
+  marca_painel?: string
+  marca_inversor?: string
+  tipo_estrutura?: string
 }): ExtractedKitComponents {
   const desc = kit.descricao || ''
   const nome = kit.nome || ''
@@ -219,10 +368,11 @@ export function extrairComponentesKit(kit: {
 
   let qtdPaineis = 0
   let potW = 0
-  let marcaPaineis = ''
+  let marcaPaineis = kit.marca_painel || ''
   let qtdInversores = 1
-  let marcaInversor = ''
+  let marcaInversor = kit.marca_inversor || ''
   let stringBox = kit.string_box || ''
+  let tipoEstrutura = kit.tipo_estrutura || ''
 
   // Se string_box não estiver no campo dedicado, tentar inferir da descrição
   if (!stringBox) {
@@ -257,23 +407,31 @@ export function extrairComponentesKit(kit: {
   // Se não achou marca do painel no match, buscar marcas conhecidas
   if (!marcaPaineis) {
     const brandsMod = [
-      'Canadian Solar',
+      'OSDA',
+      'DMEGC',
+      'DMEGG',
       'TSUN Power',
       'TSUN',
+      'Canadian Solar',
+      'BYD',
+      'ELGIN',
+      'WEG',
       'Jinko Solar',
+      'Jinko',
       'JA Solar',
       'Trina Solar',
+      'Trina',
       'LONGi Solar',
       'LONGi',
-      'Sungrow',
-      'Winaico',
+      'Risen',
       'DAH Solar',
       'Astronergy',
-      'Risen',
+      'Winaico',
+      'Sungrow',
     ]
     for (const b of brandsMod) {
       if (new RegExp(`\\b${b}\\b`, 'i').test(textFull)) {
-        marcaPaineis = b
+        marcaPaineis = b === 'DMEGG' ? 'DMEGC' : b
         break
       }
     }
@@ -295,14 +453,17 @@ export function extrairComponentesKit(kit: {
 
   if (!marcaInversor) {
     const brandsInv = [
-      'Growatt 5000',
-      'Growatt',
       'Sungrow 10kW',
       'Sungrow 7,5WP',
       'Sungrow',
+      'HUAWEI',
+      'AUSXOL',
       'AUXSOL',
       '5KW AUXSOL',
-      'Huawei',
+      'PHB',
+      'GOODWE',
+      'Growatt 5000',
+      'Growatt',
       'Deye',
       'Solis',
       'Sofar',
@@ -311,13 +472,25 @@ export function extrairComponentesKit(kit: {
       'WEG',
       'Intelbras',
       'SAJ',
-      'PHB',
     ]
     for (const b of brandsInv) {
       if (new RegExp(b, 'i').test(textFull)) {
         marcaInversor = b
         break
       }
+    }
+  }
+
+  // Detectar tipo de estrutura se não especificado
+  if (!tipoEstrutura) {
+    if (/monoposte|solo.*monoposte/i.test(textFull)) {
+      tipoEstrutura = 'solo_monoposte'
+    } else if (/mini\s*trilho/i.test(textFull)) {
+      tipoEstrutura = 'mini_trilho'
+    } else if (/fibrocimento/i.test(textFull)) {
+      tipoEstrutura = 'fibrocimento'
+    } else if (/\bsolo\b/i.test(textFull)) {
+      tipoEstrutura = 'solo_monoposte'
     }
   }
 
@@ -346,12 +519,11 @@ export function extrairComponentesKit(kit: {
     isPrePronto,
     qtdPaineis: qtdPaineis || 10,
     potenciaPainelW: potW || 610,
-    marcaPaineis: marcaPaineis || (fab ? fab.split('/')[0]?.trim() : '') || 'Canadian Solar',
+    marcaPaineis: marcaPaineis || (fab ? fab.split('/')[0]?.trim() : '') || 'TSUN POWER',
     qtdInversores: qtdInversores || 1,
     marcaInversor:
-      marcaInversor ||
-      (fab ? (fab.split('/')[1] || fab.split('/')[0])?.trim() : '') ||
-      'Growatt 5000',
+      marcaInversor || (fab ? (fab.split('/')[1] || fab.split('/')[0])?.trim() : '') || 'Sungrow',
     stringBox,
+    tipoEstrutura,
   }
 }

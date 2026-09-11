@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11T20:22:20.256Z",
+  "generatedAt": "2026-09-11T20:34:17.930Z",
   "collections": [
     {
       "name": "users",
@@ -358,6 +358,25 @@
           "required": false,
           "system": false,
           "selectValues": ["1_entrada", "2_entradas", "3_entradas"]
+        },
+        {
+          "name": "marca_painel",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_estrutura",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["solo_monoposte", "mini_trilho", "fibrocimento", "outro"]
+        },
+        {
+          "name": "marca_inversor",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

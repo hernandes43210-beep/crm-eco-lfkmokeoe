@@ -97,4 +97,45 @@ describe('kitItemsParser', () => {
     const sbItemAusente = resSemSb.itens.find((i) => i.tipo === 'string_box')
     expect(sbItemAusente).toBeUndefined()
   })
+
+  it('respeita tipo de estrutura especificado (solo monoposte, mini trilho, fibrocimento)', () => {
+    const resMonoposte = parseKitDetailedItems({
+      kitNome: 'Kit Monoposte 6.3kWp',
+      kitPotenciaKw: 6.3,
+      tipoEstrutura: 'solo_monoposte',
+    })
+    const itemMono = resMonoposte.itens.find((i) => i.tipo === 'estrutura')
+    expect(itemMono?.nome).toContain('Solo Monoposte')
+
+    const resMiniTrilho = parseKitDetailedItems({
+      kitNome: 'Kit Telhado Metalico',
+      kitPotenciaKw: 6.3,
+      tipoEstrutura: 'mini_trilho',
+    })
+    const itemMini = resMiniTrilho.itens.find((i) => i.tipo === 'estrutura')
+    expect(itemMini?.nome).toContain('Mini Trilho')
+
+    const resFibro = parseKitDetailedItems({
+      kitNome: 'Kit Telhado Fibrocimento',
+      kitPotenciaKw: 6.3,
+      tipoEstrutura: 'fibrocimento',
+    })
+    const itemFibro = resFibro.itens.find((i) => i.tipo === 'estrutura')
+    expect(itemFibro?.nome).toContain('Fibrocimento')
+  })
+
+  it('respeita marcas solicitadas de painéis e inversores', () => {
+    const res = parseKitDetailedItems({
+      kitNome: 'Kit Custom',
+      kitPotenciaKw: 6.3,
+      marcaPainel: 'TSUN POWER',
+      marcaInversor: 'HUAWEI',
+      tipoEstrutura: 'solo_monoposte',
+    })
+    const modulo = res.itens.find((i) => i.tipo === 'modulo')
+    expect(modulo?.fabricanteModelo).toContain('TSUN POWER')
+
+    const inversor = res.itens.find((i) => i.tipo === 'inversor')
+    expect(inversor?.fabricanteModelo).toContain('HUAWEI')
+  })
 })
