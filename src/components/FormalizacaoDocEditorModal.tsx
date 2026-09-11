@@ -289,9 +289,18 @@ export function FormalizacaoDocEditorModal({
       onOpenChange(false)
     } catch (err: any) {
       console.error('Erro ao finalizar documento:', err)
+      const detailErrors = err?.response?.data
+        ? Object.entries(err.response.data)
+            .map(([k, v]: [string, any]) => `${k}: ${v?.message || JSON.stringify(v)}`)
+            .join(' | ')
+        : ''
+      const msg = detailErrors
+        ? `${err.message || 'Erro de validação'}: ${detailErrors}`
+        : err.message || 'Não foi possível gravar o documento.'
+
       toast({
         title: 'Erro ao finalizar',
-        description: err.message || 'Não foi possível gravar o documento.',
+        description: msg,
         variant: 'destructive',
       })
     } finally {

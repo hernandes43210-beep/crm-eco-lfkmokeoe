@@ -71,12 +71,15 @@ export const FormalizacaoService = {
     formData.append('dados_customizados', JSON.stringify(payload.dados_customizados || {}))
     formData.append('conteudo_html', payload.conteudo_html)
 
-    if (payload.criado_por) {
-      formData.append('criado_por', payload.criado_por)
+    const userId = payload.criado_por || pb.authStore.record?.id
+    if (userId) {
+      formData.append('criado_por', userId)
     }
 
     if (payload.arquivo_pdf_blob) {
-      const filename = `${payload.tipo}_${payload.lead.slice(-6)}_v${nextVersion}.pdf`
+      const isHtml = payload.arquivo_pdf_blob.type.includes('html')
+      const ext = isHtml ? 'html' : 'pdf'
+      const filename = `${payload.tipo}_${payload.lead.slice(-6)}_v${nextVersion}.${ext}`
       formData.append('arquivo_pdf', payload.arquivo_pdf_blob, filename)
     }
 
