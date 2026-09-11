@@ -67,6 +67,7 @@ export interface DadosProcuracaoEnergisa {
   dataAssinatura: string // formato por extenso
 }
 
+// QA touch: verificação de exportações e tipagem
 // Dados fixos da Ecosolar
 export const DADOS_FIXOS_ECOSOLAR = {
   razaoSocial: 'H DA SILVA COSTA LTDA',

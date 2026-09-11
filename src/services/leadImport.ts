@@ -18,6 +18,11 @@ export type CRMField =
   | 'cidade'
   | 'estado'
   | 'endereco'
+  | 'cpf_cnpj'
+  | 'cep'
+  | 'nacionalidade'
+  | 'estado_civil'
+  | 'profissao'
   | 'consumo_mensal_kwh'
   | 'preco_venda'
   | 'origem'
@@ -98,35 +103,35 @@ export const CRM_FIELDS: FieldDefinition[] = [
     heuristicMatches: ['endereco', 'endereço', 'rua', 'logradouro', 'bairro'],
   },
   {
-    key: 'cpf_cnpj' as any,
+    key: 'cpf_cnpj',
     label: 'CPF / CNPJ',
     required: false,
     description: 'CPF do titular ou CNPJ da empresa.',
     heuristicMatches: ['cpf', 'cnpj', 'documento', 'cpf cnpj', 'cpf/cnpj'],
   },
   {
-    key: 'cep' as any,
+    key: 'cep',
     label: 'CEP',
     required: false,
     description: 'Código postal de endereçamento.',
     heuristicMatches: ['cep', 'codigo postal', 'código postal'],
   },
   {
-    key: 'nacionalidade' as any,
+    key: 'nacionalidade',
     label: 'Nacionalidade',
     required: false,
     description: 'Nacionalidade do cliente.',
     heuristicMatches: ['nacionalidade', 'pais', 'país'],
   },
   {
-    key: 'estado_civil' as any,
+    key: 'estado_civil',
     label: 'Estado Civil',
     required: false,
     description: 'Estado civil do cliente.',
     heuristicMatches: ['estado civil', 'estadocivil', 'civil'],
   },
   {
-    key: 'profissao' as any,
+    key: 'profissao',
     label: 'Profissão',
     required: false,
     description: 'Profissão ou ocupação do cliente.',
@@ -219,6 +224,11 @@ export interface ProcessedLeadRow {
   cidade: string
   estado: string
   endereco: string
+  cpf_cnpj?: string
+  cep?: string
+  nacionalidade?: string
+  estado_civil?: string
+  profissao?: string
   consumo_mensal_kwh: number
   preco_venda: number
   origem: LeadOrigem
@@ -358,6 +368,11 @@ export function autoDetectMapping(
     cidade: '',
     estado: '',
     endereco: '',
+    cpf_cnpj: '',
+    cep: '',
+    nacionalidade: '',
+    estado_civil: '',
+    profissao: '',
     consumo_mensal_kwh: '',
     preco_venda: '',
     origem: '',
@@ -586,6 +601,11 @@ export function evaluateRowDeduplication(
     const rawCidade = mapping.cidade ? r[mapping.cidade] || '' : ''
     const rawEstado = mapping.estado ? r[mapping.estado] || '' : ''
     const rawEndereco = mapping.endereco ? r[mapping.endereco] || '' : ''
+    const rawCpfCnpj = mapping.cpf_cnpj ? r[mapping.cpf_cnpj] || '' : ''
+    const rawCep = mapping.cep ? r[mapping.cep] || '' : ''
+    const rawNacionalidade = mapping.nacionalidade ? r[mapping.nacionalidade] || '' : ''
+    const rawEstadoCivil = mapping.estado_civil ? r[mapping.estado_civil] || '' : ''
+    const rawProfissao = mapping.profissao ? r[mapping.profissao] || '' : ''
     const rawConsumo = mapping.consumo_mensal_kwh ? r[mapping.consumo_mensal_kwh] || '' : ''
     const rawPreco = mapping.preco_venda ? r[mapping.preco_venda] || '' : ''
     const rawOrigem = mapping.origem ? r[mapping.origem] || '' : ''
@@ -598,6 +618,11 @@ export function evaluateRowDeduplication(
     const cidade = String(rawCidade).trim()
     const estado = parseUFSafe(rawEstado)
     const endereco = String(rawEndereco).trim()
+    const cpf_cnpj = String(rawCpfCnpj).trim()
+    const cep = String(rawCep).trim()
+    const nacionalidade = String(rawNacionalidade).trim()
+    const estado_civil = String(rawEstadoCivil).trim()
+    const profissao = String(rawProfissao).trim()
     const consumo_mensal_kwh = parseNumberSafe(rawConsumo, 400)
     const preco_venda = parseNumberSafe(rawPreco, 0)
     const origem = parseOrigemSafe(rawOrigem || fileName)
@@ -638,6 +663,11 @@ export function evaluateRowDeduplication(
         cidade,
         estado,
         endereco,
+        cpf_cnpj,
+        cep,
+        nacionalidade,
+        estado_civil,
+        profissao,
         consumo_mensal_kwh,
         preco_venda,
         origem,
@@ -692,6 +722,11 @@ export function evaluateRowDeduplication(
         cidade,
         estado,
         endereco,
+        cpf_cnpj,
+        cep,
+        nacionalidade,
+        estado_civil,
+        profissao,
         consumo_mensal_kwh,
         preco_venda,
         origem,
@@ -714,6 +749,11 @@ export function evaluateRowDeduplication(
         cidade,
         estado,
         endereco,
+        cpf_cnpj,
+        cep,
+        nacionalidade,
+        estado_civil,
+        profissao,
         consumo_mensal_kwh,
         preco_venda,
         origem,
@@ -733,6 +773,11 @@ export function evaluateRowDeduplication(
         cidade,
         estado,
         endereco,
+        cpf_cnpj,
+        cep,
+        nacionalidade,
+        estado_civil,
+        profissao,
         consumo_mensal_kwh,
         preco_venda,
         origem,
@@ -810,6 +855,11 @@ export async function executeLeadImport(
           if (row.cidade) updatePayload.cidade = row.cidade
           if (row.estado) updatePayload.estado = row.estado
           if (row.endereco) updatePayload.endereco = row.endereco
+          if (row.cpf_cnpj) updatePayload.cpf_cnpj = row.cpf_cnpj
+          if (row.cep) updatePayload.cep = row.cep
+          if (row.nacionalidade) updatePayload.nacionalidade = row.nacionalidade
+          if (row.estado_civil) updatePayload.estado_civil = row.estado_civil
+          if (row.profissao) updatePayload.profissao = row.profissao
           if (row.consumo_mensal_kwh > 0) updatePayload.consumo_mensal_kwh = row.consumo_mensal_kwh
           if (row.preco_venda > 0) updatePayload.preco_venda = row.preco_venda
           if (row.luvik_deal_id) updatePayload.luvik_deal_id = row.luvik_deal_id
@@ -861,6 +911,11 @@ export async function executeLeadImport(
         cidade: row.cidade,
         estado: row.estado || 'SP',
         endereco: row.endereco,
+        cpf_cnpj: row.cpf_cnpj || '',
+        cep: row.cep || '',
+        nacionalidade: row.nacionalidade || '',
+        estado_civil: row.estado_civil || '',
+        profissao: row.profissao || '',
         preco_venda: row.preco_venda,
         status: 'Novo' as LeadStatus,
         sla_dias: defaultSlaDias,
