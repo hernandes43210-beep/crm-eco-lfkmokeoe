@@ -302,4 +302,5 @@ export interface PublicProposta {
     legenda?: string
     url?: string
   }>
+  is_expirada?: boolean
 }

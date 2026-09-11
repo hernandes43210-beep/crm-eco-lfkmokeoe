@@ -1042,21 +1042,17 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     </div>
   </div>
 
-  <!-- 2. Sumário Executivo Comercial -->
+  <!-- 2. Apresentação Técnica do Projeto (Kit Solar Antes do Preço) -->
   <div class="hero-summary">
-    <div class="hero-left">
+    <div class="hero-left" style="max-width: 100%;">
       <h2>${data.kit_nome}</h2>
-      <p>Sistema Fotovoltaico Turnkey de Alta Performance dimensionado sob medida para suprir <strong>${consumoKwh} kWh/mês</strong> do cliente <strong>${data.cliente.nome}</strong>.</p>
+      <p>Sistema Fotovoltaico Turnkey de Alta Performance dimensionado sob medida para suprir <strong>${consumoKwh} kWh/mês</strong> do cliente <strong>${data.cliente.nome}</strong> com geração e engenharia homologada.</p>
       <div class="hero-badges">
         <span class="hero-badge-item">Potência Total: ${specs.potenciaTotalFormatada}</span>
-        <span class="hero-badge-item">Geração Média: ~${geracaoEstimadaKwh} kWh/mês</span>
+        <span class="hero-badge-item">Módulos: ${specs.quantidadeModulosTotal ? `${specs.quantidadeModulosTotal} painéis` : '-'}</span>
         <span class="hero-badge-item">Fabricantes: ${specs.fabricantesPrincipais}</span>
+        <span class="hero-badge-item">Geração Média: ~${geracaoEstimadaKwh} kWh/mês</span>
       </div>
-    </div>
-    <div class="hero-price-box">
-      <div class="price-label">Investimento Total Turnkey</div>
-      <div class="price-amount">${formatBRL(data.preco_venda)}</div>
-      <div class="price-sub">Equipamentos + Engenharia + Instalação</div>
     </div>
   </div>
 
@@ -1126,32 +1122,8 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     </div>
   </div>
 
-  <!-- KPIs de Retorno Financeiro -->
-  <div class="kpi-row">
-    <div class="kpi-card highlight">
-      <div class="kpi-label">Economia Mensal Est.</div>
-      <div class="kpi-val">${formatBRL(economiaMensal)}</div>
-      <div class="kpi-sub">Alívio imediato na fatura</div>
-    </div>
-    <div class="kpi-card highlight">
-      <div class="kpi-label">Economia Anual Est.</div>
-      <div class="kpi-val">${formatBRL(economiaAnual)}</div>
-      <div class="kpi-sub">Capital livre reinvestível</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Payback Estimado</div>
-      <div class="kpi-val">~${sim.paybackEstimadoAnos || 3} anos</div>
-      <div class="kpi-sub">Retorno do investimento</div>
-    </div>
-    <div class="kpi-card highlight">
-      <div class="kpi-label">Retorno em 30 Anos</div>
-      <div class="kpi-val">${formatBRL(sim.finalSolar)}</div>
-      <div class="kpi-sub">+${sim.ganhoSolarVsCdbPercent}% superior ao CDB</div>
-    </div>
-  </div>
-
-  <!-- 3. Seção Técnica Organizada: Tabela Item a Item com Quantidades Reais -->
-  <div class="section-title">Composição do Kit Solar — Detalhamento Item a Item com Quantidades Reais</div>
+  <!-- 3. Seção Técnica Organizada: Tabela Item a Item com Quantidades Reais (KIT PRIMEIRO) -->
+  <div class="section-title">1. Composição do Kit Solar — Detalhamento Item a Item com Quantidades Reais</div>
   <div class="table-container">
     <table>
       <thead>
@@ -1180,6 +1152,8 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     </table>
   </div>
 
+  <!-- 4. Dimensionamento & Geração de Energia -->
+  <div class="section-title">2. Dimensionamento Técnico & Estimativa de Geração</div>
   <div class="tech-summary-bar">
     <div class="tech-item">
       <div class="label">Potência Total do Gerador</div>
@@ -1197,6 +1171,43 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     <div class="tech-item">
       <div class="label">Área Telhado Estimada</div>
       <div class="val">${specs.areaEstimadaM2 ? `~${specs.areaEstimadaM2} m²` : '-'}</div>
+    </div>
+  </div>
+
+  <!-- 5. Investimento & Retorno Financeiro (DEPOIS DO KIT E DIMENSIONAMENTO) -->
+  <div class="section-title">3. Valor do Investimento & Economia Projetada</div>
+  <div style="background: linear-gradient(135deg, #0A192F 0%, #163868 100%); color: #ffffff; border-radius: 8px; padding: 12px 18px; margin-bottom: 12px; border: 1.5px solid #EAB308; display: flex; justify-content: space-between; align-items: center; page-break-inside: avoid;">
+    <div>
+      <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: #93C5FD; display: block;">Investimento Total Turnkey Homologado</span>
+      <h3 style="font-size: 14px; font-weight: 800; color: #ffffff; margin-top: 2px;">Solução Completa: Equipamentos + Homologação de Engenharia com ART + Instalação NR10/NR35</h3>
+    </div>
+    <div style="text-align: right; min-width: 180px;">
+      <span style="font-size: 9px; text-transform: uppercase; color: #E2E8F0; display: block; font-weight: 700;">Valor Total</span>
+      <span style="font-size: 26px; font-weight: 900; color: #FACC15; font-family: monospace; letter-spacing: -0.5px;">${formatBRL(data.preco_venda)}</span>
+    </div>
+  </div>
+
+  <!-- KPIs de Retorno Financeiro -->
+  <div class="kpi-row">
+    <div class="kpi-card highlight">
+      <div class="kpi-label">Economia Mensal Est.</div>
+      <div class="kpi-val">${formatBRL(economiaMensal)}</div>
+      <div class="kpi-sub">Alívio imediato na fatura</div>
+    </div>
+    <div class="kpi-card highlight">
+      <div class="kpi-label">Economia Anual Est.</div>
+      <div class="kpi-val">${formatBRL(economiaAnual)}</div>
+      <div class="kpi-sub">Capital livre reinvestível</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Payback Estimado</div>
+      <div class="kpi-val">~${sim.paybackEstimadoAnos || 3} anos</div>
+      <div class="kpi-sub">Retorno do investimento</div>
+    </div>
+    <div class="kpi-card highlight">
+      <div class="kpi-label">Retorno em 30 Anos</div>
+      <div class="kpi-val">${formatBRL(sim.finalSolar)}</div>
+      <div class="kpi-sub">+${sim.ganhoSolarVsCdbPercent}% superior ao CDB</div>
     </div>
   </div>
 

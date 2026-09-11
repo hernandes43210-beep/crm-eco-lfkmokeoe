@@ -229,6 +229,21 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
       }
     } catch (_) {}
 
+    // Verificar se a proposta está expirada de acordo com o prazo de validade
+    const dataValidadeStr = proposta.getString('data_validade')
+    let isExpirada = false
+    if (dataValidadeStr && proposta.getString('status') !== 'Aceita') {
+      try {
+        const valDate = new Date(dataValidadeStr)
+        const hojeZero = new Date()
+        hojeZero.setHours(0, 0, 0, 0)
+        // Se a data de validade terminou antes de hoje
+        if (valDate < hojeZero) {
+          isExpirada = true
+        }
+      } catch (_) {}
+    }
+
     const resp = {
       id: proposta.id,
       token_publico: proposta.getString('token_publico'),
@@ -253,6 +268,7 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
       kit: kitData,
       vendedor: vendedorData,
       fotos_obra: fotosObra,
+      is_expirada: isExpirada,
     }
 
     return e.json(200, resp)

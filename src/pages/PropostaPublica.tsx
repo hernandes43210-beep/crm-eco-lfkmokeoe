@@ -38,6 +38,7 @@ import {
 import { openProposalPDFPrint } from '@/lib/proposalPdf'
 import { parseKitDetailedItems } from '@/lib/kitItemsParser'
 import { InvestmentComparison } from '@/components/InvestmentComparison'
+import { AnimatedInvestmentRace } from '@/components/AnimatedInvestmentRace'
 import {
   INSTITUTIONAL_INSTALLATION_PHOTOS,
   type InstitutionalInstallationPhoto,
@@ -240,17 +241,175 @@ export default function PropostaPublica() {
   const economiaAnual = economiaMensal * 12
   const economia25Anos = economiaAnual * 25
 
-  // Checar validade
-  const dataValidade = new Date(proposta.data_validade)
-  const hoje = new Date()
-  hoje.setHours(0, 0, 0, 0)
-  const isExpirada = dataValidade < hoje && proposta.status !== 'Aceita'
-
-  const proposalNumber = (proposta.id || 'ECO').slice(-6).toUpperCase()
   const localCliente =
     [proposta.lead?.cidade, proposta.lead?.estado].filter(Boolean).join(' - ') || 'Brasil'
   const consultorNome = proposta.vendedor?.name || 'Equipe Ecosolar Energy'
   const consultorEmail = proposta.vendedor?.email || 'contato@ecosolarenergy.com.br'
+
+  // Checar validade
+  const dataValidade = new Date(proposta.data_validade)
+  const hoje = new Date()
+  hoje.setHours(0, 0, 0, 0)
+  const isExpirada =
+    (proposta.is_expirada === true || dataValidade < hoje) && proposta.status !== 'Aceita'
+
+  const proposalNumber = (proposta.id || 'ECO').slice(-6).toUpperCase()
+  const consultorTelefone = proposta.lead?.telefone || ''
+  const cleanPhone = consultorTelefone.replace(/\D/g, '')
+  const consultorWhatsappLink = cleanPhone
+    ? `https://wa.me/${cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`}?text=${encodeURIComponent(
+        `Olá! Estou no link da proposta comercial Nº ${proposalNumber} da Ecosolar Energy e gostaria de solicitar uma renovação do prazo de validade das condições.`,
+      )}`
+    : null
+
+  // 3) Se a proposta estiver expirada (e o cliente não tiver aceitado anteriormente):
+  // Exibir a tela elegante de Proposta Expirada da marca Ecosolar Energy (Navy/Amarelo)
+  if (isExpirada) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#060F1E] via-[#0A192F] to-[#163868] text-white flex flex-col justify-between p-4 sm:p-8">
+        {/* Header institucional */}
+        <header className="max-w-4xl w-full mx-auto flex items-center justify-between pb-6 border-b border-white/15">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-white rounded-xl p-2 shadow-lg flex items-center justify-center">
+              <img
+                src={logoEcosolar}
+                alt="Ecosolar Energy"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div>
+              <span className="font-extrabold text-base tracking-tight text-white block">
+                ECO<span className="text-amber-400">SOLAR</span> ENERGY
+              </span>
+              <span className="text-[11px] text-sky-200 font-semibold uppercase">
+                Soluções em Engenharia Solar
+              </span>
+            </div>
+          </div>
+          <Badge className="bg-amber-400 text-slate-950 font-black text-xs uppercase px-2.5 py-1">
+            Proposta Nº {proposalNumber}
+          </Badge>
+        </header>
+
+        {/* Card Central de Proposta Expirada */}
+        <main className="max-w-xl w-full mx-auto my-12 bg-white/10 backdrop-blur-md rounded-3xl p-6 sm:p-10 border-2 border-amber-400/50 shadow-2xl text-center space-y-6">
+          <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl bg-amber-400/15 border-2 border-amber-400 text-amber-400 flex items-center justify-center mx-auto shadow-inner">
+            <Clock className="w-10 h-10 stroke-[2.5]" />
+          </div>
+
+          <div className="space-y-2">
+            <Badge className="bg-amber-400/20 text-amber-300 border border-amber-400/40 text-xs font-bold uppercase tracking-wider px-3 py-1">
+              Prazo de Validade Expirado
+            </Badge>
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              Esta Proposta Comercial Expirou
+            </h1>
+            <p className="text-sm text-slate-200 leading-relaxed max-w-md mx-auto pt-1">
+              O link exclusivo da proposta preparada para{' '}
+              <strong className="text-white">{proposta.lead?.nome || 'o cliente'}</strong> era
+              válido por <strong>{proposta.validade_dias || 15} dias</strong> a partir da emissão e
+              expirou em{' '}
+              <strong className="text-amber-300">{formatDateBR(proposta.data_validade)}</strong>.
+            </p>
+          </div>
+
+          {/* Destaque das condições expiradas */}
+          <div className="bg-[#0A192F]/80 rounded-2xl p-4 sm:p-5 border border-white/15 text-left space-y-2.5 text-xs text-slate-300">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <span className="text-slate-400 uppercase text-[10px] font-bold">Kit Orçado</span>
+              <span className="font-bold text-white text-right truncate max-w-[200px]">
+                {proposta.kit_nome}
+              </span>
+            </div>
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <span className="text-slate-400 uppercase text-[10px] font-bold">
+                Potência do Sistema
+              </span>
+              <span className="font-mono font-bold text-amber-400">
+                {specs.potenciaTotalFormatada}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 uppercase text-[10px] font-bold">
+                Consultor Ecosolar
+              </span>
+              <span className="font-semibold text-white">{consultorNome}</span>
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-300 leading-relaxed">
+            Devido à flutuação de preços dos módulos solares e inversores homologados, os valores e
+            prazos precisam ser revalidados com a nossa engenharia. Fale agora com seu consultor
+            para solicitar uma reativação com as melhores condições!
+          </p>
+
+          {/* Botões de Ação */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            {consultorWhatsappLink ? (
+              <a
+                href={consultorWhatsappLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto"
+              >
+                <Button
+                  size="lg"
+                  className="w-full bg-[#25D366] hover:bg-[#1EBE5D] text-slate-950 font-black text-xs sm:text-sm gap-2 h-11 px-5 shadow-lg border border-[#25D366]"
+                >
+                  <Phone className="w-4 h-4 text-slate-950" />
+                  <span>Falar pelo WhatsApp ({consultorTelefone})</span>
+                </Button>
+              </a>
+            ) : null}
+
+            <a
+              href={`mailto:${consultorEmail}?subject=Renova%C3%A7%C3%A3o%20da%20Proposta%20Comercial%20N%C2%BA%20${proposalNumber}&body=Ol%C3%A1%2C%20gostaria%20de%20solicitar%20a%20renova%C3%A7%C3%A3o%20da%20minha%20proposta%20comercial%20solar.`}
+              className="w-full sm:w-auto"
+            >
+              <Button
+                size="lg"
+                variant={consultorWhatsappLink ? 'outline' : 'default'}
+                className={`w-full text-xs sm:text-sm font-bold gap-2 h-11 px-5 ${
+                  consultorWhatsappLink
+                    ? 'bg-white/10 hover:bg-white/20 text-white border-white/25'
+                    : 'bg-amber-400 hover:bg-amber-300 text-slate-950 font-black shadow-lg border border-amber-400'
+                }`}
+              >
+                <Mail className="w-4 h-4" />
+                <span>Enviar E-mail ao Consultor</span>
+              </Button>
+            </a>
+
+            {isAuthenticated && proposta.lead?.id && (
+              <Link to={`/leads/${proposta.lead.id}`} className="w-full sm:w-auto">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full bg-white/10 hover:bg-white/20 text-white border-white/25 text-xs sm:text-sm font-bold gap-2 h-11 px-5"
+                >
+                  <ArrowRight className="w-4 h-4 text-amber-400" />
+                  <span>Ver Ficha no CRM</span>
+                </Button>
+              </Link>
+            )}
+          </div>
+
+          <div className="pt-2 text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span>ECOSOLAR ENERGY • Atendimento comercial e homologação autorizada</span>
+          </div>
+        </main>
+
+        {/* Footer */}
+        <footer className="max-w-4xl w-full mx-auto text-center text-xs text-slate-400 pt-6 border-t border-white/15 space-y-1">
+          <p className="font-bold text-slate-200">ECOSOLAR ENERGY — A energia do futuro, hoje!</p>
+          <p className="text-[11px]">
+            Soluções em Engenharia Solar e Homologação Turnkey • Suporte: {consultorEmail}
+          </p>
+        </footer>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[#F4F6F9] text-slate-900 pb-20">
@@ -541,154 +700,62 @@ export default function PropostaPublica() {
           </div>
         )}
 
-        {/* 2. Sumário Executivo Comercial — Foco em Benefício & Azul-Marinho */}
+        {/* ========================================================================= */}
+        {/* 1. INTRODUÇÃO & COMPOSIÇÃO DO KIT SOLAR (O KIT VEM PRIMEIRO QUE O PREÇO) */}
+        {/* ========================================================================= */}
         <div className="rounded-2xl bg-gradient-to-br from-[#0A192F] via-[#0F284E] to-[#163868] text-white p-6 sm:p-8 shadow-xl relative overflow-hidden border-t-4 border-amber-400">
           <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-80 h-80 rounded-full bg-amber-400/10 pointer-events-none blur-3xl"></div>
 
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-3 max-w-2xl">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge className="bg-amber-400 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase px-3 py-1">
-                  Proposta Nº {proposalNumber}
+          <div className="relative z-10 space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="bg-amber-400 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase px-3 py-1">
+                Proposta Nº {proposalNumber}
+              </Badge>
+              <Badge
+                variant="outline"
+                className="text-white border-white/30 text-xs font-semibold bg-white/10"
+              >
+                <Clock className="w-3.5 h-3.5 mr-1 text-amber-300" />
+                Validade: {formatDateBR(proposta.data_validade)} (15 dias)
+              </Badge>
+              {proposta.status === 'Aceita' && (
+                <Badge className="bg-emerald-500 text-white font-bold text-xs uppercase px-2.5 py-0.5">
+                  ✓ Aceita
                 </Badge>
-                <Badge
-                  variant="outline"
-                  className="text-white border-white/30 text-xs font-semibold bg-white/10"
-                >
-                  <Clock className="w-3.5 h-3.5 mr-1 text-amber-300" />
-                  Validade: {formatDateBR(proposta.data_validade)} (15 dias)
-                </Badge>
-                {proposta.status === 'Aceita' && (
-                  <Badge className="bg-emerald-500 text-white font-bold text-xs uppercase px-2.5 py-0.5">
-                    ✓ Aceita
-                  </Badge>
-                )}
-              </div>
-
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight leading-tight">
-                {proposta.kit_nome}
-              </h1>
-
-              <p className="text-sm sm:text-base text-slate-200 leading-relaxed">
-                Sistema Solar Fotovoltaico On-Grid Turnkey projetado sob medida para suprir o
-                consumo médio de <strong>{consumoKwh} kWh/mês</strong> do cliente{' '}
-                <strong>{proposta.lead?.nome}</strong>, gerando economia imediata na conta de
-                energia e proteção definitiva contra reajustes tarifários.
-              </p>
-
-              {/* Badges de Destaque Técnico */}
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-                <span className="bg-white/15 px-3 py-1 rounded-md font-semibold flex items-center gap-1.5">
-                  <Zap className="w-4 h-4 text-amber-400" />
-                  Potência Total: <strong>{specs.potenciaTotalFormatada}</strong>
-                </span>
-                <span className="bg-white/15 px-3 py-1 rounded-md font-semibold">
-                  Módulos: <strong>{specs.quantidadeModulosTotal || '-'} unidades</strong>
-                </span>
-                <span className="bg-white/15 px-3 py-1 rounded-md font-semibold">
-                  Fabricantes: <strong>{specs.fabricantesPrincipais}</strong>
-                </span>
-              </div>
+              )}
             </div>
 
-            {/* Box Comercial do Investimento */}
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-amber-400/50 text-right shrink-0 lg:min-w-[280px] shadow-lg">
-              <span className="text-[11px] uppercase tracking-wider font-extrabold text-amber-300 block">
-                Investimento Total Turnkey
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight leading-tight">
+              {proposta.kit_nome}
+            </h1>
+
+            <p className="text-sm sm:text-base text-slate-200 leading-relaxed max-w-3xl">
+              Sistema Solar Fotovoltaico On-Grid Turnkey projetado sob medida para suprir o consumo
+              médio de <strong>{consumoKwh} kWh/mês</strong> do cliente{' '}
+              <strong>{proposta.lead?.nome}</strong>, dimensionado com módulos de alta eficiência,
+              inversor com certificação INMETRO e proteção completa de engenharia.
+            </p>
+
+            {/* Badges de Destaque Técnico */}
+            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+              <span className="bg-white/15 px-3 py-1 rounded-md font-semibold flex items-center gap-1.5">
+                <Zap className="w-4 h-4 text-amber-400" />
+                Potência Total: <strong>{specs.potenciaTotalFormatada}</strong>
               </span>
-              <span className="text-3xl sm:text-4xl font-black text-amber-300 font-mono-numbers block tracking-tight my-1.5">
-                {formatBRL(proposta.preco_venda)}
+              <span className="bg-white/15 px-3 py-1 rounded-md font-semibold">
+                Módulos: <strong>{specs.quantidadeModulosTotal || '-'} unidades</strong>
               </span>
-              <span className="text-xs text-slate-200 block font-medium">
-                Projeto Executivo + Equipamentos + Instalação Completa
+              <span className="bg-white/15 px-3 py-1 rounded-md font-semibold">
+                Fabricantes: <strong>{specs.fabricantesPrincipais}</strong>
               </span>
-              <div className="mt-3 pt-3 border-t border-white/20 text-[11px] text-slate-300 flex items-center justify-between">
-                <span>Economia no 1º Ano:</span>
-                <strong className="text-white font-mono-numbers">{formatBRL(economiaAnual)}</strong>
-              </div>
+              <span className="bg-white/15 px-3 py-1 rounded-md font-semibold">
+                Geração Média: <strong>~{geracaoEstimadaKwh} kWh/mês</strong>
+              </span>
             </div>
           </div>
         </div>
 
-        {/* 4 Cards de Benefício Financeiro Comercial */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="border-slate-200/90 bg-white shadow-xs">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs uppercase font-extrabold text-slate-500">
-                  Economia Mensal Est.
-                </span>
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
-                  <TrendingUp className="w-4 h-4" />
-                </div>
-              </div>
-              <p className="text-2xl font-black text-emerald-700 font-mono-numbers mt-2">
-                {formatBRL(economiaMensal)}
-              </p>
-              <p className="text-[11px] text-slate-500 mt-1">Alívio imediato no orçamento mensal</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200/90 bg-white shadow-xs">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs uppercase font-extrabold text-slate-500">
-                  Geração Média Estimada
-                </span>
-                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-                  <Zap className="w-4 h-4" />
-                </div>
-              </div>
-              <p className="text-2xl font-black text-slate-900 font-mono-numbers mt-2">
-                ~{geracaoEstimadaKwh}{' '}
-                <span className="text-xs font-normal text-slate-500">kWh/mês</span>
-              </p>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Irradiação de {IRRADIACAO_MEDIA_DIARIA_HORAS.toString().replace('.', ',')} h/dia •
-                perdas de {Math.round((1 - FATOR_PERDAS_SISTEMA) * 100)}% (fator{' '}
-                {FATOR_PERDAS_SISTEMA.toFixed(2).replace('.', ',')})
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200/90 bg-white shadow-xs">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs uppercase font-extrabold text-slate-500">
-                  Economia em 25 Anos
-                </span>
-                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center font-bold">
-                  <Award className="w-4 h-4" />
-                </div>
-              </div>
-              <p className="text-2xl font-black text-slate-900 font-mono-numbers mt-2">
-                {formatBRL(economia25Anos)}
-              </p>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Garantia linear de geração dos módulos
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200/90 bg-white shadow-xs">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs uppercase font-extrabold text-slate-500">
-                  Valorização Imobiliária
-                </span>
-                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold">
-                  <Home className="w-4 h-4" />
-                </div>
-              </div>
-              <p className="text-2xl font-black text-indigo-950 font-mono-numbers mt-2">
-                +6% a +8%
-              </p>
-              <p className="text-[11px] text-slate-500 mt-1">Valorização patrimonial instantânea</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* 3. Seção Técnica Organizada: Tabela Item a Item com Quantidades Reais */}
+        {/* 2. COMPOSIÇÃO DETALHADA DO KIT SOLAR ITEM A ITEM COM QUANTIDADES REAIS */}
         <Card className="border-slate-200/90 bg-white shadow-sm overflow-hidden">
           <CardHeader className="bg-[#0A192F] text-white p-5 border-b-2 border-amber-400">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -696,7 +763,7 @@ export default function PropostaPublica() {
                 <div className="flex items-center gap-2">
                   <Layers className="w-5 h-5 text-amber-400" />
                   <CardTitle className="text-base sm:text-lg font-black tracking-tight text-white">
-                    Composição do Kit Solar — Detalhamento Item a Item
+                    1. Composição do Kit Solar — Detalhamento Item a Item
                   </CardTitle>
                 </div>
                 <p className="text-xs text-slate-300 mt-0.5">
@@ -712,7 +779,7 @@ export default function PropostaPublica() {
           </CardHeader>
 
           <CardContent className="p-0">
-            {/* Tabela de Itens */}
+            {/* Tabela de Itens com Quantidades Reais */}
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left border-collapse">
                 <thead>
@@ -788,15 +855,130 @@ export default function PropostaPublica() {
           </CardContent>
         </Card>
 
-        {/* 4. Apresentação Financeira — Relatório de 30 Anos */}
-        <InvestmentComparison
+        {/* 3. DIMENSIONAMENTO TÉCNICO & ESTIMATIVA DE GERAÇÃO */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="border-slate-200/90 bg-white shadow-xs">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase font-extrabold text-slate-500">
+                  Geração Média Estimada
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                  <Zap className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-slate-900 font-mono-numbers mt-2">
+                ~{geracaoEstimadaKwh}{' '}
+                <span className="text-xs font-normal text-slate-500">kWh/mês</span>
+              </p>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Irradiação de {IRRADIACAO_MEDIA_DIARIA_HORAS.toString().replace('.', ',')} h/dia •
+                perdas de {Math.round((1 - FATOR_PERDAS_SISTEMA) * 100)}% (fator{' '}
+                {FATOR_PERDAS_SISTEMA.toFixed(2).replace('.', ',')})
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200/90 bg-white shadow-xs">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase font-extrabold text-slate-500">
+                  Economia Mensal Est.
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+                  <TrendingUp className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-emerald-700 font-mono-numbers mt-2">
+                {formatBRL(economiaMensal)}
+              </p>
+              <p className="text-[11px] text-slate-500 mt-1">Alívio imediato no orçamento mensal</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200/90 bg-white shadow-xs">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase font-extrabold text-slate-500">
+                  Economia em 25 Anos
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center font-bold">
+                  <Award className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-slate-900 font-mono-numbers mt-2">
+                {formatBRL(economia25Anos)}
+              </p>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Garantia linear de geração dos módulos
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200/90 bg-white shadow-xs">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase font-extrabold text-slate-500">
+                  Valorização Imobiliária
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold">
+                  <Home className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-indigo-950 font-mono-numbers mt-2">
+                +6% a +8%
+              </p>
+              <p className="text-[11px] text-slate-500 mt-1">Valorização patrimonial instantânea</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* 4. GRÁFICO ANIMADO TIPO "COMPETIÇÃO / BAR CHART RACE" NA PÁGINA DO LINK */}
+        {/* ========================================================================= */}
+        <AnimatedInvestmentRace
           valorInvestido={proposta.preco_venda || 0}
           economiaMensal={economiaMensal}
           anos={30}
-          mostrarTabelaPadrao={true}
-          titulo="Relatório Financeiro Comparativo em 30 Anos"
-          subtitulo="Demonstrativo transparente: por que alocar seu capital em Energia Solar supera com folga a Poupança e o CDB Líquido"
+          titulo="Corrida do Rendimento em 30 Anos — Quem vence essa disputa?"
+          subtitulo="Veja em tempo real como o investimento em Energia Solar ultrapassa com folga a Poupança e o CDB Líquido ano a ano."
         />
+
+        {/* ========================================================================= */}
+        {/* 5. VALOR DO INVESTIMENTO TURNKEY & CONDIÇÕES COMERCIAIS (APÓS O KIT)     */}
+        {/* ========================================================================= */}
+        <div className="rounded-2xl bg-gradient-to-br from-[#0A192F] via-[#102B54] to-[#163868] text-white p-6 sm:p-8 shadow-xl border-2 border-amber-400 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-xl">
+            <span className="inline-flex items-center gap-1.5 bg-amber-400 text-slate-950 font-black text-xs uppercase px-2.5 py-0.5 rounded-md">
+              <Award className="w-3.5 h-3.5" />
+              Proposta Comercial Turnkey
+            </span>
+            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              Investimento Total Turnkey Homologado
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">
+              Solução completa chave-na-mão: Equipamentos fotovoltaicos homologados, elaboração de
+              projeto executivo com emissão de ART assinada por engenheiro responsável, tramitação
+              junto à concessionária de energia e instalação especializada NR10/NR35.
+            </p>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-amber-400/60 text-right shrink-0 md:min-w-[280px] shadow-lg">
+            <span className="text-[11px] uppercase tracking-wider font-extrabold text-amber-300 block">
+              Valor Total do Projeto
+            </span>
+            <span className="text-3xl sm:text-4xl font-black text-amber-300 font-mono-numbers block tracking-tight my-1.5">
+              {formatBRL(proposta.preco_venda)}
+            </span>
+            <span className="text-xs text-slate-200 block font-medium">
+              Sem surpresas • Tudo incluso
+            </span>
+            <div className="mt-3 pt-3 border-t border-white/20 text-[11px] text-slate-300 flex items-center justify-between">
+              <span>Economia no 1º Ano:</span>
+              <strong className="text-white font-mono-numbers">{formatBRL(economiaAnual)}</strong>
+            </div>
+          </div>
+        </div>
 
         {/* Dados do Cliente & Consultor */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
