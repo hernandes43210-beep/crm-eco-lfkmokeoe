@@ -407,7 +407,7 @@ export function parseKitDetailedItems(params: {
     }
   }
 
-  // 3. Adicionar os componentes de engenharia e instalação do CRM Turnkey
+  // 3. Adicionar os componentes de engenharia e instalação do CRM Chave na Mão
   // Se houver string box escolhida ou declarada, inclui na lista.
   // Regra: "Se o usuário não escolher string box, o kit simplesmente não lista string box em lugar nenhum (campo opcional)."
   const hasStringBox = itens.some((it) => it.tipo === 'string_box')

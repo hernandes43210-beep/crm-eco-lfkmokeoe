@@ -1012,7 +1012,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     <div class="cover-footer">
       <div class="cover-footer-left">
         <strong>ECOSOLAR ENERGY SOLUÇÕES EM ENERGIA SOLAR</strong>
-        <span>Projetos de Engenharia • Homologação Turnkey • Instalação Homologada</span>
+        <span>Projetos de Engenharia • Homologação Chave na Mão • Instalação Homologada</span>
       </div>
       <div class="cover-footer-contacts">
         <div>E-mail: <strong>${consultorEmail}</strong></div>
@@ -1046,7 +1046,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
   <div class="hero-summary">
     <div class="hero-left" style="max-width: 100%;">
       <h2>${data.kit_nome}</h2>
-      <p>Sistema Fotovoltaico Turnkey de Alta Performance dimensionado sob medida para suprir <strong>${consumoKwh} kWh/mês</strong> do cliente <strong>${data.cliente.nome}</strong> com geração e engenharia homologada.</p>
+      <p>Sistema Fotovoltaico de Alta Performance Chave na Mão dimensionado sob medida para suprir <strong>${consumoKwh} kWh/mês</strong> do cliente <strong>${data.cliente.nome}</strong> com geração e engenharia homologada.</p>
       <div class="hero-badges">
         <span class="hero-badge-item">Potência Total: ${specs.potenciaTotalFormatada}</span>
         <span class="hero-badge-item">Módulos: ${specs.quantidadeModulosTotal ? `${specs.quantidadeModulosTotal} painéis` : '-'}</span>
@@ -1178,7 +1178,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
   <div class="section-title">3. Valor do Investimento & Economia Projetada</div>
   <div style="background: linear-gradient(135deg, #0A192F 0%, #163868 100%); color: #ffffff; border-radius: 8px; padding: 12px 18px; margin-bottom: 12px; border: 1.5px solid #EAB308; display: flex; justify-content: space-between; align-items: center; page-break-inside: avoid;">
     <div>
-      <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: #93C5FD; display: block;">Investimento Total Turnkey Homologado</span>
+      <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: #93C5FD; display: block;">Investimento Total Chave na Mão (tudo incluso: equipamentos, projeto, homologação e instalação)</span>
       <h3 style="font-size: 14px; font-weight: 800; color: #ffffff; margin-top: 2px;">Solução Completa: Equipamentos + Homologação de Engenharia com ART + Instalação NR10/NR35</h3>
     </div>
     <div style="text-align: right; min-width: 180px;">

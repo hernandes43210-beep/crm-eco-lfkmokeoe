@@ -404,7 +404,7 @@ export default function PropostaPublica() {
         <footer className="max-w-4xl w-full mx-auto text-center text-xs text-slate-400 pt-6 border-t border-white/15 space-y-1">
           <p className="font-bold text-slate-200">ECOSOLAR ENERGY — A energia do futuro, hoje!</p>
           <p className="text-[11px]">
-            Soluções em Engenharia Solar e Homologação Turnkey • Suporte: {consultorEmail}
+            Soluções em Engenharia Solar e Homologação Chave na Mão • Suporte: {consultorEmail}
           </p>
         </footer>
       </div>
@@ -649,7 +649,7 @@ export default function PropostaPublica() {
               ECOSOLAR ENERGY SOLUÇÕES EM ENERGIA SOLAR
             </strong>
             <span className="text-[11px] text-slate-400">
-              Projetos Turnkey • Homologação de Engenharia • Instalação Homologada conforme
+              Projetos Chave na Mão • Homologação de Engenharia • Instalação Homologada conforme
               NR10/NR35
             </span>
           </div>
@@ -730,8 +730,8 @@ export default function PropostaPublica() {
             </h1>
 
             <p className="text-sm sm:text-base text-slate-200 leading-relaxed max-w-3xl">
-              Sistema Solar Fotovoltaico On-Grid Turnkey projetado sob medida para suprir o consumo
-              médio de <strong>{consumoKwh} kWh/mês</strong> do cliente{' '}
+              Sistema Solar Fotovoltaico On-Grid Chave na Mão projetado sob medida para suprir o
+              consumo médio de <strong>{consumoKwh} kWh/mês</strong> do cliente{' '}
               <strong>{proposta.lead?.nome}</strong>, dimensionado com módulos de alta eficiência,
               inversor com certificação INMETRO e proteção completa de engenharia.
             </p>
@@ -945,19 +945,22 @@ export default function PropostaPublica() {
         />
 
         {/* ========================================================================= */}
-        {/* 5. VALOR DO INVESTIMENTO TURNKEY & CONDIÇÕES COMERCIAIS (APÓS O KIT)     */}
+        {/* 5. VALOR DO INVESTIMENTO CHAVE NA MÃO & CONDIÇÕES COMERCIAIS (APÓS O KIT) */}
         {/* ========================================================================= */}
         <div className="rounded-2xl bg-gradient-to-br from-[#0A192F] via-[#102B54] to-[#163868] text-white p-6 sm:p-8 shadow-xl border-2 border-amber-400 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl">
             <span className="inline-flex items-center gap-1.5 bg-amber-400 text-slate-950 font-black text-xs uppercase px-2.5 py-0.5 rounded-md">
               <Award className="w-3.5 h-3.5" />
-              Proposta Comercial Turnkey
+              Proposta Comercial Chave na Mão
             </span>
             <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-              Investimento Total Turnkey Homologado
+              Investimento Total Chave na Mão
             </h2>
+            <p className="text-xs font-semibold text-amber-300">
+              (tudo incluso: equipamentos, projeto, homologação e instalação)
+            </p>
             <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">
-              Solução completa chave-na-mão: Equipamentos fotovoltaicos homologados, elaboração de
+              Solução completa chave na mão: Equipamentos fotovoltaicos homologados, elaboração de
               projeto executivo com emissão de ART assinada por engenheiro responsável, tramitação
               junto à concessionária de energia e instalação especializada NR10/NR35.
             </p>
