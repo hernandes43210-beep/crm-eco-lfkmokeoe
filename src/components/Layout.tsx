@@ -18,7 +18,8 @@ import {
   KeyRound,
   Inbox,
 } from 'lucide-react'
-import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
+import officialLogoPng from '@/assets/a-613c6.png'
+import EcosolarLogo from '@/components/EcosolarLogo'
 import { useAuth } from '@/context/AuthContext'
 import { LeadsService } from '@/services/leads'
 import useRealtime from '@/hooks/use-realtime'
@@ -198,19 +199,25 @@ export default function Layout() {
       <aside className="hidden md:flex w-[260px] flex-col fixed inset-y-0 left-0 bg-[#0F172A] border-r border-slate-800 z-30 select-none">
         {/* Brand / Logo */}
         <div className="h-18 flex items-center gap-3 px-4 py-3 border-b border-slate-800/90">
-          <div className="bg-white rounded-xl p-1.5 shadow-md shadow-black/30 flex items-center justify-center shrink-0 border border-white/20">
-            <img src={logoEcosolar} alt="Ecosolar Energy Logo" className="w-8 h-8 object-contain" />
+          <div className="bg-white rounded-xl p-1 shadow-md shadow-black/30 flex items-center justify-center shrink-0 border border-white/20">
+            <img
+              src={officialLogoPng}
+              alt="Ecosolar Energy Logo"
+              className="w-9 h-9 object-contain"
+            />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-1 leading-tight">
-              <span className="font-extrabold text-sm text-white tracking-tight">ECO</span>
-              <span className="font-extrabold text-sm text-amber-400 tracking-tight">SOLAR</span>
-              <span className="font-extrabold text-sm text-white tracking-tight ml-0.5">
+            <div className="flex items-baseline gap-1 leading-none">
+              <span className="font-black text-[15px] text-white tracking-tight">ECO</span>
+              <span className="font-black text-[15px] text-[#F5C518] tracking-tight border-b-2 border-[#F5C518] pb-0.5">
+                SOLAR
+              </span>
+              <span className="font-black text-[15px] text-white tracking-tight ml-0.5">
                 ENERGY
               </span>
             </div>
-            <p className="text-[10px] text-emerald-400 tracking-normal font-medium truncate mt-0.5">
-              A energia do futuro, hoje!
+            <p className="text-[10px] text-slate-300 tracking-wider font-semibold truncate mt-1 uppercase">
+              A ENERGIA DO FUTURO, HOJE!
             </p>
           </div>
         </div>
@@ -267,19 +274,23 @@ export default function Layout() {
         >
           <SheetHeader className="p-4 border-b border-slate-800 flex flex-row items-center justify-between space-y-0">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="bg-white rounded-lg p-1.5 shadow-sm flex items-center justify-center shrink-0 border border-white/20">
+              <div className="bg-white rounded-lg p-1 shadow-sm flex items-center justify-center shrink-0 border border-white/20">
                 <img
-                  src={logoEcosolar}
+                  src={officialLogoPng}
                   alt="Ecosolar Energy Logo"
-                  className="w-7 h-7 object-contain"
+                  className="w-8 h-8 object-contain"
                 />
               </div>
               <div className="min-w-0">
                 <SheetTitle className="text-white font-bold text-base leading-tight">
-                  Ecosolar Energy
+                  <span className="font-black text-white">ECO</span>
+                  <span className="font-black text-[#F5C518] border-b border-[#F5C518]">
+                    SOLAR
+                  </span>{' '}
+                  <span className="font-black text-white">ENERGY</span>
                 </SheetTitle>
-                <p className="text-[10px] text-emerald-400 font-medium truncate">
-                  A energia do futuro, hoje!
+                <p className="text-[10px] text-slate-300 font-semibold truncate uppercase mt-0.5">
+                  A ENERGIA DO FUTURO, HOJE!
                 </p>
               </div>
             </div>

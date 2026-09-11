@@ -1,6 +1,6 @@
 import { formatBRL, formatDateBR } from './solarUtils'
 import { parseKitDetailedItems } from './kitItemsParser'
-import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
+import officialLogoPng from '@/assets/a-613c6.png'
 
 export interface DadosContratoFormalizacao {
   // Contratante (Lead)
@@ -308,8 +308,8 @@ export function generateContratoHTML(dados: DadosContratoFormalizacao): string {
       margin-bottom: 24px;
     }
     .logo-img {
-      height: 48px;
-      max-width: 170px;
+      height: 58px;
+      max-width: 220px;
       object-fit: contain;
     }
     .header-info {
@@ -432,7 +432,7 @@ export function generateContratoHTML(dados: DadosContratoFormalizacao): string {
 <body>
   <!-- Cabeçalho Institucional -->
   <div class="header-doc">
-    <img src="${logoEcosolar}" alt="Ecosolar Energy" class="logo-img" />
+    <img src="${officialLogoPng}" alt="Ecosolar Energy" class="logo-img" />
     <div class="header-info">
       <strong>${DADOS_FIXOS_ECOSOLAR.razaoSocial}</strong> (nome fantasia <strong>${DADOS_FIXOS_ECOSOLAR.nomeFantasia}</strong>)<br>
       CNPJ: ${DADOS_FIXOS_ECOSOLAR.cnpj}<br>
@@ -847,7 +847,7 @@ export function generateProcuracaoEnergisaHTML(dados: DadosProcuracaoEnergisa): 
 <body>
   <!-- Cabeçalho Institucional -->
   <div class="header-doc">
-    <img src="${logoEcosolar}" alt="Ecosolar Energy" class="logo-img" />
+    <img src="${officialLogoPng}" alt="Ecosolar Energy" class="logo-img" />
     <div class="header-sub">
       <strong>ECOSOLAR ENERGY — ENGENHARIA SOLAR</strong><br>
       Homologação Concessionária Energisa Rondônia

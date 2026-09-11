@@ -8,7 +8,7 @@ import {
 } from './solarUtils'
 import { calculateInvestmentComparison } from '../utils/investmentComparison'
 import { parseKitDetailedItems } from './kitItemsParser'
-import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
+import officialLogoPng from '@/assets/a-613c6.png'
 import { INSTITUTIONAL_INSTALLATION_PHOTOS } from '@/data/socialProofPhotos'
 
 export interface ProposalPDFData {
@@ -219,11 +219,11 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
       gap: 16px;
     }
     .cover-logo-img {
-      height: 64px;
+      height: 68px;
       width: auto;
       object-fit: contain;
       background: #ffffff;
-      border-radius: 8px;
+      border-radius: 10px;
       padding: 6px 10px;
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
     }
@@ -415,11 +415,11 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
       gap: 12px;
     }
     .brand-logo-img {
-      height: 48px;
+      height: 52px;
       width: auto;
       object-fit: contain;
       background: #ffffff;
-      border-radius: 6px;
+      border-radius: 8px;
       padding: 4px;
     }
     .brand-title {
@@ -982,7 +982,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     <!-- Header da Capa -->
     <div class="cover-header">
       <div class="cover-brand-wrap">
-        <img src="${logoEcosolar}" alt="Ecosolar Energy" class="cover-logo-img" />
+        <img src="${officialLogoPng}" alt="Ecosolar Energy" class="cover-logo-img" />
         <div>
           <div class="cover-brand-title">ECO<span>SOLAR</span> ENERGY</div>
           <div class="cover-brand-sub">A energia do futuro, hoje! • Engenharia Fotovoltaica</div>
@@ -1049,7 +1049,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
   <!-- 1. Header Institucional Azul-Marinho -->
   <div class="header">
     <div class="brand-box">
-      <img src="${logoEcosolar}" alt="Ecosolar Energy" class="brand-logo-img" />
+      <img src="${officialLogoPng}" alt="Ecosolar Energy" class="brand-logo-img" />
       <div>
         <div class="brand-title">ECO<span>SOLAR</span> ENERGY</div>
         <div class="brand-sub">A energia do futuro, hoje! • Soluções em Engenharia Solar</div>

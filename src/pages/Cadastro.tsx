@@ -10,7 +10,7 @@ import {
   ArrowRight,
   Loader2,
 } from 'lucide-react'
-import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
+import officialLogoPng from '@/assets/a-613c6.png'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -92,20 +92,15 @@ export default function Cadastro() {
       <div className="absolute bottom-1/4 -left-32 w-96 h-96 bg-[#F59E0B]/15 rounded-full blur-3xl pointer-events-none"></div>
 
       {/* Brand Header */}
-      <div className="text-center mb-6 relative z-10 flex flex-col items-center">
-        <div className="bg-white/95 rounded-2xl p-2.5 shadow-xl shadow-black/40 mb-2 border border-white/40 flex items-center justify-center">
+      <div className="text-center mb-6 relative z-10 flex flex-col items-center max-w-sm">
+        <div className="bg-white rounded-3xl p-4 shadow-2xl shadow-black/50 mb-2 border border-white/40 flex items-center justify-center w-full max-w-[300px]">
           <img
-            src={logoEcosolar}
-            alt="Ecosolar Energy"
-            className="w-40 h-auto max-h-20 object-contain"
+            src={officialLogoPng}
+            alt="ECOSOLAR ENERGY — A ENERGIA DO FUTURO, HOJE!"
+            className="w-full h-auto max-h-36 object-contain"
           />
         </div>
-        <div className="flex items-center gap-1.5 justify-center mt-1">
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">Ecosolar</h1>
-          <h1 className="text-2xl font-extrabold text-amber-400 tracking-tight">Energy</h1>
-        </div>
-        <p className="text-xs text-emerald-300 mt-0.5 font-semibold">A energia do futuro, hoje!</p>
-        <p className="text-xs text-slate-400 mt-0.5 font-medium">
+        <p className="text-xs text-slate-400 mt-1 font-medium">
           Ativação de novo membro da equipe comercial
         </p>
       </div>

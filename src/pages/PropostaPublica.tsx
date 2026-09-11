@@ -23,7 +23,7 @@ import {
   Layers,
   Percent,
 } from 'lucide-react'
-import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
+import officialLogoPng from '@/assets/a-613c6.png'
 import { ProposalsService } from '@/services/proposals'
 import type { PublicProposta } from '@/types/crm'
 import {
@@ -195,8 +195,12 @@ export default function PropostaPublica() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0A192F] flex flex-col items-center justify-center p-4 text-white">
-        <div className="w-20 h-20 rounded-2xl bg-white p-3 shadow-2xl mb-4 border border-amber-400/40 animate-pulse flex items-center justify-center">
-          <img src={logoEcosolar} alt="Ecosolar Energy" className="w-full h-full object-contain" />
+        <div className="w-20 h-20 rounded-2xl bg-white p-2 shadow-2xl mb-4 border border-amber-400/40 animate-pulse flex items-center justify-center">
+          <img
+            src={officialLogoPng}
+            alt="Ecosolar Energy"
+            className="w-full h-full object-contain"
+          />
         </div>
         <Loader2 className="w-7 h-7 animate-spin text-amber-400 mb-2" />
         <p className="text-base font-bold text-slate-100">
@@ -292,19 +296,19 @@ export default function PropostaPublica() {
         {/* Header institucional */}
         <header className="max-w-4xl w-full mx-auto flex items-center justify-between pb-6 border-b border-white/15">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white rounded-xl p-2 shadow-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-white rounded-xl p-1.5 shadow-lg flex items-center justify-center">
               <img
-                src={logoEcosolar}
+                src={officialLogoPng}
                 alt="Ecosolar Energy"
                 className="w-full h-full object-contain"
               />
             </div>
             <div>
-              <span className="font-extrabold text-base tracking-tight text-white block">
-                ECO<span className="text-amber-400">SOLAR</span> ENERGY
+              <span className="font-black text-base tracking-tight text-white block">
+                ECO<span className="text-[#F5C518] border-b border-[#F5C518]">SOLAR</span> ENERGY
               </span>
-              <span className="text-[11px] text-sky-200 font-semibold uppercase">
-                Soluções em Engenharia Solar
+              <span className="text-[11px] text-slate-300 font-semibold uppercase">
+                A ENERGIA DO FUTURO, HOJE!
               </span>
             </div>
           </div>
@@ -439,13 +443,13 @@ export default function PropostaPublica() {
       <header className="sticky top-0 z-30 bg-[#0A192F] text-white border-b-2 border-amber-400 px-4 sm:px-8 py-3.5 shadow-md">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="bg-white rounded-xl p-1.5 shadow-sm border border-slate-200/90 flex items-center justify-center">
-              <img src={logoEcosolar} alt="Ecosolar Energy" className="w-8 h-8 object-contain" />
+            <div className="bg-white rounded-xl p-1 shadow-sm border border-slate-200/90 flex items-center justify-center">
+              <img src={officialLogoPng} alt="Ecosolar Energy" className="w-8 h-8 object-contain" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-base text-white tracking-tight">
-                  ECO<span className="text-amber-400">SOLAR</span> ENERGY
+                <span className="font-black text-base text-white tracking-tight">
+                  ECO<span className="text-[#F5C518] border-b border-[#F5C518]">SOLAR</span> ENERGY
                 </span>
                 <span className="hidden sm:inline-block text-[10px] bg-amber-400/20 text-amber-300 font-bold px-2 py-0.5 rounded">
                   Engenharia Solar
@@ -540,9 +544,9 @@ export default function PropostaPublica() {
         {/* Header da Capa */}
         <div className="relative z-10 max-w-6xl w-full mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-white/15">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-2xl p-2.5 shadow-2xl border border-slate-200/90 flex items-center justify-center shrink-0">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-2xl p-2 shadow-2xl border border-slate-200/90 flex items-center justify-center shrink-0">
               <img
-                src={logoEcosolar}
+                src={officialLogoPng}
                 alt="Ecosolar Energy"
                 className="w-full h-full object-contain"
               />
@@ -550,11 +554,12 @@ export default function PropostaPublica() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-black text-2xl sm:text-3xl text-white tracking-tight">
-                  ECO<span className="text-amber-400">SOLAR</span> ENERGY
+                  ECO<span className="text-[#F5C518] border-b-2 border-[#F5C518]">SOLAR</span>{' '}
+                  ENERGY
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-sky-200 font-semibold tracking-wide uppercase mt-0.5">
-                A energia do futuro, hoje! • Soluções em Engenharia Solar
+              <p className="text-xs sm:text-sm text-slate-200 font-semibold tracking-wider uppercase mt-1">
+                A ENERGIA DO FUTURO, HOJE!
               </p>
             </div>
           </div>

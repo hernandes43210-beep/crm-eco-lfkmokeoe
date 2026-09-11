@@ -1,4 +1,4 @@
-import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
+import officialLogoPng from '@/assets/a-613c6.png'
 
 export interface MontageData {
   photos: string[] // URLs das fotos (1 a 4)
@@ -418,7 +418,7 @@ export async function generateInstallationMontageCanvas(
   const headerHeight = 250
   let logoImg: HTMLImageElement | null = null
   try {
-    logoImg = await loadImage(logoEcosolar)
+    logoImg = await loadImage(officialLogoPng)
   } catch (err) {
     console.warn('Não foi possível carregar a logo para a montagem:', err)
   }

@@ -1172,7 +1172,7 @@ services:
             <DialogDescription className="text-xs text-slate-500">
               Associe o número{' '}
               <strong className="text-slate-800 font-mono">+{selectedPhone}</strong> a um lead
-              existente no CRM Solar.
+              existente no CRM Ecosolar Energy.
             </DialogDescription>
           </DialogHeader>
 

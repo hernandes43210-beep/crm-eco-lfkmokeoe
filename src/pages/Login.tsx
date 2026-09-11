@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate, useLocation, Link, Navigate } from 'react-router-dom'
 import { Lock, Mail, Eye, EyeOff, AlertCircle, ArrowRight, Loader2 } from 'lucide-react'
-import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
+import officialLogoPng from '@/assets/a-613c6.png'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 import { toPortugueseErrorMessage } from '@/lib/errors'
@@ -24,7 +24,7 @@ export default function Login() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+        <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
       </div>
     )
   }
@@ -60,26 +60,21 @@ export default function Login() {
     <div className="min-h-screen bg-radial from-[#1e293b] via-[#0f172a] to-[#020617] flex flex-col justify-center items-center px-4 py-12 relative overflow-hidden select-none">
       {/* Decorative ambient background glows */}
       <div className="absolute top-1/4 -left-32 w-96 h-96 bg-[#0B7A5B]/20 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-[#F59E0B]/15 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-[#F5C518]/15 rounded-full blur-3xl pointer-events-none"></div>
 
-      {/* Brand Header */}
-      <div className="text-center mb-8 relative z-10 flex flex-col items-center">
-        <div className="bg-white/95 rounded-2xl p-3 shadow-2xl shadow-black/40 mb-3 border border-white/40 flex items-center justify-center">
+      {/* Brand Header — Front Door Oficial ECOSOLAR ENERGY */}
+      <div className="text-center mb-8 relative z-10 flex flex-col items-center max-w-sm">
+        {/* Card branco com a logo oficial completa em alta definição */}
+        <div className="bg-white rounded-3xl p-5 shadow-2xl shadow-black/50 mb-3 border border-white/50 flex flex-col items-center justify-center w-full max-w-[340px]">
           <img
-            src={logoEcosolar}
-            alt="Ecosolar Energy"
-            className="w-48 h-auto max-h-24 object-contain"
+            src={officialLogoPng}
+            alt="ECOSOLAR ENERGY — A ENERGIA DO FUTURO, HOJE!"
+            className="w-full h-auto max-h-48 object-contain"
           />
         </div>
-        <div className="flex items-center gap-1.5 justify-center mt-1">
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">Ecosolar</h1>
-          <h1 className="text-2xl font-extrabold text-amber-400 tracking-tight">Energy</h1>
-        </div>
-        <p className="text-sm text-emerald-300 mt-1 font-semibold tracking-wide">
-          A energia do futuro, hoje!
-        </p>
-        <p className="text-xs text-slate-400 mt-0.5">
-          Gestão Comercial e Engenharia Solar Fotovoltaica
+
+        <p className="text-xs text-slate-400 mt-1 font-medium tracking-wide">
+          CRM Comercial e Engenharia Solar Fotovoltaica
         </p>
       </div>
 
