@@ -25,6 +25,8 @@ import {
   AlertCircle,
   Shield,
   FileCheck2,
+  Save,
+  Activity,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -54,6 +56,19 @@ export default function IntegracoesPage() {
   // Estado da Clicksign
   const [clicksignStatus, setClicksignStatus] = useState<ClicksignStatusResponse | null>(null)
   const [loadingClicksign, setLoadingClicksign] = useState(false)
+  const [savingClicksignToken, setSavingClicksignToken] = useState(false)
+  const [testingClicksign, setTestingClicksign] = useState(false)
+  const [clicksignInputToken, setClicksignInputToken] = useState('')
+  const [showClicksignInputToken, setShowClicksignInputToken] = useState(false)
+  const [clicksignAmbienteSelect, setClicksignAmbienteSelect] = useState<'producao' | 'sandbox'>(
+    'producao',
+  )
+  const [testResult, setTestResult] = useState<{
+    success: boolean
+    message: string
+    http_status?: number
+    duration_ms?: number
+  } | null>(null)
 
   // Estado do Luvik
   const [luvikSettings, setLuvikSettings] = useState<LuvikSettings | null>(null)
@@ -122,12 +137,98 @@ export default function IntegracoesPage() {
       setLoadingClicksign(true)
       const data = await ClicksignService.getStatus()
       setClicksignStatus(data)
+      if (data.ambiente) {
+        setClicksignAmbienteSelect(data.ambiente)
+      }
     } catch (err: unknown) {
       console.error('Erro ao carregar status da Clicksign:', err)
     } finally {
       setLoadingClicksign(false)
     }
   }, [])
+
+  const handleSaveClicksignToken = async () => {
+    if (!clicksignInputToken.trim()) {
+      toast({
+        title: 'Token não informado',
+        description: 'Cole o token de acesso da Clicksign para salvar.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      setSavingClicksignToken(true)
+      setTestResult(null)
+      const res = await ClicksignService.saveSettings({
+        api_token: clicksignInputToken.trim(),
+        ambiente: clicksignAmbienteSelect,
+      })
+
+      toast({
+        title: 'Token Clicksign salvo com sucesso!',
+        description: 'O token foi persistido no backend de forma segura e protegida.',
+      })
+
+      // Limpar o campo de entrada para segurança
+      setClicksignInputToken('')
+      setShowClicksignInputToken(false)
+
+      // Atualizar status na interface
+      await loadClicksignData()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha ao salvar token da Clicksign.'
+      toast({
+        title: 'Erro ao salvar token',
+        description: msg,
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingClicksignToken(false)
+    }
+  }
+
+  const handleTestClicksignConnection = async () => {
+    try {
+      setTestingClicksign(true)
+      setTestResult(null)
+      const res = await ClicksignService.testConnection()
+      setTestResult({
+        success: res.success,
+        message: res.message,
+        http_status: res.http_status,
+        duration_ms: res.duration_ms,
+      })
+
+      if (res.success) {
+        toast({
+          title: 'Conexão validada!',
+          description: res.message,
+        })
+      } else {
+        toast({
+          title: 'Falha no teste de conexão',
+          description: res.message,
+          variant: 'destructive',
+        })
+      }
+
+      await loadClicksignData()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao testar conexão com a Clicksign.'
+      setTestResult({
+        success: false,
+        message: msg,
+      })
+      toast({
+        title: 'Erro ao testar conexão',
+        description: msg,
+        variant: 'destructive',
+      })
+    } finally {
+      setTestingClicksign(false)
+    }
+  }
 
   const loadAllData = useCallback(() => {
     loadSiteData()
@@ -454,20 +555,166 @@ export default function IntegracoesPage() {
 
                     <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1 sm:col-span-2">
                       <span className="text-[10px] text-slate-400 font-semibold uppercase block">
-                        Token da API Clicksign (Segredo de Backend)
+                        Token da API Clicksign (Armazenamento Seguro)
                       </span>
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-slate-700 text-xs">
+                        <span className="font-mono text-slate-800 text-xs font-semibold">
                           {clicksignStatus?.masked_token || 'Nenhum token configurado'}
                         </span>
-                        <Badge variant="outline" className="text-[10px] bg-white text-slate-500">
-                          Protegido no Servidor
-                        </Badge>
+                        <div className="flex items-center gap-1.5">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-white text-emerald-700 border-emerald-300"
+                          >
+                            {clicksignStatus?.source === 'database'
+                              ? 'Salvo no CRM'
+                              : clicksignStatus?.source === 'env'
+                                ? 'Variável de Ambiente'
+                                : 'Não Configurado'}
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px] bg-white text-slate-500">
+                            Protegido no Servidor
+                          </Badge>
+                        </div>
                       </div>
                       <p className="text-[10px] text-slate-400 pt-0.5">
-                        O token da API é mantido de forma segura nas variáveis de ambiente do Skip
-                        Cloud e nunca é exposto no navegador.
+                        O token da API é mantido de forma segura no backend (PocketBase) e nunca é
+                        exposto em texto puro para o navegador.
                       </p>
+                    </div>
+                  </div>
+
+                  {/* Gestão Manual do Token (Admin) */}
+                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-3.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <KeyRound className="w-4 h-4 text-emerald-600" />
+                        <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                          Configurar / Atualizar Token Manualmente
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        Apenas Administradores
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Cole abaixo o token de API gerado na sua conta da Clicksign (em{' '}
+                      <em>Configurações &gt; API &gt; Tokens</em>). Ao salvar, ele será armazenado
+                      de forma protegida e o status será atualizado imediatamente.
+                    </p>
+
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <div className="sm:col-span-2">
+                          <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                            Novo Token da API Clicksign
+                          </label>
+                          <div className="relative">
+                            <input
+                              type={showClicksignInputToken ? 'text' : 'password'}
+                              value={clicksignInputToken}
+                              onChange={(e) => setClicksignInputToken(e.target.value)}
+                              placeholder="Cole o token aqui (ex: 8a4b...)"
+                              className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-xs font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#0B7A5B] pr-9"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowClicksignInputToken(!showClicksignInputToken)}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                              title={
+                                showClicksignInputToken ? 'Ocultar token' : 'Exibir token digitado'
+                              }
+                            >
+                              {showClicksignInputToken ? (
+                                <EyeOff className="w-4 h-4" />
+                              ) : (
+                                <Eye className="w-4 h-4" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                            Ambiente Alvo
+                          </label>
+                          <select
+                            value={clicksignAmbienteSelect}
+                            onChange={(e) =>
+                              setClicksignAmbienteSelect(e.target.value as 'producao' | 'sandbox')
+                            }
+                            className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#0B7A5B]"
+                          >
+                            <option value="producao">Produção (app.clicksign.com)</option>
+                            <option value="sandbox">Sandbox (sandbox.clicksign.com)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={savingClicksignToken || !clicksignInputToken.trim()}
+                          onClick={handleSaveClicksignToken}
+                          className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold h-8.5 px-3.5 gap-1.5 shadow-xs"
+                        >
+                          <Save className="w-3.5 h-3.5" />
+                          <span>{savingClicksignToken ? 'Salvando...' : 'Salvar Token'}</span>
+                        </Button>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={testingClicksign || !clicksignStatus?.configured}
+                          onClick={handleTestClicksignConnection}
+                          className="h-8.5 px-3.5 text-xs font-semibold border-slate-300 text-slate-700 hover:text-emerald-700 hover:bg-emerald-50 gap-1.5"
+                          title="Faz uma requisição leve à API da Clicksign para validar se o token atual é aceito"
+                        >
+                          <Activity
+                            className={`w-3.5 h-3.5 ${testingClicksign ? 'animate-spin' : ''}`}
+                          />
+                          <span>{testingClicksign ? 'Testando...' : 'Testar Conexão'}</span>
+                        </Button>
+                      </div>
+
+                      {/* Feedback do Teste de Conexão */}
+                      {testResult && (
+                        <div
+                          className={`p-3 rounded-lg border text-xs flex items-start gap-2.5 ${
+                            testResult.success
+                              ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                              : 'bg-rose-50 border-rose-200 text-rose-900'
+                          }`}
+                        >
+                          {testResult.success ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                          )}
+                          <div className="space-y-0.5">
+                            <p className="font-semibold">{testResult.message}</p>
+                            {testResult.duration_ms && (
+                              <p className="text-[11px] opacity-80">
+                                Latência da API: {testResult.duration_ms} ms
+                                {testResult.http_status ? ` • HTTP ${testResult.http_status}` : ''}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Aviso de Segurança Discreto */}
+                      <div className="flex items-start gap-2 pt-1 text-[11px] text-slate-500">
+                        <ShieldAlert className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                        <p>
+                          <strong>Boas práticas de segurança:</strong> Recomendamos regenerar e
+                          atualizar o token da API periodicamente no painel da Clicksign para manter
+                          a segurança jurídica dos seus documentos.
+                        </p>
+                      </div>
                     </div>
                   </div>
 

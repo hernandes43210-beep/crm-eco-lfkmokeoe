@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11T16:31:24.962Z",
+  "generatedAt": "2026-09-11T18:36:43.497Z",
   "collections": [
     {
       "name": "users",
@@ -1291,6 +1291,71 @@
         "CREATE INDEX idx_assinaturas_envelope_id ON assinaturas_envelopes (clicksign_envelope_id)",
         "CREATE INDEX idx_assinaturas_created ON assinaturas_envelopes (created DESC)"
       ]
+    },
+    {
+      "name": "clicksign_settings",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.role = 'Admin'",
+        "view": "@request.auth.id != '' && @request.auth.role = 'Admin'",
+        "create": "@request.auth.id != '' && @request.auth.role = 'Admin'",
+        "update": "@request.auth.id != '' && @request.auth.role = 'Admin'",
+        "delete": "@request.auth.id != '' && @request.auth.role = 'Admin'"
+      },
+      "fields": [
+        {
+          "name": "api_token",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "api_url",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ambiente",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["producao", "sandbox"]
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ultimo_teste_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ultimo_teste_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
     }
   ]
 }

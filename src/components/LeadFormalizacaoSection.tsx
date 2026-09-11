@@ -330,7 +330,7 @@ export function LeadFormalizacaoSection({
                 </p>
               </div>
 
-              {latestContrato && (
+              {latestContrato ? (
                 <div className="p-2.5 rounded-lg bg-emerald-50/60 border border-emerald-100 text-xs text-emerald-900">
                   <span className="font-semibold block">Última versão salva:</span>
                   <span className="text-[11px] text-emerald-700">
@@ -339,6 +339,18 @@ export function LeadFormalizacaoSection({
                       ? ` por ${latestContrato.expand.criado_por.name}`
                       : ''}
                   </span>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <p className="font-semibold text-amber-950">Contrato ainda não finalizado</p>
+                    <p className="text-[11px] text-amber-800 leading-relaxed">
+                      Clique em <strong>"Gerar Contrato"</strong> e depois no botão{' '}
+                      <strong>"Finalizar e Salvar"</strong> no editor para liberar a opção de{' '}
+                      <em>Assinar digitalmente</em>.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -365,7 +377,7 @@ export function LeadFormalizacaoSection({
                 <span>{latestContrato ? 'Editar / Nova Versão' : 'Gerar Contrato'}</span>
               </Button>
 
-              {latestContrato && (
+              {latestContrato ? (
                 <>
                   <Button
                     size="sm"
@@ -388,6 +400,17 @@ export function LeadFormalizacaoSection({
                     <span>Imprimir / PDF</span>
                   </Button>
                 </>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled
+                  className="h-8 text-xs font-medium border-dashed border-slate-300 text-slate-400 cursor-not-allowed gap-1"
+                  title="Finalize o contrato antes de enviar para assinatura digital"
+                >
+                  <PenTool className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Assinatura pendente (finalize antes)</span>
+                </Button>
               )}
             </div>
           </div>
@@ -442,7 +465,7 @@ export function LeadFormalizacaoSection({
                 </p>
               </div>
 
-              {latestProcuracao && (
+              {latestProcuracao ? (
                 <div className="p-2.5 rounded-lg bg-emerald-50/60 border border-emerald-100 text-xs text-emerald-900">
                   <span className="font-semibold block">Última versão salva:</span>
                   <span className="text-[11px] text-emerald-700">
@@ -451,6 +474,18 @@ export function LeadFormalizacaoSection({
                       ? ` por ${latestProcuracao.expand.criado_por.name}`
                       : ''}
                   </span>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <p className="font-semibold text-amber-950">Procuração ainda não finalizada</p>
+                    <p className="text-[11px] text-amber-800 leading-relaxed">
+                      Clique em <strong>"Gerar Procuração"</strong> e depois no botão{' '}
+                      <strong>"Finalizar e Salvar"</strong> no editor para liberar a opção de{' '}
+                      <em>Assinar digitalmente</em>.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -477,7 +512,7 @@ export function LeadFormalizacaoSection({
                 <span>{latestProcuracao ? 'Editar / Nova Versão' : 'Gerar Procuração'}</span>
               </Button>
 
-              {latestProcuracao && (
+              {latestProcuracao ? (
                 <>
                   <Button
                     size="sm"
@@ -500,6 +535,17 @@ export function LeadFormalizacaoSection({
                     <span>Imprimir / PDF</span>
                   </Button>
                 </>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled
+                  className="h-8 text-xs font-medium border-dashed border-slate-300 text-slate-400 cursor-not-allowed gap-1"
+                  title="Finalize a procuração antes de enviar para assinatura digital"
+                >
+                  <PenTool className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Assinatura pendente (finalize antes)</span>
+                </Button>
               )}
             </div>
           </div>
@@ -607,20 +653,20 @@ export function LeadFormalizacaoSection({
                     <Button
                       size="sm"
                       onClick={() => setClicksignModalTipo(doc.tipo)}
-                      className="h-7 px-2 text-xs font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 gap-1"
+                      className="h-8 px-3 text-xs font-bold bg-[#0B7A5B] hover:bg-[#095C44] text-white gap-1.5 shadow-xs"
                       title="Assinar este documento digitalmente na Clicksign"
                     >
-                      <PenTool className="w-3 h-3 text-emerald-600" />
-                      <span>Assinar Clicksign</span>
+                      <PenTool className="w-3.5 h-3.5 text-emerald-200" />
+                      <span>Assinar digitalmente</span>
                     </Button>
 
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleOpenDocPrint(doc)}
-                      className="h-7 px-2.5 text-xs font-semibold border-slate-200 text-slate-700 hover:text-blue-700 gap-1"
+                      className="h-8 px-2.5 text-xs font-semibold border-slate-200 text-slate-700 hover:text-blue-700 gap-1"
                     >
-                      <Printer className="w-3 h-3" />
+                      <Printer className="w-3.5 h-3.5" />
                       <span>Visualizar / PDF</span>
                     </Button>
 

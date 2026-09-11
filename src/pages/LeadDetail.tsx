@@ -28,6 +28,7 @@ import {
   ExternalLink,
   UserX,
   Eye,
+  FileCheck,
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { LeadsService } from '@/services/leads'
@@ -1405,8 +1406,8 @@ export default function LeadDetail() {
         </div>
       </div>
 
-      {/* Etapa de Formalização Contratual & Energisa (Apenas em Fechado Ganho) */}
-      {lead.status === 'Fechado Ganho' && (
+      {/* Etapa de Formalização Contratual & Energisa (Visível em Fechado Ganho com aviso explicativo quando em outras etapas) */}
+      {lead.status === 'Fechado Ganho' ? (
         <LeadFormalizacaoSection
           lead={lead}
           propostas={propostas}
@@ -1417,6 +1418,45 @@ export default function LeadDetail() {
             if (lead?.id) fetchPropostas(lead.id)
           }}
         />
+      ) : (
+        <Card className="border-amber-200 bg-amber-50/40 shadow-xs">
+          <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-300 text-amber-800 flex items-center justify-center shrink-0">
+                <FileCheck className="w-5 h-5 text-amber-700" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="text-sm font-bold text-amber-950">
+                    Formalização Contratual & Assinatura Digital (Clicksign)
+                  </h4>
+                  <Badge
+                    variant="outline"
+                    className="bg-white text-amber-800 border-amber-300 text-[10px]"
+                  >
+                    Etapa Atual: {lead.status}
+                  </Badge>
+                </div>
+                <p className="text-xs text-amber-900/90 leading-relaxed max-w-2xl">
+                  A geração automática de <strong>Contrato de Prestação de Serviços</strong> e{' '}
+                  <strong>Procuração Energisa</strong> com envio para assinatura digital via
+                  Clicksign é liberada quando o lead for movido para a etapa{' '}
+                  <strong className="text-amber-950">"Fechado Ganho"</strong>.
+                </p>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => changeStage('Fechado Ganho')}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs h-8.5 px-3 gap-1.5 shrink-0 shadow-xs"
+            >
+              <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Avançar para Fechado Ganho</span>
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       {/* Seção Fotos da Instalação & Montagem Promocional (Apenas em Fechado Ganho) */}

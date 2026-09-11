@@ -8,9 +8,25 @@ routerAdd(
   '/backend/v1/integrations/clicksign/check-status',
   (e) => {
     let token = ''
+    let baseUrl = ''
+
+    // 1. Prioridade: token persistido no banco
     try {
-      token = ($os.getenv('CLICKSIGN_API_TOKEN') || '').trim()
+      const list = $app.findRecordsByFilter('clicksign_settings', '', '-created', 1, 0)
+      if (list && list.length > 0) {
+        const savedToken = (list[0].getString('api_token') || '').trim()
+        if (savedToken) token = savedToken
+        const savedUrl = (list[0].getString('api_url') || '').trim()
+        if (savedUrl) baseUrl = savedUrl
+      }
     } catch (_) {}
+
+    // 2. Fallback: variável de ambiente
+    if (!token) {
+      try {
+        token = ($os.getenv('CLICKSIGN_API_TOKEN') || '').trim()
+      } catch (_) {}
+    }
 
     if (!token) {
       return e.json(400, {
@@ -18,10 +34,11 @@ routerAdd(
       })
     }
 
-    let baseUrl = ''
-    try {
-      baseUrl = ($os.getenv('CLICKSIGN_API_URL') || 'https://app.clicksign.com').trim()
-    } catch (_) {}
+    if (!baseUrl) {
+      try {
+        baseUrl = ($os.getenv('CLICKSIGN_API_URL') || 'https://app.clicksign.com').trim()
+      } catch (_) {}
+    }
     if (!baseUrl) baseUrl = 'https://app.clicksign.com'
     if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1)
 

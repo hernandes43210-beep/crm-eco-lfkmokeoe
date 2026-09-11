@@ -1,11 +1,40 @@
-import { pb } from '@/lib/pocketbase/client'
+import pb from '@/lib/pocketbase/client'
 import { AssinaturaEnvelope, FormalizacaoTipo } from '@/types/crm'
 
 export interface ClicksignStatusResponse {
   configured: boolean
+  source?: 'database' | 'env' | 'none'
   host: string
   ambiente: 'producao' | 'sandbox'
   masked_token: string | null
+  settings_id?: string
+  ultimo_teste_status?: string
+  ultimo_teste_em?: string
+}
+
+export interface SaveClicksignSettingsPayload {
+  api_token?: string
+  api_url?: string
+  ambiente?: 'producao' | 'sandbox'
+}
+
+export interface SaveClicksignSettingsResponse {
+  success: boolean
+  message: string
+  configured: boolean
+  source: string
+  ambiente: 'producao' | 'sandbox'
+  host: string
+  masked_token: string | null
+}
+
+export interface TestClicksignResponse {
+  success: boolean
+  status: string
+  message: string
+  http_status?: number
+  host?: string
+  duration_ms?: number
 }
 
 export interface CreateEnvelopePayload {
@@ -48,6 +77,29 @@ export const ClicksignService = {
       method: 'GET',
     })
     return res as ClicksignStatusResponse
+  },
+
+  /**
+   * Atualiza ou salva o token e configurações da Clicksign no backend (Admin)
+   */
+  async saveSettings(
+    payload: SaveClicksignSettingsPayload,
+  ): Promise<SaveClicksignSettingsResponse> {
+    const res = await pb.send('/backend/v1/integrations/clicksign/settings', {
+      method: 'POST',
+      body: payload,
+    })
+    return res as SaveClicksignSettingsResponse
+  },
+
+  /**
+   * Testa a conexão real e o token com a API Clicksign v3 (Admin)
+   */
+  async testConnection(): Promise<TestClicksignResponse> {
+    const res = await pb.send('/backend/v1/integrations/clicksign/test', {
+      method: 'POST',
+    })
+    return res as TestClicksignResponse
   },
 
   /**
