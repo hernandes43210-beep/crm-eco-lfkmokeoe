@@ -45,6 +45,7 @@ import { useAuth } from '@/context/AuthContext'
 import { LuvikService, type WebhookUrls } from '@/services/luvik'
 import { SiteFormService } from '@/services/siteForm'
 import { ClicksignService, type ClicksignStatusResponse } from '@/services/clicksign'
+import { toPortugueseErrorMessage } from '@/lib/errors'
 import type { LuvikSettings, LuvikLogItem, SiteFormSettings, SiteFormLogItem } from '@/types/crm'
 
 export default function IntegracoesPage() {
@@ -101,7 +102,7 @@ export default function IntegracoesPage() {
       const logsList = await LuvikService.getLogs()
       setLuvikLogs(logsList)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao carregar configurações do Luvik'
+      const msg = toPortugueseErrorMessage(err, 'Erro ao carregar configurações do Luvik.')
       toast({
         title: 'Erro de conexão Luvik',
         description: msg,
@@ -120,8 +121,10 @@ export default function IntegracoesPage() {
       const logsList = await SiteFormService.getLogs()
       setSiteLogs(logsList)
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : 'Erro ao carregar configurações do formulário do site'
+      const msg = toPortugueseErrorMessage(
+        err,
+        'Erro ao carregar configurações do formulário do site.',
+      )
       toast({
         title: 'Erro de conexão Formulário do Site',
         description: msg,
@@ -177,7 +180,7 @@ export default function IntegracoesPage() {
       // Atualizar status na interface
       await loadClicksignData()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Falha ao salvar token da Clicksign.'
+      const msg = toPortugueseErrorMessage(err, 'Falha ao salvar token da Clicksign.')
       toast({
         title: 'Erro ao salvar token',
         description: msg,
@@ -215,7 +218,7 @@ export default function IntegracoesPage() {
 
       await loadClicksignData()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao testar conexão com a Clicksign.'
+      const msg = toPortugueseErrorMessage(err, 'Erro ao testar conexão com a Clicksign.')
       setTestResult({
         success: false,
         message: msg,
@@ -269,7 +272,7 @@ export default function IntegracoesPage() {
       }
       await loadLuvikData()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Falha ao regenerar token do Luvik.'
+      const msg = toPortugueseErrorMessage(err, 'Falha ao regenerar token do Luvik.')
       toast({
         title: 'Erro ao regenerar token',
         description: msg,
@@ -292,7 +295,7 @@ export default function IntegracoesPage() {
       setConfirmRegenerateSiteOpen(false)
       await loadSiteData()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Falha ao regenerar token do formulário.'
+      const msg = toPortugueseErrorMessage(err, 'Falha ao regenerar token do formulário.')
       toast({
         title: 'Erro ao regenerar token',
         description: msg,

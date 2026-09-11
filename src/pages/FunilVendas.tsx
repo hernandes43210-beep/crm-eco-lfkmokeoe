@@ -5,6 +5,7 @@ import { LeadsService } from '@/services/leads'
 import type { Lead, LeadStatus, HistoricoItem } from '@/types/crm'
 import useRealtime from '@/hooks/use-realtime'
 import { useAuth } from '@/context/AuthContext'
+import { toPortugueseErrorMessage } from '@/lib/errors'
 import { computeSLAStatus, formatBRL } from '@/lib/solarUtils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -261,14 +262,11 @@ export default function FunilVendas() {
       })
       setLeadToDelete(null)
     } catch (err: unknown) {
-      console.error('Error deleting lead from funil:', err)
-      const errorMsg =
-        err &&
-        typeof err === 'object' &&
-        'status' in err &&
-        (err as { status?: number }).status === 403
-          ? 'Você não tem permissão para excluir este lead. Apenas administradores e o responsável podem excluir.'
-          : 'Não foi possível excluir o lead. Tente novamente mais tarde.'
+      console.error('Erro ao excluir lead:', err)
+      const errorMsg = toPortugueseErrorMessage(
+        err,
+        'Não foi possível excluir o lead. Tente novamente mais tarde.',
+      )
 
       toast({
         title: 'Erro ao excluir lead',

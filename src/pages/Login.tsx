@@ -4,6 +4,7 @@ import { Lock, Mail, Eye, EyeOff, AlertCircle, ArrowRight, Loader2 } from 'lucid
 import logoEcosolar from '@/assets/editedimage1773228973392-e62fd.png'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
+import { toPortugueseErrorMessage } from '@/lib/errors'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
@@ -47,7 +48,9 @@ export default function Login() {
       navigate(from, { replace: true })
     } catch (err: unknown) {
       console.error('Login error:', err)
-      setErrorMsg('E-mail ou senha inválidos.')
+      setErrorMsg(
+        toPortugueseErrorMessage(err, 'E-mail ou senha inválidos. Verifique suas credenciais.'),
+      )
     } finally {
       setIsSubmitting(false)
     }

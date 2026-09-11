@@ -44,6 +44,7 @@ import { LeadFormalizacaoSection } from '@/components/LeadFormalizacaoSection'
 import { openProposalPDFPrint } from '@/lib/proposalPdf'
 import useRealtime from '@/hooks/use-realtime'
 import { useAuth } from '@/context/AuthContext'
+import { toPortugueseErrorMessage } from '@/lib/errors'
 import {
   formatBRL,
   formatDateBR,
@@ -235,7 +236,7 @@ export default function LeadDetail() {
       fetchWaMessages()
       fetchLead() // Atualiza histórico do lead
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Falha ao enviar via WhatsApp'
+      const msg = toPortugueseErrorMessage(err, 'Falha ao enviar mensagem via WhatsApp.')
       toast({
         title: 'Erro no envio',
         description: msg,
@@ -346,7 +347,7 @@ export default function LeadDetail() {
       console.error('Error qualifying lead:', err)
       toast({
         title: 'Erro ao qualificar',
-        description: 'Não foi possível qualificar o lead.',
+        description: toPortugueseErrorMessage(err, 'Não foi possível qualificar o lead.'),
         variant: 'destructive',
       })
     } finally {
@@ -374,7 +375,7 @@ export default function LeadDetail() {
       console.error('Error discarding lead:', err)
       toast({
         title: 'Erro ao descartar',
-        description: 'Não foi possível descartar o lead.',
+        description: toPortugueseErrorMessage(err, 'Não foi possível descartar o lead.'),
         variant: 'destructive',
       })
     } finally {
@@ -431,7 +432,7 @@ export default function LeadDetail() {
       console.error('Error changing stage:', err)
       toast({
         title: 'Erro ao mover estágio',
-        description: 'Não foi possível atualizar o status do lead.',
+        description: toPortugueseErrorMessage(err, 'Não foi possível atualizar o status do lead.'),
         variant: 'destructive',
       })
     }
@@ -480,7 +481,7 @@ export default function LeadDetail() {
       console.error('Error saving proposal:', err)
       toast({
         title: 'Erro ao salvar proposta',
-        description: 'Verifique o formato do PDF e tente novamente.',
+        description: toPortugueseErrorMessage(err, 'Verifique o formato do PDF e tente novamente.'),
         variant: 'destructive',
       })
     } finally {
@@ -531,7 +532,10 @@ export default function LeadDetail() {
       console.error('Error saving proximo_contato:', err)
       toast({
         title: 'Erro ao salvar próximo contato',
-        description: 'Não foi possível salvar a anotação. Tente novamente.',
+        description: toPortugueseErrorMessage(
+          err,
+          'Não foi possível salvar a anotação. Tente novamente.',
+        ),
         variant: 'destructive',
       })
     } finally {
@@ -568,6 +572,10 @@ export default function LeadDetail() {
       console.error('Error adding note:', err)
       toast({
         title: 'Erro ao registrar nota',
+        description: toPortugueseErrorMessage(
+          err,
+          'Não foi possível registrar o comentário no histórico.',
+        ),
         variant: 'destructive',
       })
     } finally {
@@ -590,7 +598,7 @@ export default function LeadDetail() {
       console.error('Error deleting lead:', err)
       toast({
         title: 'Erro ao excluir',
-        description: 'Permissão negada ou erro no servidor.',
+        description: toPortugueseErrorMessage(err, 'Permissão negada ou erro no servidor.'),
         variant: 'destructive',
       })
     } finally {
@@ -663,13 +671,10 @@ export default function LeadDetail() {
       }
     } catch (err: unknown) {
       console.error('Erro ao excluir proposta:', err)
-      const errorMsg =
-        err &&
-        typeof err === 'object' &&
-        'status' in err &&
-        (err as { status?: number }).status === 403
-          ? 'Você não tem permissão para excluir esta proposta.'
-          : 'Não foi possível excluir a proposta comercial. Tente novamente mais tarde.'
+      const errorMsg = toPortugueseErrorMessage(
+        err,
+        'Não foi possível excluir a proposta comercial. Tente novamente mais tarde.',
+      )
 
       toast({
         title: 'Erro ao excluir proposta',

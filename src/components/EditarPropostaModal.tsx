@@ -33,6 +33,7 @@ import {
 } from 'lucide-react'
 import { KitsService } from '@/services/kits'
 import { ProposalsService } from '@/services/proposals'
+import { toPortugueseErrorMessage } from '@/lib/errors'
 import type { Kit, Proposta, PropostaStatus } from '@/types/crm'
 import {
   formatBRL,
@@ -265,15 +266,10 @@ export function EditarPropostaModal({
       onOpenChange(false)
     } catch (err: unknown) {
       console.error('Erro ao atualizar proposta:', err)
-      const errorMsg =
-        err &&
-        typeof err === 'object' &&
-        'status' in err &&
-        (err as { status?: number }).status === 403
-          ? 'Você não tem permissão para editar esta proposta.'
-          : err instanceof Error
-            ? err.message
-            : 'Falha ao salvar alterações da proposta.'
+      const errorMsg = toPortugueseErrorMessage(
+        err,
+        'Falha ao salvar alterações da proposta. Verifique os dados e tente novamente.',
+      )
 
       toast({
         title: 'Erro ao atualizar proposta',

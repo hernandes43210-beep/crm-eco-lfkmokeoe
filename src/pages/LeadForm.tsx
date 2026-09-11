@@ -298,7 +298,7 @@ export default function LeadForm() {
               : field === 'nome'
                 ? 'Nome'
                 : field === 'consumo_mensal_kwh'
-                  ? 'Consumo'
+                  ? 'Consumo mensal (kWh)'
                   : field === 'proprietario'
                     ? 'Proprietário'
                     : field
@@ -307,8 +307,8 @@ export default function LeadForm() {
         .join('\n')
 
       if (fieldErrors.email && fieldErrors.email.includes('Já existe')) {
-        friendlyMsg = 'Já existe um lead com este e-mail.'
-        displayError = 'Já existe um lead com este e-mail.'
+        friendlyMsg = 'Já existe um lead cadastrado com este e-mail.'
+        displayError = 'Já existe um lead cadastrado com este e-mail.'
       } else if (specificFieldList && !friendlyMsg.includes('•')) {
         displayError = `${friendlyMsg}\n${specificFieldList}`
       }

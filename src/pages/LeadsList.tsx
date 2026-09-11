@@ -31,6 +31,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { LeadsService } from '@/services/leads'
 import { EquipeService } from '@/services/equipe'
+import { toPortugueseErrorMessage } from '@/lib/errors'
 import type { Lead, LeadStatus, User } from '@/types/crm'
 import useRealtime from '@/hooks/use-realtime'
 import { useAuth } from '@/context/AuthContext'
@@ -273,17 +274,14 @@ export default function LeadsList() {
       setLeadToDelete(null)
       fetchLeads()
     } catch (err: unknown) {
-      console.error('Error deleting lead:', err)
-      const errorMsg =
-        err &&
-        typeof err === 'object' &&
-        'status' in err &&
-        (err as { status?: number }).status === 403
-          ? 'Você não tem permissão para excluir este lead. Apenas administradores e o responsável podem excluir.'
-          : 'Não foi possível excluir o lead. Tente novamente mais tarde.'
+      console.error('Erro ao excluir lead:', err)
+      const errorMsg = toPortugueseErrorMessage(
+        err,
+        'Não foi possível excluir o lead. Tente novamente mais tarde.',
+      )
 
       toast({
-        title: 'Erro ao excluir',
+        title: 'Erro ao excluir lead',
         description: errorMsg,
         variant: 'destructive',
       })

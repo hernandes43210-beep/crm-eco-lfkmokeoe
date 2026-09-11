@@ -151,9 +151,10 @@ export function LeadFormalizacaoSection({
       })
       loadDocumentos()
       onLeadUpdated?.()
-    } catch {
+    } catch (err: unknown) {
       toast({
         title: 'Erro ao excluir',
+        description: 'Não foi possível remover o documento. Verifique suas permissões.',
         variant: 'destructive',
       })
     }

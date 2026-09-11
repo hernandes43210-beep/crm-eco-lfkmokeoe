@@ -21,6 +21,7 @@ import {
 import { Loader2, Sparkles, Sun, Check } from 'lucide-react'
 import { KitsService } from '@/services/kits'
 import { ProposalsService, type CreatePropostaPayload } from '@/services/proposals'
+import { toPortugueseErrorMessage } from '@/lib/errors'
 import type { Kit, Lead, Proposta } from '@/types/crm'
 import { formatBRL } from '@/lib/solarUtils'
 import { toast } from '@/hooks/use-toast'
@@ -220,7 +221,10 @@ export function GerarPropostaModal({
       onOpenChange(false)
     } catch (err: unknown) {
       console.error('Erro ao gerar proposta:', err)
-      const msg = err instanceof Error ? err.message : 'Falha ao salvar proposta'
+      const msg = toPortugueseErrorMessage(
+        err,
+        'Falha ao gerar proposta comercial. Verifique os dados e tente novamente.',
+      )
       toast({
         title: 'Erro ao gerar proposta',
         description: msg,

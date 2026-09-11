@@ -19,6 +19,7 @@ import {
   Edit,
 } from 'lucide-react'
 import { ProposalsService } from '@/services/proposals'
+import { toPortugueseErrorMessage } from '@/lib/errors'
 import { DeletePropostaDialog } from '@/components/DeletePropostaDialog'
 import { EditarPropostaModal } from '@/components/EditarPropostaModal'
 import type { Proposta } from '@/types/crm'
@@ -113,13 +114,10 @@ export default function PropostasList() {
       setPropostaToDelete(null)
     } catch (err: unknown) {
       console.error('Erro ao excluir proposta:', err)
-      const errorMsg =
-        err &&
-        typeof err === 'object' &&
-        'status' in err &&
-        (err as { status?: number }).status === 403
-          ? 'Você não tem permissão para excluir esta proposta.'
-          : 'Não foi possível excluir a proposta comercial. Tente novamente mais tarde.'
+      const errorMsg = toPortugueseErrorMessage(
+        err,
+        'Não foi possível excluir a proposta comercial. Tente novamente mais tarde.',
+      )
 
       toast({
         title: 'Erro ao excluir proposta',

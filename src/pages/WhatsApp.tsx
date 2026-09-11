@@ -48,6 +48,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useRealtime } from '@/hooks/use-realtime'
 import { WhatsAppService, type ConnectResponse, type StatusResponse } from '@/services/whatsapp'
 import { LeadsService } from '@/services/leads'
+import { toPortugueseErrorMessage } from '@/lib/errors'
 import type { WhatsAppSettings, WhatsAppConversation, WhatsAppMessage, Lead } from '@/types/crm'
 
 export default function WhatsAppPage() {
@@ -225,9 +226,9 @@ export default function WhatsAppPage() {
       setApiKey('')
       await loadSettingsAndStatus()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Falha ao salvar configurações.'
+      const msg = toPortugueseErrorMessage(err, 'Falha ao salvar configurações')
       toast({
-        title: 'Erro ao salvar',
+        title: 'Erro ao salvar configurações',
         description: msg,
         variant: 'destructive',
       })
@@ -256,9 +257,9 @@ export default function WhatsAppPage() {
       const st = await WhatsAppService.getStatus()
       setStatus(st)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Falha ao conectar com o WhatsApp.'
+      const msg = toPortugueseErrorMessage(err, 'Falha ao conectar instância')
       toast({
-        title: 'Erro de conexão',
+        title: 'Erro na conexão',
         description: msg,
         variant: 'destructive',
       })
@@ -280,9 +281,9 @@ export default function WhatsAppPage() {
       const st = await WhatsAppService.getStatus()
       setStatus(st)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao desconectar.'
+      const msg = toPortugueseErrorMessage(err, 'Falha ao sincronizar')
       toast({
-        title: 'Erro ao desconectar',
+        title: 'Erro na sincronização',
         description: msg,
         variant: 'destructive',
       })
@@ -347,9 +348,9 @@ export default function WhatsAppPage() {
       await loadConversations()
       await loadMessages(selectedPhone)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao vincular lead.'
+      const msg = toPortugueseErrorMessage(err, 'Falha ao vincular conversa ao lead selecionado.')
       toast({
-        title: 'Erro',
+        title: 'Erro ao vincular lead',
         description: msg,
         variant: 'destructive',
       })

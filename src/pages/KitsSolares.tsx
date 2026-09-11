@@ -24,6 +24,7 @@ import { KitsService } from '@/services/kits'
 import type { Kit, KitCategoria } from '@/types/crm'
 import useRealtime from '@/hooks/use-realtime'
 import { useAuth } from '@/context/AuthContext'
+import { toPortugueseErrorMessage } from '@/lib/errors'
 import { formatBRL } from '@/lib/solarUtils'
 import {
   POTENCIAS_COMUNS_PAINEIS,
@@ -102,10 +103,10 @@ export default function KitsSolares() {
       const data = await KitsService.getKits()
       setKits(data)
     } catch (err) {
-      console.error('Error fetching kits:', err)
+      console.error('Error loading kits:', err)
       toast({
         title: 'Erro ao carregar kits',
-        description: 'Não foi possível listar os kits solares cadastrados.',
+        description: toPortugueseErrorMessage(err, 'Não foi possível carregar o catálogo de kits.'),
         variant: 'destructive',
       })
     } finally {
@@ -336,7 +337,7 @@ export default function KitsSolares() {
       fetchKits()
     } catch (err: unknown) {
       console.error('Error saving kit:', err)
-      const msg = err instanceof Error ? err.message : 'Falha ao salvar kit solar.'
+      const msg = toPortugueseErrorMessage(err, 'Falha ao salvar kit solar. Verifique os dados.')
       setErrorBanner(msg)
     } finally {
       setSubmitting(false)
@@ -358,7 +359,7 @@ export default function KitsSolares() {
       console.error('Error deleting kit:', err)
       toast({
         title: 'Erro ao excluir kit',
-        description: 'Apenas administradores podem excluir kits.',
+        description: toPortugueseErrorMessage(err, 'Apenas administradores podem excluir kits.'),
         variant: 'destructive',
       })
     } finally {

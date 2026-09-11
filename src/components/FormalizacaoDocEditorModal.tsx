@@ -39,6 +39,7 @@ import {
 import { parseKitDetailedItems } from '@/lib/kitItemsParser'
 import { FormalizacaoService } from '@/services/formalizacao'
 import { useToast } from '@/hooks/use-toast'
+import { toPortugueseErrorMessage } from '@/lib/errors'
 
 interface FormalizacaoDocEditorModalProps {
   open: boolean
@@ -289,17 +290,13 @@ export function FormalizacaoDocEditorModal({
       onOpenChange(false)
     } catch (err: any) {
       console.error('Erro ao finalizar documento:', err)
-      const detailErrors = err?.response?.data
-        ? Object.entries(err.response.data)
-            .map(([k, v]: [string, any]) => `${k}: ${v?.message || JSON.stringify(v)}`)
-            .join(' | ')
-        : ''
-      const msg = detailErrors
-        ? `${err.message || 'Erro de validação'}: ${detailErrors}`
-        : err.message || 'Não foi possível gravar o documento.'
+      const msg = toPortugueseErrorMessage(
+        err,
+        'Não foi possível salvar o documento de formalização. Verifique os dados e tente novamente.',
+      )
 
       toast({
-        title: 'Erro ao finalizar',
+        title: 'Erro ao salvar documento',
         description: msg,
         variant: 'destructive',
       })
