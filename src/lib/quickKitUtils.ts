@@ -2,7 +2,40 @@
  * Utilitários para o modo de montagem rápida / Kit Pré-Pronto
  */
 
-export const POTENCIAS_COMUNS_PAINEIS = [550, 575, 610, 630] as const
+export const POTENCIAS_COMUNS_PAINEIS = [450, 550, 575, 600, 610, 630, 660, 700] as const
+
+/**
+ * Potências sugeridas para inversores em kW
+ */
+export const POTENCIAS_COMUNS_INVERSORES = [
+  3, 4, 5, 6, 7.5, 8, 10, 12, 15, 20, 25, 30, 50, 75, 100,
+] as const
+
+/**
+ * Formata potência em Watts no padrão brasileiro (ex: "630 W" ou "630 Wp")
+ */
+export function formatarPotenciaW(
+  potenciaW?: number | string | null,
+  sufixo: 'W' | 'Wp' = 'W',
+): string {
+  const num = Number(potenciaW)
+  if (!num || isNaN(num) || num <= 0) return ''
+  const formatted = num.toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+  return `${formatted} ${sufixo}`
+}
+
+/**
+ * Formata potência em Quilowatts no padrão brasileiro com vírgula decimal (ex: "7,5 kW")
+ */
+export function formatarPotenciaKw(potenciaKw?: number | string | null): string {
+  const num = Number(potenciaKw)
+  if (!num || isNaN(num) || num <= 0) return ''
+  const formatted = num.toLocaleString('pt-BR', {
+    minimumFractionDigits: num % 1 === 0 ? 0 : 1,
+    maximumFractionDigits: 2,
+  })
+  return `${formatted} kW`
+}
 
 /**
  * Marcas solicitadas de painéis / módulos:
@@ -77,6 +110,7 @@ export interface MontagemPreProntaState {
   marcaPaineis: string
   qtdInversores: number | string
   marcaInversor: string
+  potenciaInversorKw?: number | string
   stringBox?: string
   tipoEstrutura?: string
 }
@@ -262,6 +296,7 @@ export function sugerirDescricaoTecnica(params: {
   marcaPaineis: string
   qtdInversores: number | string
   marcaInversor: string
+  potenciaInversorKw?: number | string
   kwp: number
   stringBox?: string
   tipoEstrutura?: string
@@ -272,6 +307,7 @@ export function sugerirDescricaoTecnica(params: {
     marcaPaineis,
     qtdInversores,
     marcaInversor,
+    potenciaInversorKw,
     kwp,
     stringBox,
     tipoEstrutura,
@@ -280,20 +316,22 @@ export function sugerirDescricaoTecnica(params: {
   const qP = Number(qtdPaineis) || 0
   const potP = Number(potenciaPainelW) || 0
   const qI = Number(qtdInversores) || 0
+  const potInvKw = Number(potenciaInversorKw) || 0
 
   const linhas: string[] = []
 
   if (qP > 0 && potP > 0) {
     const nomeMód = marcaPaineis.trim() ? ` (${marcaPaineis.trim()})` : ''
     linhas.push(
-      `${qP}x Módulo fotovoltaico ${potP}Wp${nomeMód} — Total ${kwp.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kWp`,
+      `${qP}x Módulo fotovoltaico ${potP} W${nomeMód} — Total ${kwp.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kWp`,
     )
   }
 
+  const potInvTexto = potInvKw > 0 ? ` ${formatarPotenciaKw(potInvKw)}` : ''
   if (qI > 0 && marcaInversor.trim()) {
-    linhas.push(`${qI}x Inversor solar ${marcaInversor.trim()}`)
+    linhas.push(`${qI}x Inversor solar${potInvTexto} ${marcaInversor.trim()}`)
   } else if (marcaInversor.trim()) {
-    linhas.push(`Inversor solar ${marcaInversor.trim()}`)
+    linhas.push(`Inversor solar${potInvTexto} ${marcaInversor.trim()}`)
   }
 
   if (stringBox) {
@@ -343,6 +381,7 @@ export interface ExtractedKitComponents {
   marcaPaineis: string
   qtdInversores: number
   marcaInversor: string
+  potenciaInversorKw?: number
   stringBox: string
   tipoEstrutura: string
 }
@@ -359,6 +398,8 @@ export function extrairComponentesKit(kit: {
   string_box?: string
   marca_painel?: string
   marca_inversor?: string
+  potencia_painel_w?: number
+  potencia_inversor_kw?: number
   tipo_estrutura?: string
 }): ExtractedKitComponents {
   const desc = kit.descricao || ''
@@ -367,10 +408,11 @@ export function extrairComponentesKit(kit: {
   const textFull = `${desc}\n${nome}\n${fab}`
 
   let qtdPaineis = 0
-  let potW = 0
+  let potW = kit.potencia_painel_w ? Number(kit.potencia_painel_w) : 0
   let marcaPaineis = kit.marca_painel || ''
   let qtdInversores = 1
   let marcaInversor = kit.marca_inversor || ''
+  let potInversorKw = kit.potencia_inversor_kw ? Number(kit.potencia_inversor_kw) : 0
   let stringBox = kit.string_box || ''
   let tipoEstrutura = kit.tipo_estrutura || ''
 
@@ -437,17 +479,45 @@ export function extrairComponentesKit(kit: {
     }
   }
 
-  // Detectar inversor
+  // Detectar inversor e potência do inversor
   const invMatch =
+    desc.match(/(\d+)\s*(?:x|=|\*)\s*Inversor(?: solar)?(?:\s+([\d,.]+)\s*k?W)?\s+([^\n,]+)/i) ||
     desc.match(/(\d+)\s*(?:x|=|\*)\s*Inversor(?: solar)?\s+([^\n,]+)/i) ||
+    desc.match(/Inversor(?: solar)?(?:\s+([\d,.]+)\s*k?W)?\s+([^\n,]+)/i) ||
     desc.match(/Inversor(?: solar)?\s+([^\n,]+)/i)
 
   if (invMatch) {
-    if (invMatch.length === 3) {
+    if (invMatch.length === 4) {
+      qtdInversores = parseInt(invMatch[1], 10) || 1
+      if (invMatch[2] && !potInversorKw) {
+        potInversorKw = parseFloat(invMatch[2].replace(',', '.'))
+      }
+      marcaInversor = invMatch[3].replace(/Estrutura.*$/i, '').trim()
+    } else if (invMatch.length === 3) {
       qtdInversores = parseInt(invMatch[1], 10) || 1
       marcaInversor = invMatch[2].replace(/Estrutura.*$/i, '').trim()
     } else {
       marcaInversor = invMatch[1].replace(/Estrutura.*$/i, '').trim()
+    }
+  }
+
+  // Tentar extrair potência do inversor caso ainda não detectada
+  if (!potInversorKw) {
+    // Ex: "Inversor Growatt 7,5kW", "7,5 kW", "Inversor de 7.5kW", "Growatt 5000"
+    const potKwMatch =
+      desc.match(/inversor[^\n]*?(\d+(?:[.,]\d+)?)\s*(?:k\s*W|kW)/i) ||
+      desc.match(
+        /(\d+(?:[.,]\d+)?)\s*(?:k\s*W|kW)\s*(?:inversor|auxsol|sungrow|growatt|huawei|phb|goodwe|deye|solis|weg)/i,
+      )
+    if (potKwMatch) {
+      potInversorKw = parseFloat(potKwMatch[1].replace(',', '.'))
+    } else {
+      // Caso apareça ex: "Growatt 5000" -> 5 kW
+      const wMatch =
+        desc.match(/inversor[^\n]*?(\d{4,5})\s*W\b/i) || textFull.match(/growatt\s*(\d{4,5})\b/i)
+      if (wMatch) {
+        potInversorKw = parseFloat(wMatch[1]) / 1000
+      }
     }
   }
 
@@ -518,11 +588,18 @@ export function extrairComponentesKit(kit: {
   return {
     isPrePronto,
     qtdPaineis: qtdPaineis || 10,
-    potenciaPainelW: potW || 610,
+    potenciaPainelW: potW || (kit.potencia_painel_w ? Number(kit.potencia_painel_w) : 610),
     marcaPaineis: marcaPaineis || (fab ? fab.split('/')[0]?.trim() : '') || 'TSUN POWER',
     qtdInversores: qtdInversores || 1,
     marcaInversor:
       marcaInversor || (fab ? (fab.split('/')[1] || fab.split('/')[0])?.trim() : '') || 'Sungrow',
+    potenciaInversorKw:
+      potInversorKw ||
+      (kit.potencia_inversor_kw
+        ? Number(kit.potencia_inversor_kw)
+        : kit.potencia_kw
+          ? Number(kit.potencia_kw)
+          : undefined),
     stringBox,
     tipoEstrutura,
   }

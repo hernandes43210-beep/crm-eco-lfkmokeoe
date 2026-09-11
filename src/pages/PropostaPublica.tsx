@@ -161,8 +161,20 @@ export default function PropostaPublica() {
       data_aceite: proposta.data_aceite,
       aceito_por_nome: proposta.aceito_por_nome,
       created: proposta.created,
-      kit_descricao: proposta.kit?.descricao,
-      kit_string_box: proposta.kit?.string_box || undefined,
+      kit_descricao: (proposta as any)?.kit_descricao || proposta.kit?.descricao,
+      kit_string_box: (proposta as any)?.kit_string_box || proposta.kit?.string_box || undefined,
+      kit_marca_painel:
+        (proposta as any)?.kit_marca_painel || proposta.kit?.marca_painel || undefined,
+      kit_marca_inversor:
+        (proposta as any)?.kit_marca_inversor || proposta.kit?.marca_inversor || undefined,
+      kit_potencia_painel_w:
+        (proposta as any)?.kit_potencia_painel_w || proposta.kit?.potencia_painel_w || undefined,
+      kit_potencia_inversor_kw:
+        (proposta as any)?.kit_potencia_inversor_kw ||
+        proposta.kit?.potencia_inversor_kw ||
+        undefined,
+      kit_tipo_estrutura:
+        (proposta as any)?.kit_tipo_estrutura || proposta.kit?.tipo_estrutura || undefined,
       cliente: {
         nome: proposta.lead?.nome || 'Cliente',
         email: proposta.lead?.email,
@@ -229,13 +241,16 @@ export default function PropostaPublica() {
     kitNome: proposta.kit_nome,
     kitPotenciaKw: proposta.kit_potencia_kw,
     kitFabricante: proposta.kit_fabricante,
-    descricao: proposta.kit?.descricao,
+    descricao: (proposta as any)?.kit_descricao || proposta.kit?.descricao,
     observacoes: proposta.observacoes,
     consumoKwh: proposta.lead?.consumo_mensal_kwh,
-    stringBox: proposta.kit?.string_box,
-    marcaPainel: proposta.kit?.marca_painel,
-    marcaInversor: proposta.kit?.marca_inversor,
-    tipoEstrutura: proposta.kit?.tipo_estrutura,
+    stringBox: (proposta as any)?.kit_string_box || proposta.kit?.string_box,
+    marcaPainel: (proposta as any)?.kit_marca_painel || proposta.kit?.marca_painel,
+    marcaInversor: (proposta as any)?.kit_marca_inversor || proposta.kit?.marca_inversor,
+    potenciaPainelW: (proposta as any)?.kit_potencia_painel_w || proposta.kit?.potencia_painel_w,
+    potenciaInversorKw:
+      (proposta as any)?.kit_potencia_inversor_kw || proposta.kit?.potencia_inversor_kw,
+    tipoEstrutura: (proposta as any)?.kit_tipo_estrutura || proposta.kit?.tipo_estrutura,
   })
   // Cálculos solares
   const consumoKwh = proposta.lead?.consumo_mensal_kwh || 400
@@ -800,6 +815,7 @@ export default function PropostaPublica() {
                     <th className="p-3 text-center w-16">Qtd.</th>
                     <th className="p-3">Componente / Item</th>
                     <th className="p-3">Fabricante / Modelo Cadastrado</th>
+                    <th className="p-3 text-center">Potência</th>
                     <th className="p-3">Especificações Técnicas</th>
                     <th className="p-3 text-right w-24">Status</th>
                   </tr>
@@ -813,6 +829,15 @@ export default function PropostaPublica() {
                       </td>
                       <td className="p-3 font-bold text-slate-900 text-xs sm:text-sm">{it.nome}</td>
                       <td className="p-3 font-semibold text-slate-800">{it.fabricanteModelo}</td>
+                      <td className="p-3 text-center">
+                        {it.potenciaUnit ? (
+                          <span className="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                            {it.potenciaUnit}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-xs">—</span>
+                        )}
+                      </td>
                       <td className="p-3 text-slate-500 text-xs leading-relaxed">
                         {it.especificacao || '-'}
                       </td>

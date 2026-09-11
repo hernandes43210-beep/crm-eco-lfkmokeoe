@@ -1,5 +1,5 @@
 import { calcularGeracaoMensalKwh } from './solarUtils'
-import { formatarNomeItemEstrutura } from './quickKitUtils'
+import { formatarNomeItemEstrutura, formatarPotenciaW, formatarPotenciaKw } from './quickKitUtils'
 
 export interface KitItemDetail {
   tipo:
@@ -70,6 +70,8 @@ export function parseKitDetailedItems(params: {
   stringBox?: string
   marcaPainel?: string
   marcaInversor?: string
+  potenciaPainelW?: number
+  potenciaInversorKw?: number
   tipoEstrutura?: string
 }): KitSpecsDetailed {
   const {
@@ -82,6 +84,8 @@ export function parseKitDetailedItems(params: {
     stringBox: paramStringBox = '',
     marcaPainel: paramMarcaPainel = '',
     marcaInversor: paramMarcaInversor = '',
+    potenciaPainelW: paramPotenciaPainelW,
+    potenciaInversorKw: paramPotenciaInversorKw,
     tipoEstrutura: paramTipoEstrutura = '',
   } = params
 
@@ -137,7 +141,7 @@ export function parseKitDetailedItems(params: {
 
       // Potência em W / Wp
       const potMatch = block.match(/(\d{3,4})\s*W(?:P)?/i)
-      const wVal = potMatch ? parseInt(potMatch[1], 10) : 0
+      const wVal = potMatch ? parseInt(potMatch[1], 10) : paramPotenciaPainelW || 0
 
       // Marca
       let brand = paramMarcaPainel || ''
@@ -177,10 +181,10 @@ export function parseKitDetailedItems(params: {
         quantidade: qtd,
         unidade: 'un',
         nome: 'Módulos Fotovoltaicos de Alta Eficiência',
-        fabricanteModelo: `${brand || 'Tier 1'}${wVal ? ` ${wVal}Wp` : ''}`.trim(),
+        fabricanteModelo: `${brand || 'Tier 1'}${wVal ? ` ${wVal} W` : ''}`.trim(),
         especificacao:
           cleanText(spec) || 'Tecnologia Monocristalina com garantia linear de 25 anos',
-        potenciaUnit: wVal ? `${wVal} Wp` : undefined,
+        potenciaUnit: wVal ? formatarPotenciaW(wVal, 'W') : undefined,
       })
       continue
     }
@@ -199,9 +203,11 @@ export function parseKitDetailedItems(params: {
       let pot = ''
       const potMatch = block.match(/(\d+(?:[.,]\d+)?)\s*(KW|W(?:P)?)/i)
       if (potMatch) {
-        const val = potMatch[1].replace(',', '.')
+        const val = parseFloat(potMatch[1].replace(',', '.'))
         const unit = potMatch[2].toUpperCase()
-        pot = unit.startsWith('KW') ? `${val} kW` : `${val} W`
+        pot = unit.startsWith('KW') ? formatarPotenciaKw(val) : formatarPotenciaW(val)
+      } else if (paramPotenciaInversorKw) {
+        pot = formatarPotenciaKw(paramPotenciaInversorKw)
       }
 
       // Marca do inversor
@@ -247,7 +253,9 @@ export function parseKitDetailedItems(params: {
           : 'Inversor Interativo On-Grid',
         fabricanteModelo: `${brand || 'Inversor Homologado'}${pot ? ` ${pot}` : ''}`.trim(),
         especificacao: cleanText(spec) || 'Conexão à rede com monitoramento Wi-Fi integrado',
-        potenciaUnit: pot || undefined,
+        potenciaUnit:
+          pot ||
+          (paramPotenciaInversorKw ? formatarPotenciaKw(paramPotenciaInversorKw) : undefined),
       })
       continue
     }
@@ -367,6 +375,8 @@ export function parseKitDetailedItems(params: {
     const potMatch = textToScan.match(/(\d{3,4})\s*W(?:p)?/i)
     if (potMatch) {
       potWp = parseInt(potMatch[1], 10)
+    } else if (paramPotenciaPainelW) {
+      potWp = paramPotenciaPainelW
     }
 
     // Tentar extrair quantidade de painéis do nome ou texto (ex: "16 P", "16= MODULO", "8 módulos")
@@ -389,10 +399,10 @@ export function parseKitDetailedItems(params: {
         quantidade: qtd,
         unidade: 'un',
         nome: 'Módulos Fotovoltaicos de Alta Performance',
-        fabricanteModelo: `${brand || 'Tier 1'} ${potWp ? `${potWp}Wp` : ''}`.trim(),
+        fabricanteModelo: `${brand || 'Tier 1'} ${potWp ? `${potWp} W` : ''}`.trim(),
         especificacao:
           'Células Monocristalinas de alta durabilidade com garantia linear de geração de 25 anos',
-        potenciaUnit: potWp ? `${potWp} Wp` : undefined,
+        potenciaUnit: potWp ? formatarPotenciaW(potWp, 'W') : undefined,
       })
     }
   }
@@ -429,9 +439,12 @@ export function parseKitDetailedItems(params: {
 
     const potMatch = textToScan.match(/(\d+(?:[.,]\d+)?)\s*(?:KW|kW|KWP|kWp|Wp)\b/i)
     if (potMatch) {
-      invPot = `${potMatch[1].replace(',', '.')} kW`
+      const val = parseFloat(potMatch[1].replace(',', '.'))
+      invPot = formatarPotenciaKw(val)
+    } else if (paramPotenciaInversorKw) {
+      invPot = formatarPotenciaKw(paramPotenciaInversorKw)
     } else if (kitPotenciaKw) {
-      invPot = `${kitPotenciaKw} kW`
+      invPot = formatarPotenciaKw(kitPotenciaKw)
     }
 
     if (invBrand || invPot) {

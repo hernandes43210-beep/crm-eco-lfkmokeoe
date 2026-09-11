@@ -158,6 +158,8 @@ export interface Kit extends RecordModel {
   string_box?: KitStringBox | ''
   marca_painel?: string
   marca_inversor?: string
+  potencia_painel_w?: number
+  potencia_inversor_kw?: number
   tipo_estrutura?: KitTipoEstrutura | ''
   created: string
   updated: string
@@ -361,6 +363,8 @@ export interface PublicProposta {
     string_box?: KitStringBox | ''
     marca_painel?: string
     marca_inversor?: string
+    potencia_painel_w?: number
+    potencia_inversor_kw?: number
     tipo_estrutura?: KitTipoEstrutura | ''
   }
   vendedor?: {

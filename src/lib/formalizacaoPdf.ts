@@ -25,6 +25,7 @@ export interface DadosContratoFormalizacao {
   tabelaEquipamentos?: Array<{
     item: string
     quantidade: number | string
+    potencia?: string
     especificacao?: string
     fabricanteModelo?: string
     unidade?: string
@@ -469,20 +470,34 @@ export function generateContratoHTML(dados: DadosContratoFormalizacao): string {
   <table class="table-equips">
     <thead>
       <tr>
-        <th style="width: 58%;">Produto</th>
-        <th style="width: 20%; text-align: center;">Unid.</th>
-        <th style="width: 22%; text-align: center;">Qtde</th>
+        <th style="width: 48%;">Produto</th>
+        <th style="width: 20%; text-align: center;">Potência</th>
+        <th style="width: 14%; text-align: center;">Unid.</th>
+        <th style="width: 18%; text-align: center;">Qtde</th>
       </tr>
     </thead>
     <tbody>
       ${equips
-        .map(
-          (eq) => `<tr>
+        .map((eq) => {
+          let potItem = eq.potencia || ''
+          if (!potItem && eq.fabricanteModelo) {
+            const m = eq.fabricanteModelo.match(/(\d+(?:[.,]\d+)?\s*(?:kW|W(?:p)?))/i)
+            if (m) potItem = m[1]
+          }
+          if (!potItem && eq.item) {
+            const m = eq.item.match(/(\d+(?:[.,]\d+)?\s*(?:kW|W(?:p)?))/i)
+            if (m) potItem = m[1]
+          }
+
+          return `<tr>
             <td><strong>${eq.item}</strong>${eq.fabricanteModelo ? ` — ${eq.fabricanteModelo}` : ''}${eq.especificacao ? ` (${eq.especificacao})` : ''}</td>
+            <td style="text-align: center; font-weight: 700; color: #0A192F;">
+              ${potItem ? `<span style="background: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 4px; padding: 2px 6px; font-size: 8.5pt; font-family: monospace;">${potItem}</span>` : '<span style="color: #94A3B8;">-</span>'}
+            </td>
             <td style="text-align: center;">${eq.unidade || 'un'}</td>
-            <td style="text-align: center;">${eq.quantidade}</td>
-          </tr>`,
-        )
+            <td style="text-align: center; font-weight: 700;">${eq.quantidade}</td>
+          </tr>`
+        })
         .join('')}
     </tbody>
   </table>

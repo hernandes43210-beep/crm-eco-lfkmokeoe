@@ -28,6 +28,7 @@ import { toPortugueseErrorMessage } from '@/lib/errors'
 import { formatBRL } from '@/lib/solarUtils'
 import {
   POTENCIAS_COMUNS_PAINEIS,
+  POTENCIAS_COMUNS_INVERSORES,
   MARCAS_PAINEIS_SUGERIDAS,
   MARCAS_INVERSORES_SUGERIDAS,
   TIPOS_ESTRUTURA_OPCOES,
@@ -39,6 +40,8 @@ import {
   extrairComponentesKit,
   formatarRotuloStringBox,
   formatarRotuloEstrutura,
+  formatarPotenciaW,
+  formatarPotenciaKw,
 } from '@/lib/quickKitUtils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -96,6 +99,8 @@ export default function KitsSolares() {
   const [qtdInversores, setQtdInversores] = useState<number | string>(1)
   const [marcaInversor, setMarcaInversor] = useState('Sungrow')
   const [isCustomMarcaInversor, setIsCustomMarcaInversor] = useState(false)
+  const [potenciaInversorKw, setPotenciaInversorKw] = useState<number | string>(7.5)
+  const [isCustomPotenciaInversorKw, setIsCustomPotenciaInversorKw] = useState(false)
 
   // Delete modal state
   const [deleteKitId, setDeleteKitId] = useState<string | null>(null)
@@ -181,6 +186,7 @@ export default function KitsSolares() {
         marcaPaineis,
         qtdInversores,
         marcaInversor,
+        potenciaInversorKw,
         kwp: quickKwpInfo.kwp,
         stringBox,
         tipoEstrutura,
@@ -199,6 +205,7 @@ export default function KitsSolares() {
     marcaPaineis,
     qtdInversores,
     marcaInversor,
+    potenciaInversorKw,
     stringBox,
     tipoEstrutura,
   ])
@@ -215,6 +222,8 @@ export default function KitsSolares() {
     setQtdInversores(1)
     setMarcaInversor('Sungrow')
     setIsCustomMarcaInversor(false)
+    setPotenciaInversorKw(7.5)
+    setIsCustomPotenciaInversorKw(false)
     setStringBox('')
     setTipoEstrutura('solo_monoposte')
 
@@ -232,6 +241,7 @@ export default function KitsSolares() {
         marcaPaineis: 'TSUN POWER',
         qtdInversores: 1,
         marcaInversor: 'Sungrow',
+        potenciaInversorKw: 7.5,
         kwp: initialKwp,
         stringBox: '',
         tipoEstrutura: 'solo_monoposte',
@@ -272,6 +282,12 @@ export default function KitsSolares() {
         kit.marca_inversor || componentes.marcaInversor,
       ),
     )
+    const potInvKwVal =
+      kit.potencia_inversor_kw ?? componentes.potenciaInversorKw ?? (kit.potencia_kw || 7.5)
+    setPotenciaInversorKw(potInvKwVal)
+    setIsCustomPotenciaInversorKw(
+      !(POTENCIAS_COMUNS_INVERSORES as readonly number[]).includes(Number(potInvKwVal)),
+    )
     if (!kit.tipo_estrutura && componentes.tipoEstrutura) {
       setTipoEstrutura(componentes.tipoEstrutura)
     }
@@ -306,6 +322,12 @@ export default function KitsSolares() {
     const mInv = kit.marca_inversor || componentes.marcaInversor || 'Sungrow'
     setMarcaInversor(mInv)
     setIsCustomMarcaInversor(!(MARCAS_INVERSORES_SUGERIDAS as readonly string[]).includes(mInv))
+    const clonPotInvKw =
+      kit.potencia_inversor_kw ?? componentes.potenciaInversorKw ?? (kit.potencia_kw || 7.5)
+    setPotenciaInversorKw(clonPotInvKw)
+    setIsCustomPotenciaInversorKw(
+      !(POTENCIAS_COMUNS_INVERSORES as readonly number[]).includes(Number(clonPotInvKw)),
+    )
 
     setStringBox(kit.string_box || componentes.stringBox || '')
     setTipoEstrutura(kit.tipo_estrutura || componentes.tipoEstrutura || 'solo_monoposte')
@@ -360,6 +382,8 @@ export default function KitsSolares() {
         string_box: (stringBox as any) || '',
         marca_painel: marcaPaineis.trim(),
         marca_inversor: marcaInversor.trim(),
+        potencia_painel_w: Number(potenciaPainelW) || undefined,
+        potencia_inversor_kw: Number(potenciaInversorKw) || undefined,
         tipo_estrutura: (tipoEstrutura as KitTipoEstrutura) || '',
       }
 
@@ -681,7 +705,7 @@ export default function KitsSolares() {
                 </div>
 
                 {/* Potência & Categoria Badges */}
-                <div className="flex items-center gap-2 mt-3.5">
+                <div className="flex items-center flex-wrap gap-2 mt-3.5">
                   <Badge
                     variant="outline"
                     className="bg-slate-50 border-slate-200 text-xs font-semibold gap-1 text-slate-700"
@@ -690,6 +714,34 @@ export default function KitsSolares() {
                     <span>{kit.potencia_kw} kWp</span>
                   </Badge>
 
+                  {(kit.potencia_painel_w || extrairComponentesKit(kit).potenciaPainelW > 0) && (
+                    <Badge
+                      variant="outline"
+                      className="bg-emerald-50 border-emerald-200 text-emerald-800 text-[11px] font-semibold gap-1"
+                    >
+                      <span>
+                        Painel{' '}
+                        {formatarPotenciaW(
+                          kit.potencia_painel_w || extrairComponentesKit(kit).potenciaPainelW,
+                          'W',
+                        )}
+                      </span>
+                    </Badge>
+                  )}
+
+                  {(kit.potencia_inversor_kw || extrairComponentesKit(kit).potenciaInversorKw) && (
+                    <Badge
+                      variant="outline"
+                      className="bg-amber-50 border-amber-200 text-amber-900 text-[11px] font-semibold gap-1"
+                    >
+                      <span>
+                        Inversor{' '}
+                        {formatarPotenciaKw(
+                          kit.potencia_inversor_kw || extrairComponentesKit(kit).potenciaInversorKw,
+                        )}
+                      </span>
+                    </Badge>
+                  )}
                   <Badge
                     variant="outline"
                     className="bg-slate-50 border-slate-200 text-xs font-medium gap-1 text-slate-600"
@@ -1018,11 +1070,28 @@ export default function KitsSolares() {
                   </div>
                 </div>
 
-                {/* Inversor: Quantidade e Marca/Modelo */}
+                {/* Inversor: Quantidade, Potência e Marca/Modelo */}
                 <div className="space-y-1.5 pt-1 border-t border-slate-200/60">
-                  <Label className="text-xs font-semibold text-slate-700 block">
-                    Inversor Solar
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                      <span>Inversor Solar</span>
+                      {potenciaInversorKw ? (
+                        <span className="text-amber-700 text-[10px] font-normal">
+                          ({formatarPotenciaKw(potenciaInversorKw)})
+                        </span>
+                      ) : null}
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomPotenciaInversorKw(!isCustomPotenciaInversorKw)
+                      }}
+                      className="text-[11px] text-[#0B7A5B] hover:underline font-medium"
+                    >
+                      {isCustomPotenciaInversorKw ? 'Potências comuns' : 'Potência personalizada'}
+                    </button>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
                     <div className="sm:col-span-3">
                       <Label
@@ -1042,7 +1111,50 @@ export default function KitsSolares() {
                         className="h-9 text-sm font-semibold border-slate-200"
                       />
                     </div>
-                    <div className="sm:col-span-9">
+
+                    {/* Potência do Inversor em kW */}
+                    <div className="sm:col-span-4">
+                      <Label
+                        htmlFor="quickPotInversor"
+                        className="text-[11px] text-slate-500 block mb-1"
+                      >
+                        Potência (kW)
+                      </Label>
+                      {isCustomPotenciaInversorKw ? (
+                        <Input
+                          id="quickPotInversor"
+                          type="number"
+                          min="0.5"
+                          step="0.1"
+                          value={potenciaInversorKw}
+                          onChange={(e) => setPotenciaInversorKw(e.target.value)}
+                          placeholder="Ex: 7.5"
+                          className="h-9 text-sm font-semibold border-slate-200"
+                        />
+                      ) : (
+                        <select
+                          id="quickPotInversor"
+                          value={potenciaInversorKw}
+                          onChange={(e) => {
+                            if (e.target.value === 'custom') {
+                              setIsCustomPotenciaInversorKw(true)
+                            } else {
+                              setPotenciaInversorKw(Number(e.target.value))
+                            }
+                          }}
+                          className="w-full h-9 px-3 text-sm font-semibold bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+                        >
+                          {POTENCIAS_COMUNS_INVERSORES.map((p) => (
+                            <option key={p} value={p}>
+                              {p.toLocaleString('pt-BR')} kW
+                            </option>
+                          ))}
+                          <option value="custom">Outra potência...</option>
+                        </select>
+                      )}
+                    </div>
+
+                    <div className="sm:col-span-5">
                       <Label
                         htmlFor="quickMarcaInv"
                         className="text-[11px] text-slate-500 block mb-1"
@@ -1103,7 +1215,6 @@ export default function KitsSolares() {
                     </div>
                   </div>
                 </div>
-
                 {/* Resumo da montagem com botão de recarregar sugestões */}
                 <div className="p-2.5 rounded-lg bg-white/80 border border-emerald-100 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-1.5 text-emerald-900">
@@ -1128,6 +1239,7 @@ export default function KitsSolares() {
                           marcaPaineis,
                           qtdInversores,
                           marcaInversor,
+                          potenciaInversorKw,
                           kwp: quickKwpInfo.kwp,
                           stringBox,
                           tipoEstrutura,
@@ -1177,6 +1289,7 @@ export default function KitsSolares() {
                           marcaPaineis,
                           qtdInversores,
                           marcaInversor,
+                          potenciaInversorKw,
                           kwp: quickKwpInfo.kwp,
                           stringBox,
                           tipoEstrutura: novaEstrut,
@@ -1228,6 +1341,7 @@ export default function KitsSolares() {
                           marcaPaineis,
                           qtdInversores,
                           marcaInversor,
+                          potenciaInversorKw,
                           kwp: quickKwpInfo.kwp,
                           stringBox: novoSb,
                           tipoEstrutura,

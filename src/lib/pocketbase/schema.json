@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11T20:34:17.930Z",
+  "generatedAt": "2026-09-11T21:05:25.370Z",
   "collections": [
     {
       "name": "users",
@@ -375,6 +375,18 @@
         {
           "name": "marca_inversor",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "potencia_painel_w",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "potencia_inversor_kw",
+          "type": "number",
           "required": false,
           "system": false
         }

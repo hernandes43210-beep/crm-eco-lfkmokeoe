@@ -54,7 +54,8 @@ describe('kitItemsParser', () => {
     expect(modulo).toBeDefined()
     expect(modulo?.quantidade).toBe(10)
     expect(modulo?.fabricanteModelo).toContain('Canadian Solar')
-    expect(modulo?.fabricanteModelo).toContain('610Wp')
+    expect(modulo?.fabricanteModelo).toMatch(/610\s*W/)
+    expect(modulo?.potenciaUnit).toBe('610 W')
 
     const inv = res.itens.find((i) => i.tipo === 'inversor')
     expect(inv).toBeDefined()
@@ -137,5 +138,24 @@ describe('kitItemsParser', () => {
 
     const inversor = res.itens.find((i) => i.tipo === 'inversor')
     expect(inversor?.fabricanteModelo).toContain('HUAWEI')
+  })
+
+  it('exibe potências formatadas com padrão brasileiro em W para painel e kW para inversor', () => {
+    const res = parseKitDetailedItems({
+      kitNome: 'Kit Solar 7,56 kWp',
+      kitPotenciaKw: 7.56,
+      marcaPainel: 'Canadian Solar',
+      potenciaPainelW: 630,
+      marcaInversor: 'Growatt',
+      potenciaInversorKw: 7.5,
+    })
+
+    const modulo = res.itens.find((i) => i.tipo === 'modulo')
+    expect(modulo?.potenciaUnit).toBe('630 W')
+    expect(modulo?.fabricanteModelo).toContain('630 W')
+
+    const inversor = res.itens.find((i) => i.tipo === 'inversor')
+    expect(inversor?.potenciaUnit).toBe('7,5 kW')
+    expect(inversor?.fabricanteModelo).toContain('7,5 kW')
   })
 })

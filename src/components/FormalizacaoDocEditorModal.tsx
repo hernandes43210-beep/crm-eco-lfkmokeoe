@@ -75,6 +75,9 @@ export function FormalizacaoDocEditorModal({
       stringBox: (proposta as any)?.kit_string_box || kitObj?.string_box,
       marcaPainel: (proposta as any)?.kit_marca_painel || kitObj?.marca_painel,
       marcaInversor: (proposta as any)?.kit_marca_inversor || kitObj?.marca_inversor,
+      potenciaPainelW: (proposta as any)?.kit_potencia_painel_w || kitObj?.potencia_painel_w,
+      potenciaInversorKw:
+        (proposta as any)?.kit_potencia_inversor_kw || kitObj?.potencia_inversor_kw,
       tipoEstrutura: (proposta as any)?.kit_tipo_estrutura || kitObj?.tipo_estrutura,
     })
   }, [proposta, lead])
@@ -109,6 +112,7 @@ export function FormalizacaoDocEditorModal({
         unidade: it.unidade || 'un',
         quantidade:
           typeof it.quantidade === 'number' ? `${it.quantidade},00` : String(it.quantidade),
+        potencia: it.potenciaUnit || '',
         especificacao: it.especificacao || '',
         fabricanteModelo: it.fabricanteModelo || '',
       })),
@@ -565,7 +569,7 @@ export function FormalizacaoDocEditorModal({
                           key={idx}
                           className="grid grid-cols-1 sm:grid-cols-12 gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs"
                         >
-                          <div className="sm:col-span-4">
+                          <div className="sm:col-span-3">
                             <span className="text-[10px] text-slate-400 uppercase font-semibold">
                               Item
                             </span>
@@ -583,6 +587,24 @@ export function FormalizacaoDocEditorModal({
                             />
                           </div>
                           <div className="sm:col-span-2">
+                            <span className="text-[10px] text-slate-400 uppercase font-semibold">
+                              Potência
+                            </span>
+                            <Input
+                              value={item.potencia || ''}
+                              placeholder="Ex: 630 W ou 7,5 kW"
+                              onChange={(e) => {
+                                const newTabela = [...(contratoState.tabelaEquipamentos || [])]
+                                newTabela[idx].potencia = e.target.value
+                                setContratoState({
+                                  ...contratoState,
+                                  tabelaEquipamentos: newTabela,
+                                })
+                              }}
+                              className="h-8 text-xs font-bold text-[#0B7A5B] bg-white text-center"
+                            />
+                          </div>
+                          <div className="sm:col-span-1">
                             <span className="text-[10px] text-slate-400 uppercase font-semibold">
                               Qtd
                             </span>

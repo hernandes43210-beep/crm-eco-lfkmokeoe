@@ -9,6 +9,8 @@ import {
   formatarRotuloStringBox,
   formatarRotuloEstrutura,
   formatarNomeItemEstrutura,
+  formatarPotenciaW,
+  formatarPotenciaKw,
 } from './quickKitUtils'
 
 describe('quickKitUtils', () => {
@@ -66,7 +68,7 @@ describe('quickKitUtils', () => {
       marcaInversor: 'Growatt 5000',
       kwp: 6.1,
     })
-    expect(desc).toContain('10x Módulo fotovoltaico 610Wp (Canadian Solar)')
+    expect(desc).toContain('10x Módulo fotovoltaico 610 W (Canadian Solar)')
     expect(desc).toContain('1x Inversor solar Growatt 5000')
     expect(desc).toContain('Total 6,1 kWp')
 
@@ -82,6 +84,14 @@ describe('quickKitUtils', () => {
     })
     expect(descComSb).toContain('1x String box 2 entradas / 2 saídas')
     expect(descComSb).toContain('Estrutura de fixação: Solo monoposte')
+  })
+
+  it('formata potencias em W e kW no padrao brasileiro', () => {
+    expect(formatarPotenciaW(630)).toBe('630 W')
+    expect(formatarPotenciaW(630, 'Wp')).toBe('630 Wp')
+    expect(formatarPotenciaKw(7.5)).toBe('7,5 kW')
+    expect(formatarPotenciaKw(10)).toBe('10 kW')
+    expect(formatarPotenciaKw(5)).toBe('5 kW')
   })
 
   it('formata rotulos de estrutura e nome de item com precisão', () => {

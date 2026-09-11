@@ -45,12 +45,16 @@ export interface ProposalPDFData {
   kit_string_box?: string
   kit_marca_painel?: string
   kit_marca_inversor?: string
+  kit_potencia_painel_w?: number
+  kit_potencia_inversor_kw?: number
   kit_tipo_estrutura?: string
   kit?: {
     descricao?: string
     string_box?: string
     marca_painel?: string
     marca_inversor?: string
+    potencia_painel_w?: number
+    potencia_inversor_kw?: number
     tipo_estrutura?: string
   }
   lead?: {
@@ -81,6 +85,8 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     stringBox: data.kit_string_box || data.kit?.string_box,
     marcaPainel: data.kit_marca_painel || data.kit?.marca_painel,
     marcaInversor: data.kit_marca_inversor || data.kit?.marca_inversor,
+    potenciaPainelW: data.kit_potencia_painel_w || data.kit?.potencia_painel_w,
+    potenciaInversorKw: data.kit_potencia_inversor_kw || data.kit?.potencia_inversor_kw,
     tipoEstrutura: data.kit_tipo_estrutura || data.kit?.tipo_estrutura,
   })
   // Estimativas solares calculadas
@@ -1138,16 +1144,17 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
   </div>
 
   <!-- 3. Seção Técnica Organizada: Tabela Item a Item com Quantidades Reais (KIT PRIMEIRO) -->
-  <div class="section-title">1. Composição do Kit Solar — Detalhamento Item a Item com Quantidades Reais</div>
+  <div class="section-title">1. Composição do Kit Solar — Detalhamento Item a Item com Quantidades e Potências</div>
   <div class="table-container">
     <table>
       <thead>
         <tr>
-          <th style="width: 55px;" class="text-center">Qtd.</th>
-          <th>Componente / Serviço Inclusos</th>
-          <th>Fabricante / Modelo Cadastrado</th>
+          <th style="width: 50px;" class="text-center">Qtd.</th>
+          <th>Componente / Equipamento</th>
+          <th>Fabricante / Modelo</th>
+          <th style="width: 100px; text-align: center;">Potência</th>
           <th>Especificações Técnicas</th>
-          <th style="width: 70px;" class="text-right">Status</th>
+          <th style="width: 65px;" class="text-right">Status</th>
         </tr>
       </thead>
       <tbody>
@@ -1158,6 +1165,9 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
           <td class="td-qty">${it.quantidade}${it.unidade !== 'un' ? ` ${it.unidade}` : 'x'}</td>
           <td><strong>${it.nome}</strong></td>
           <td>${it.fabricanteModelo}</td>
+          <td style="text-align: center; font-weight: 800; color: #0A192F;">
+            ${it.potenciaUnit ? `<span style="background: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 4px; padding: 2px 6px; font-size: 9.5px; font-family: monospace;">${it.potenciaUnit}</span>` : '<span style="color: #94A3B8;">-</span>'}
+          </td>
           <td style="color: #64748B;">${it.especificacao || '-'}</td>
           <td class="td-status">Incluso</td>
         </tr>`,

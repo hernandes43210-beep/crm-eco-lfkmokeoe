@@ -165,8 +165,23 @@ export default function PropostasList() {
       data_aceite: prop.data_aceite,
       aceito_por_nome: prop.aceito_por_nome,
       created: prop.created,
-      kit_descricao: prop.expand?.kit?.descricao,
-      kit_string_box: (prop.expand?.kit as any)?.string_box || undefined,
+      kit_descricao: (prop as any)?.kit_descricao || prop.expand?.kit?.descricao,
+      kit_string_box:
+        (prop as any)?.kit_string_box || (prop.expand?.kit as any)?.string_box || undefined,
+      kit_marca_painel:
+        (prop as any)?.kit_marca_painel || (prop.expand?.kit as any)?.marca_painel || undefined,
+      kit_marca_inversor:
+        (prop as any)?.kit_marca_inversor || (prop.expand?.kit as any)?.marca_inversor || undefined,
+      kit_potencia_painel_w:
+        (prop as any)?.kit_potencia_painel_w ||
+        (prop.expand?.kit as any)?.potencia_painel_w ||
+        undefined,
+      kit_potencia_inversor_kw:
+        (prop as any)?.kit_potencia_inversor_kw ||
+        (prop.expand?.kit as any)?.potencia_inversor_kw ||
+        undefined,
+      kit_tipo_estrutura:
+        (prop as any)?.kit_tipo_estrutura || (prop.expand?.kit as any)?.tipo_estrutura || undefined,
       cliente: {
         nome: lead?.nome || 'Cliente',
         email: lead?.email,
