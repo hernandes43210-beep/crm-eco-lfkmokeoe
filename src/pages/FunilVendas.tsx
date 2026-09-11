@@ -195,12 +195,15 @@ export default function FunilVendas() {
         }
       }
       let historyList = Array.isArray(currentHist) ? (currentHist as HistoricoItem[]) : []
+      const isFechadoGanho = newStatus === 'Fechado Ganho'
       historyList = [
         ...historyList,
         {
           data: new Date().toISOString(),
-          tipo: 'status',
-          descricao: `Lead movido no funil de '${previousStatus}' para '${newStatus}'.`,
+          tipo: isFechadoGanho ? 'fechamento' : 'status',
+          descricao: isFechadoGanho
+            ? `Lead movido para 'Fechado Ganho'. Etapa de Formalização Contratual & Energisa iniciada!`
+            : `Lead movido no funil de '${previousStatus}' para '${newStatus}'.`,
         },
       ]
 
@@ -211,10 +214,17 @@ export default function FunilVendas() {
         pr_assinada_ganho: newStatus === 'Fechado Ganho' ? true : targetLead.pr_assinada_ganho,
       })
 
-      toast({
-        title: 'Lead atualizado',
-        description: `Movido com sucesso para "${newStatus}".`,
-      })
+      if (newStatus === 'Fechado Ganho') {
+        toast({
+          title: 'Venda Concluída! Etapa de Formalização Iniciada',
+          description: `O lead "${targetLead.nome}" avançou para Fechado Ganho. Acesse a ficha para emitir o Contrato e a Procuração Energisa.`,
+        })
+      } else {
+        toast({
+          title: 'Lead atualizado',
+          description: `Movido com sucesso para "${newStatus}".`,
+        })
+      }
     } catch (err) {
       console.error('Failed to move lead:', err)
       // Revert optimistic update

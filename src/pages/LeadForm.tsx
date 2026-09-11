@@ -82,11 +82,16 @@ export default function LeadForm() {
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [telefone, setTelefone] = useState('')
+  const [cpfCnpj, setCpfCnpj] = useState('')
+  const [nacionalidade, setNacionalidade] = useState('Brasileiro(a)')
+  const [estadoCivil, setEstadoCivil] = useState('')
+  const [profissao, setProfissao] = useState('')
+  const [cep, setCep] = useState('')
   const [origem, setOrigem] = useState<LeadOrigem>('Site')
   const [consumoMensal, setConsumoMensal] = useState<number | string>(450)
   const [endereco, setEndereco] = useState('')
   const [cidade, setCidade] = useState('')
-  const [estado, setEstado] = useState('SP')
+  const [estado, setEstado] = useState('RO')
   const [status, setStatus] = useState<LeadStatus>('Novo')
   const [prPostEncerramento, setPrPostEncerramento] = useState('')
   const [proximoContato, setProximoContato] = useState('')
@@ -101,11 +106,16 @@ export default function LeadForm() {
           setNome(lead.nome)
           setEmail(lead.email)
           setTelefone(lead.telefone || '')
+          setCpfCnpj(lead.cpf_cnpj || '')
+          setNacionalidade(lead.nacionalidade || 'Brasileiro(a)')
+          setEstadoCivil(lead.estado_civil || '')
+          setProfissao(lead.profissao || '')
+          setCep(lead.cep || '')
           setOrigem(lead.origem || 'Site')
           setConsumoMensal(lead.consumo_mensal_kwh || '')
           setEndereco(lead.endereco || '')
           setCidade(lead.cidade || '')
-          setEstado(lead.estado || 'SP')
+          setEstado(lead.estado || 'RO')
           setStatus(lead.status)
           setPrPostEncerramento(
             lead.pr_post_encerramento ? lead.pr_post_encerramento.substring(0, 10) : '',
@@ -217,11 +227,16 @@ export default function LeadForm() {
         nome: cleanNome,
         email: cleanEmail,
         telefone: telefone.trim(),
+        cpf_cnpj: cpfCnpj.trim(),
+        nacionalidade: nacionalidade.trim(),
+        estado_civil: estadoCivil.trim(),
+        profissao: profissao.trim(),
+        cep: cep.trim(),
         origem,
         consumo_mensal_kwh: numConsumo,
         endereco: endereco.trim(),
         cidade: cidade.trim(),
-        estado: cleanEstado || 'SP',
+        estado: cleanEstado || 'RO',
         status: status || 'Novo',
         sla_dias: Math.max(1, Number(slaDias) || 7),
         preco_venda: Math.max(0, Number(precoVenda) || 0),
@@ -500,36 +515,118 @@ export default function LeadForm() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="cidade" className="text-xs font-semibold text-slate-700">
-                    Cidade
+              <div className="space-y-1.5">
+                <Label htmlFor="cep" className="text-xs font-semibold text-slate-700">
+                  CEP
+                </Label>
+                <Input
+                  id="cep"
+                  value={cep}
+                  onChange={(e) => setCep(e.target.value)}
+                  placeholder="76934-000"
+                  className="h-10 text-sm border-slate-200"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="sm:col-span-2 space-y-1.5">
+                <Label htmlFor="cidade" className="text-xs font-semibold text-slate-700">
+                  Cidade
+                </Label>
+                <Input
+                  id="cidade"
+                  value={cidade}
+                  onChange={(e) => setCidade(e.target.value)}
+                  placeholder="Seringueiras"
+                  className="h-10 text-sm border-slate-200"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="estado" className="text-xs font-semibold text-slate-700">
+                  UF
+                </Label>
+                <select
+                  id="estado"
+                  value={estado}
+                  onChange={(e) => setEstado(e.target.value)}
+                  className="w-full h-10 px-2 text-sm bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+                >
+                  {ESTADOS_BR.map((uf) => (
+                    <option key={uf} value={uf}>
+                      {uf}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Sub-bloco: Dados para Formalização Contratual & Concessionária */}
+            <div className="pt-3 border-t border-slate-100 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Dados Civis para Formalização (Contrato e Procuração)
+                  </h4>
+                  <p className="text-[11px] text-slate-400">
+                    Opcionais no primeiro contato. Se preenchidos, geram os documentos
+                    automaticamente sem campos em branco.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="cpfCnpj" className="text-xs font-semibold text-slate-700">
+                    CPF ou CNPJ
                   </Label>
                   <Input
-                    id="cidade"
-                    value={cidade}
-                    onChange={(e) => setCidade(e.target.value)}
-                    placeholder="Campinas"
-                    className="h-10 text-sm border-slate-200"
+                    id="cpfCnpj"
+                    value={cpfCnpj}
+                    onChange={(e) => setCpfCnpj(e.target.value)}
+                    placeholder="000.000.000-00"
+                    className="h-9 text-xs border-slate-200"
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="estado" className="text-xs font-semibold text-slate-700">
-                    UF
+                <div className="space-y-1">
+                  <Label htmlFor="nacionalidade" className="text-xs font-semibold text-slate-700">
+                    Nacionalidade
                   </Label>
-                  <select
-                    id="estado"
-                    value={estado}
-                    onChange={(e) => setEstado(e.target.value)}
-                    className="w-full h-10 px-2 text-sm bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
-                  >
-                    {ESTADOS_BR.map((uf) => (
-                      <option key={uf} value={uf}>
-                        {uf}
-                      </option>
-                    ))}
-                  </select>
+                  <Input
+                    id="nacionalidade"
+                    value={nacionalidade}
+                    onChange={(e) => setNacionalidade(e.target.value)}
+                    placeholder="Brasileiro(a)"
+                    className="h-9 text-xs border-slate-200"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="estadoCivil" className="text-xs font-semibold text-slate-700">
+                    Estado Civil
+                  </Label>
+                  <Input
+                    id="estadoCivil"
+                    value={estadoCivil}
+                    onChange={(e) => setEstadoCivil(e.target.value)}
+                    placeholder="Casado(a) / Solteiro(a)"
+                    className="h-9 text-xs border-slate-200"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="profissao" className="text-xs font-semibold text-slate-700">
+                    Profissão
+                  </Label>
+                  <Input
+                    id="profissao"
+                    value={profissao}
+                    onChange={(e) => setProfissao(e.target.value)}
+                    placeholder="Produtor Rural, Autônomo..."
+                    className="h-9 text-xs border-slate-200"
+                  />
                 </div>
               </div>
             </div>

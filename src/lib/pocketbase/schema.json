@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11T13:54:45.765Z",
+  "generatedAt": "2026-09-11T14:35:22.877Z",
   "collections": [
     {
       "name": "users",
@@ -234,6 +234,36 @@
         },
         {
           "name": "proximo_contato",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cpf_cnpj",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nacionalidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estado_civil",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "profissao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cep",
           "type": "text",
           "required": false,
           "system": false
@@ -1024,6 +1054,89 @@
       "indexes": [
         "CREATE INDEX idx_site_form_logs_created ON site_form_logs (created DESC)",
         "CREATE INDEX idx_site_form_logs_status ON site_form_logs (status_processamento)"
+      ]
+    },
+    {
+      "name": "formalizacao_documentos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != '' && (criado_por = @request.auth.id || @request.auth.role = 'Admin')",
+        "delete": "@request.auth.id != '' && (criado_por = @request.auth.id || @request.auth.role = 'Admin')"
+      },
+      "fields": [
+        {
+          "name": "lead",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "leads"
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["contrato", "procuracao"]
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "versao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dados_customizados",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conteudo_html",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "arquivo_pdf",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_formalizacao_lead ON formalizacao_documentos (lead)",
+        "CREATE INDEX idx_formalizacao_tipo ON formalizacao_documentos (tipo)",
+        "CREATE INDEX idx_formalizacao_created ON formalizacao_documentos (created DESC)"
       ]
     }
   ]

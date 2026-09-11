@@ -39,6 +39,7 @@ import { InvestmentComparison } from '@/components/InvestmentComparison'
 import { DeletePropostaDialog } from '@/components/DeletePropostaDialog'
 import { EditarPropostaModal } from '@/components/EditarPropostaModal'
 import { LeadInstallationPhotos } from '@/components/LeadInstallationPhotos'
+import { LeadFormalizacaoSection } from '@/components/LeadFormalizacaoSection'
 import { openProposalPDFPrint } from '@/lib/proposalPdf'
 import useRealtime from '@/hooks/use-realtime'
 import { useAuth } from '@/context/AuthContext'
@@ -387,18 +388,18 @@ export default function LeadDetail() {
       const origStatus = lead.status
       let historyList = [...normalizedHistorico]
 
-      const desc =
-        newStatus === 'Fechado Ganho'
-          ? 'Negócio fechado com sucesso! Contrato assinado.'
-          : newStatus === 'Fechado Perdido'
-            ? 'Oportunidade marcada como perdida no funil.'
-            : `Lead avançado de '${origStatus}' para '${newStatus}'.`
+      const isFechadoGanho = newStatus === 'Fechado Ganho'
+      const desc = isFechadoGanho
+        ? 'Negócio fechado com sucesso! Etapa de Formalização Contratual & Energisa iniciada.'
+        : newStatus === 'Fechado Perdido'
+          ? 'Oportunidade marcada como perdida no funil.'
+          : `Lead avançado de '${origStatus}' para '${newStatus}'.`
 
       historyList = [
         ...historyList,
         {
           data: new Date().toISOString(),
-          tipo: 'status',
+          tipo: isFechadoGanho ? 'fechamento' : 'status',
           descricao: desc,
         },
       ]
@@ -413,10 +414,18 @@ export default function LeadDetail() {
       setLead(updated)
       setPrAssinada(updated.pr_assinada_ganho || false)
 
-      toast({
-        title: 'Estágio atualizado',
-        description: `Lead alterado para "${newStatus}".`,
-      })
+      if (newStatus === 'Fechado Ganho') {
+        toast({
+          title: 'Venda Fechada! Etapa de Formalização aberta',
+          description:
+            'O lead entrou na etapa de Formalização. Gere o Contrato e a Procuração Energisa abaixo.',
+        })
+      } else {
+        toast({
+          title: 'Estágio atualizado',
+          description: `Lead alterado para "${newStatus}".`,
+        })
+      }
     } catch (err) {
       console.error('Error changing stage:', err)
       toast({
@@ -939,13 +948,44 @@ export default function LeadDetail() {
                   <MapPin className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400">Localização</p>
+                  <p className="text-xs text-slate-400">Localização e CEP</p>
                   <p className="font-medium text-slate-800">
                     {lead.endereco ? `${lead.endereco}, ` : ''}
                     {lead.cidade || lead.estado
                       ? `${lead.cidade || ''} - ${lead.estado || ''}`
                       : 'Endereço não cadastrado'}
+                    {lead.cep ? ` • CEP: ${lead.cep}` : ''}
                   </p>
+                </div>
+              </div>
+
+              {/* Informações Civis para Formalização */}
+              <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80 space-y-1.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Dados Civis (Formalização)
+                  </span>
+                  <Badge variant="outline" className="text-[10px] py-0 px-1 font-normal bg-white">
+                    {lead.cpf_cnpj ? 'Identificado' : 'Pendente'}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-slate-700">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">CPF / CNPJ</span>
+                    <span className="font-semibold">{lead.cpf_cnpj || 'Não informado'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Nacionalidade</span>
+                    <span className="font-medium">{lead.nacionalidade || 'Brasileiro(a)'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Estado Civil</span>
+                    <span className="font-medium">{lead.estado_civil || 'Não informado'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Profissão</span>
+                    <span className="font-medium">{lead.profissao || 'Não informado'}</span>
+                  </div>
                 </div>
               </div>
 
@@ -1364,6 +1404,20 @@ export default function LeadDetail() {
           </Card>
         </div>
       </div>
+
+      {/* Etapa de Formalização Contratual & Energisa (Apenas em Fechado Ganho) */}
+      {lead.status === 'Fechado Ganho' && (
+        <LeadFormalizacaoSection
+          lead={lead}
+          propostas={propostas}
+          isAdmin={isAdmin}
+          currentUserId={user?.id}
+          onLeadUpdated={() => {
+            fetchLead()
+            if (lead?.id) fetchPropostas(lead.id)
+          }}
+        />
+      )}
 
       {/* Seção Fotos da Instalação & Montagem Promocional (Apenas em Fechado Ganho) */}
       {lead.status === 'Fechado Ganho' && (

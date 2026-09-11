@@ -46,6 +46,11 @@ export interface Lead extends RecordModel {
   nome: string
   email: string
   telefone?: string
+  cpf_cnpj?: string
+  nacionalidade?: string
+  estado_civil?: string
+  profissao?: string
+  cep?: string
   origem?: LeadOrigem
   consumo_mensal_kwh: number
   endereco?: string
@@ -73,6 +78,26 @@ export interface Lead extends RecordModel {
   expand?: {
     proprietario?: User
     qualificado_por?: User
+  }
+}
+
+export type FormalizacaoTipo = 'contrato' | 'procuracao'
+
+export interface FormalizacaoDocumento extends RecordModel {
+  id: string
+  lead: string
+  tipo: FormalizacaoTipo
+  titulo: string
+  versao: number
+  dados_customizados?: Record<string, unknown>
+  conteudo_html?: string
+  arquivo_pdf?: string
+  criado_por?: string
+  created: string
+  updated: string
+  expand?: {
+    lead?: Lead
+    criado_por?: User
   }
 }
 
