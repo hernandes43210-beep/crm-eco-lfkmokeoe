@@ -269,7 +269,7 @@ export function FormalizacaoDocEditorModal({
       const payloadCustomizados = tipo === 'contrato' ? contratoState : procuracaoState
 
       // Criar blob HTML do documento para servir como arquivo anexado
-      const htmlBlob = new Blob([currentHtml], { type: 'text/html;charset=utf-8' })
+      const htmlBlob = new Blob([currentHtml], { type: 'text/html' })
 
       const savedDoc = await FormalizacaoService.saveDocumento({
         lead: lead.id,
