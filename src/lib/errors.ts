@@ -66,6 +66,8 @@ export const FIELD_LABELS: Record<string, string> = {
   conteudo_html: 'Conteúdo do documento',
   arquivo_pdf: 'Arquivo do documento',
   criado_por: 'Criado por',
+  documento: 'Documento',
+  tipo_documento: 'Tipo de documento',
 
   // Clicksign / Assinaturas
   envelope_id: 'ID do envelope',

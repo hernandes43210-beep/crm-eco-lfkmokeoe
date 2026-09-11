@@ -83,11 +83,65 @@ export const FormalizacaoService = {
       formData.append('arquivo_pdf', payload.arquivo_pdf_blob, filename)
     }
 
-    const record = await pb
-      .collection('formalizacao_documentos')
-      .create<FormalizacaoDocumento>(formData, {
-        expand: 'criado_por',
-      })
+    let record: FormalizacaoDocumento
+
+    try {
+      // 1. Tenta salvar com o arquivo anexado
+      record = await pb
+        .collection('formalizacao_documentos')
+        .create<FormalizacaoDocumento>(formData, {
+          expand: 'criado_por',
+        })
+    } catch (err: any) {
+      // Registrar detalhes do erro para diagnóstico rápido nos logs
+      const responseData = err?.response?.data || err?.data
+      console.error(
+        '[FormalizacaoService.saveDocumento] Falha no create inicial com arquivo:',
+        JSON.stringify(responseData || err?.message || err),
+      )
+
+      // Se falhou e tínhamos tentado enviar arquivo_pdf, tentar fallback SEM o arquivo
+      // (o documento integral já está preservado no campo text conteudo_html)
+      const isClient400 = err?.status === 400 || err?.response?.status === 400
+      if (isClient400 && payload.arquivo_pdf_blob) {
+        console.warn(
+          '[FormalizacaoService.saveDocumento] Tentando fallback para salvar sem arquivo_pdf...',
+        )
+        try {
+          const fallbackFormData = new FormData()
+          fallbackFormData.append('lead', payload.lead)
+          fallbackFormData.append('tipo', payload.tipo)
+          fallbackFormData.append('titulo', payload.titulo)
+          fallbackFormData.append('versao', String(nextVersion))
+          fallbackFormData.append(
+            'dados_customizados',
+            JSON.stringify(payload.dados_customizados || {}),
+          )
+          fallbackFormData.append('conteudo_html', payload.conteudo_html)
+          if (userId) {
+            fallbackFormData.append('criado_por', userId)
+          }
+
+          record = await pb
+            .collection('formalizacao_documentos')
+            .create<FormalizacaoDocumento>(fallbackFormData, {
+              expand: 'criado_por',
+            })
+          console.info(
+            '[FormalizacaoService.saveDocumento] Salvo com sucesso via fallback (conteudo_html preservado).',
+          )
+        } catch (fallbackErr: any) {
+          const fallbackData = fallbackErr?.response?.data || fallbackErr?.data
+          console.error(
+            '[FormalizacaoService.saveDocumento] Falha também no fallback sem arquivo:',
+            JSON.stringify(fallbackData || fallbackErr?.message || fallbackErr),
+          )
+          throw fallbackErr
+        }
+      } else {
+        throw err
+      }
+    }
 
     // Registrar no histórico do lead
     try {
