@@ -49,10 +49,10 @@ export interface DadosContratoFormalizacao {
 export interface DadosProcuracaoEnergisa {
   // Outorgante (Lead)
   clienteNome: string
-  clienteNacionalidade: string
-  clienteEstadoCivil: string
-  clienteProfissao: string
-  clienteRg: string
+  clienteNacionalidade?: string
+  clienteEstadoCivil?: string
+  clienteProfissao?: string
+  clienteRg?: string
   clienteCpfCnpj: string
   clienteEndereco: string
   clienteBairro: string
@@ -60,12 +60,12 @@ export interface DadosProcuracaoEnergisa {
   clienteEstado: string
   clienteCep: string
 
-  // Concessionária
-  concessionaria: string
+  // Concessionária (fixa no texto oficial)
+  concessionaria?: string
 
   // Data & Local
-  cidadeAssinatura: string
-  dataAssinatura: string // formato por extenso
+  cidadeAssinatura?: string
+  dataAssinatura?: string // formato por extenso ("15 de março de 2025" ou "SERINGUEIRAS – RO, 15 de março de 2025")
 }
 
 // QA touch: verificação de exportações e tipagem
@@ -90,19 +90,24 @@ export const DADOS_FIXOS_ECOSOLAR = {
   },
   outorgados: [
     {
+      ordem: '1º)',
       nome: 'WILLIAN DA COSTA GOVEIA',
       profissao: 'Engenheiro Eletricista',
-      crea: 'CREA 26000217D RO',
-      nacionalidade: 'Brasileiro',
-      estadoCivil: 'Solteiro',
-      residencia: 'Seringueiras – RO',
+      nacionalidade: 'brasileiro',
+      crea: 'CREA sob o nº 26000217D RO',
+      rg: '1425244 SESDEC/RO',
+      cpf: '024.376.042-60',
+      endereco: 'Rua Piauí, nº 1970, Setor 1ª, Jaru/RO CEP:76890-000',
     },
     {
+      ordem: '2º)',
       nome: 'HERNANDES DA SILVA COSTA',
-      profissao: 'Empresário / Diretor Geral Ecosolar',
+      profissao: 'Empresário, CEO e representante comercial da empresa Ecosolar Energy',
       nacionalidade: 'Brasileiro',
       estadoCivil: 'Casado',
-      residencia: 'Seringueiras – RO',
+      rg: '1432554',
+      cpf: '041.209.632-33',
+      endereco: 'Av. Flamboyant n°1268, Bairro Centro, Seringueiras/RO CEP 76934-000',
     },
   ],
 }
@@ -122,7 +127,13 @@ export function formatarDataExtenso(
     // Se for formato YYYY-MM-DD
     const parts = dataInput.split('T')[0].split('-')
     if (parts.length === 3) {
-      d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10))
+      const y = parseInt(parts[0], 10)
+      const m = parseInt(parts[1], 10) - 1
+      const diaNum = parseInt(parts[2], 10)
+      // Ajusta dia caso exceda o último dia real do mês (ex: 31 de junho -> 30 de junho)
+      const maxDiasMes = new Date(y, m + 1, 0).getDate()
+      const diaAjustado = Math.min(diaNum, maxDiasMes)
+      d = new Date(y, m, diaAjustado)
     } else {
       d = new Date(dataInput)
     }
@@ -153,6 +164,9 @@ export function formatarDataExtenso(
   const mes = meses[d.getMonth()]
   const ano = d.getFullYear()
 
+  if (!cidade || cidade.trim() === '') {
+    return `${dia} de ${mes} de ${ano}`
+  }
   return `${cidade}, ${dia} de ${mes} de ${ano}`
 }
 
@@ -639,16 +653,56 @@ export function generateContratoHTML(dados: DadosContratoFormalizacao): string {
 
 /**
  * Gera o HTML para a Procuração Energisa Rondônia
- * Baseada fielmente no modelo Procuracao_Energisa_Ecosolar-ce324.docx
+ * Reproduz VERBATIM o texto oficial do modelo:
+ *
+ * PROCURAÇÃO
+ *
+ * OUTORGANTE: {{nome_cliente}}, CPF: {{cpf_cnpj}}, nacionalidade: {{nacionalidade}}, estado civil: {{estado_civil}}, profissão: {{profissao}}, residente e domiciliado na {{endereco_logradouro}} Bairro: {{bairro}}, Município: {{cidade}}, Estado: {{estado}}, CEP: {{cep}}.
+ *
+ * OUTORGADOS:
+ * 1º) WILLIAN DA COSTA GOVEIA, Engenheiro Eletricista, brasileiro, inscrito no CREA sob o nº 26000217D RO, portador do RG nº 1425244 SESDEC/RO e CPF nº 024.376.042-60, residente e domiciliado na Rua Piauí, nº 1970, Setor 1ª, Jaru/RO CEP:76890-000.
+ *
+ * 2º) HERNANDES DA SILVA COSTA, Empresário, Brasileiro, Casado, portador do RG n°1432554, portador do CPF nº 041.209.632-33, CEO e representante comercial da empresa Ecosolar Energy, residente na Av. Flamboyant n°1268, Bairro Centro, Seringueiras/RO CEP 76934-000.
+ *
+ * PODERES: Pelo presente instrumento particular de procuração, o(a) OUTORGANTE confere aos OUTORGADOS, em conjunto ou separadamente, amplos poderes para representá-lo(a) perante a ENERGISA RONDÔNIA — DISTRIBUIDORA DE ENERGIA S/A, podendo para tanto:
+ * • Solicitar, acompanhar e retirar documentos relativos à Unidade Consumidora (UC) de titularidade do(a) outorgante;
+ * • Protocolar e acompanhar pedidos de conexão de sistema de geração de energia solar fotovoltaica (microgeração e minigeração distribuída), conforme regulamentação da ANEEL;
+ * • Assinar requerimentos, formulários, termos de aceite, parecer de acesso e demais documentos necessários ao processo de homologação junto à Energisa Rondônia;
+ * • Solicitar vistoria e acompanhar a instalação do medidor bidirecional;
+ * • Obter informações sobre débitos, histórico de consumo, situação cadastral e demais dados vinculados à Unidade Consumidora do(a) outorgante;
+ * • Praticar todos os atos necessários ao fiel cumprimento do presente mandato, incluindo assinar documentos, juntar requerimentos e interpor recursos administrativos perante a distribuidora.
+ *
+ * VALIDADE: A presente procuração é válida por 12 (doze) meses a contar da data de sua assinatura, podendo ser revogada a qualquer momento por escrito.
+ *
+ * SERINGUEIRAS – RO, {{data_por_extenso}}.
+ *
+ * Assinatura do(a) Outorgante
+ * Nome: _____________________________________________
+ * {{nome_cliente}}
+ * CPF: {{cpf_cnpj}}
  */
 export function generateProcuracaoEnergisaHTML(dados: DadosProcuracaoEnergisa): string {
-  const concessionaria = dados.concessionaria || 'ENERGISA RONDÔNIA – DISTRIBUIDORA DE ENERGIA S/A'
+  // Padrão nacionalidade se vazio
+  const nacionalidadeEfetiva = dados.clienteNacionalidade?.trim() || 'BRASILEIRO'
+
+  // Tratar a data por extenso
+  // Se dados.dataAssinatura já contiver o texto completo (ex: "SERINGUEIRAS – RO, 15 de março de 2025" ou "15 de março de 2025")
+  let dataExtensoFinal = dados.dataAssinatura?.trim() || ''
+  if (!dataExtensoFinal) {
+    const dataFormatada = formatarDataExtenso(new Date(), '')
+    dataExtensoFinal = `SERINGUEIRAS – RO, ${dataFormatada}.`
+  } else if (!dataExtensoFinal.toUpperCase().startsWith('SERINGUEIRAS')) {
+    const textoSemPonto = dataExtensoFinal.replace(/\.+$/, '')
+    dataExtensoFinal = `SERINGUEIRAS – RO, ${textoSemPonto}.`
+  } else if (!dataExtensoFinal.endsWith('.')) {
+    dataExtensoFinal = `${dataExtensoFinal}.`
+  }
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Procuração Particular — Concessionária Energisa | ${dados.clienteNome || 'Cliente'}</title>
+  <title>PROCURAÇÃO ENERGISA — ${dados.clienteNome || 'Cliente'}</title>
   <style>
     @page {
       size: A4 portrait;
@@ -663,8 +717,8 @@ export function generateProcuracaoEnergisaHTML(dados: DadosProcuracaoEnergisa): 
     body {
       color: #0f172a;
       background: #ffffff;
-      font-size: 11.5pt;
-      line-height: 1.7;
+      font-size: 11pt;
+      line-height: 1.65;
       text-align: justify;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
@@ -675,10 +729,10 @@ export function generateProcuracaoEnergisaHTML(dados: DadosProcuracaoEnergisa): 
       align-items: center;
       border-bottom: 2px solid #EAB308;
       padding-bottom: 12px;
-      margin-bottom: 30px;
+      margin-bottom: 28px;
     }
     .logo-img {
-      height: 50px;
+      height: 48px;
       max-width: 170px;
       object-fit: contain;
     }
@@ -686,29 +740,40 @@ export function generateProcuracaoEnergisaHTML(dados: DadosProcuracaoEnergisa): 
       text-align: right;
       font-size: 8.5pt;
       color: #64748b;
-      line-height: 1.3;
+      line-height: 1.35;
+    }
+    .header-sub strong {
+      color: #0F284E;
     }
     .title-doc {
-      font-size: 17pt;
+      font-size: 16pt;
       font-weight: 900;
       color: #0A192F;
       text-align: center;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 28px;
+      letter-spacing: 1.5px;
+      margin-bottom: 26px;
     }
     .block-section {
-      margin-bottom: 22px;
+      margin-bottom: 18px;
     }
-    .section-label {
-      font-weight: 800;
-      color: #0A192F;
-      text-transform: uppercase;
-      font-size: 11.5pt;
-      display: inline-block;
+    .bullet-list {
+      margin: 8px 0 12px 0;
+      padding-left: 0;
+      list-style: none;
+    }
+    .bullet-item {
+      position: relative;
+      padding-left: 18px;
       margin-bottom: 6px;
-      border-bottom: 2px solid #EAB308;
-      padding-bottom: 1px;
+      line-height: 1.55;
+    }
+    .bullet-item::before {
+      content: "•";
+      position: absolute;
+      left: 2px;
+      font-weight: bold;
+      color: #0A192F;
     }
     .field-missing {
       background: #fef08a;
@@ -720,44 +785,52 @@ export function generateProcuracaoEnergisaHTML(dados: DadosProcuracaoEnergisa): 
       display: inline-block;
     }
     .signatures-section {
-      margin-top: 60px;
+      margin-top: 36px;
       page-break-inside: avoid;
     }
     .date-location {
-      text-align: center;
-      margin-bottom: 50px;
-      font-weight: 600;
-      font-size: 11.5pt;
-      color: #1e293b;
+      text-align: left;
+      margin-bottom: 40px;
+      font-weight: 700;
+      font-size: 11pt;
+      color: #0A192F;
+      text-transform: uppercase;
     }
-    .sign-box {
-      max-width: 380px;
-      margin: 0 auto;
-      text-align: center;
-      padding-top: 15px;
-      border-top: 1.5px solid #0f172a;
-      font-size: 10.5pt;
+    .sign-box-container {
+      margin-top: 20px;
+      text-align: left;
       line-height: 1.5;
     }
-    .sign-box strong {
-      display: block;
-      font-size: 11.5pt;
+    .sign-title {
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #1e293b;
+    }
+    .sign-underline {
+      margin-bottom: 6px;
+      color: #334155;
+      letter-spacing: -1px;
+    }
+    .sign-client-name {
+      font-weight: 700;
       color: #0A192F;
-      margin-bottom: 3px;
+    }
+    .sign-client-cpf {
+      color: #334155;
     }
     .footer-doc {
-      margin-top: 60px;
+      margin-top: 40px;
       padding-top: 10px;
       border-top: 1px solid #e2e8f0;
       display: flex;
       justify-content: space-between;
-      font-size: 8.5pt;
+      font-size: 8pt;
       color: #94a3b8;
     }
   </style>
 </head>
 <body>
-  <!-- Cabeçalho -->
+  <!-- Cabeçalho Institucional -->
   <div class="header-doc">
     <img src="${logoEcosolar}" alt="Ecosolar Energy" class="logo-img" />
     <div class="header-sub">
@@ -766,74 +839,62 @@ export function generateProcuracaoEnergisaHTML(dados: DadosProcuracaoEnergisa): 
     </div>
   </div>
 
-  <h1 class="title-doc">PROCURAÇÃO PARTICULAR</h1>
+  <h1 class="title-doc">PROCURAÇÃO</h1>
 
   <!-- OUTORGANTE -->
   <div class="block-section">
-    <span class="section-label">OUTORGANTE:</span>
     <p>
-      <strong>${renderMissingWarning(dados.clienteNome, '[NOME COMPLETO DO CLIENTE]')}</strong>, 
-      nacionalidade <strong>${renderMissingWarning(dados.clienteNacionalidade, '[NACIONALIDADE]')}</strong>, 
-      estado civil <strong>${renderMissingWarning(dados.clienteEstadoCivil, '[ESTADO CIVIL]')}</strong>, 
-      profissão <strong>${renderMissingWarning(dados.clienteProfissao, '[PROFISSÃO]')}</strong>, 
-      portador(a) do RG nº <strong>${renderMissingWarning(dados.clienteRg, '[RG/ÓRGÃO EMISSOR]')}</strong> 
-      e inscrito(a) no CPF/MF sob o nº <strong>${renderMissingWarning(dados.clienteCpfCnpj, '[CPF/CNPJ]')}</strong>, 
-      residente e domiciliado(a) na ${renderMissingWarning(dados.clienteEndereco, '[ENDEREÇO/LOGRADOURO, Nº]')}, 
-      bairro ${renderMissingWarning(dados.clienteBairro, '[BAIRRO]')}, 
-      no Município de <strong>${renderMissingWarning(dados.clienteCidade, '[MUNICÍPIO]')}</strong>, 
-      Estado de <strong>${renderMissingWarning(dados.clienteEstado, '[ESTADO]')}</strong>, 
-      CEP: <strong>${renderMissingWarning(dados.clienteCep, '[CEP]')}</strong>.
+      <strong>OUTORGANTE:</strong> ${renderMissingWarning(dados.clienteNome, '{{nome_cliente}}')}, CPF: ${renderMissingWarning(dados.clienteCpfCnpj, '{{cpf_cnpj}}')}, nacionalidade: ${renderMissingWarning(nacionalidadeEfetiva, '{{nacionalidade}}')}, estado civil: ${renderMissingWarning(dados.clienteEstadoCivil, '{{estado_civil}}')}, profissão: ${renderMissingWarning(dados.clienteProfissao, '{{profissao}}')}, residente e domiciliado na ${renderMissingWarning(dados.clienteEndereco, '{{endereco_logradouro}}')} Bairro: ${renderMissingWarning(dados.clienteBairro, '{{bairro}}')}, Município: ${renderMissingWarning(dados.clienteCidade, '{{cidade}}')}, Estado: ${renderMissingWarning(dados.clienteEstado, '{{estado}}')}, CEP: ${renderMissingWarning(dados.clienteCep, '{{cep}}')}.
     </p>
   </div>
 
-  <!-- OUTORGADOS (FIXOS) -->
+  <!-- OUTORGADOS -->
   <div class="block-section">
-    <span class="section-label">OUTORGADOS:</span>
-    <p style="margin-bottom: 8px;">
-      1) <strong>WILLIAN DA COSTA GOVEIA</strong>, brasileiro, solteiro, Engenheiro Eletricista, portador da Carteira Profissional <strong>CREA 26000217D RO</strong>, inscrito no CPF sob o nº 033.***.***-**, residente e domiciliado em Seringueiras – RO; e
+    <p><strong>OUTORGADOS:</strong></p>
+    <p style="margin-top: 6px; margin-bottom: 8px;">
+      1º) WILLIAN DA COSTA GOVEIA, Engenheiro Eletricista, brasileiro, inscrito no CREA sob o nº 26000217D RO, portador do RG nº 1425244 SESDEC/RO e CPF nº 024.376.042-60, residente e domiciliado na Rua Piauí, nº 1970, Setor 1ª, Jaru/RO CEP:76890-000.
     </p>
     <p>
-      2) <strong>HERNANDES DA SILVA COSTA</strong>, brasileiro, casado, empresário, Diretor Geral Ecosolar Energy, inscrito no CPF sob o nº 031.***.***-**, residente e domiciliado em Seringueiras – RO.
+      2º) HERNANDES DA SILVA COSTA, Empresário, Brasileiro, Casado, portador do RG n°1432554, portador do CPF nº 041.209.632-33, CEO e representante comercial da empresa Ecosolar Energy, residente na Av. Flamboyant n°1268, Bairro Centro, Seringueiras/RO CEP 76934-000.
     </p>
   </div>
 
-  <!-- PODERES (FIXO) -->
+  <!-- PODERES -->
   <div class="block-section">
-    <span class="section-label">PODERES:</span>
     <p>
-      Por este instrumento particular de procuração, o(a) OUTORGANTE nomeia e constitui os bastantes OUTORGADOS como seus legítimos procuradores, concedendo-lhes amplos, gerais e ilimitados poderes para representá-lo(a) perante a concessionária de distribuição de energia elétrica <strong>${concessionaria}</strong>, com o fito específico de:
+      <strong>PODERES:</strong> Pelo presente instrumento particular de procuração, o(a) OUTORGANTE confere aos OUTORGADOS, em conjunto ou separadamente, amplos poderes para representá-lo(a) perante a ENERGISA RONDÔNIA — DISTRIBUIDORA DE ENERGIA S/A, podendo para tanto:
     </p>
-    <p style="margin-top: 8px; padding-left: 14px;">
-      a) Solicitar Consulta de Acesso, Informação de Acesso e Parecer de Acesso para conexão de Unidade Geradora Fotovoltaica (Microgeração ou Minigeração Distribuída);<br>
-      b) Solicitar vistoria técnica, comissionamento e substituição/instalação do medidor bidirecional de energia elétrica;<br>
-      c) Assinar o Relacionamento Operacional, Acordo Operativo e/ou Contrato de Uso do Sistema de Distribuição (CUSD/CCD);<br>
-      d) Receber notificações, interpor recursos administrativos, assinar termos de compromisso, requerer transferências de titularidade, prestar esclarecimentos técnicos, assinar plantas, memoriais descritivos, ARTs e praticar todos os demais atos indispensáveis ao integral cumprimento e aprovação do projeto solar perante a concessionária.
-    </p>
+    <ul class="bullet-list">
+      <li class="bullet-item">Solicitar, acompanhar e retirar documentos relativos à Unidade Consumidora (UC) de titularidade do(a) outorgante;</li>
+      <li class="bullet-item">Protocolar e acompanhar pedidos de conexão de sistema de geração de energia solar fotovoltaica (microgeração e minigeração distribuída), conforme regulamentação da ANEEL;</li>
+      <li class="bullet-item">Assinar requerimentos, formulários, termos de aceite, parecer de acesso e demais documentos necessários ao processo de homologação junto à Energisa Rondônia;</li>
+      <li class="bullet-item">Solicitar vistoria e acompanhar a instalação do medidor bidirecional;</li>
+      <li class="bullet-item">Obter informações sobre débitos, histórico de consumo, situação cadastral e demais dados vinculados à Unidade Consumidora do(a) outorgante;</li>
+      <li class="bullet-item">Praticar todos os atos necessários ao fiel cumprimento do presente mandato, incluindo assinar documentos, juntar requerimentos e interpor recursos administrativos perante a distribuidora.</li>
+    </ul>
   </div>
 
-  <!-- VALIDADE (FIXA) -->
+  <!-- VALIDADE -->
   <div class="block-section">
-    <span class="section-label">VALIDADE:</span>
     <p>
-      A presente procuração tem validade de <strong>12 (doze) meses</strong> a contar da data de sua assinatura, findo o qual se extinguem os poderes aqui conferidos.
+      <strong>VALIDADE:</strong> A presente procuração é válida por 12 (doze) meses a contar da data de sua assinatura, podendo ser revogada a qualquer momento por escrito.
     </p>
   </div>
 
-  <!-- Assinatura -->
+  <!-- Fechamento e Assinatura -->
   <div class="signatures-section">
-    <p class="date-location">
-      ${dados.dataAssinatura || formatarDataExtenso(null, dados.cidadeAssinatura || 'Seringueiras – RO')}
-    </p>
+    <p class="date-location">${dataExtensoFinal}</p>
 
-    <div class="sign-box">
-      <strong>${dados.clienteNome || 'OUTORGANTE'}</strong>
-      CPF: ${dados.clienteCpfCnpj || 'Não informado'}<br>
-      Outorgante
+    <div class="sign-box-container">
+      <p class="sign-title">Assinatura do(a) Outorgante</p>
+      <p class="sign-underline">Nome: _____________________________________________</p>
+      <p class="sign-client-name">${renderMissingWarning(dados.clienteNome, '{{nome_cliente}}')}</p>
+      <p class="sign-client-cpf">CPF: ${renderMissingWarning(dados.clienteCpfCnpj, '{{cpf_cnpj}}')}</p>
     </div>
   </div>
 
   <div class="footer-doc">
-    <span>Ecosolar Energy • Procuração Concessionária Energisa</span>
+    <span>Ecosolar Energy • Procuração Concessionária Energisa Rondônia</span>
     <span>Outorgante: ${dados.clienteNome || 'Cliente'} — CPF: ${dados.clienteCpfCnpj || '---'}</span>
   </div>
 </body>

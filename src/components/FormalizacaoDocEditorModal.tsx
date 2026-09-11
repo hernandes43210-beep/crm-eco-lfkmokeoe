@@ -149,7 +149,7 @@ export function FormalizacaoDocEditorModal({
   const [procuracaoState, setProcuracaoState] = useState<DadosProcuracaoEnergisa>(() => {
     return {
       clienteNome: lead.nome || '',
-      clienteNacionalidade: lead.nacionalidade || 'Brasileiro(a)',
+      clienteNacionalidade: lead.nacionalidade || 'BRASILEIRO',
       clienteEstadoCivil: lead.estado_civil || '',
       clienteProfissao: lead.profissao || '',
       clienteRg: '',
@@ -159,9 +159,9 @@ export function FormalizacaoDocEditorModal({
       clienteCidade: lead.cidade || 'Seringueiras',
       clienteEstado: lead.estado || 'RO',
       clienteCep: lead.cep || '',
-      concessionaria: 'ENERGISA RONDÔNIA – DISTRIBUIDORA DE ENERGIA S/A',
-      cidadeAssinatura: 'Seringueiras – RO',
-      dataAssinatura: formatarDataExtenso(new Date(), 'Seringueiras – RO'),
+      concessionaria: 'ENERGISA RONDÔNIA — DISTRIBUIDORA DE ENERGIA S/A',
+      cidadeAssinatura: 'SERINGUEIRAS – RO',
+      dataAssinatura: formatarDataExtenso(new Date(), 'SERINGUEIRAS – RO'),
     }
   })
 
@@ -201,7 +201,7 @@ export function FormalizacaoDocEditorModal({
       setProcuracaoState((prev) => ({
         ...prev,
         clienteNome: lead.nome || prev.clienteNome,
-        clienteNacionalidade: lead.nacionalidade || prev.clienteNacionalidade,
+        clienteNacionalidade: lead.nacionalidade || prev.clienteNacionalidade || 'BRASILEIRO',
         clienteEstadoCivil: lead.estado_civil || prev.clienteEstadoCivil,
         clienteProfissao: lead.profissao || prev.clienteProfissao,
         clienteCpfCnpj: lead.cpf_cnpj || prev.clienteCpfCnpj,
@@ -225,13 +225,15 @@ export function FormalizacaoDocEditorModal({
       if (!contratoState.clienteCidade) faltam.push('Cidade')
       if (!contratoState.clienteCep) faltam.push('CEP')
     } else {
+      if (!procuracaoState.clienteNome) faltam.push('Nome')
       if (!procuracaoState.clienteCpfCnpj) faltam.push('CPF/CNPJ')
-      if (!procuracaoState.clienteRg) faltam.push('RG')
       if (!procuracaoState.clienteNacionalidade) faltam.push('Nacionalidade')
       if (!procuracaoState.clienteEstadoCivil) faltam.push('Estado Civil')
       if (!procuracaoState.clienteProfissao) faltam.push('Profissão')
-      if (!procuracaoState.clienteEndereco) faltam.push('Endereço')
+      if (!procuracaoState.clienteEndereco) faltam.push('Endereço (logradouro/nº)')
+      if (!procuracaoState.clienteBairro) faltam.push('Bairro')
       if (!procuracaoState.clienteCidade) faltam.push('Cidade')
+      if (!procuracaoState.clienteEstado) faltam.push('Estado')
       if (!procuracaoState.clienteCep) faltam.push('CEP')
     }
     return faltam
@@ -788,18 +790,7 @@ export function FormalizacaoDocEditorModal({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold text-slate-700">RG / Órgão</Label>
-                      <Input
-                        value={procuracaoState.clienteRg}
-                        onChange={(e) =>
-                          setProcuracaoState({ ...procuracaoState, clienteRg: e.target.value })
-                        }
-                        placeholder="Ex: 1234567 SSP/RO"
-                        className="h-9 text-xs"
-                      />
-                    </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold text-slate-700">Nacionalidade</Label>
                       <Input
@@ -810,6 +801,7 @@ export function FormalizacaoDocEditorModal({
                             clienteNacionalidade: e.target.value,
                           })
                         }
+                        placeholder="BRASILEIRO"
                         className="h-9 text-xs"
                       />
                     </div>
@@ -915,20 +907,26 @@ export function FormalizacaoDocEditorModal({
 
                   <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2 text-xs text-slate-700">
                     <p>
-                      <strong>Outorgados Credenciados:</strong>
+                      <strong>Outorgados Credenciados (Fixos Verbatim):</strong>
                     </p>
-                    <ul className="list-disc pl-5 space-y-1">
+                    <ul className="list-disc pl-5 space-y-1.5">
                       <li>
-                        <strong>Willian da Costa Goveia</strong> — Engenheiro Eletricista (CREA
-                        26000217D RO).
+                        <strong>1º) WILLIAN DA COSTA GOVEIA</strong>, Engenheiro Eletricista,
+                        brasileiro, inscrito no CREA sob o nº 26000217D RO, portador do RG nº
+                        1425244 SESDEC/RO e CPF nº 024.376.042-60, residente e domiciliado na Rua
+                        Piauí, nº 1970, Setor 1ª, Jaru/RO CEP:76890-000.
                       </li>
                       <li>
-                        <strong>Hernandes da Silva Costa</strong> — Diretor Geral Ecosolar Energy.
+                        <strong>2º) HERNANDES DA SILVA COSTA</strong>, Empresário, Brasileiro,
+                        Casado, portador do RG n°1432554, portador do CPF nº 041.209.632-33, CEO e
+                        representante comercial da empresa Ecosolar Energy, residente na Av.
+                        Flamboyant n°1268, Bairro Centro, Seringueiras/RO CEP 76934-000.
                       </li>
                     </ul>
                     <p className="text-[11px] text-slate-500 pt-1">
-                      Conforme solicitado, os outorgados e o rol de poderes técnicos perante a
-                      ENERGISA são mantidos fixos.
+                      Texto oficial verbatim gravado: concessionária ENERGISA RONDÔNIA —
+                      DISTRIBUIDORA DE ENERGIA S/A, poderes com os 6 bullets regulamentares,
+                      validade de 12 meses e local SERINGUEIRAS – RO.
                     </p>
                   </div>
 

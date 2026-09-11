@@ -159,40 +159,115 @@ describe('formalizacaoPdf', () => {
     expect(html).toContain('52.081.110/0001-29')
   })
 
-  it('deve gerar procuração Energisa com outorgados fixos e poderes específicos', () => {
+  it('deve gerar procuração Energisa reproduzindo VERBATIM o modelo oficial', () => {
     const dados: DadosProcuracaoEnergisa = {
       clienteNome: 'Maria Aparecida Santos',
       clienteNacionalidade: 'Brasileira',
       clienteEstadoCivil: 'Solteira',
       clienteProfissao: 'Comerciante',
-      clienteRg: '987654 SSP/RO',
       clienteCpfCnpj: '987.654.321-11',
       clienteEndereco: 'Av. Brasil, 450',
       clienteBairro: 'Centro',
       clienteCidade: 'São Miguel do Guaporé',
       clienteEstado: 'RO',
       clienteCep: '76932-000',
-      concessionaria: 'ENERGISA RONDÔNIA – DISTRIBUIDORA DE ENERGIA S/A',
-      cidadeAssinatura: 'Seringueiras – RO',
-      dataAssinatura: 'Seringueiras – RO, 12 de março de 2025',
+      concessionaria: 'ENERGISA RONDÔNIA — DISTRIBUIDORA DE ENERGIA S/A',
+      cidadeAssinatura: 'SERINGUEIRAS – RO',
+      dataAssinatura: 'SERINGUEIRAS – RO, 12 de março de 2025',
     }
 
     const html = generateProcuracaoEnergisaHTML(dados)
 
-    // Verifica cliente
+    // 1. TÍTULO
+    expect(html).toContain('<h1 class="title-doc">PROCURAÇÃO</h1>')
+
+    // 2. SEÇÃO OUTORGANTE
+    expect(html).toContain(
+      'OUTORGANTE:</strong> Maria Aparecida Santos, CPF: 987.654.321-11, nacionalidade: Brasileira, estado civil: Solteira, profissão: Comerciante, residente e domiciliado na Av. Brasil, 450 Bairro: Centro, Município: São Miguel do Guaporé, Estado: RO, CEP: 76932-000.',
+    )
+
+    // 3. SEÇÃO OUTORGADOS COM OS 2 CREDENCIADOS VERBATIM
+    expect(html).toContain('<strong>OUTORGADOS:</strong>')
+    expect(html).toContain(
+      '1º) WILLIAN DA COSTA GOVEIA, Engenheiro Eletricista, brasileiro, inscrito no CREA sob o nº 26000217D RO, portador do RG nº 1425244 SESDEC/RO e CPF nº 024.376.042-60, residente e domiciliado na Rua Piauí, nº 1970, Setor 1ª, Jaru/RO CEP:76890-000.',
+    )
+    expect(html).toContain(
+      '2º) HERNANDES DA SILVA COSTA, Empresário, Brasileiro, Casado, portador do RG n°1432554, portador do CPF nº 041.209.632-33, CEO e representante comercial da empresa Ecosolar Energy, residente na Av. Flamboyant n°1268, Bairro Centro, Seringueiras/RO CEP 76934-000.',
+    )
+
+    // 4. SEÇÃO PODERES COM OS 6 BULLETS VERBATIM
+    expect(html).toContain(
+      'PODERES:</strong> Pelo presente instrumento particular de procuração, o(a) OUTORGANTE confere aos OUTORGADOS, em conjunto ou separadamente, amplos poderes para representá-lo(a) perante a ENERGISA RONDÔNIA — DISTRIBUIDORA DE ENERGIA S/A, podendo para tanto:',
+    )
+    expect(html).toContain(
+      'Solicitar, acompanhar e retirar documentos relativos à Unidade Consumidora (UC) de titularidade do(a) outorgante;',
+    )
+    expect(html).toContain(
+      'Protocolar e acompanhar pedidos de conexão de sistema de geração de energia solar fotovoltaica (microgeração e minigeração distribuída), conforme regulamentação da ANEEL;',
+    )
+    expect(html).toContain(
+      'Assinar requerimentos, formulários, termos de aceite, parecer de acesso e demais documentos necessários ao processo de homologação junto à Energisa Rondônia;',
+    )
+    expect(html).toContain('Solicitar vistoria e acompanhar a instalação do medidor bidirecional;')
+    expect(html).toContain(
+      'Obter informações sobre débitos, histórico de consumo, situação cadastral e demais dados vinculados à Unidade Consumidora do(a) outorgante;',
+    )
+    expect(html).toContain(
+      'Praticar todos os atos necessários ao fiel cumprimento do presente mandato, incluindo assinar documentos, juntar requerimentos e interpor recursos administrativos perante a distribuidora.',
+    )
+
+    // 5. SEÇÃO VALIDADE (12 MESES)
+    expect(html).toContain(
+      'VALIDADE:</strong> A presente procuração é válida por 12 (doze) meses a contar da data de sua assinatura, podendo ser revogada a qualquer momento por escrito.',
+    )
+
+    // 6. FECHAMENTO E ASSINATURA COM LOCAL SERINGUEIRAS - RO E NOME/CPF REPETIDOS
+    expect(html).toContain('SERINGUEIRAS – RO, 12 de março de 2025.')
+    expect(html).toContain('Assinatura do(a) Outorgante')
+    expect(html).toContain('Nome: _____________________________________________')
     expect(html).toContain('Maria Aparecida Santos')
-    expect(html).toContain('987.654.321-11')
-    expect(html).toContain('987654 SSP/RO')
+    expect(html).toContain('CPF: 987.654.321-11')
+  })
 
-    // Verifica outorgados fixos
-    expect(html).toContain('WILLIAN DA COSTA GOVEIA')
-    expect(html).toContain('CREA 26000217D RO')
-    expect(html).toContain('HERNANDES DA SILVA COSTA')
+  it('deve usar BRASILEIRO como nacionalidade padrão e destacar variáveis ausentes na procuração', () => {
+    const dadosVazios: DadosProcuracaoEnergisa = {
+      clienteNome: '',
+      clienteNacionalidade: '',
+      clienteEstadoCivil: '',
+      clienteProfissao: '',
+      clienteCpfCnpj: '',
+      clienteEndereco: '',
+      clienteBairro: '',
+      clienteCidade: '',
+      clienteEstado: '',
+      clienteCep: '',
+    }
 
-    // Verifica poderes e concessionária
-    expect(html).toContain('ENERGISA RONDÔNIA – DISTRIBUIDORA DE ENERGIA S/A')
-    expect(html).toContain('Solicitar Consulta de Acesso, Informação de Acesso e Parecer de Acesso')
-    expect(html).toContain('validade de <strong>12 (doze) meses</strong>')
+    const html = generateProcuracaoEnergisaHTML(dadosVazios)
+
+    // Nacionalidade padrão BRASILEIRO
+    expect(html).toContain('nacionalidade: BRASILEIRO')
+
+    // Variáveis ausentes destacadas com field-missing
+    expect(html).toContain('class="field-missing"')
+    expect(html).toContain('{{nome_cliente}}')
+    expect(html).toContain('{{cpf_cnpj}}')
+    expect(html).toContain('{{endereco_logradouro}}')
+    expect(html).toContain('{{bairro}}')
+    expect(html).toContain('{{cidade}}')
+    expect(html).toContain('{{estado}}')
+    expect(html).toContain('{{cep}}')
+
+    // Assinatura deve repetir marcadores
+    expect(html).toContain('Assinatura do(a) Outorgante')
+    expect(html).toContain('Nome: _____________________________________________')
+  })
+
+  it('deve validar datas de calendário e ajustar dia 31 em meses de 30 dias', () => {
+    // 31 de junho (mês 6 = índice 5) -> deve ajustar para 30 de junho
+    const dataJunhoInvalida = '2025-06-31'
+    const formatado = formatarDataExtenso(dataJunhoInvalida, 'SERINGUEIRAS – RO')
+    expect(formatado).toBe('SERINGUEIRAS – RO, 30 de junho de 2025')
   })
 
   it('deve destacar visualmente campos pendentes no documento quando não informados', () => {

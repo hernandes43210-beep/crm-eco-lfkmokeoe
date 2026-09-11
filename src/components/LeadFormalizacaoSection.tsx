@@ -360,13 +360,14 @@ export function LeadFormalizacaoSection({
               <div className="text-xs text-slate-600 space-y-1.5 pt-1 border-t border-slate-100">
                 <p>
                   • <strong>Variáveis inseridas:</strong> Qualificação completa do cliente (nome,
-                  CPF, RG, estado civil, profissão, endereço e CEP) e data por extenso com validação
-                  de calendário.
+                  CPF/CNPJ, nacionalidade, estado civil, profissão, endereço, bairro, município,
+                  estado, CEP) e data por extenso com validação de calendário real.
                 </p>
                 <p>
-                  • <strong>Dados fixos:</strong> Outorgados Willian da Costa Goveia (CREA 26000217D
-                  RO) e Hernandes da Silva Costa (CEO), poderes específicos de homologação e
-                  validade de 12 meses.
+                  • <strong>Dados fixos:</strong> Outorgados 1º) Willian da Costa Goveia (CREA
+                  26000217D RO, Jaru/RO) e 2º) Hernandes da Silva Costa (CEO Ecosolar Energy), 6
+                  poderes oficiais Energisa Rondônia, validade de 12 meses e local SERINGUEIRAS –
+                  RO.
                 </p>
               </div>
 
