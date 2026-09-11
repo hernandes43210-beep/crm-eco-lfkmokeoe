@@ -34,54 +34,129 @@ describe('formalizacaoPdf', () => {
       clienteCep: '76934-000',
       clienteTelefone: '(69) 99999-8888',
       clienteEmail: 'joao@fazenda.com',
-      kitNome: 'Kit Solar Canadian 10.5 kWp',
-      potenciaKwp: '10.5 kWp',
-      kitFabricante: 'Canadian Solar / Deye',
+      kitNome: 'GERADOR-BELENERGY-HUAWEI-TESUN630W',
+      potenciaKwp: '6,30',
+      kitFabricante: 'Belenergy / Huawei / TSUN',
       kitDescricao: 'Kit completo',
       tabelaEquipamentos: [
         {
-          item: 'Módulos Fotovoltaicos 550W',
-          quantidade: '20 un',
-          fabricanteModelo: 'Canadian Solar BiHiKu7',
-          especificacao: 'Garantia 25 anos',
+          item: 'GERADOR-BELENERGY-HUAWEI-TESUN630W',
+          unidade: 'kit',
+          quantidade: '1,00',
+          fabricanteModelo: 'Belenergy',
+          especificacao: 'Kit Solar Fotovoltaico Completo',
         },
         {
-          item: 'Inversor 10kW On-Grid',
-          quantidade: '1 un',
-          fabricanteModelo: 'Deye SUN-10K-G03',
-          especificacao: 'Com monitoramento Wi-Fi',
+          item: '10= MODULO BIFACIAL 144 CEL. N TYPE 630W',
+          unidade: 'un',
+          quantidade: '10',
+          fabricanteModelo: 'TSUN Power',
+          especificacao: 'Garantia de 25 anos',
+        },
+        {
+          item: '01=INVERSOR DE CORRENTE L1 MONOFASICO 2MPPT 220V 5KW HUAWEI INVHW-MO-220V-5KW',
+          unidade: 'un',
+          quantidade: '1',
+          fabricanteModelo: 'Huawei',
+          especificacao: 'Inversor 5kW',
         },
       ],
-      valorTotal: 35000,
+      valorTotal: 17000,
       descontoAvista: 1000,
-      valorFinal: 34000,
-      condicoesPagamento: 'Entrada + Saldo na instalação',
-      parcelaEntrada: 17000,
-      parcelaFinal: 17000,
-      detalhesParcelamento: '50% na assinatura e 50% na conclusão.',
-      cidadeAssinatura: 'Seringueiras - RO',
-      dataAssinatura: 'Seringueiras - RO, 10 de maio de 2025',
-      prazoInstalacaoDias: 45,
+      valorFinal: 16000,
+      condicoesPagamento:
+        'Na assinatura do contrato o valor de R$ 11.203,43. No fim da Instalação R$ 5.796,57.',
+      parcelaEntrada: 11203.43,
+      parcelaFinal: 5796.57,
+      detalhesParcelamento:
+        'Na assinatura do contrato o valor de R$ 11.203,43. No fim da Instalação R$ 5.796,57.',
+      cidadeAssinatura: 'Seringueiras',
+      dataAssinatura: 'Seringueiras, 29 de agosto de 2026',
+      prazoInstalacaoDias: 60,
       garantiaInstalacaoMeses: 12,
     }
 
     const html = generateContratoHTML(dados)
 
-    // Verifica dados fixos da Ecosolar
-    expect(html).toContain(DADOS_FIXOS_ECOSOLAR.razaoSocial)
-    expect(html).toContain(DADOS_FIXOS_ECOSOLAR.cnpj)
-    expect(html).toContain(DADOS_FIXOS_ECOSOLAR.foro)
-    expect(html).toContain('ENERGISA Distribuidora')
+    // 1. Título exato
+    expect(html).toContain(
+      'CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE INSTALAÇÃO E HOMOLOGAÇÃO DE SISTEMA DE ENERGIA SOLAR FOTOVOLTAICA',
+    )
 
-    // Verifica variáveis do cliente
-    expect(html).toContain('João da Silva Sauro')
-    expect(html).toContain('123.456.789-00')
-    expect(html).toContain('Linha 105, Km 12')
-    expect(html).toContain('10.5 kWp')
+    // 2. Qualificação verbatim da CONTRATADA
+    expect(html).toContain(
+      'CONTRATADA: H DA SILVA COSTA LTDA, nome fantasia ECOSOLAR ENERGY, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº 52.081.110/0001-29, com sede na Av Flamboyant nº340-C, centro, Seringueiras-RO, CEP 76934-000, neste ato representada por seu sócio-administrador, HERNANDES DA SILVA COSTA, brasileiro, casado, empresário, portador da Cédula de Identidade RG nº 1432554 SESDEC RO e inscrito no CPF sob o nº 041.209.632-33, residente e domiciliado na Av Flamboyant nº1268, centro, Seringueiras-RO, CEP 76934-000.',
+    )
 
-    // Verifica tabela de equipamentos
-    expect(html).toContain('Canadian Solar BiHiKu7')
-    expect(html).toContain('Deye SUN-10K-G03')
+    // 3. Qualificação verbatim do CONTRATANTE
+    expect(html).toContain(
+      'CONTRATANTE: João da Silva Sauro, inscrito(a) no CPF número 123.456.789-00 residente e domiciliado na Linha 105, Km 12, Seringueiras-RO, CEP 76934-000',
+    )
+
+    // 4. Cláusula 1 (Objeto) verbatim
+    expect(html).toContain('1. DO OBJETO DO CONTRATO')
+    expect(html).toContain(
+      '1.1. O presente contrato tem por objeto a prestação de serviços de instalação e homologação de um sistema de energia solar fotovoltaica de <strong>6,30 kWp</strong>',
+    )
+    expect(html).toContain(
+      '1.3. Os serviços incluem o fornecimento dos equipamentos listados, a instalação completa do sistema, a elaboração e acompanhamento do projeto junto à concessionária de energia elétrica local para a homologação e conexão do sistema à rede.',
+    )
+
+    // 5. Cláusula 2 (Prazos) verbatim
+    expect(html).toContain('2. DO PRAZO')
+    expect(html).toContain(
+      '2.1. O prazo para a entrega dos equipamentos (kit solar fotovoltaico) pela [CONTRATADA] será de até 30 (trinta) dias corridos, contados a partir da data de assinatura do presente contrato e da confirmação do pagamento da primeira parcela.',
+    )
+    expect(html).toContain(
+      '2.2. O prazo para a instalação completa do sistema será de até 60 (sessenta) dias corridos, contados a partir da entrega dos equipamentos no local de instalação.',
+    )
+    expect(html).toContain(
+      '2.3. O prazo para a conclusão do processo de homologação e conexão do sistema à rede junto à concessionária de energia elétrica será de até 90 (noventa) dias corridos, contados a partir da data de assinatura do presente contrato.',
+    )
+    expect(html).toContain(
+      '2.4. Os prazos estabelecidos nesta Cláusula serão cumpridos rigorosamente pela CONTRATADA, conforme seus compromissos comerciais e operacionais.',
+    )
+    expect(html).toContain(
+      '2.5. Fica expressamente acordado que a CONTRATADA não será responsável por atrasos na homologação e conexão do sistema que decorram de atrasos, omissões, negativas ou demoras da concessionária de energia elétrica ENERGISA no cumprimento de seus procedimentos administrativos e técnicos. Nestes casos, a CONTRATADA se compromete a acompanhar e pressionar a ENERGISA para a conclusão dos trâmites, mas não responde por prazos fora de seu controle.',
+    )
+    expect(html).toContain(
+      '2.6. Em caso de atrasos causados exclusivamente pela CONTRATADA, esta se compromete a comunicar a CONTRATANTE imediatamente e a apresentar cronograma revisado com novas datas de cumprimento das obrigações.',
+    )
+
+    // 6. Cláusula 3 (Valor e Pagamento) verbatim
+    expect(html).toContain('3. DO VALOR E FORMA DE PAGAMENTO')
+    expect(html).toContain(
+      '3.1. O valor total dos serviços e equipamentos objeto deste contrato é de <strong>R$ 17.000,00</strong> e com desconto à vista, no valor de <strong>R$ 1.000,00</strong>',
+    )
+    expect(html).toContain(
+      '3.2. O pagamento será realizado da seguinte forma: <strong>Na assinatura do contrato o valor de R$ 11.203,43. No fim da Instalação R$ 5.796,57.</strong>',
+    )
+
+    // 7. Cláusulas 4 a 10
+    expect(html).toContain('4. DAS OBRIGAÇÕES DA CONTRATADA')
+    expect(html).toContain('5. DAS OBRIGAÇÕES DA CONTRATANTE')
+    expect(html).toContain('6. DA GARANTIA')
+    expect(html).toContain('7. DA RESCISÃO')
+    expect(html).toContain('8. DA MULTA')
+    expect(html).toContain(
+      '8.1. A parte que der causa à rescisão do presente contrato por descumprimento de suas obrigações, ou que o rescindir unilateralmente sem justa causa, pagará à outra parte multa compensatória equivalente a 10% (dez por cento) do valor total do contrato, sem prejuízo da apuração de perdas e danos.',
+    )
+    expect(html).toContain('9. DA CONFIDENCIALIDADE')
+    expect(html).toContain('10. DAS DISPOSIÇÕES GERAIS')
+
+    // 8. Cláusula 11 (Foro) verbatim
+    expect(html).toContain('11. DO FORO')
+    expect(html).toContain(
+      '11.1. Para dirimir quaisquer dúvidas ou litígios decorrentes do presente contrato, as partes elegem o foro da Comarca de São Miguel do Guaporé, Estado de Rondônia, com exclusão de qualquer outro, por mais privilegiado que seja.',
+    )
+
+    // 9. Encerramento e Assinaturas
+    expect(html).toContain(
+      'E, por estarem assim justas e contratadas, as partes assinam o presente instrumento em 2 (duas) vias de igual teor e forma, na presença das 2 (duas) testemunhas abaixo, para que produza seus jurídicos e legais efeitos.',
+    )
+    expect(html).toContain('Seringueiras, 29 de agosto de 2026')
+    expect(html).toContain('H DA SILVA COSTA LTDA')
+    expect(html).toContain('52.081.110/0001-29')
   })
 
   it('deve gerar procuração Energisa com outorgados fixos e poderes específicos', () => {
@@ -152,6 +227,6 @@ describe('formalizacaoPdf', () => {
 
     const html = generateContratoHTML(dadosIncompletos)
     expect(html).toContain('class="field-missing"')
-    expect(html).toContain('[CPF/CNPJ]')
+    expect(html).toContain('{{cpf_cnpj}}')
   })
 })

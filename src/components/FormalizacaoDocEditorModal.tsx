@@ -78,6 +78,37 @@ export function FormalizacaoDocEditorModal({
   const [contratoState, setContratoState] = useState<DadosContratoFormalizacao>(() => {
     const valorTotal = proposta?.preco_venda || lead.preco_venda || 0
     const pot = proposta?.kit_potencia_kw || specs.potenciaTotalKwp || 0
+    const parcelaEntrada = valorTotal > 0 ? valorTotal * 0.5 : 0
+    const parcelaFinal = valorTotal > 0 ? valorTotal * 0.5 : 0
+    const condPagtoDefault =
+      proposta?.condicoes_pagamento ||
+      (valorTotal > 0
+        ? `Na assinatura do contrato o valor de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parcelaEntrada)}. No fim da Instalação ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parcelaFinal)}.`
+        : 'Na assinatura do contrato 50% do valor. No fim da Instalação 50% do valor.')
+
+    // Tabela de equipamentos inicial: inclui linha do kit + itens decompostos reais do kit
+    const tabelaItens = [
+      ...(proposta?.kit_nome
+        ? [
+            {
+              item: proposta.kit_nome,
+              unidade: 'kit',
+              quantidade: '1,00',
+              fabricanteModelo: proposta?.kit_fabricante || '',
+              especificacao: 'Kit Solar Fotovoltaico Completo',
+            },
+          ]
+        : []),
+      ...specs.itens.map((it) => ({
+        item: it.nome,
+        unidade: it.unidade || 'un',
+        quantidade:
+          typeof it.quantidade === 'number' ? `${it.quantidade},00` : String(it.quantidade),
+        especificacao: it.especificacao || '',
+        fabricanteModelo: it.fabricanteModelo || '',
+      })),
+    ]
+
     return {
       clienteNome: lead.nome || '',
       clienteCpfCnpj: lead.cpf_cnpj || '',
@@ -91,26 +122,25 @@ export function FormalizacaoDocEditorModal({
       clienteTelefone: lead.telefone || '',
       clienteEmail: lead.email || '',
       kitNome: proposta?.kit_nome || 'Sistema Gerador Fotovoltaico On-Grid Ecosolar',
-      potenciaKwp: pot ? `${pot} kWp` : '',
+      potenciaKwp: pot
+        ? typeof pot === 'number'
+          ? pot.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          : String(pot)
+        : '',
       kitFabricante: proposta?.kit_fabricante || specs.fabricantesPrincipais || '',
       kitDescricao: (proposta as any)?.kit_descricao || '',
       kitStringBox: (proposta as any)?.kit_string_box || '',
-      tabelaEquipamentos: specs.itens.map((it) => ({
-        item: it.nome,
-        quantidade: `${it.quantidade} ${it.unidade}`,
-        especificacao: it.especificacao || '',
-        fabricanteModelo: it.fabricanteModelo || '',
-      })),
+      tabelaEquipamentos: tabelaItens,
       valorTotal: valorTotal,
       descontoAvista: 0,
       valorFinal: valorTotal,
-      condicoesPagamento: proposta?.condicoes_pagamento || 'À vista ou Financiamento Solar',
-      parcelaEntrada: valorTotal > 0 ? valorTotal * 0.5 : 0,
-      parcelaFinal: valorTotal > 0 ? valorTotal * 0.5 : 0,
-      detalhesParcelamento: `a) 50% de entrada na assinatura do contrato: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorTotal * 0.5)};\nb) 50% na conclusão da instalação física: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorTotal * 0.5)}.`,
-      cidadeAssinatura: 'Seringueiras - RO',
-      dataAssinatura: formatarDataExtenso(new Date(), 'Seringueiras - RO'),
-      prazoInstalacaoDias: 45,
+      condicoesPagamento: condPagtoDefault,
+      parcelaEntrada: parcelaEntrada,
+      parcelaFinal: parcelaFinal,
+      detalhesParcelamento: condPagtoDefault,
+      cidadeAssinatura: 'Seringueiras',
+      dataAssinatura: formatarDataExtenso(new Date(), 'Seringueiras'),
+      prazoInstalacaoDias: 60,
       garantiaInstalacaoMeses: 12,
     }
   })
@@ -155,10 +185,15 @@ export function FormalizacaoDocEditorModal({
         clienteTelefone: lead.telefone || prev.clienteTelefone,
         clienteEmail: lead.email || prev.clienteEmail,
         kitNome: proposta?.kit_nome || prev.kitNome,
-        potenciaKwp: pot ? `${pot} kWp` : prev.potenciaKwp,
+        potenciaKwp: pot
+          ? typeof pot === 'number'
+            ? pot.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            : String(pot)
+          : prev.potenciaKwp,
         kitFabricante: proposta?.kit_fabricante || prev.kitFabricante,
         valorTotal: valorTotal || prev.valorTotal,
         valorFinal: valorTotal || prev.valorFinal,
+        condicoesPagamento: proposta?.condicoes_pagamento || prev.condicoesPagamento,
         parcelaEntrada: valorTotal ? valorTotal * 0.5 : prev.parcelaEntrada,
         parcelaFinal: valorTotal ? valorTotal * 0.5 : prev.parcelaFinal,
       }))
@@ -495,13 +530,13 @@ export function FormalizacaoDocEditorModal({
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs font-semibold text-slate-700">Potência Total</Label>
+                      <Label className="text-xs font-semibold text-slate-700">Potência (kWp)</Label>
                       <Input
                         value={contratoState.potenciaKwp}
                         onChange={(e) =>
                           setContratoState({ ...contratoState, potenciaKwp: e.target.value })
                         }
-                        placeholder="Ex: 9.45 kWp"
+                        placeholder="Ex: 6,30"
                         className="h-9 text-xs font-bold text-[#0B7A5B]"
                       />
                     </div>
@@ -609,7 +644,7 @@ export function FormalizacaoDocEditorModal({
                         value={contratoState.valorTotal}
                         onChange={(e) => {
                           const val = Number(e.target.value) || 0
-                          const desc = contratoState.descontoAvista || 0
+                          const desc = Number(contratoState.descontoAvista) || 0
                           const liq = Math.max(0, val - desc)
                           setContratoState({
                             ...contratoState,
@@ -631,7 +666,8 @@ export function FormalizacaoDocEditorModal({
                         value={contratoState.descontoAvista}
                         onChange={(e) => {
                           const desc = Number(e.target.value) || 0
-                          const liq = Math.max(0, (contratoState.valorTotal || 0) - desc)
+                          const valTotalNum = Number(contratoState.valorTotal) || 0
+                          const liq = Math.max(0, valTotalNum - desc)
                           setContratoState({
                             ...contratoState,
                             descontoAvista: desc,
@@ -666,14 +702,19 @@ export function FormalizacaoDocEditorModal({
 
                   <div className="space-y-1 pt-1">
                     <Label className="text-xs font-semibold text-slate-700">
-                      Descrição Detalhada do Rateio e Parcelas
+                      Forma de Pagamento (Cláusula 3.2)
                     </Label>
                     <Textarea
                       rows={2}
-                      value={contratoState.detalhesParcelamento}
+                      value={contratoState.condicoesPagamento}
                       onChange={(e) =>
-                        setContratoState({ ...contratoState, detalhesParcelamento: e.target.value })
+                        setContratoState({
+                          ...contratoState,
+                          condicoesPagamento: e.target.value,
+                          detalhesParcelamento: e.target.value,
+                        })
                       }
+                      placeholder="Ex: Na assinatura do contrato o valor de R$ 11.203,43. No fim da Instalação R$ 5.796,57."
                       className="text-xs resize-none"
                     />
                   </div>

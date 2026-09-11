@@ -6,43 +6,44 @@ export interface DadosContratoFormalizacao {
   // Contratante (Lead)
   clienteNome: string
   clienteCpfCnpj: string
-  clienteNacionalidade: string
-  clienteEstadoCivil: string
-  clienteProfissao: string
+  clienteNacionalidade?: string
+  clienteEstadoCivil?: string
+  clienteProfissao?: string
   clienteEndereco: string
-  clienteCidade: string
-  clienteEstado: string
-  clienteCep: string
-  clienteTelefone: string
-  clienteEmail: string
+  clienteCidade?: string
+  clienteEstado?: string
+  clienteCep?: string
+  clienteTelefone?: string
+  clienteEmail?: string
 
   // Dados do Sistema & Equipamentos
-  kitNome: string
+  kitNome?: string
   potenciaKwp: number | string
-  kitFabricante: string
-  kitDescricao: string
+  kitFabricante?: string
+  kitDescricao?: string
   kitStringBox?: string
   tabelaEquipamentos?: Array<{
     item: string
     quantidade: number | string
-    especificacao: string
-    fabricanteModelo: string
+    especificacao?: string
+    fabricanteModelo?: string
+    unidade?: string
   }>
 
   // Valores e Pagamento
-  valorTotal: number
-  descontoAvista: number
-  valorFinal: number
+  valorTotal: number | string
+  descontoAvista: number | string
+  valorFinal?: number | string
   condicoesPagamento: string
-  parcelaEntrada: number
-  parcelaFinal: number
-  detalhesParcelamento: string
+  parcelaEntrada?: number | string
+  parcelaFinal?: number | string
+  detalhesParcelamento?: string
 
   // Data & Local
-  cidadeAssinatura: string
-  dataAssinatura: string // Extenso ou ISO
-  prazoInstalacaoDias: number
-  garantiaInstalacaoMeses: number
+  cidadeAssinatura?: string
+  dataAssinatura?: string // Extenso ou ISO
+  prazoInstalacaoDias?: number
+  garantiaInstalacaoMeses?: number
 }
 
 export interface DadosProcuracaoEnergisa {
@@ -68,24 +69,24 @@ export interface DadosProcuracaoEnergisa {
 }
 
 // QA touch: verificação de exportações e tipagem
-// Dados fixos da Ecosolar
+// Dados fixos da Ecosolar (Modelo Oficial)
 export const DADOS_FIXOS_ECOSOLAR = {
   razaoSocial: 'H DA SILVA COSTA LTDA',
   nomeFantasia: 'ECOSOLAR ENERGY',
-  cnpj: '48.910.155/0001-50',
-  ie: '00000005748432',
-  endereco: 'Rua São Paulo, nº 1234, Centro',
+  cnpj: '52.081.110/0001-29',
+  enderecoSede: 'Av Flamboyant nº340-C, centro, Seringueiras-RO, CEP 76934-000',
   cidade: 'Seringueiras',
   estado: 'RO',
-  cep: '76.934-000',
-  telefone: '(69) 99275-3995',
-  email: 'contato@ecosolarenergy.com.br',
-  site: 'www.ecosolarenergy.com.br',
-  foro: 'Comarca de São Miguel do Guaporé - RO',
+  cep: '76934-000',
+  foro: 'Comarca de São Miguel do Guaporé, Estado de Rondônia',
   ceo: {
     nome: 'HERNANDES DA SILVA COSTA',
-    cargo: 'Diretor / CEO',
-    cpf: '031.***.***-**',
+    nacionalidade: 'brasileiro',
+    estadoCivil: 'casado',
+    profissao: 'empresário',
+    rg: '1432554 SESDEC RO',
+    cpf: '041.209.632-33',
+    enderecoResidencial: 'Av Flamboyant nº1268, centro, Seringueiras-RO, CEP 76934-000',
   },
   outorgados: [
     {
@@ -199,41 +200,87 @@ export function generateContratoHTML(dados: DadosContratoFormalizacao): string {
           },
         ]
 
-  const potDisplay = dados.potenciaKwp ? `${dados.potenciaKwp} kWp` : 'Conforme dimensionamento'
-  const valorTotalFormatted = formatBRL(dados.valorTotal || 0)
-  const descontoFormatted = dados.descontoAvista > 0 ? formatBRL(dados.descontoAvista) : 'R$ 0,00'
-  const valorFinalFormatted = formatBRL(dados.valorFinal || dados.valorTotal || 0)
-  const parcelaEntradaFormatted = formatBRL(
-    dados.parcelaEntrada || (dados.valorFinal || dados.valorTotal || 0) * 0.5,
-  )
-  const parcelaFinalFormatted = formatBRL(
-    dados.parcelaFinal || (dados.valorFinal || dados.valorTotal || 0) * 0.5,
-  )
+  // Formatação da potência com vírgula decimal (ex: 6,30 ou 9,45)
+  let potDisplay = ''
+  if (
+    dados.potenciaKwp !== undefined &&
+    dados.potenciaKwp !== null &&
+    String(dados.potenciaKwp).trim() !== ''
+  ) {
+    const rawPotStr = String(dados.potenciaKwp)
+      .replace(/\s*kWp?/i, '')
+      .replace(',', '.')
+    const numPot = parseFloat(rawPotStr)
+    if (!isNaN(numPot)) {
+      potDisplay = numPot.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    } else {
+      potDisplay = String(dados.potenciaKwp)
+    }
+  }
+
+  // Formatação de valores
+  const parseValNum = (v: number | string | undefined | null): number => {
+    if (v === undefined || v === null) return 0
+    if (typeof v === 'number') return v
+    const cleaned = String(v)
+      .replace(/[R$\s.]/g, '')
+      .replace(',', '.')
+    return parseFloat(cleaned) || 0
+  }
+
+  const numValorTotal = parseValNum(dados.valorTotal)
+  const numDesconto = parseValNum(dados.descontoAvista)
+
+  const valorTotalFormatted =
+    numValorTotal > 0 ? formatBRL(numValorTotal) : renderMissingWarning(null, 'R$ 0,00')
+  const valorDescontoFormatted = formatBRL(numDesconto)
+
+  // Endereço completo formatado
+  const enderecoParts = [
+    dados.clienteEndereco,
+    dados.clienteCidade && dados.clienteEstado
+      ? `${dados.clienteCidade}-${dados.clienteEstado}`
+      : dados.clienteCidade || dados.clienteEstado,
+    dados.clienteCep ? `CEP ${dados.clienteCep}` : '',
+  ].filter(Boolean)
+  const enderecoCompletoStr =
+    enderecoParts.length > 0 ? enderecoParts.join(', ') : dados.clienteEndereco
+
+  // Cidade e Data por extenso
+  const cidadeFinal = dados.cidadeAssinatura || dados.clienteCidade || DADOS_FIXOS_ECOSOLAR.cidade
+  let dataExtensoFinal = dados.dataAssinatura || ''
+  if (!dataExtensoFinal) {
+    dataExtensoFinal = formatarDataExtenso(new Date(), cidadeFinal)
+  }
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Contrato de Prestação de Serviços Fotovoltaicos — ${dados.clienteNome || 'Cliente'} | Ecosolar Energy</title>
+  <title>CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE INSTALAÇÃO E HOMOLOGAÇÃO DE SISTEMA DE ENERGIA SOLAR FOTOVOLTAICA</title>
   <style>
     @page {
       size: A4 portrait;
-      margin: 15mm 15mm 20mm 15mm;
+      margin: 20mm 20mm 20mm 20mm;
       @bottom-center {
-        content: counter(page) " / " counter(pages);
+        content: counter(page);
       }
     }
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: "Segoe UI", Arial, sans-serif;
     }
     body {
       color: #0f172a;
       background: #ffffff;
       font-size: 11pt;
-      line-height: 1.6;
+      line-height: 1.65;
+      text-align: justify;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
@@ -241,13 +288,13 @@ export function generateContratoHTML(dados: DadosContratoFormalizacao): string {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 3px solid #EAB308;
+      border-bottom: 2px solid #EAB308;
       padding-bottom: 12px;
       margin-bottom: 24px;
     }
     .logo-img {
-      height: 52px;
-      max-width: 180px;
+      height: 48px;
+      max-width: 170px;
       object-fit: contain;
     }
     .header-info {
@@ -258,33 +305,24 @@ export function generateContratoHTML(dados: DadosContratoFormalizacao): string {
     }
     .header-info strong {
       color: #0F284E;
-      font-size: 9.5pt;
+      font-size: 9pt;
     }
     .doc-title {
-      font-size: 14pt;
+      font-size: 13pt;
       font-weight: 800;
       color: #0A192F;
       text-align: center;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin-bottom: 20px;
-      padding: 8px 12px;
-      background: #f8fafc;
-      border-radius: 6px;
-      border: 1px solid #e2e8f0;
+      margin-bottom: 24px;
+      line-height: 1.4;
     }
-    .parties-box {
-      margin-bottom: 22px;
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      padding: 14px 18px;
-      font-size: 10pt;
-      line-height: 1.65;
-      text-align: justify;
+    .preamble {
+      margin-bottom: 16px;
+      text-indent: 0;
     }
-    .parties-box strong {
-      color: #0A192F;
+    .party-block {
+      margin-bottom: 14px;
     }
     .field-missing {
       background: #fef08a;
@@ -295,93 +333,60 @@ export function generateContratoHTML(dados: DadosContratoFormalizacao): string {
       border: 1px dashed #ca8a04;
       display: inline-block;
     }
-    .clause {
-      margin-bottom: 18px;
-      text-align: justify;
-      font-size: 10.5pt;
-      line-height: 1.65;
-    }
-    .clause-title {
+    .section-title {
       font-weight: 800;
-      color: #0A192F;
       font-size: 11pt;
+      color: #0A192F;
+      margin-top: 18px;
       margin-bottom: 6px;
       text-transform: uppercase;
-      border-left: 4px solid #EAB308;
-      padding-left: 8px;
     }
-    .clause-sub {
-      margin-top: 6px;
-      padding-left: 14px;
+    .clause-text {
+      margin-bottom: 8px;
+    }
+    .bullet-item {
+      margin-left: 24px;
+      margin-bottom: 4px;
     }
     .table-equips {
       width: 100%;
       border-collapse: collapse;
-      margin: 12px 0;
+      margin: 12px 0 16px 0;
       font-size: 9.5pt;
     }
     .table-equips th, .table-equips td {
       border: 1px solid #cbd5e1;
       padding: 7px 10px;
+      text-align: left;
     }
     .table-equips th {
       background: #0A192F;
       color: #ffffff;
       font-weight: 700;
-      text-align: left;
     }
     .table-equips tr:nth-child(even) {
       background: #f8fafc;
     }
-    .values-card {
-      background: #f8fafc;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      padding: 12px 16px;
-      margin: 12px 0;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-    }
-    .value-item {
-      display: flex;
-      flex-direction: column;
-    }
-    .value-label {
-      font-size: 8.5pt;
-      color: #64748b;
-      text-transform: uppercase;
-      font-weight: 700;
-    }
-    .value-number {
-      font-size: 12pt;
-      font-weight: 800;
-      color: #0F284E;
-      margin-top: 2px;
-    }
-    .value-number.highlight {
-      color: #0B7A5B;
-    }
     .signatures-section {
-      margin-top: 40px;
+      margin-top: 35px;
       page-break-inside: avoid;
     }
     .date-location {
-      text-align: center;
-      margin-bottom: 35px;
+      text-align: left;
+      margin-bottom: 40px;
       font-weight: 600;
-      font-size: 10.5pt;
+      font-size: 11pt;
       color: #1e293b;
     }
     .signatures-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 30px;
-      margin-top: 25px;
+      gap: 36px;
+      margin-top: 30px;
     }
     .sign-box {
       text-align: center;
-      padding-top: 45px;
+      padding-top: 12px;
       border-top: 1.5px solid #0f172a;
       font-size: 9.5pt;
       line-height: 1.45;
@@ -395,213 +400,228 @@ export function generateContratoHTML(dados: DadosContratoFormalizacao): string {
     .witness-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 30px;
-      margin-top: 40px;
+      gap: 36px;
+      margin-top: 36px;
     }
     .footer-doc {
       margin-top: 30px;
-      padding-top: 10px;
+      padding-top: 8px;
       border-top: 1px solid #e2e8f0;
       display: flex;
       justify-content: space-between;
       font-size: 8pt;
       color: #94a3b8;
     }
-    .page-break {
-      page-break-before: always;
-      break-before: page;
-    }
   </style>
 </head>
 <body>
-  <!-- Cabeçalho -->
+  <!-- Cabeçalho Institucional -->
   <div class="header-doc">
     <img src="${logoEcosolar}" alt="Ecosolar Energy" class="logo-img" />
     <div class="header-info">
-      <strong>${DADOS_FIXOS_ECOSOLAR.razaoSocial}</strong><br>
-      CNPJ: ${DADOS_FIXOS_ECOSOLAR.cnpj} • IE: ${DADOS_FIXOS_ECOSOLAR.ie}<br>
-      ${DADOS_FIXOS_ECOSOLAR.endereco} — ${DADOS_FIXOS_ECOSOLAR.cidade}/${DADOS_FIXOS_ECOSOLAR.estado}<br>
-      Tel: ${DADOS_FIXOS_ECOSOLAR.telefone} • ${DADOS_FIXOS_ECOSOLAR.site}
+      <strong>${DADOS_FIXOS_ECOSOLAR.razaoSocial}</strong> (nome fantasia <strong>${DADOS_FIXOS_ECOSOLAR.nomeFantasia}</strong>)<br>
+      CNPJ: ${DADOS_FIXOS_ECOSOLAR.cnpj}<br>
+      ${DADOS_FIXOS_ECOSOLAR.enderecoSede}
     </div>
   </div>
 
-  <h1 class="doc-title">Contrato de Prestação de Serviços e Instalação de Sistema Gerador Fotovoltaico</h1>
+  <h1 class="doc-title">CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE INSTALAÇÃO E HOMOLOGAÇÃO DE SISTEMA DE ENERGIA SOLAR FOTOVOLTAICA</h1>
 
-  <!-- Qualificação das Partes -->
-  <div class="parties-box">
-    <p style="margin-bottom: 10px;">
-      <strong>CONTRATADA:</strong> <strong>${DADOS_FIXOS_ECOSOLAR.razaoSocial}</strong> (nome fantasia <strong>${DADOS_FIXOS_ECOSOLAR.nomeFantasia}</strong>), pessoa jurídica de direito privado, inscrita no CNPJ sob o nº <strong>${DADOS_FIXOS_ECOSOLAR.cnpj}</strong>, com sede na ${DADOS_FIXOS_ECOSOLAR.endereco}, Município de ${DADOS_FIXOS_ECOSOLAR.cidade}, Estado de ${DADOS_FIXOS_ECOSOLAR.estado}, CEP ${DADOS_FIXOS_ECOSOLAR.cep}, neste ato representada por seu sócio administrador <strong>${DADOS_FIXOS_ECOSOLAR.ceo.nome}</strong>.
-    </p>
-    <p>
-      <strong>CONTRATANTE:</strong> <strong>${renderMissingWarning(dados.clienteNome, '[NOME DO CLIENTE]')}</strong>, 
-      nacionalidade <strong>${renderMissingWarning(dados.clienteNacionalidade, '[NACIONALIDADE]')}</strong>, 
-      estado civil <strong>${renderMissingWarning(dados.clienteEstadoCivil, '[ESTADO CIVIL]')}</strong>, 
-      profissão <strong>${renderMissingWarning(dados.clienteProfissao, '[PROFISSÃO]')}</strong>, 
-      inscrito(a) no CPF/CNPJ sob o nº <strong>${renderMissingWarning(dados.clienteCpfCnpj, '[CPF/CNPJ]')}</strong>, 
-      residente e domiciliado(a) na ${renderMissingWarning(dados.clienteEndereco, '[ENDEREÇO/LOGRADOURO]')}, 
-      na cidade de <strong>${renderMissingWarning(dados.clienteCidade, '[CIDADE]')}</strong> - <strong>${renderMissingWarning(dados.clienteEstado, '[UF]')}</strong>, 
-      CEP <strong>${renderMissingWarning(dados.clienteCep, '[CEP]')}</strong>, 
-      telefone: <strong>${renderMissingWarning(dados.clienteTelefone, '[TELEFONE]')}</strong>, 
-      e-mail: <strong>${renderMissingWarning(dados.clienteEmail, '[E-MAIL]')}</strong>.
-    </p>
-  </div>
+  <p class="preamble">
+    Pelo presente instrumento particular de Contrato de Prestação de Serviços de Instalação e Homologação de Sistema de Energia Solar Fotovoltaica, de um lado:
+  </p>
 
-  <!-- Cláusulas -->
-  <div class="clause">
-    <div class="clause-title">Cláusula 1ª — Do Objeto</div>
-    <p>
-      O presente contrato tem como objeto a elaboração de projeto executivo de engenharia elétrica, homologação do parecer de acesso perante a concessionária de energia elétrica local (<strong>ENERGISA Distribuidora</strong>), fornecimento de equipamentos e componentes, e a completa instalação de um <strong>Sistema de Micro/Minigeração Solar Fotovoltaica Conectado à Rede (On-Grid)</strong>, com potência total de pico dimensionada em <strong>${potDisplay}</strong>, no endereço indicado pelo CONTRATANTE.
-    </p>
-  </div>
+  <p class="party-block">
+    <strong>CONTRATADA:</strong> <strong>${DADOS_FIXOS_ECOSOLAR.razaoSocial}</strong>, nome fantasia <strong>${DADOS_FIXOS_ECOSOLAR.nomeFantasia}</strong>, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº <strong>${DADOS_FIXOS_ECOSOLAR.cnpj}</strong>, com sede na ${DADOS_FIXOS_ECOSOLAR.enderecoSede}, neste ato representada por seu sócio-administrador, <strong>${DADOS_FIXOS_ECOSOLAR.ceo.nome}</strong>, ${DADOS_FIXOS_ECOSOLAR.ceo.nacionalidade}, ${DADOS_FIXOS_ECOSOLAR.ceo.estadoCivil}, ${DADOS_FIXOS_ECOSOLAR.ceo.profissao}, portador da Cédula de Identidade RG nº ${DADOS_FIXOS_ECOSOLAR.ceo.rg} e inscrito no CPF sob o nº ${DADOS_FIXOS_ECOSOLAR.ceo.cpf}, residente e domiciliado na ${DADOS_FIXOS_ECOSOLAR.ceo.enderecoResidencial}.
+  </p>
 
-  <div class="clause">
-    <div class="clause-title">Cláusula 2ª — Dos Equipamentos e Especificações Técnicas</div>
-    <p>
-      O sistema fotovoltaico contratado é composto pelos seguintes equipamentos e materiais principais, conforme decomposição técnica homologada pela CONTRATADA:
-    </p>
-    
-    <table class="table-equips">
-      <thead>
-        <tr>
-          <th style="width: 32%;">Item / Componente</th>
-          <th style="width: 14%;">Quantidade</th>
-          <th style="width: 28%;">Fabricante / Modelo</th>
-          <th style="width: 26%;">Especificação Técnica</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${equips
-          .map(
-            (eq) => `<tr>
-              <td><strong>${eq.item}</strong></td>
-              <td>${eq.quantidade}</td>
-              <td>${eq.fabricanteModelo || 'Padrão Ecosolar'}</td>
-              <td>${eq.especificacao || 'Certificação INMETRO / Tier 1'}</td>
-            </tr>`,
-          )
-          .join('')}
-      </tbody>
-    </table>
-    <p style="font-size: 9pt; color: #64748b; margin-top: 4px;">
-      * Todos os módulos fotovoltaicos e inversores fornecidos possuem certificação obrigatória do INMETRO e atendem às normas vigentes da ABNT e da ANEEL (Resolução Normativa nº 1.000/2021 e Lei 14.300/2022).
-    </p>
-  </div>
+  <p class="preamble">
+    E, de outro lado:
+  </p>
 
-  <div class="clause">
-    <div class="clause-title">Cláusula 3ª — Do Preço e Condições de Pagamento</div>
-    <p>
-      Pela execução completa dos serviços e fornecimento dos equipamentos descritos na Cláusula 2ª, o CONTRATANTE pagará à CONTRATADA o valor global de:
-    </p>
+  <p class="party-block">
+    <strong>CONTRATANTE:</strong> <strong>${renderMissingWarning(dados.clienteNome, '{{nome_cliente}}')}</strong>, inscrito(a) no CPF número <strong>${renderMissingWarning(dados.clienteCpfCnpj, '{{cpf_cnpj}}')}</strong> residente e domiciliado na <strong>${renderMissingWarning(enderecoCompletoStr, '{{endereco_completo}}')}</strong>
+  </p>
 
-    <div class="values-card">
-      <div class="value-item">
-        <span class="value-label">Valor Total Bruto</span>
-        <span class="value-number">${valorTotalFormatted}</span>
-      </div>
-      <div class="value-item">
-        <span class="value-label">Desconto Especial Concedido</span>
-        <span class="value-number">${descontoFormatted}</span>
-      </div>
-      <div class="value-item">
-        <span class="value-label">Valor Líquido Contratado</span>
-        <span class="value-number highlight">${valorFinalFormatted}</span>
-      </div>
-    </div>
+  <p class="preamble">
+    As partes acima qualificadas, doravante denominadas simplesmente CONTRATANTE e CONTRATADA, têm entre si, justo e contratado, o presente Contrato de Prestação de Serviços de Instalação e Homologação de Sistema de Energia Solar Fotovoltaica, que se regerá pelas cláusulas e condições seguintes:
+  </p>
 
-    <p style="margin-top: 8px;">
-      <strong>Condição e Rateio de Pagamento Ajustado:</strong><br>
-      ${
-        dados.detalhesParcelamento ||
-        `a) <strong>Parcela de Entrada / Assinatura:</strong> ${parcelaEntradaFormatted} devida na data de assinatura deste instrumento;<br>
-         b) <strong>Parcela Final / Conclusão:</strong> ${parcelaFinalFormatted} devida no término da instalação física e vistoria da concessionária.`
-      }
-    </p>
-    <p style="margin-top: 6px; font-size: 9.5pt; color: #475569;">
-      <strong>Observações de Pagamento da Proposta:</strong> ${dados.condicoesPagamento || 'Conforme alinhado comercialmente via PIX, TED ou Financiamento Bancário homologado.'}
-    </p>
-  </div>
+  <div class="section-title">1. DO OBJETO DO CONTRATO</div>
+  <p class="clause-text">
+    1.1. O presente contrato tem por objeto a prestação de serviços de instalação e homologação de um sistema de energia solar fotovoltaica de <strong>${renderMissingWarning(potDisplay, '{{potencia_kwp}}')} kWp</strong>
+  </p>
 
-  <div class="clause">
-    <div class="clause-title">Cláusula 4ª — Dos Prazos de Instalação e Homologação</div>
-    <p>
-      O prazo médio total para montagem e entrega do sistema operando é de até <strong>${dados.prazoInstalacaoDias || 45} (quarenta e cinco) dias úteis</strong>, contados a partir da aprovação do projeto/parecer de acesso pela concessionária local e liberação da entrega dos equipamentos. Eventuais prorrogações motivadas por atrasos comprovados de vistoria da concessionária (ENERGISA) ou intempéries climáticas severas serão comunicadas formalmente.
-    </p>
-  </div>
+  <table class="table-equips">
+    <thead>
+      <tr>
+        <th style="width: 58%;">Produto</th>
+        <th style="width: 20%; text-align: center;">Unid.</th>
+        <th style="width: 22%; text-align: center;">Qtde</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${equips
+        .map(
+          (eq) => `<tr>
+            <td><strong>${eq.item}</strong>${eq.fabricanteModelo ? ` — ${eq.fabricanteModelo}` : ''}${eq.especificacao ? ` (${eq.especificacao})` : ''}</td>
+            <td style="text-align: center;">${eq.unidade || 'un'}</td>
+            <td style="text-align: center;">${eq.quantidade}</td>
+          </tr>`,
+        )
+        .join('')}
+    </tbody>
+  </table>
 
-  <div class="clause">
-    <div class="clause-title">Cláusula 5ª — Das Obrigações da Contratada</div>
-    <p>
-      São obrigações da CONTRATADA:
-    </p>
-    <div class="clause-sub">
-      a) Realizar a visita técnica, o projeto executivo e emitir a Anotação de Responsabilidade Técnica (ART) junto ao CREA-RO;<br>
-      b) Proceder com toda a tramitação e protocolo de homologação perante a concessionária de energia elétrica (ENERGISA);<br>
-      c) Efetuar a montagem e instalação física e elétrica por técnicos especializados munidos de EPI e treinados nas normas NR-10 e NR-35;<br>
-      d) Comissionar, testar e configurar o aplicativo de monitoramento remoto via Wi-Fi no smartphone do CONTRATANTE.
-    </div>
-  </div>
+  <p class="clause-text">
+    1.3. Os serviços incluem o fornecimento dos equipamentos listados, a instalação completa do sistema, a elaboração e acompanhamento do projeto junto à concessionária de energia elétrica local para a homologação e conexão do sistema à rede.
+  </p>
 
-  <div class="clause">
-    <div class="clause-title">Cláusula 6ª — Das Obrigações do Contratante</div>
-    <p>
-      São obrigações do CONTRATANTE:
-    </p>
-    <div class="clause-sub">
-      a) Disponibilizar acesso livre da equipe técnica da CONTRATADA ao telhado, padrão de entrada e quadros elétricos do imóvel;<br>
-      b) Fornecer cópia legível de sua fatura recente de energia elétrica e documentos de identificação necessários para a concessionária;<br>
-      c) Manter conexão de internet Wi-Fi estável e com sinal ativo no local do inversor para permitir o monitoramento remoto;<br>
-      d) Efetuar os pagamentos estipulados na Cláusula 3ª nas datas aprazadas.
-    </div>
-  </div>
+  <div class="section-title">2. DO PRAZO</div>
+  <p class="clause-text">
+    2.1. O prazo para a entrega dos equipamentos (kit solar fotovoltaico) pela [CONTRATADA] será de até 30 (trinta) dias corridos, contados a partir da data de assinatura do presente contrato e da confirmação do pagamento da primeira parcela.
+  </p>
+  <p class="clause-text">
+    2.2. O prazo para a instalação completa do sistema será de até 60 (sessenta) dias corridos, contados a partir da entrega dos equipamentos no local de instalação.
+  </p>
+  <p class="clause-text">
+    2.3. O prazo para a conclusão do processo de homologação e conexão do sistema à rede junto à concessionária de energia elétrica será de até 90 (noventa) dias corridos, contados a partir da data de assinatura do presente contrato.
+  </p>
+  <p class="clause-text">
+    2.4. Os prazos estabelecidos nesta Cláusula serão cumpridos rigorosamente pela CONTRATADA, conforme seus compromissos comerciais e operacionais.
+  </p>
+  <p class="clause-text">
+    2.5. Fica expressamente acordado que a CONTRATADA não será responsável por atrasos na homologação e conexão do sistema que decorram de atrasos, omissões, negativas ou demoras da concessionária de energia elétrica ENERGISA no cumprimento de seus procedimentos administrativos e técnicos. Nestes casos, a CONTRATADA se compromete a acompanhar e pressionar a ENERGISA para a conclusão dos trâmites, mas não responde por prazos fora de seu controle.
+  </p>
+  <p class="clause-text">
+    2.6. Em caso de atrasos causados exclusivamente pela CONTRATADA, esta se compromete a comunicar a CONTRATANTE imediatamente e a apresentar cronograma revisado com novas datas de cumprimento das obrigações.
+  </p>
 
-  <div class="clause">
-    <div class="clause-title">Cláusula 7ª — Das Garantias</div>
-    <p>
-      A CONTRATADA fornece garantia contra defeitos de instalação e montagem pelo período de <strong>${dados.garantiaInstalacaoMeses || 12} (doze) meses</strong>. Os equipamentos possuem garantias concedidas pelos respectivos fabricantes (25 anos de desempenho dos módulos, 5 a 10 anos para inversores e 10 a 12 anos para estruturas de fixação), nos termos dos certificados de cada fornecedor.
-    </p>
-  </div>
+  <div class="section-title">3. DO VALOR E FORMA DE PAGAMENTO</div>
+  <p class="clause-text">
+    3.1. O valor total dos serviços e equipamentos objeto deste contrato é de <strong>${valorTotalFormatted}</strong> e com desconto à vista, no valor de <strong>${valorDescontoFormatted}</strong>
+  </p>
+  <p class="clause-text">
+    3.2. O pagamento será realizado da seguinte forma: <strong>${renderMissingWarning(dados.condicoesPagamento || dados.detalhesParcelamento, '{{condicoes_pagamento}}')}</strong>
+  </p>
 
-  <div class="clause">
-    <div class="clause-title">Cláusula 8ª — Da Rescisão e Multa Contratual</div>
-    <p>
-      O descumprimento injustificado de quaisquer das cláusulas deste contrato sujeitará a parte infratora ao pagamento de multa rescisória equivalente a 10% (dez por cento) sobre o valor total do contrato, sem prejuízo da cobrança de eventuais despesas e custos já incorridos com projeto, taxas e aquisição de materiais sob encomenda.
-    </p>
-  </div>
+  <div class="section-title">4. DAS OBRIGAÇÕES DA CONTRATADA</div>
+  <p class="clause-text">
+    4.1. Fornecer todos os equipamentos e materiais necessários para a instalação do sistema fotovoltaico, conforme as especificações técnicas descritas na Cláusula Primeira.
+  </p>
+  <p class="clause-text">
+    4.2. Realizar a instalação do sistema de energia solar fotovoltaica de acordo com as normas técnicas vigentes (ABNT NBR 16690, NBR 5410, entre outras) e as melhores práticas de engenharia.
+  </p>
+  <p class="clause-text">
+    4.3. Elaborar e submeter o projeto de conexão do sistema à concessionária de energia elétrica, acompanhando todo o processo de homologação até a sua efetiva aprovação e conexão à rede.
+  </p>
+  <p class="clause-text">
+    4.4. Treinar a CONTRATANTE sobre o funcionamento básico e a manutenção preventiva do sistema instalado.
+  </p>
+  <p class="clause-text">
+    4.5. Emitir as notas fiscais referentes aos equipamentos e serviços prestados.
+  </p>
 
-  <div class="clause">
-    <div class="clause-title">Cláusula 9ª — Do Foro</div>
-    <p>
-      Para dirimir quaisquer controvérsias oriundas do presente contrato, as partes elegem expressamente o <strong>${DADOS_FIXOS_ECOSOLAR.foro}</strong>, com renúncia irrevogável a qualquer outro, por mais privilegiado que seja.
-    </p>
-  </div>
+  <div class="section-title">5. DAS OBRIGAÇÕES DA CONTRATANTE</div>
+  <p class="clause-text">
+    5.1. Efetuar os pagamentos nas datas e condições estabelecidas na Cláusula Terceira.
+  </p>
+  <p class="clause-text">
+    5.2. Fornecer acesso ao local de instalação e às instalações elétricas necessárias para a execução dos serviços.
+  </p>
+  <p class="clause-text">
+    5.3. Obter as licenças e autorizações municipais, se houver, para a instalação do sistema, sendo a CONTRATADA responsável por orientar sobre a necessidade e os procedimentos.
+  </p>
+  <p class="clause-text">
+    5.4. Manter a estrutura do telhado ou local de instalação em condições adequadas para suportar o peso e a fixação dos equipamentos.
+  </p>
+  <p class="clause-text">
+    5.5. Informar a CONTRATADA sobre quaisquer alterações na estrutura do imóvel ou no consumo de energia que possam afetar o desempenho do sistema.
+  </p>
+
+  <div class="section-title">6. DA GARANTIA</div>
+  <p class="clause-text">
+    6.1. A CONTRATADA garante a qualidade dos serviços de instalação por um período de 1 (um) ano, contado a partir da data de conclusão da instalação e homologação do sistema.
+  </p>
+  <p class="clause-text">
+    6.2. A garantia dos equipamentos (módulos, inversores, etc.) é de responsabilidade dos respectivos fabricantes, conforme seus termos e prazos específicos, sendo a CONTRATADA responsável por auxiliar a CONTRATANTE no acionamento dessas garantias, se necessário.
+  </p>
+  <p class="clause-text">
+    6.3. A garantia não cobre danos causados por mau uso, negligência, acidentes, fenômenos da natureza (raios, vendavais, etc.), alterações ou reparos realizados por terceiros não autorizados pela CONTRATADA.
+  </p>
+
+  <div class="section-title">7. DA RESCISÃO</div>
+  <p class="clause-text">
+    7.1. O presente contrato poderá ser rescindido de pleno direito, independentemente de qualquer notificação ou interpelação judicial ou extrajudicial, nas seguintes hipóteses:
+  </p>
+  <p class="bullet-item"># Pelo descumprimento de qualquer das cláusulas ou condições estabelecidas neste contrato por uma das partes.</p>
+  <p class="bullet-item"># Pela decretação de falência ou recuperação judicial de qualquer das partes.</p>
+  <p class="bullet-item"># Por comum acordo entre as partes, mediante termo aditivo.</p>
+  <p class="clause-text" style="margin-top: 6px;">
+    7.2. Em caso de rescisão por culpa da CONTRATANTE, esta arcará com os custos dos serviços já realizados e dos equipamentos já adquiridos e não utilizados, além da multa prevista na Cláusula Oitava.
+  </p>
+  <p class="clause-text">
+    7.3. Em caso de rescisão por culpa da CONTRATADA, esta deverá restituir à CONTRATANTE os valores pagos referentes aos serviços não executados e aos equipamentos não fornecidos, além da multa prevista na Cláusula Oitava.
+  </p>
+
+  <div class="section-title">8. DA MULTA</div>
+  <p class="clause-text">
+    8.1. A parte que der causa à rescisão do presente contrato por descumprimento de suas obrigações, ou que o rescindir unilateralmente sem justa causa, pagará à outra parte multa compensatória equivalente a 10% (dez por cento) do valor total do contrato, sem prejuízo da apuração de perdas e danos.
+  </p>
+
+  <div class="section-title">9. DA CONFIDENCIALIDADE</div>
+  <p class="clause-text">
+    9.1. As partes comprometem-se a manter sigilo sobre todas as informações técnicas, comerciais ou financeiras que venham a ter acesso em razão da execução deste contrato, não as divulgando a terceiros, salvo se expressamente autorizado pela outra parte ou por força de lei.
+  </p>
+
+  <div class="section-title">10. DAS DISPOSIÇÕES GERAIS</div>
+  <p class="clause-text">
+    10.1. Este contrato constitui o acordo integral entre as partes, substituindo quaisquer acordos ou entendimentos anteriores, verbais ou escritos.
+  </p>
+  <p class="clause-text">
+    10.2. Qualquer alteração ou aditamento a este contrato somente será válido se feito por escrito e assinado por ambas as partes.
+  </p>
+  <p class="clause-text">
+    10.3. A tolerância de uma parte quanto ao descumprimento de qualquer obrigação pela outra não implicará em renúncia ao direito de exigir o cumprimento da obrigação ou de rescindir o contrato.
+  </p>
+  <p class="clause-text">
+    10.4. As partes elegem o endereço constante no preâmbulo para fins de recebimento de notificações e comunicações relativas a este contrato.
+  </p>
+
+  <div class="section-title">11. DO FORO</div>
+  <p class="clause-text">
+    11.1. Para dirimir quaisquer dúvidas ou litígios decorrentes do presente contrato, as partes elegem o foro da Comarca de São Miguel do Guaporé, Estado de Rondônia, com exclusão de qualquer outro, por mais privilegiado que seja.
+  </p>
+
+  <p class="clause-text" style="margin-top: 18px;">
+    E, por estarem assim justas e contratadas, as partes assinam o presente instrumento em 2 (duas) vias de igual teor e forma, na presença das 2 (duas) testemunhas abaixo, para que produza seus jurídicos e legais efeitos.
+  </p>
 
   <!-- Fechamento e Assinaturas -->
   <div class="signatures-section">
     <p class="date-location">
-      ${dados.dataAssinatura || formatarDataExtenso(null, dados.cidadeAssinatura || DADOS_FIXOS_ECOSOLAR.cidade)}
+      ${dataExtensoFinal}
     </p>
 
     <div class="signatures-grid">
       <div class="sign-box">
         <strong>${DADOS_FIXOS_ECOSOLAR.razaoSocial}</strong>
-        CNPJ: ${DADOS_FIXOS_ECOSOLAR.cnpj}<br>
-        Hernandes da Silva Costa (CEO / Diretor)
+        ${DADOS_FIXOS_ECOSOLAR.cnpj}
       </div>
 
       <div class="sign-box">
-        <strong>${dados.clienteNome || 'CONTRATANTE'}</strong>
-        CPF/CNPJ: ${dados.clienteCpfCnpj || 'Não informado'}<br>
-        Contratante
+        <strong>${renderMissingWarning(dados.clienteNome, '{{nome_cliente}}')}</strong>
+        ${renderMissingWarning(dados.clienteCpfCnpj, '{{cpf_cnpj}}')}
       </div>
     </div>
 
     <div class="witness-grid">
-      <div class="sign-box" style="border-top: 1px dashed #94a3b8; padding-top: 25px;">
+      <div class="sign-box" style="border-top: 1px dashed #94a3b8; padding-top: 12px;">
         <strong>Testemunha 1</strong>
         Nome:<br>
         CPF:
       </div>
-      <div class="sign-box" style="border-top: 1px dashed #94a3b8; padding-top: 25px;">
+      <div class="sign-box" style="border-top: 1px dashed #94a3b8; padding-top: 12px;">
         <strong>Testemunha 2</strong>
         Nome:<br>
         CPF:
@@ -610,8 +630,8 @@ export function generateContratoHTML(dados: DadosContratoFormalizacao): string {
   </div>
 
   <div class="footer-doc">
-    <span>Ecosolar Energy • Contrato de Prestação de Serviços Fotovoltaicos</span>
-    <span>Página 1 / 1</span>
+    <span>${DADOS_FIXOS_ECOSOLAR.nomeFantasia} • CONTRATO DE PRESTAÇÃO DE SERVIÇOS</span>
+    <span>Seringueiras - RO</span>
   </div>
 </body>
 </html>`
