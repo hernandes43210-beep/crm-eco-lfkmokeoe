@@ -16,9 +16,11 @@ import {
   Users,
   Eye,
   Trash2,
+  Edit,
 } from 'lucide-react'
 import { ProposalsService } from '@/services/proposals'
 import { DeletePropostaDialog } from '@/components/DeletePropostaDialog'
+import { EditarPropostaModal } from '@/components/EditarPropostaModal'
 import type { Proposta } from '@/types/crm'
 import useRealtime from '@/hooks/use-realtime'
 import { formatBRL, formatDateBR, formatDateTimeBR } from '@/lib/solarUtils'
@@ -45,6 +47,7 @@ export default function PropostasList() {
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
   const [propostaToDelete, setPropostaToDelete] = useState<Proposta | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [propostaToEdit, setPropostaToEdit] = useState<Proposta | null>(null)
 
   const fetchPropostas = async () => {
     try {
@@ -523,6 +526,17 @@ export default function PropostasList() {
 
                       <Button
                         size="sm"
+                        variant="outline"
+                        onClick={() => setPropostaToEdit(prop)}
+                        className="h-8.5 text-xs font-semibold border-slate-200 text-slate-700 hover:text-[#0B7A5B] gap-1.5"
+                        title="Editar dados e valores da proposta"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                        <span>Editar</span>
+                      </Button>
+
+                      <Button
+                        size="sm"
                         variant="ghost"
                         onClick={() => setPropostaToDelete(prop)}
                         className="h-8.5 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1.5"
@@ -539,6 +553,18 @@ export default function PropostasList() {
           })}
         </div>
       )}
+
+      {/* Modal de edição de proposta */}
+      <EditarPropostaModal
+        open={!!propostaToEdit}
+        onOpenChange={(open) => {
+          if (!open) setPropostaToEdit(null)
+        }}
+        proposta={propostaToEdit}
+        onProposalUpdated={(atualizada) => {
+          setPropostas((prev) => prev.map((p) => (p.id === atualizada.id ? atualizada : p)))
+        }}
+      />
 
       {/* Modal de confirmação de exclusão */}
       <DeletePropostaDialog

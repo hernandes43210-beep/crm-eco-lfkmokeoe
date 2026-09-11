@@ -83,10 +83,67 @@ export const ProposalsService = {
     })
   },
 
-  async updateProposta(id: string, data: Partial<Proposta>) {
-    return await pb.collection('propostas').update<Proposta>(id, data, {
+  async updateProposta(
+    id: string,
+    data: Partial<Proposta>,
+    options?: { registrarHistoricoLead?: boolean; resumoAlteracao?: string },
+  ) {
+    const updated = await pb.collection('propostas').update<Proposta>(id, data, {
       expand: 'lead,kit,criado_por',
     })
+
+    // Se solicitado (ou por padrão quando há lead vinculado), registrar no histórico do lead
+    const leadId = updated.lead || (data as any).lead
+    if (leadId && options?.registrarHistoricoLead !== false) {
+      try {
+        const currentLead = await pb.collection('leads').getOne(leadId)
+        let historicoList: any[] = []
+        if (Array.isArray(currentLead.historico)) {
+          historicoList = [...currentLead.historico]
+        } else if (typeof currentLead.historico === 'string') {
+          try {
+            historicoList = JSON.parse(currentLead.historico) || []
+          } catch {
+            historicoList = []
+          }
+        }
+
+        const nowIso = new Date().toISOString()
+        const autorNome = pb.authStore.record?.name || pb.authStore.record?.email || 'Equipe'
+        const precoFormatado = updated.preco_venda
+          ? ` - R$ ${updated.preco_venda.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+          : ''
+        const descBase = options?.resumoAlteracao
+          ? `Proposta comercial editada: ${options.resumoAlteracao} (${updated.kit_nome}${precoFormatado})`
+          : `Proposta comercial editada (${updated.kit_nome}${precoFormatado})`
+
+        historicoList.push({
+          id: `hist-edit-prop-${Date.now()}`,
+          data: nowIso,
+          tipo: 'proposta',
+          descricao: descBase,
+          autor: autorNome,
+        })
+
+        const leadUpdates: Record<string, any> = {
+          historico: historicoList,
+        }
+
+        // Se o lead estiver em Proposta Enviada ou se o preço negociado do lead for atualizado
+        if (updated.preco_venda && updated.preco_venda > 0) {
+          leadUpdates.preco_venda = updated.preco_venda
+        }
+
+        await pb.collection('leads').update(leadId, leadUpdates)
+      } catch (histErr) {
+        console.warn(
+          'Aviso: Não foi possível atualizar histórico do lead após edição da proposta:',
+          histErr,
+        )
+      }
+    }
+
+    return updated
   },
 
   async deleteProposta(id: string) {

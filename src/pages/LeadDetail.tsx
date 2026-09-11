@@ -37,6 +37,7 @@ import type { Lead, LeadStatus, HistoricoItem, WhatsAppMessage, Proposta } from 
 import { GerarPropostaModal } from '@/components/GerarPropostaModal'
 import { InvestmentComparison } from '@/components/InvestmentComparison'
 import { DeletePropostaDialog } from '@/components/DeletePropostaDialog'
+import { EditarPropostaModal } from '@/components/EditarPropostaModal'
 import { LeadInstallationPhotos } from '@/components/LeadInstallationPhotos'
 import { openProposalPDFPrint } from '@/lib/proposalPdf'
 import useRealtime from '@/hooks/use-realtime'
@@ -98,6 +99,7 @@ export default function LeadDetail() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [propostaToDelete, setPropostaToDelete] = useState<Proposta | null>(null)
   const [isDeletingProposta, setIsDeletingProposta] = useState(false)
+  const [propostaToEdit, setPropostaToEdit] = useState<Proposta | null>(null)
 
   // Quick note modal/field
   const [novaNota, setNovaNota] = useState('')
@@ -1591,6 +1593,17 @@ export default function LeadDetail() {
 
                         <Button
                           size="sm"
+                          variant="outline"
+                          onClick={() => setPropostaToEdit(prop)}
+                          className="h-8 text-xs font-semibold border-slate-200 text-slate-700 hover:text-[#0B7A5B] gap-1.5"
+                          title="Editar dados e valores da proposta"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Editar</span>
+                        </Button>
+
+                        <Button
+                          size="sm"
                           variant="ghost"
                           onClick={() => setPropostaToDelete(prop)}
                           className="h-8 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1"
@@ -1905,6 +1918,22 @@ export default function LeadDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal Editar Proposta */}
+      <EditarPropostaModal
+        open={!!propostaToEdit}
+        onOpenChange={(open) => {
+          if (!open) setPropostaToEdit(null)
+        }}
+        proposta={propostaToEdit}
+        onProposalUpdated={(atualizada) => {
+          setPropostas((prev) => prev.map((p) => (p.id === atualizada.id ? atualizada : p)))
+          if (atualizada.preco_venda) {
+            setPrecoVenda(atualizada.preco_venda)
+          }
+          fetchLead() // Sincroniza histórico e preço de venda no lead
+        }}
+      />
 
       {/* Modal Gerar Proposta */}
       {lead && (
