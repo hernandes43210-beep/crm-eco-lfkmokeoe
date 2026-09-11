@@ -42,6 +42,7 @@ export interface ProposalPDFData {
     email?: string
   }
   kit_descricao?: string
+  kit_string_box?: string
   fotos_obra?: Array<{
     id: string
     url?: string
@@ -64,6 +65,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     descricao: data.kit_descricao,
     observacoes: data.observacoes,
     consumoKwh: data.cliente.consumo_mensal_kwh,
+    stringBox: (data as any).kit_string_box || undefined,
   })
 
   // Estimativas solares calculadas

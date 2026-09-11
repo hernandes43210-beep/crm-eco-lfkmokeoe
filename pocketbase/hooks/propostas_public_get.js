@@ -189,6 +189,7 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
           potencia_kw: kit.getFloat('potencia_kw'),
           categoria: kit.getString('categoria'),
           descricao: kit.getString('descricao'),
+          string_box: kit.getString('string_box') || '',
         }
       } catch (_) {}
     }

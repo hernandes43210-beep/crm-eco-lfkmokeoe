@@ -156,6 +156,7 @@ export default function PropostaPublica() {
       aceito_por_nome: proposta.aceito_por_nome,
       created: proposta.created,
       kit_descricao: proposta.kit?.descricao,
+      kit_string_box: proposta.kit?.string_box || undefined,
       cliente: {
         nome: proposta.lead?.nome || 'Cliente',
         email: proposta.lead?.email,
@@ -225,6 +226,7 @@ export default function PropostaPublica() {
     descricao: proposta.kit?.descricao,
     observacoes: proposta.observacoes,
     consumoKwh: proposta.lead?.consumo_mensal_kwh,
+    stringBox: proposta.kit?.string_box || undefined,
   })
 
   // Cálculos solares

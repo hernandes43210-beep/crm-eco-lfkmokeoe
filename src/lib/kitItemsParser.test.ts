@@ -73,4 +73,28 @@ describe('kitItemsParser', () => {
     expect(res.quantidadeModulosTotal).toBe(12)
     expect(res.areaEstimadaM2).toBe(Math.round(12 * 2.8))
   })
+
+  it('rotula e decompõe string box conforme a opção escolhida pelo usuário', () => {
+    const resComSb = parseKitDetailedItems({
+      kitNome: 'Kit Solar 6,1 kWp — Canadian Solar + Growatt',
+      kitPotenciaKw: 6.1,
+      descricao:
+        '10x Módulo fotovoltaico 610Wp (Canadian Solar) — Total 6,1 kWp\n1x Inversor solar Growatt 5000\n1x String box 2 entradas / 2 saídas\nEstrutura inclusa.',
+      stringBox: '2_entradas',
+    })
+
+    const sbItem = resComSb.itens.find((i) => i.tipo === 'string_box')
+    expect(sbItem).toBeDefined()
+    expect(sbItem?.quantidade).toBe(1)
+    expect(sbItem?.nome).toBe('String box 2 entradas / 2 saídas')
+
+    // Se o usuário não escolheu string box e não há na descrição, não deve listar
+    const resSemSb = parseKitDetailedItems({
+      kitNome: 'Kit Solar 5,5 kWp',
+      kitPotenciaKw: 5.5,
+      descricao: '8 módulos 550W + inversor monofásico 5kW.',
+    })
+    const sbItemAusente = resSemSb.itens.find((i) => i.tipo === 'string_box')
+    expect(sbItemAusente).toBeUndefined()
+  })
 })

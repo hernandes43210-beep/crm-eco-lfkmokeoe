@@ -18,6 +18,26 @@ export interface KitItemDetail {
   potenciaUnit?: string // ex: "610 Wp" ou "10 kW"
 }
 
+export function formatarRotuloStringBoxItem(val?: string | null): string {
+  if (!val) return ''
+  const trimmed = val.trim()
+  if (trimmed === '1_entrada' || trimmed === '1') {
+    return 'String box 1 entrada / 1 saída'
+  }
+  if (trimmed === '2_entradas' || trimmed === '2') {
+    return 'String box 2 entradas / 2 saídas'
+  }
+  if (trimmed === '3_entradas' || trimmed === '3') {
+    return 'String box 3 entradas / 3 saídas'
+  }
+  const matchE = trimmed.match(/(\d+)\s*E(?:ntradas?)?/i)
+  if (matchE) {
+    const n = matchE[1]
+    return n === '1' ? 'String box 1 entrada / 1 saída' : `String box ${n} entradas / ${n} saídas`
+  }
+  return trimmed
+}
+
 export interface KitSpecsDetailed {
   itens: KitItemDetail[]
   potenciaTotalKwp?: number
@@ -46,6 +66,7 @@ export function parseKitDetailedItems(params: {
   descricao?: string
   observacoes?: string
   consumoKwh?: number
+  stringBox?: string
 }): KitSpecsDetailed {
   const {
     kitNome = '',
@@ -54,6 +75,7 @@ export function parseKitDetailedItems(params: {
     descricao = '',
     observacoes = '',
     consumoKwh,
+    stringBox: paramStringBox = '',
   } = params
 
   const itens: KitItemDetail[] = []
@@ -223,6 +245,18 @@ export function parseKitDetailedItems(params: {
       const qtdMatch = block.match(/^(\d+)\s*(?:=|x|\*|\s)/i)
       if (qtdMatch) qtd = parseInt(qtdMatch[1], 10) || 1
 
+      // Tenta extrair 1, 2 ou 3 entradas
+      let detectedEntradas = ''
+      if (/3\s*(?:entradas?|e\b|\/3s)/i.test(block)) {
+        detectedEntradas = '3_entradas'
+      } else if (/2\s*(?:entradas?|e\b|\/2s)/i.test(block)) {
+        detectedEntradas = '2_entradas'
+      } else if (/1\s*(?:entrada|e\b|\/1s)/i.test(block)) {
+        detectedEntradas = '1_entrada'
+      }
+
+      const rotuloCustom = formatarRotuloStringBoxItem(paramStringBox || detectedEntradas)
+
       let spec = ''
       const specMatch = block.match(/\b(\d+E\/\d+S|\d+E|\d+S|\d+V)\b/i)
       if (specMatch) spec = specMatch[0]
@@ -232,9 +266,13 @@ export function parseKitDetailedItems(params: {
         tipo: 'string_box',
         quantidade: qtd,
         unidade: 'un',
-        nome: 'String Box de Proteção CC/CA',
-        fabricanteModelo: 'Quadro de Proteção com DPS e Disjuntores',
-        especificacao: cleanText(spec) || 'Proteção contra surtos atmosféricos e sobrecorrentes',
+        nome: rotuloCustom || 'String Box de Proteção CC/CA',
+        fabricanteModelo: rotuloCustom || 'Quadro de Proteção com DPS e Disjuntores',
+        especificacao:
+          cleanText(spec) ||
+          (rotuloCustom
+            ? 'Proteção contra surtos atmosféricos (DPS) e sobrecorrentes (CC/CA)'
+            : 'Proteção contra surtos atmosféricos e sobrecorrentes'),
       })
       continue
     }
@@ -370,17 +408,19 @@ export function parseKitDetailedItems(params: {
   }
 
   // 3. Adicionar os componentes de engenharia e instalação do CRM Turnkey
-  // Garantir que String Box, Estrutura, Cabeamento e Homologação estejam presentes na lista
+  // Se houver string box escolhida ou declarada, inclui na lista.
+  // Regra: "Se o usuário não escolher string box, o kit simplesmente não lista string box em lugar nenhum (campo opcional)."
   const hasStringBox = itens.some((it) => it.tipo === 'string_box')
-  if (!hasStringBox) {
+  if (!hasStringBox && paramStringBox) {
+    const rotuloCustom = formatarRotuloStringBoxItem(paramStringBox)
     itens.push({
       tipo: 'string_box',
       quantidade: 1,
       unidade: 'un',
-      nome: 'String Box de Proteção CC/CA Integrada',
-      fabricanteModelo: 'Quadro de Proteção Completo com DPS e Seccionadoras',
+      nome: rotuloCustom,
+      fabricanteModelo: rotuloCustom,
       especificacao:
-        'Proteções contra sobretensão e surtos elétricos conforme normas ABNT NBR 5410',
+        'Quadro de proteção CC com DPS classe II, chave seccionadora e proteção contra sobretensão conforme ABNT NBR 5410',
     })
   }
 

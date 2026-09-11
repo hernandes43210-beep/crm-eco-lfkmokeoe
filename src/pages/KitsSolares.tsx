@@ -33,6 +33,7 @@ import {
   sugerirDescricaoTecnica,
   gerarNomeKitClonado,
   extrairComponentesKit,
+  formatarRotuloStringBox,
 } from '@/lib/quickKitUtils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -77,6 +78,7 @@ export default function KitsSolares() {
   const [custo, setCusto] = useState<number | string>(15000)
   const [margem, setMargem] = useState<number | string>(30)
   const [descricao, setDescricao] = useState('')
+  const [stringBox, setStringBox] = useState<string>('')
 
   // Modo montagem pré-pronta / rápida
   const [isQuickMode, setIsQuickMode] = useState(true)
@@ -171,6 +173,7 @@ export default function KitsSolares() {
         qtdInversores,
         marcaInversor,
         kwp: quickKwpInfo.kwp,
+        stringBox,
       })
       setDescricao(descGerada)
     }
@@ -186,6 +189,7 @@ export default function KitsSolares() {
     marcaPaineis,
     qtdInversores,
     marcaInversor,
+    stringBox,
   ])
 
   const openCreateModal = () => {
@@ -198,6 +202,7 @@ export default function KitsSolares() {
     setMarcaPaineis('Canadian Solar')
     setQtdInversores(1)
     setMarcaInversor('Growatt 5000')
+    setStringBox('')
 
     const initialKwp = calcularKwpPrePronto(10, 610).kwp
     setNome('Kit Solar 6,1 kWp — Canadian Solar + Growatt 5000')
@@ -214,6 +219,7 @@ export default function KitsSolares() {
         qtdInversores: 1,
         marcaInversor: 'Growatt 5000',
         kwp: initialKwp,
+        stringBox: '',
       }),
     )
     setErrorBanner('')
@@ -231,6 +237,7 @@ export default function KitsSolares() {
     setCusto(kit.custo)
     setMargem(kit.margem)
     setDescricao(kit.descricao || '')
+    setStringBox(kit.string_box || '')
     setErrorBanner('')
     setIsModalOpen(true)
   }
@@ -256,6 +263,7 @@ export default function KitsSolares() {
     setMarcaPaineis(componentes.marcaPaineis)
     setQtdInversores(componentes.qtdInversores)
     setMarcaInversor(componentes.marcaInversor)
+    setStringBox(kit.string_box || componentes.stringBox || '')
 
     // Se o kit puder ser mapeado em pré-pronto, abre em modo pré-pronto; caso contrário modo completo
     setIsQuickMode(componentes.isPrePronto)
@@ -304,6 +312,7 @@ export default function KitsSolares() {
         margem: Number(margem),
         preco_venda: livePriceCalculated,
         descricao: descricao.trim(),
+        string_box: (stringBox as any) || '',
       }
 
       if (editingKit) {
@@ -606,6 +615,16 @@ export default function KitsSolares() {
                     {getCategoryIcon(kit.categoria)}
                     <span>{kit.categoria}</span>
                   </Badge>
+
+                  {kit.string_box && (
+                    <Badge
+                      variant="outline"
+                      className="bg-amber-50 border-amber-300 text-amber-900 text-xs font-semibold gap-1"
+                    >
+                      <Boxes className="w-3 h-3 text-amber-600" />
+                      <span>{formatarRotuloStringBox(kit.string_box)}</span>
+                    </Badge>
+                  )}
                 </div>
 
                 {/* Description */}
@@ -916,6 +935,7 @@ export default function KitsSolares() {
                           qtdInversores,
                           marcaInversor,
                           kwp: quickKwpInfo.kwp,
+                          stringBox,
                         }),
                       )
                     }}
@@ -926,6 +946,55 @@ export default function KitsSolares() {
                 </div>
               </div>
             )}
+
+            {/* Seletor de String Box (visível em ambos os modos: Montagem Pré-Pronta e Manual/Completo) */}
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 space-y-2">
+              <div className="flex items-center justify-between">
+                <Label
+                  htmlFor="kitStringBox"
+                  className="text-xs font-semibold text-slate-800 flex items-center gap-1.5"
+                >
+                  <Boxes className="w-3.5 h-3.5 text-amber-600" />
+                  <span>String Box de Proteção (Opcional)</span>
+                </Label>
+                {stringBox && (
+                  <span className="text-[11px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
+                    {formatarRotuloStringBox(stringBox)}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 leading-snug">
+                Escolha o número de entradas da string box CC. Todas as opções já incluem as
+                respectivas saídas e constam na decomposição do kit na proposta.
+              </p>
+              <select
+                id="kitStringBox"
+                value={stringBox}
+                onChange={(e) => {
+                  const novoSb = e.target.value
+                  setStringBox(novoSb)
+                  if (isQuickMode && !editingKit && !isCloning) {
+                    setDescricao(
+                      sugerirDescricaoTecnica({
+                        qtdPaineis,
+                        potenciaPainelW,
+                        marcaPaineis,
+                        qtdInversores,
+                        marcaInversor,
+                        kwp: quickKwpInfo.kwp,
+                        stringBox: novoSb,
+                      }),
+                    )
+                  }
+                }}
+                className="w-full h-9.5 px-3 text-xs sm:text-sm bg-white border border-slate-200 rounded-lg text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+              >
+                <option value="">Sem string box (não incluir no kit)</option>
+                <option value="1_entrada">1 entrada (String box 1 entrada / 1 saída)</option>
+                <option value="2_entradas">2 entradas (String box 2 entradas / 2 saídas)</option>
+                <option value="3_entradas">3 entradas (String box 3 entradas / 3 saídas)</option>
+              </select>
+            </div>
 
             {/* Campos Principais do Kit (pré-preenchidos ou editáveis) */}
             <div className="space-y-3.5 pt-1">

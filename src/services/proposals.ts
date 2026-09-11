@@ -226,6 +226,7 @@ export const ProposalsService = {
                 potencia_kw: expandedKit.potencia_kw,
                 categoria: expandedKit.categoria,
                 descricao: expandedKit.descricao,
+                string_box: (expandedKit as any).string_box || undefined,
               }
             : null,
           vendedor: expandedVendedor

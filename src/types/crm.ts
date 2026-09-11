@@ -78,6 +78,8 @@ export interface Lead extends RecordModel {
 
 export type KitCategoria = 'Residencial' | 'Comercial' | 'Rural'
 
+export type KitStringBox = '1_entrada' | '2_entradas' | '3_entradas'
+
 export interface Kit extends RecordModel {
   id: string
   nome: string
@@ -88,6 +90,7 @@ export interface Kit extends RecordModel {
   margem: number
   preco_venda: number
   descricao?: string
+  string_box?: KitStringBox | ''
   created: string
   updated: string
 }
@@ -287,6 +290,7 @@ export interface PublicProposta {
     potencia_kw?: number
     categoria?: string
     descricao?: string
+    string_box?: KitStringBox | ''
   }
   vendedor?: {
     name?: string

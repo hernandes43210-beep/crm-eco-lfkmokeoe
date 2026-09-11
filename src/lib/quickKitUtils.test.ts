@@ -6,6 +6,7 @@ import {
   sugerirDescricaoTecnica,
   gerarNomeKitClonado,
   extrairComponentesKit,
+  formatarRotuloStringBox,
 } from './quickKitUtils'
 
 describe('quickKitUtils', () => {
@@ -66,6 +67,25 @@ describe('quickKitUtils', () => {
     expect(desc).toContain('10x Módulo fotovoltaico 610Wp (Canadian Solar)')
     expect(desc).toContain('1x Inversor solar Growatt 5000')
     expect(desc).toContain('Total 6,1 kWp')
+
+    const descComSb = sugerirDescricaoTecnica({
+      qtdPaineis: 10,
+      potenciaPainelW: 610,
+      marcaPaineis: 'Canadian Solar',
+      qtdInversores: 1,
+      marcaInversor: 'Growatt 5000',
+      kwp: 6.1,
+      stringBox: '2_entradas',
+    })
+    expect(descComSb).toContain('1x String box 2 entradas / 2 saídas')
+  })
+
+  it('formata rotulo amigavel de string box', () => {
+    expect(formatarRotuloStringBox('1_entrada')).toBe('String box 1 entrada / 1 saída')
+    expect(formatarRotuloStringBox('2_entradas')).toBe('String box 2 entradas / 2 saídas')
+    expect(formatarRotuloStringBox('3_entradas')).toBe('String box 3 entradas / 3 saídas')
+    expect(formatarRotuloStringBox('')).toBe('')
+    expect(formatarRotuloStringBox(undefined)).toBe('')
   })
 
   it('gera nome duplicado com sufixo "— Cópia"', () => {

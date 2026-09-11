@@ -10,6 +10,32 @@ export interface MontagemPreProntaState {
   marcaPaineis: string
   qtdInversores: number | string
   marcaInversor: string
+  stringBox?: string
+}
+
+/**
+ * Converte o valor salvo da string box (ex: '2_entradas') no rótulo padrão
+ * de composição: "String box 2 entradas / 2 saídas"
+ */
+export function formatarRotuloStringBox(val?: string | null): string {
+  if (!val) return ''
+  const trimmed = val.trim()
+  if (trimmed === '1_entrada' || trimmed === '1') {
+    return 'String box 1 entrada / 1 saída'
+  }
+  if (trimmed === '2_entradas' || trimmed === '2') {
+    return 'String box 2 entradas / 2 saídas'
+  }
+  if (trimmed === '3_entradas' || trimmed === '3') {
+    return 'String box 3 entradas / 3 saídas'
+  }
+  // Se já veio texto formatado como "3E/3S" ou "String box..."
+  const matchE = trimmed.match(/(\d+)\s*E(?:ntradas?)?/i)
+  if (matchE) {
+    const n = matchE[1]
+    return n === '1' ? 'String box 1 entrada / 1 saída' : `String box ${n} entradas / ${n} saídas`
+  }
+  return trimmed
 }
 
 /**
@@ -99,8 +125,17 @@ export function sugerirDescricaoTecnica(params: {
   qtdInversores: number | string
   marcaInversor: string
   kwp: number
+  stringBox?: string
 }): string {
-  const { qtdPaineis, potenciaPainelW, marcaPaineis, qtdInversores, marcaInversor, kwp } = params
+  const {
+    qtdPaineis,
+    potenciaPainelW,
+    marcaPaineis,
+    qtdInversores,
+    marcaInversor,
+    kwp,
+    stringBox,
+  } = params
 
   const qP = Number(qtdPaineis) || 0
   const potP = Number(potenciaPainelW) || 0
@@ -119,6 +154,13 @@ export function sugerirDescricaoTecnica(params: {
     linhas.push(`${qI}x Inversor solar ${marcaInversor.trim()}`)
   } else if (marcaInversor.trim()) {
     linhas.push(`Inversor solar ${marcaInversor.trim()}`)
+  }
+
+  if (stringBox) {
+    const rotuloSb = formatarRotuloStringBox(stringBox)
+    if (rotuloSb) {
+      linhas.push(`1x ${rotuloSb}`)
+    }
   }
 
   linhas.push('Estrutura de fixação e cabeamento completo inclusos.')
@@ -156,6 +198,7 @@ export interface ExtractedKitComponents {
   marcaPaineis: string
   qtdInversores: number
   marcaInversor: string
+  stringBox: string
 }
 
 /**
@@ -167,6 +210,7 @@ export function extrairComponentesKit(kit: {
   fabricante?: string
   potencia_kw?: number
   descricao?: string
+  string_box?: string
 }): ExtractedKitComponents {
   const desc = kit.descricao || ''
   const nome = kit.nome || ''
@@ -178,6 +222,18 @@ export function extrairComponentesKit(kit: {
   let marcaPaineis = ''
   let qtdInversores = 1
   let marcaInversor = ''
+  let stringBox = kit.string_box || ''
+
+  // Se string_box não estiver no campo dedicado, tentar inferir da descrição
+  if (!stringBox) {
+    if (/string\s*box\s*3\s*e|3E\/3S|3\s*entradas/i.test(desc)) {
+      stringBox = '3_entradas'
+    } else if (/string\s*box\s*2\s*e|2E\/2S|2\s*entradas/i.test(desc)) {
+      stringBox = '2_entradas'
+    } else if (/string\s*box\s*1\s*e|1E\/1S|1\s*entrada/i.test(desc)) {
+      stringBox = '1_entrada'
+    }
+  }
 
   // 1. Tentar ler padrão de montagem pré-pronta gerada:
   // "10x Módulo fotovoltaico 610Wp (Canadian Solar) — Total 6,1 kWp"
@@ -296,5 +352,6 @@ export function extrairComponentesKit(kit: {
       marcaInversor ||
       (fab ? (fab.split('/')[1] || fab.split('/')[0])?.trim() : '') ||
       'Growatt 5000',
+    stringBox,
   }
 }

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-10T21:00:34.287Z",
+  "generatedAt": "2026-09-11T12:42:28.991Z",
   "collections": [
     {
       "name": "users",
@@ -233,12 +233,6 @@
           "system": false
         },
         {
-          "name": "motivo_descarte",
-          "type": "text",
-          "required": false,
-          "system": false
-        },
-        {
           "name": "proximo_contato",
           "type": "text",
           "required": false,
@@ -315,6 +309,13 @@
           "system": false
         },
         {
+          "name": "string_box",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["1_entrada", "2_entradas", "3_entradas"]
+        },
+        {
           "name": "created",
           "type": "autodate",
           "required": false,
@@ -327,6 +328,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "string_box",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["1_entrada", "2_entradas", "3_entradas"]
         }
       ],
       "indexes": [

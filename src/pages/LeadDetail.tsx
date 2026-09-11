@@ -658,6 +658,7 @@ export default function LeadDetail() {
       aceito_por_nome: prop.aceito_por_nome,
       created: prop.created,
       kit_descricao: prop.expand?.kit?.descricao,
+      kit_string_box: (prop.expand?.kit as any)?.string_box || undefined,
       cliente: {
         nome: lead.nome,
         email: lead.email,
