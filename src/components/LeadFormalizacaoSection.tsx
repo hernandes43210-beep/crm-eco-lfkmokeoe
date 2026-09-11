@@ -21,8 +21,13 @@ import {
 import { Lead, Proposta, FormalizacaoDocumento, FormalizacaoTipo } from '@/types/crm'
 import { FormalizacaoService } from '@/services/formalizacao'
 import { FormalizacaoDocEditorModal } from './FormalizacaoDocEditorModal'
+import { SendClicksignModal } from '@/components/SendClicksignModal'
+import { ClicksignEnvelopeCard } from '@/components/ClicksignEnvelopeCard'
+import { ClicksignService } from '@/services/clicksign'
+import { AssinaturaEnvelope } from '@/types/crm'
 import { formatDateBR, formatDateTimeBR } from '@/lib/solarUtils'
 import { useToast } from '@/hooks/use-toast'
+import { PenTool, ShieldCheck, RefreshCw } from 'lucide-react'
 
 interface LeadFormalizacaoSectionProps {
   lead: Lead
@@ -45,6 +50,9 @@ export function LeadFormalizacaoSection({
 
   // Modais de edição/geração
   const [activeModalTipo, setActiveModalTipo] = useState<FormalizacaoTipo | null>(null)
+  const [clicksignModalTipo, setClicksignModalTipo] = useState<FormalizacaoTipo | null>(null)
+  const [envelopes, setEnvelopes] = useState<AssinaturaEnvelope[]>([])
+  const [loadingEnvelopes, setLoadingEnvelopes] = useState(false)
 
   // Carregar documentos de formalização
   const loadDocumentos = React.useCallback(async () => {
@@ -59,9 +67,40 @@ export function LeadFormalizacaoSection({
     }
   }, [lead.id])
 
+  // Carregar envelopes Clicksign
+  const loadEnvelopes = React.useCallback(async () => {
+    try {
+      setLoadingEnvelopes(true)
+      const list = await ClicksignService.listEnvelopesByLead(lead.id)
+      setEnvelopes(list)
+
+      // Verificação automática sob demanda ao abrir a ficha do lead
+      const runningList = list.filter((e) => e.status === 'running')
+      if (runningList.length > 0) {
+        Promise.all(
+          runningList.map((env) =>
+            ClicksignService.checkStatus({
+              record_id: env.id,
+              envelope_id: env.clicksign_envelope_id,
+            }).catch(() => null),
+          ),
+        ).then(() => {
+          ClicksignService.listEnvelopesByLead(lead.id)
+            .then(setEnvelopes)
+            .catch(() => {})
+        })
+      }
+    } catch (err) {
+      console.error('Erro ao listar envelopes Clicksign:', err)
+    } finally {
+      setLoadingEnvelopes(false)
+    }
+  }, [lead.id])
+
   useEffect(() => {
     loadDocumentos()
-  }, [loadDocumentos])
+    loadEnvelopes()
+  }, [loadDocumentos, loadEnvelopes])
 
   // Melhor proposta vinculada (prioriza proposta Aceita, ou a mais recente)
   const bestProposal = React.useMemo(() => {
@@ -80,6 +119,14 @@ export function LeadFormalizacaoSection({
   const latestProcuracao = React.useMemo(() => {
     return documentos.find((d) => d.tipo === 'procuracao')
   }, [documentos])
+
+  const latestEnvelopeContrato = React.useMemo(() => {
+    return envelopes.find((e) => e.tipo_documento === 'contrato')
+  }, [envelopes])
+
+  const latestEnvelopeProcuracao = React.useMemo(() => {
+    return envelopes.find((e) => e.tipo_documento === 'procuracao')
+  }, [envelopes])
 
   // Campos cadastrais do lead para checagem
   const missingLeadFields = React.useMemo(() => {
@@ -296,6 +343,18 @@ export function LeadFormalizacaoSection({
               )}
             </div>
 
+            {/* Status do Envelope Clicksign para Contrato */}
+            {latestEnvelopeContrato && (
+              <ClicksignEnvelopeCard
+                envelope={latestEnvelopeContrato}
+                lead={lead}
+                onUpdated={() => {
+                  loadEnvelopes()
+                  onLeadUpdated?.()
+                }}
+              />
+            )}
+
             <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
               <Button
                 size="sm"
@@ -307,16 +366,28 @@ export function LeadFormalizacaoSection({
               </Button>
 
               {latestContrato && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleOpenDocPrint(latestContrato)}
-                  className="h-8 text-xs font-semibold border-slate-200 text-slate-700 hover:text-blue-600 gap-1"
-                  title="Imprimir ou baixar documento em PDF"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Imprimir / PDF</span>
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    onClick={() => setClicksignModalTipo('contrato')}
+                    className="h-8 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shadow-xs"
+                    title="Criar envelope na Clicksign e enviar para assinatura digital"
+                  >
+                    <PenTool className="w-3.5 h-3.5 text-emerald-200" />
+                    <span>Assinar digitalmente</span>
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleOpenDocPrint(latestContrato)}
+                    className="h-8 text-xs font-semibold border-slate-200 text-slate-700 hover:text-blue-600 gap-1"
+                    title="Imprimir ou baixar documento em PDF"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>Imprimir / PDF</span>
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -384,6 +455,18 @@ export function LeadFormalizacaoSection({
               )}
             </div>
 
+            {/* Status do Envelope Clicksign para Procuração */}
+            {latestEnvelopeProcuracao && (
+              <ClicksignEnvelopeCard
+                envelope={latestEnvelopeProcuracao}
+                lead={lead}
+                onUpdated={() => {
+                  loadEnvelopes()
+                  onLeadUpdated?.()
+                }}
+              />
+            )}
+
             <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
               <Button
                 size="sm"
@@ -395,16 +478,28 @@ export function LeadFormalizacaoSection({
               </Button>
 
               {latestProcuracao && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleOpenDocPrint(latestProcuracao)}
-                  className="h-8 text-xs font-semibold border-slate-200 text-slate-700 hover:text-blue-600 gap-1"
-                  title="Imprimir ou baixar documento em PDF"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Imprimir / PDF</span>
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    onClick={() => setClicksignModalTipo('procuracao')}
+                    className="h-8 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shadow-xs"
+                    title="Criar envelope na Clicksign e enviar para assinatura digital"
+                  >
+                    <PenTool className="w-3.5 h-3.5 text-emerald-200" />
+                    <span>Assinar digitalmente</span>
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleOpenDocPrint(latestProcuracao)}
+                    className="h-8 text-xs font-semibold border-slate-200 text-slate-700 hover:text-blue-600 gap-1"
+                    title="Imprimir ou baixar documento em PDF"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>Imprimir / PDF</span>
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -435,6 +530,42 @@ export function LeadFormalizacaoSection({
             </div>
           ) : (
             <div className="space-y-2">
+              {/* Seção com envelopes da Clicksign associados ao lead */}
+              {envelopes.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Envelopes Clicksign Criados ({envelopes.length})</span>
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => loadEnvelopes()}
+                      disabled={loadingEnvelopes}
+                      className="h-6 text-[10px] text-slate-500 hover:text-blue-600 px-2 gap-1"
+                    >
+                      <RefreshCw className={`w-3 h-3 ${loadingEnvelopes ? 'animate-spin' : ''}`} />
+                      <span>Sincronizar</span>
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {envelopes.map((env) => (
+                      <ClicksignEnvelopeCard
+                        key={env.id}
+                        envelope={env}
+                        lead={lead}
+                        onUpdated={() => {
+                          loadEnvelopes()
+                          onLeadUpdated?.()
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {documentos.map((doc) => (
                 <div
                   key={doc.id}
@@ -475,6 +606,16 @@ export function LeadFormalizacaoSection({
                   <div className="flex items-center gap-2 shrink-0">
                     <Button
                       size="sm"
+                      onClick={() => setClicksignModalTipo(doc.tipo)}
+                      className="h-7 px-2 text-xs font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 gap-1"
+                      title="Assinar este documento digitalmente na Clicksign"
+                    >
+                      <PenTool className="w-3 h-3 text-emerald-600" />
+                      <span>Assinar Clicksign</span>
+                    </Button>
+
+                    <Button
+                      size="sm"
                       variant="outline"
                       onClick={() => handleOpenDocPrint(doc)}
                       className="h-7 px-2.5 text-xs font-semibold border-slate-200 text-slate-700 hover:text-blue-700 gap-1"
@@ -512,6 +653,23 @@ export function LeadFormalizacaoSection({
           proposta={bestProposal}
           onSaved={() => {
             loadDocumentos()
+            onLeadUpdated?.()
+          }}
+        />
+      )}
+
+      {/* Modal de Envio para Clicksign */}
+      {clicksignModalTipo && (
+        <SendClicksignModal
+          open={!!clicksignModalTipo}
+          onOpenChange={(op) => {
+            if (!op) setClicksignModalTipo(null)
+          }}
+          lead={lead}
+          tipo={clicksignModalTipo}
+          documento={clicksignModalTipo === 'contrato' ? latestContrato : latestProcuracao}
+          onSuccess={() => {
+            loadEnvelopes()
             onLeadUpdated?.()
           }}
         />

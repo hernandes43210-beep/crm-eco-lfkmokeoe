@@ -101,6 +101,44 @@ export interface FormalizacaoDocumento extends RecordModel {
   }
 }
 
+export type AssinaturaEnvelopeStatus =
+  | 'draft'
+  | 'running'
+  | 'signed'
+  | 'canceled'
+  | 'expired'
+  | 'error'
+
+export interface AssinaturaEnvelope extends RecordModel {
+  id: string
+  lead: string
+  documento?: string
+  tipo_documento: FormalizacaoTipo
+  clicksign_envelope_id: string
+  clicksign_document_id?: string
+  clicksign_signer_id?: string
+  clicksign_requirement_id?: string
+  status: AssinaturaEnvelopeStatus
+  nome_envelope: string
+  signatario_nome: string
+  signatario_email: string
+  signatario_cpf?: string
+  signatario_telefone?: string
+  link_assinatura?: string
+  arquivo_assinado_pdf?: string
+  assinado_em?: string
+  dados_resposta?: Record<string, unknown>
+  mensagem_erro?: string
+  criado_por?: string
+  created: string
+  updated: string
+  expand?: {
+    lead?: Lead
+    documento?: FormalizacaoDocumento
+    criado_por?: User
+  }
+}
+
 export type KitCategoria = 'Residencial' | 'Comercial' | 'Rural'
 
 export type KitStringBox = '1_entrada' | '2_entradas' | '3_entradas'

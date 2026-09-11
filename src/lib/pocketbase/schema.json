@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11T15:10:15.463Z",
+  "generatedAt": "2026-09-11T16:31:24.962Z",
   "collections": [
     {
       "name": "users",
@@ -1137,6 +1137,159 @@
         "CREATE INDEX idx_formalizacao_lead ON formalizacao_documentos (lead)",
         "CREATE INDEX idx_formalizacao_tipo ON formalizacao_documentos (tipo)",
         "CREATE INDEX idx_formalizacao_created ON formalizacao_documentos (created DESC)"
+      ]
+    },
+    {
+      "name": "assinaturas_envelopes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "lead",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "leads"
+        },
+        {
+          "name": "documento",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "formalizacao_documentos"
+        },
+        {
+          "name": "tipo_documento",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["contrato", "procuracao"]
+        },
+        {
+          "name": "clicksign_envelope_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "clicksign_document_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "clicksign_signer_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "clicksign_requirement_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["draft", "running", "signed", "canceled", "expired", "error"]
+        },
+        {
+          "name": "nome_envelope",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "signatario_nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "signatario_email",
+          "type": "email",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "signatario_cpf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "signatario_telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "link_assinatura",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "arquivo_assinado_pdf",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "assinado_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dados_resposta",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "mensagem_erro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_assinaturas_lead ON assinaturas_envelopes (lead)",
+        "CREATE INDEX idx_assinaturas_documento ON assinaturas_envelopes (documento)",
+        "CREATE INDEX idx_assinaturas_status ON assinaturas_envelopes (status)",
+        "CREATE INDEX idx_assinaturas_envelope_id ON assinaturas_envelopes (clicksign_envelope_id)",
+        "CREATE INDEX idx_assinaturas_created ON assinaturas_envelopes (created DESC)"
       ]
     }
   ]

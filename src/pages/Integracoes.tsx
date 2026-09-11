@@ -21,6 +21,10 @@ import {
   Send,
   FileCode2,
   Clock,
+  PenTool,
+  AlertCircle,
+  Shield,
+  FileCheck2,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -38,13 +42,18 @@ import { toast } from '@/hooks/use-toast'
 import { useAuth } from '@/context/AuthContext'
 import { LuvikService, type WebhookUrls } from '@/services/luvik'
 import { SiteFormService } from '@/services/siteForm'
+import { ClicksignService, type ClicksignStatusResponse } from '@/services/clicksign'
 import type { LuvikSettings, LuvikLogItem, SiteFormSettings, SiteFormLogItem } from '@/types/crm'
 
 export default function IntegracoesPage() {
   const { isAdmin } = useAuth()
 
   // Tab ativa
-  const [activeTab, setActiveTab] = useState<'site' | 'luvik'>('site')
+  const [activeTab, setActiveTab] = useState<'site' | 'luvik' | 'clicksign'>('clicksign')
+
+  // Estado da Clicksign
+  const [clicksignStatus, setClicksignStatus] = useState<ClicksignStatusResponse | null>(null)
+  const [loadingClicksign, setLoadingClicksign] = useState(false)
 
   // Estado do Luvik
   const [luvikSettings, setLuvikSettings] = useState<LuvikSettings | null>(null)
@@ -108,10 +117,23 @@ export default function IntegracoesPage() {
     }
   }, [])
 
+  const loadClicksignData = useCallback(async () => {
+    try {
+      setLoadingClicksign(true)
+      const data = await ClicksignService.getStatus()
+      setClicksignStatus(data)
+    } catch (err: unknown) {
+      console.error('Erro ao carregar status da Clicksign:', err)
+    } finally {
+      setLoadingClicksign(false)
+    }
+  }, [])
+
   const loadAllData = useCallback(() => {
     loadSiteData()
     loadLuvikData()
-  }, [loadSiteData, loadLuvikData])
+    loadClicksignData()
+  }, [loadSiteData, loadLuvikData, loadClicksignData])
 
   useEffect(() => {
     loadAllData()
@@ -328,27 +350,36 @@ export default function IntegracoesPage() {
             title="Atualizar dados e logs"
             className="h-9 w-9 text-slate-600"
           >
-            <RefreshCw className={`w-4 h-4 ${loadingSite || loadingLuvik ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`w-4 h-4 ${loadingSite || loadingLuvik || loadingClicksign ? 'animate-spin' : ''}`}
+            />
           </Button>
         </div>
       </div>
 
-      {/* Tabs para alternar entre Site Form e Luvik */}
+      {/* Tabs para alternar entre Clicksign, Site Form e Luvik */}
       <Tabs
         value={activeTab}
-        onValueChange={(val) => setActiveTab(val as 'site' | 'luvik')}
+        onValueChange={(val) => setActiveTab(val as 'site' | 'luvik' | 'clicksign')}
         className="space-y-6"
       >
         <TabsList className="bg-slate-100 p-1 rounded-xl border border-slate-200">
+          <TabsTrigger
+            value="clicksign"
+            className="data-[state=active]:bg-white data-[state=active]:text-[#0B7A5B] data-[state=active]:shadow-xs font-semibold text-xs py-2 px-4 gap-2"
+          >
+            <PenTool className="w-4 h-4 text-emerald-600" />
+            <span>Clicksign (Assinatura Digital)</span>
+            <Badge className="bg-emerald-100 text-emerald-800 text-[10px] py-0 px-1.5 ml-1">
+              Ativo
+            </Badge>
+          </TabsTrigger>
           <TabsTrigger
             value="site"
             className="data-[state=active]:bg-white data-[state=active]:text-[#0B7A5B] data-[state=active]:shadow-xs font-semibold text-xs py-2 px-4 gap-2"
           >
             <Globe className="w-4 h-4" />
             <span>Formulário do Site (ecoenergy.net.br)</span>
-            <Badge className="bg-emerald-100 text-emerald-800 text-[10px] py-0 px-1.5 ml-1">
-              Novo
-            </Badge>
           </TabsTrigger>
           <TabsTrigger
             value="luvik"
@@ -358,6 +389,175 @@ export default function IntegracoesPage() {
             <span>Integração Luvik Solar</span>
           </TabsTrigger>
         </TabsList>
+
+        {/* TAB CLICKSIGN */}
+        <TabsContent value="clicksign" className="space-y-6 mt-0">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-7 space-y-5">
+              <Card className="border-slate-200/80 shadow-xs bg-white">
+                <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <PenTool className="w-5 h-5 text-emerald-600" />
+                      <span>Conexão com Clicksign API v3</span>
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-500">
+                      Assinatura digital e eletrônica de Contratos e Procurações com validade
+                      jurídica
+                    </CardDescription>
+                  </div>
+
+                  {clicksignStatus?.configured ? (
+                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 text-xs gap-1.5 py-1 px-2.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Conectada</span>
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="bg-amber-50 text-amber-700 border-amber-300 text-xs gap-1"
+                    >
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Não Configurada</span>
+                    </Badge>
+                  )}
+                </CardHeader>
+
+                <CardContent className="p-6 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase block">
+                        Ambiente da API
+                      </span>
+                      <span className="font-bold text-slate-900 capitalize flex items-center gap-1.5">
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            clicksignStatus?.ambiente === 'producao'
+                              ? 'bg-emerald-500'
+                              : 'bg-amber-500'
+                          }`}
+                        />
+                        {clicksignStatus?.ambiente === 'producao'
+                          ? 'Produção Oficial'
+                          : 'Sandbox (Testes)'}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase block">
+                        Host Conectado
+                      </span>
+                      <span className="font-mono text-slate-800 text-[11px] truncate block">
+                        {clicksignStatus?.host || 'https://app.clicksign.com'}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1 sm:col-span-2">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase block">
+                        Token da API Clicksign (Segredo de Backend)
+                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-slate-700 text-xs">
+                          {clicksignStatus?.masked_token || 'Nenhum token configurado'}
+                        </span>
+                        <Badge variant="outline" className="text-[10px] bg-white text-slate-500">
+                          Protegido no Servidor
+                        </Badge>
+                      </div>
+                      <p className="text-[10px] text-slate-400 pt-0.5">
+                        O token da API é mantido de forma segura nas variáveis de ambiente do Skip
+                        Cloud e nunca é exposto no navegador.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-emerald-50/60 border border-emerald-200/80 text-xs text-emerald-950 space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-emerald-900">
+                      <Shield className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Fluxo 100% Integrado na Etapa de Formalização</span>
+                    </div>
+                    <p className="leading-relaxed text-emerald-800 text-[11px]">
+                      Quando um lead atinge a etapa <strong>Fechado Ganho</strong>, os cards do{' '}
+                      <strong>Contrato de Prestação</strong> e da{' '}
+                      <strong>Procuração Energisa</strong> exibem o botão{' '}
+                      <em>"Assinar digitalmente"</em>. O sistema gera o envelope com 1 documento e 1
+                      signatário, fornece o link de assinatura, permite disparar a mensagem
+                      personalizada no WhatsApp e monitora o status do envelope.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="lg:col-span-5 space-y-5">
+              <Card className="border-slate-200/80 shadow-xs bg-white">
+                <CardHeader className="pb-3 border-b border-slate-100">
+                  <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <FileCheck2 className="w-5 h-5 text-emerald-600" />
+                    <span>Como Utilizar na Prática</span>
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    Passo a passo rápido para envio aos clientes
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent className="p-6 space-y-3.5 text-xs text-slate-600">
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-6 h-6 rounded-full bg-emerald-100 text-[#0B7A5B] font-bold text-xs flex items-center justify-center shrink-0">
+                      1
+                    </span>
+                    <div>
+                      <strong className="text-slate-800">Acesse a ficha do lead</strong>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Abra o lead em <strong>/leads/:id</strong> e localize a seção de{' '}
+                        <em>Formalização Contratual & Energisa</em>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-6 h-6 rounded-full bg-emerald-100 text-[#0B7A5B] font-bold text-xs flex items-center justify-center shrink-0">
+                      2
+                    </span>
+                    <div>
+                      <strong className="text-slate-800">Clique em "Assinar digitalmente"</strong>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Revise os dados do signatário (nome, e-mail e CPF editáveis antes do
+                        disparo).
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-6 h-6 rounded-full bg-emerald-100 text-[#0B7A5B] font-bold text-xs flex items-center justify-center shrink-0">
+                      3
+                    </span>
+                    <div>
+                      <strong className="text-slate-800">Envie o link via WhatsApp</strong>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Copie o link gerado ou clique no botão do WhatsApp para abrir a mensagem
+                        preenchida com link da Clicksign.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-6 h-6 rounded-full bg-emerald-100 text-[#0B7A5B] font-bold text-xs flex items-center justify-center shrink-0">
+                      4
+                    </span>
+                    <div>
+                      <strong className="text-slate-800">Acompanhe e sincronize</strong>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        O status atualiza automaticamente ao abrir a ficha do lead ou pelo botão{' '}
+                        <em>"Atualizar status"</em>.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
 
         {/* TAB 1: FORMULÁRIO DO SITE (ecoenergy.net.br / Hostinger Horizons) */}
         <TabsContent value="site" className="space-y-6 mt-0">
