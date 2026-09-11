@@ -41,8 +41,12 @@ export const ProposalsService = {
     return generateRandomToken(32)
   },
 
-  getPublicUrl(token: string): string {
-    return `${window.location.origin}/proposta/${token}`
+  getPublicUrl(token: string, options?: { preview?: boolean }): string {
+    const baseUrl = `${window.location.origin}/proposta/${token}`
+    if (options?.preview) {
+      return `${baseUrl}?preview=true`
+    }
+    return baseUrl
   },
 
   async getAllPropostas(params: GetPropostasParams = {}) {
@@ -229,18 +233,40 @@ export const ProposalsService = {
   },
 
   // Consulta pública por token (não exige auth)
-  async getPublicProposta(token: string): Promise<PublicProposta> {
+  async getPublicProposta(token: string, options?: { preview?: boolean }): Promise<PublicProposta> {
     const rawToken = token.trim()
     const cleanToken = encodeURIComponent(rawToken)
 
+    // Se o usuário estiver autenticado no PocketBase ou for explicitamente preview, repassa
+    const isAuth = Boolean(pb.authStore.isValid && pb.authStore.token)
+    const isPreview = options?.preview ?? isAuth
+
+    const queryParams: string[] = []
+    if (isPreview) {
+      queryParams.push('preview=true')
+    }
+    const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : ''
+
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+    }
+
+    if (isAuth && pb.authStore.token) {
+      headers['Authorization'] = `Bearer ${pb.authStore.token}`
+      headers['x-crm-internal'] = 'true'
+    } else if (isPreview) {
+      headers['x-crm-internal'] = 'true'
+    }
+
     // 1. Tentar primeiro o endpoint customizado do backend
     try {
-      return await pb.send<PublicProposta>(`/backend/v1/propostas/public/${cleanToken}`, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
+      return await pb.send<PublicProposta>(
+        `/backend/v1/propostas/public/${cleanToken}${queryString}`,
+        {
+          method: 'GET',
+          headers,
         },
-      })
+      )
     } catch (err: unknown) {
       console.warn(
         'Endpoint customizado falhou, tentando fallback direto na coleção propostas:',

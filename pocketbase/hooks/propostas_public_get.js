@@ -27,22 +27,76 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
     const proposta = list[0]
     const leadId = proposta.getString('lead')
 
-    // Rastrear visualização com deduplicação de 60 segundos
+    // Verificar se o acesso é de um membro da equipe autenticado ou se é modo preview
+    let isInternalAccess = false
+
+    // 1. Verificar se há sessão de usuário autenticada no request (e.auth)
+    if (e.auth && e.auth.id) {
+      isInternalAccess = true
+    }
+
+    // 2. Verificar se o header Authorization contém token de usuário PocketBase
+    if (!isInternalAccess) {
+      try {
+        const reqHeaders = e.requestInfo().headers || {}
+        const authHdr = reqHeaders['authorization'] || reqHeaders['Authorization'] || ''
+        if (typeof authHdr === 'string' && authHdr.trim().length > 10) {
+          const rawToken = authHdr.replace(/^Bearer\s+/i, '').trim()
+          if (rawToken) {
+            try {
+              // PocketBase v0.36 findAuthRecordByToken
+              const authUser = $app.findAuthRecordByToken(rawToken)
+              if (authUser && authUser.id) {
+                isInternalAccess = true
+              }
+            } catch (_) {}
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 3. Verificar parâmetro de query (?preview=true ou ?preview=1 ou ?internal=1)
+    if (!isInternalAccess) {
+      try {
+        const qParams = e.requestInfo().query || {}
+        const previewVal = (qParams.preview || qParams.internal || '')
+          .toString()
+          .toLowerCase()
+          .trim()
+        if (previewVal === '1' || previewVal === 'true' || previewVal === 'yes') {
+          isInternalAccess = true
+        }
+      } catch (_) {}
+    }
+
+    // 4. Verificar header customizado de preview/equipe ('x-crm-internal' ou 'x-preview')
+    if (!isInternalAccess) {
+      try {
+        const reqHeaders = e.requestInfo().headers || {}
+        if (reqHeaders['x-crm-internal'] === 'true' || reqHeaders['x-preview'] === 'true') {
+          isInternalAccess = true
+        }
+      } catch (_) {}
+    }
+
+    // Rastrear visualização apenas para clientes reais (não autenticados e não preview) com deduplicação de 60s
     const now = new Date()
     const nowIso = now.toISOString()
     const nowFormatted = nowIso.replace('T', ' ').substring(0, 19) + 'Z'
 
-    const ultimaVisStr = proposta.getString('ultima_visualizacao')
-    let deveRegistrar = true
-    if (ultimaVisStr) {
-      try {
-        const ultDate = new Date(ultimaVisStr)
-        const diffMs = now.getTime() - ultDate.getTime()
-        // Deduplicar se acessado há menos de 60 segundos (ex: reload rápido da página)
-        if (diffMs < 60000 && diffMs >= 0) {
-          deveRegistrar = false
-        }
-      } catch (_) {}
+    let deveRegistrar = !isInternalAccess
+    if (deveRegistrar) {
+      const ultimaVisStr = proposta.getString('ultima_visualizacao')
+      if (ultimaVisStr) {
+        try {
+          const ultDate = new Date(ultimaVisStr)
+          const diffMs = now.getTime() - ultDate.getTime()
+          // Deduplicar se acessado há menos de 60 segundos (ex: reload rápido da página pelo cliente)
+          if (diffMs < 60000 && diffMs >= 0) {
+            deveRegistrar = false
+          }
+        } catch (_) {}
+      }
     }
 
     if (deveRegistrar) {

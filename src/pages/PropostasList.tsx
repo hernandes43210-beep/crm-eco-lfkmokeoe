@@ -84,16 +84,16 @@ export default function PropostasList() {
   })
 
   const handleCopyLink = (token: string) => {
+    // Copia o link público oficial limpo para envio ao cliente
     const url = ProposalsService.getPublicUrl(token)
     navigator.clipboard.writeText(url)
     setCopiedToken(token)
     toast({
-      title: 'Link copiado!',
-      description: 'O link exclusivo da proposta foi copiado para sua área de transferência.',
+      title: 'Link do cliente copiado!',
+      description: 'Link oficial pronto para envio ao cliente via WhatsApp ou e-mail.',
     })
     setTimeout(() => setCopiedToken(null), 3000)
   }
-
   const handleDeleteProposta = async () => {
     if (!propostaToDelete) return
     const id = propostaToDelete.id
@@ -503,9 +503,14 @@ export default function PropostasList() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => window.open(publicUrl, '_blank')}
+                        onClick={() => {
+                          const previewUrl = ProposalsService.getPublicUrl(prop.token_publico, {
+                            preview: true,
+                          })
+                          window.open(previewUrl, '_blank')
+                        }}
                         className="h-8.5 text-xs text-slate-600 hover:text-slate-900 gap-1"
-                        title="Abrir página pública como cliente"
+                        title="Pré-visualizar proposta como consultor (não conta visualização do cliente)"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
                         <span>Abrir Link</span>

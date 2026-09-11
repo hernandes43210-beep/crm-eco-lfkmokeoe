@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useSearchParams, Link } from 'react-router-dom'
 import {
   CheckCircle2,
   AlertTriangle,
@@ -54,7 +54,12 @@ import { useAuth } from '@/context/AuthContext'
 
 export default function PropostaPublica() {
   const { token } = useParams<{ token: string }>()
+  const [searchParams] = useSearchParams()
   const { isAuthenticated } = useAuth()
+  const isPreviewParam =
+    searchParams.get('preview') === 'true' || searchParams.get('preview') === '1'
+  const isInternalViewer = isAuthenticated || isPreviewParam
+
   const [proposta, setProposta] = useState<PublicProposta | null>(null)
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -80,13 +85,13 @@ export default function PropostaPublica() {
     }
 
     loadProposta(token)
-  }, [token])
+  }, [token, isInternalViewer])
 
   const loadProposta = async (t: string) => {
     try {
       setLoading(true)
       setErrorMsg(null)
-      const data = await ProposalsService.getPublicProposta(t)
+      const data = await ProposalsService.getPublicProposta(t, { preview: isInternalViewer })
       setProposta(data)
       if (data.lead?.nome) {
         setNomeConfirmacao(data.lead.nome)
@@ -380,7 +385,7 @@ export default function PropostaPublica() {
               </Button>
             </a>
 
-            {isAuthenticated && proposta.lead?.id && (
+            {isInternalViewer && proposta.lead?.id && (
               <Link to={`/leads/${proposta.lead.id}`} className="w-full sm:w-auto">
                 <Button
                   size="lg"
@@ -437,7 +442,7 @@ export default function PropostaPublica() {
           </div>
 
           <div className="flex items-center gap-2">
-            {isAuthenticated && proposta.lead?.id && (
+            {isInternalViewer && proposta.lead?.id && (
               <Link to={`/leads/${proposta.lead.id}`}>
                 <Button
                   variant="outline"
@@ -464,19 +469,25 @@ export default function PropostaPublica() {
         </div>
       </header>
 
-      {/* Top Banner para usuário autenticado do CRM */}
-      {isAuthenticated && proposta.lead?.id && (
+      {/* Top Banner para usuário autenticado do CRM ou modo preview */}
+      {isInternalViewer && (
         <div className="bg-slate-950 text-white text-xs px-4 py-2 border-b border-slate-800">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
-            <span className="text-slate-300">
-              Visualização da proposta como consultor comercial do CRM Ecosolar Energy.
+            <span className="text-slate-300 flex items-center gap-1.5">
+              <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>
+                <strong>Modo Pré-visualização da Equipe:</strong> este acesso não é contabilizado no
+                rastreamento de visualizações do cliente.
+              </span>
             </span>
-            <Link
-              to={`/leads/${proposta.lead.id}`}
-              className="font-bold text-amber-400 hover:underline flex items-center gap-1"
-            >
-              Voltar ao Lead &rarr;
-            </Link>
+            {proposta.lead?.id && (
+              <Link
+                to={`/leads/${proposta.lead.id}`}
+                className="font-bold text-amber-400 hover:underline flex items-center gap-1"
+              >
+                Voltar ao Lead &rarr;
+              </Link>
+            )}
           </div>
         </div>
       )}
