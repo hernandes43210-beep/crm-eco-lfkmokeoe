@@ -19,7 +19,7 @@ onBootstrap((e) => {
       rec.setEmail('hernandes43210@gmail.com')
       rec.setPassword('Skip@Pass')
       rec.setVerified(true)
-      rec.set('name', 'Hernandes Admin')
+      rec.set('name', 'Hernandes CEO')
       rec.set('role', 'Admin')
       $app.save(rec)
       adminRecord = rec
