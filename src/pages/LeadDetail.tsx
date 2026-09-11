@@ -36,6 +36,7 @@ import { ProposalsService } from '@/services/proposals'
 import type { Lead, LeadStatus, HistoricoItem, WhatsAppMessage, Proposta } from '@/types/crm'
 import { GerarPropostaModal } from '@/components/GerarPropostaModal'
 import { InvestmentComparison } from '@/components/InvestmentComparison'
+import { DeletePropostaDialog } from '@/components/DeletePropostaDialog'
 import { LeadInstallationPhotos } from '@/components/LeadInstallationPhotos'
 import { openProposalPDFPrint } from '@/lib/proposalPdf'
 import useRealtime from '@/hooks/use-realtime'
@@ -95,6 +96,8 @@ export default function LeadDetail() {
   // Delete modal
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [propostaToDelete, setPropostaToDelete] = useState<Proposta | null>(null)
+  const [isDeletingProposta, setIsDeletingProposta] = useState(false)
 
   // Quick note modal/field
   const [novaNota, setNovaNota] = useState('')
@@ -621,6 +624,48 @@ export default function LeadDetail() {
       description: 'O link exclusivo da proposta foi copiado para sua área de transferência.',
     })
     setTimeout(() => setCopiedToken(null), 3000)
+  }
+
+  const handleDeleteProposta = async () => {
+    if (!propostaToDelete) return
+    const id = propostaToDelete.id
+    const kitNome = propostaToDelete.kit_nome
+
+    try {
+      setIsDeletingProposta(true)
+      await ProposalsService.deleteProposta(id)
+
+      // Atualização imediata do estado local
+      setPropostas((prev) => prev.filter((p) => p.id !== id))
+
+      toast({
+        title: 'Proposta excluída',
+        description: `A proposta "${kitNome}" foi removida com sucesso.`,
+      })
+      setPropostaToDelete(null)
+
+      // Recarrega dados atualizados do lead (histórico e status sincronizados)
+      if (id) {
+        fetchLead()
+      }
+    } catch (err: unknown) {
+      console.error('Erro ao excluir proposta:', err)
+      const errorMsg =
+        err &&
+        typeof err === 'object' &&
+        'status' in err &&
+        (err as { status?: number }).status === 403
+          ? 'Você não tem permissão para excluir esta proposta.'
+          : 'Não foi possível excluir a proposta comercial. Tente novamente mais tarde.'
+
+      toast({
+        title: 'Erro ao excluir proposta',
+        description: errorMsg,
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeletingProposta(false)
+    }
   }
 
   const handleSendProposalWhatsApp = (prop: Proposta) => {
@@ -1543,6 +1588,17 @@ export default function LeadDetail() {
                           <ExternalLink className="w-3.5 h-3.5" />
                           <span>Abrir</span>
                         </Button>
+
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setPropostaToDelete(prop)}
+                          className="h-8 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1"
+                          title="Excluir proposta permanentemente"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Excluir</span>
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -1552,6 +1608,17 @@ export default function LeadDetail() {
           )}
         </CardContent>
       </Card>
+
+      {/* Modal de Confirmação de Exclusão de Proposta */}
+      <DeletePropostaDialog
+        open={!!propostaToDelete}
+        onOpenChange={(open) => {
+          if (!open) setPropostaToDelete(null)
+        }}
+        proposta={propostaToDelete}
+        isDeleting={isDeletingProposta}
+        onConfirm={handleDeleteProposta}
+      />
 
       {/* Comparativo de Investimento em 30 Anos: Solar vs Poupança vs CDB */}
       {(propostas.length > 0 ||

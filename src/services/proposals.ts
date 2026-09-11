@@ -90,7 +90,85 @@ export const ProposalsService = {
   },
 
   async deleteProposta(id: string) {
-    return await pb.collection('propostas').delete(id)
+    // 1. Obter dados da proposta antes de excluir para registrar no histórico ou atualizar o lead se aplicável
+    let leadId: string | undefined
+    let propKitNome: string = 'Proposta'
+    let propPrecoVenda: number = 0
+
+    try {
+      const existing = await pb.collection('propostas').getOne<Proposta>(id)
+      leadId = existing.lead
+      propKitNome = existing.kit_nome || 'Proposta comercial'
+      propPrecoVenda = existing.preco_venda || 0
+    } catch {
+      // Se não conseguiu buscar antes, prossegue diretamente com o delete
+    }
+
+    // 2. Exclui a proposta da collection
+    const result = await pb.collection('propostas').delete(id)
+
+    // 3. Se houver lead vinculado, verificar se restam outras propostas para atualizar o status e histórico do lead
+    if (leadId) {
+      try {
+        const remaining = await pb.collection('propostas').getList<Proposta>(1, 1, {
+          filter: `lead = "${leadId}"`,
+          sort: '-created',
+        })
+
+        // Buscar dados atuais do lead para atualizar histórico e status se aplicável
+        const currentLead = await pb.collection('leads').getOne(leadId)
+        let historicoList: any[] = []
+        if (Array.isArray(currentLead.historico)) {
+          historicoList = [...currentLead.historico]
+        } else if (typeof currentLead.historico === 'string') {
+          try {
+            historicoList = JSON.parse(currentLead.historico) || []
+          } catch {
+            historicoList = []
+          }
+        }
+
+        const nowIso = new Date().toISOString()
+        historicoList.push({
+          id: `hist-del-prop-${Date.now()}`,
+          data: nowIso,
+          tipo: 'proposta',
+          descricao: `Proposta comercial excluída (${propKitNome}${propPrecoVenda ? ` - R$ ${propPrecoVenda.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ''})`,
+          autor: pb.authStore.record?.name || pb.authStore.record?.email || 'Equipe',
+        })
+
+        const leadUpdates: Record<string, any> = {
+          historico: historicoList,
+        }
+
+        // Se não restou nenhuma proposta e o status do lead for "Proposta Enviada", voltar para "Contato Feito"
+        if (remaining.totalItems === 0) {
+          if (currentLead.status === 'Proposta Enviada') {
+            leadUpdates.status = 'Contato Feito'
+          }
+          // Se o lead tiver preco_venda exatamente igual ao da proposta excluída, zera ou mantém
+          if (currentLead.preco_venda === propPrecoVenda) {
+            leadUpdates.preco_venda = 0
+          }
+        } else {
+          // Se ainda restam outras propostas, atualizar preco_venda para a mais recente se necessário
+          const latest = remaining.items[0]
+          if (currentLead.preco_venda === propPrecoVenda && latest?.preco_venda) {
+            leadUpdates.preco_venda = latest.preco_venda
+          }
+        }
+
+        await pb.collection('leads').update(leadId, leadUpdates)
+      } catch (leadSyncErr) {
+        // Falhas não críticas no histórico do lead não impedem o sucesso da exclusão
+        console.warn(
+          'Aviso: Não foi possível atualizar histórico do lead após exclusão da proposta:',
+          leadSyncErr,
+        )
+      }
+    }
+
+    return result
   },
 
   // Consulta pública por token (não exige auth)

@@ -15,8 +15,10 @@ import {
   Loader2,
   Users,
   Eye,
+  Trash2,
 } from 'lucide-react'
 import { ProposalsService } from '@/services/proposals'
+import { DeletePropostaDialog } from '@/components/DeletePropostaDialog'
 import type { Proposta } from '@/types/crm'
 import useRealtime from '@/hooks/use-realtime'
 import { formatBRL, formatDateBR, formatDateTimeBR } from '@/lib/solarUtils'
@@ -41,6 +43,8 @@ export default function PropostasList() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
+  const [propostaToDelete, setPropostaToDelete] = useState<Proposta | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const fetchPropostas = async () => {
     try {
@@ -85,6 +89,43 @@ export default function PropostasList() {
       description: 'O link exclusivo da proposta foi copiado para sua área de transferência.',
     })
     setTimeout(() => setCopiedToken(null), 3000)
+  }
+
+  const handleDeleteProposta = async () => {
+    if (!propostaToDelete) return
+    const id = propostaToDelete.id
+    const kitNome = propostaToDelete.kit_nome
+
+    try {
+      setIsDeleting(true)
+      await ProposalsService.deleteProposta(id)
+
+      // Atualização otimista imediata na listagem
+      setPropostas((prev) => prev.filter((p) => p.id !== id))
+
+      toast({
+        title: 'Proposta excluída',
+        description: `A proposta "${kitNome}" foi removida com sucesso.`,
+      })
+      setPropostaToDelete(null)
+    } catch (err: unknown) {
+      console.error('Erro ao excluir proposta:', err)
+      const errorMsg =
+        err &&
+        typeof err === 'object' &&
+        'status' in err &&
+        (err as { status?: number }).status === 403
+          ? 'Você não tem permissão para excluir esta proposta.'
+          : 'Não foi possível excluir a proposta comercial. Tente novamente mais tarde.'
+
+      toast({
+        title: 'Erro ao excluir proposta',
+        description: errorMsg,
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   const handleSendWhatsApp = (prop: Proposta) => {
@@ -479,6 +520,17 @@ export default function PropostasList() {
                           <span>Ver Lead</span>
                         </Button>
                       )}
+
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setPropostaToDelete(prop)}
+                        className="h-8.5 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1.5"
+                        title="Excluir proposta permanentemente"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Excluir</span>
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -487,6 +539,17 @@ export default function PropostasList() {
           })}
         </div>
       )}
+
+      {/* Modal de confirmação de exclusão */}
+      <DeletePropostaDialog
+        open={!!propostaToDelete}
+        onOpenChange={(open) => {
+          if (!open) setPropostaToDelete(null)
+        }}
+        proposta={propostaToDelete}
+        isDeleting={isDeleting}
+        onConfirm={handleDeleteProposta}
+      />
     </div>
   )
 }
