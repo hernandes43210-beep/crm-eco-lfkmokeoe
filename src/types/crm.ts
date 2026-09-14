@@ -63,6 +63,19 @@ export interface Lead extends RecordModel {
   motivo_descarte?: string
   motivo_perda?: string
   proximo_contato?: string
+  proximo_contato_data?: string
+  proximo_contato_obs?: string
+  lembrete_1d_enviado?: boolean
+  lembrete_4h_enviado?: boolean
+  lembrete_20m_enviado?: boolean
+  lembretes_logs?: Array<{
+    tipo: '1d' | '4h' | '20m'
+    destinatario: string
+    enviado_em?: string
+    tentativa_em?: string
+    status: 'sucesso' | 'erro'
+    erro?: string
+  }>
   pr_post_encerramento?: string
   sla_dias: number
   sla_limite?: string

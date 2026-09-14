@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T11:38:14.918Z",
+  "generatedAt": "2026-09-14T12:54:39.146Z",
   "collections": [
     {
       "name": "users",
@@ -273,6 +273,42 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "proximo_contato_data",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "proximo_contato_obs",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lembrete_1d_enviado",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lembrete_4h_enviado",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lembrete_20m_enviado",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lembretes_logs",
+          "type": "json",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -281,7 +317,8 @@
         "CREATE INDEX idx_leads_proprietario ON leads (proprietario)",
         "CREATE INDEX `idx_leads_luvik_deal_id` ON `leads` (luvik_deal_id)",
         "CREATE INDEX `idx_leads_qualificacao` ON `leads` (status_qualificacao)",
-        "CREATE INDEX `idx_leads_email` ON `leads` (email)"
+        "CREATE INDEX `idx_leads_email` ON `leads` (email)",
+        "CREATE INDEX `idx_leads_proximo_contato_data` ON `leads` (proximo_contato_data)"
       ]
     },
     {

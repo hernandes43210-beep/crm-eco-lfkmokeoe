@@ -6,7 +6,7 @@ import type { Lead, LeadStatus, HistoricoItem } from '@/types/crm'
 import useRealtime from '@/hooks/use-realtime'
 import { useAuth } from '@/context/AuthContext'
 import { toPortugueseErrorMessage } from '@/lib/errors'
-import { computeSLAStatus, formatBRL } from '@/lib/solarUtils'
+import { computeSLAStatus, formatBRL, formatDateTimeBR } from '@/lib/solarUtils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -622,18 +622,30 @@ export default function FunilVendas() {
                           )}
 
                           {/* Próximo Contato (Destaque visual se preenchido) */}
-                          {lead.proximo_contato && lead.proximo_contato.trim() && (
+                          {(lead.proximo_contato_data ||
+                            (lead.proximo_contato && lead.proximo_contato.trim())) && (
                             <div
                               className="mt-2 p-1.5 rounded-md bg-amber-50/90 border border-amber-200/90 text-amber-950 flex items-start gap-1.5"
-                              title={`Próximo contato: ${lead.proximo_contato}`}
+                              title={
+                                lead.proximo_contato_data
+                                  ? `Próximo contato: ${formatDateTimeBR(lead.proximo_contato_data)}${lead.proximo_contato_obs ? ` - ${lead.proximo_contato_obs}` : ''}`
+                                  : `Próximo contato: ${lead.proximo_contato}`
+                              }
                             >
                               <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                               <div className="min-w-0 flex-1">
-                                <span className="text-[9px] font-bold uppercase tracking-wider text-amber-800 block leading-tight">
-                                  Próximo Contato
-                                </span>
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="text-[9px] font-bold uppercase tracking-wider text-amber-800 block leading-tight">
+                                    Próximo Contato
+                                  </span>
+                                  {lead.proximo_contato_data && (
+                                    <span className="text-[9px] font-semibold text-amber-700 font-mono-numbers">
+                                      {formatDateTimeBR(lead.proximo_contato_data)}
+                                    </span>
+                                  )}
+                                </div>
                                 <p className="text-[11px] text-amber-950 font-medium leading-snug line-clamp-2 break-words">
-                                  {lead.proximo_contato.trim()}
+                                  {lead.proximo_contato_obs || lead.proximo_contato}
                                 </p>
                               </div>
                             </div>

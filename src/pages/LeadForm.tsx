@@ -96,6 +96,8 @@ export default function LeadForm() {
   const [motivoPerda, setMotivoPerda] = useState('')
   const [prPostEncerramento, setPrPostEncerramento] = useState('')
   const [proximoContato, setProximoContato] = useState('')
+  const [proximoContatoData, setProximoContatoData] = useState('')
+  const [proximoContatoObs, setProximoContatoObs] = useState('')
   const [slaDias, setSlaDias] = useState<number>(7)
   const [precoVenda, setPrecoVenda] = useState<number | string>(18000)
 
@@ -123,6 +125,20 @@ export default function LeadForm() {
             lead.pr_post_encerramento ? lead.pr_post_encerramento.substring(0, 10) : '',
           )
           setProximoContato(lead.proximo_contato || '')
+          setProximoContatoObs(lead.proximo_contato_obs || lead.proximo_contato || '')
+          if (lead.proximo_contato_data) {
+            try {
+              const d = new Date(lead.proximo_contato_data)
+              if (!isNaN(d.getTime())) {
+                const pad = (n: number) => String(n).padStart(2, '0')
+                setProximoContatoData(
+                  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
+                )
+              }
+            } catch {
+              /* intentionally ignored */
+            }
+          }
           setSlaDias(lead.sla_dias || 7)
           setPrecoVenda(lead.preco_venda || '')
         })
@@ -243,6 +259,30 @@ export default function LeadForm() {
         sla_dias: Math.max(1, Number(slaDias) || 7),
         preco_venda: Math.max(0, Number(precoVenda) || 0),
         proximo_contato: proximoContato.trim(),
+      }
+
+      if (proximoContatoData) {
+        const parsedDate = new Date(proximoContatoData)
+        if (!isNaN(parsedDate.getTime())) {
+          payload.proximo_contato_data = parsedDate.toISOString()
+        }
+      } else {
+        payload.proximo_contato_data = ''
+      }
+
+      if (proximoContatoObs.trim()) {
+        payload.proximo_contato_obs = proximoContatoObs.trim()
+      } else {
+        payload.proximo_contato_obs = ''
+      }
+
+      // Se informou data ou obs, atualizar resumo em proximo_contato
+      if (payload.proximo_contato_data && payload.proximo_contato_obs) {
+        payload.proximo_contato = `${formatDateBR(payload.proximo_contato_data as string)} - ${payload.proximo_contato_obs}`
+      } else if (payload.proximo_contato_data) {
+        payload.proximo_contato = `Agendado para ${formatDateBR(payload.proximo_contato_data as string)}`
+      } else if (payload.proximo_contato_obs) {
+        payload.proximo_contato = payload.proximo_contato_obs
       }
 
       if (status === 'Fechado Perdido') {
@@ -648,20 +688,53 @@ export default function LeadForm() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-5 space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="proximoContato" className="text-xs font-semibold text-slate-700">
-                Próximo Contato
-              </Label>
-              <Input
-                id="proximoContato"
-                value={proximoContato}
-                onChange={(e) => setProximoContato(e.target.value)}
-                placeholder="Ex.: Ligar quinta às 14h, cliente quer fechar"
-                className="h-10 text-sm border-slate-200 focus-visible:ring-[#0B7A5B]"
-              />
-              <p className="text-[11px] text-slate-400">
-                Lembrete de follow-up que aparece com destaque no funil e na ficha do cliente.
+            <div className="space-y-3 p-3.5 rounded-lg bg-amber-50/50 border border-amber-200/70">
+              <div className="flex items-center gap-2 text-xs font-bold text-amber-950">
+                <Clock className="w-4 h-4 text-amber-600" />
+                <span>Próximo Contato & Lembretes Automáticos</span>
+              </div>
+              <p className="text-[11px] text-slate-600">
+                Selecione a data e hora do contato. O backend enviará e-mails automáticos para{' '}
+                <code className="text-[10px] font-mono text-[#0B7A5B] bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200">
+                  ecosolarenergy2022@gmail.com
+                </code>{' '}
+                (1 dia antes, 4 horas antes e 20 minutos antes).
               </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="proximoContatoData"
+                    className="text-xs font-semibold text-slate-700"
+                  >
+                    Data e Hora do Agendamento
+                  </Label>
+                  <Input
+                    id="proximoContatoData"
+                    type="datetime-local"
+                    value={proximoContatoData}
+                    onChange={(e) => setProximoContatoData(e.target.value)}
+                    className="h-10 text-xs font-semibold border-amber-200 focus-visible:ring-amber-500 bg-white"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="proximoContatoObs"
+                    className="text-xs font-semibold text-slate-700"
+                  >
+                    Observação / Motivo do Contato
+                  </Label>
+                  <Input
+                    id="proximoContatoObs"
+                    value={proximoContatoObs}
+                    onChange={(e) => {
+                      setProximoContatoObs(e.target.value)
+                      setProximoContato(e.target.value)
+                    }}
+                    placeholder="Ex: Ligar para confirmar assinatura da proposta"
+                    className="h-10 text-xs border-amber-200 focus-visible:ring-amber-500 bg-white"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

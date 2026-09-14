@@ -116,6 +116,8 @@ export default function LeadDetail() {
 
   // Próximo contato
   const [proximoContato, setProximoContato] = useState('')
+  const [proximoContatoData, setProximoContatoData] = useState('')
+  const [proximoContatoObs, setProximoContatoObs] = useState('')
   const [savingProximoContato, setSavingProximoContato] = useState(false)
   const [proximoContatoSaved, setProximoContatoSaved] = useState(false)
 
@@ -153,6 +155,24 @@ export default function LeadDetail() {
       setPrecoVenda(data.preco_venda || '')
       setPrAssinada(data.pr_assinada_ganho || false)
       setProximoContato(data.proximo_contato || '')
+      setProximoContatoObs(data.proximo_contato_obs || data.proximo_contato || '')
+      // Converte data ISO do banco para o valor aceito em input datetime-local (YYYY-MM-DDTHH:mm)
+      if (data.proximo_contato_data) {
+        try {
+          const d = new Date(data.proximo_contato_data)
+          if (!isNaN(d.getTime())) {
+            const pad = (n: number) => String(n).padStart(2, '0')
+            const localIso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+            setProximoContatoData(localIso)
+          } else {
+            setProximoContatoData('')
+          }
+        } catch (_) {
+          setProximoContatoData('')
+        }
+      } else {
+        setProximoContatoData('')
+      }
       fetchWaMessages(data)
       fetchPropostas(data.id)
     } catch (err) {
@@ -261,7 +281,26 @@ export default function LeadDetail() {
       setPrecoVenda(e.record.preco_venda || '')
       setPrAssinada(e.record.pr_assinada_ganho || false)
       // Se o usuário não estiver editando ativamente outro valor, sincroniza
-      setProximoContato((prev) => (savingProximoContato ? prev : e.record.proximo_contato || ''))
+      if (!savingProximoContato) {
+        setProximoContato(e.record.proximo_contato || '')
+        setProximoContatoObs(e.record.proximo_contato_obs || e.record.proximo_contato || '')
+        if (e.record.proximo_contato_data) {
+          try {
+            const d = new Date(e.record.proximo_contato_data)
+            if (!isNaN(d.getTime())) {
+              const pad = (n: number) => String(n).padStart(2, '0')
+              const localIso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+              setProximoContatoData(localIso)
+            } else {
+              setProximoContatoData('')
+            }
+          } catch (_) {
+            setProximoContatoData('')
+          }
+        } else {
+          setProximoContatoData('')
+        }
+      }
     }
   })
 
@@ -545,14 +584,41 @@ export default function LeadDetail() {
     }
   }
 
-  // Salvar próximo contato (inline ou botão salvar)
-  const handleSaveProximoContato = async (textToSave?: string) => {
+  // Salvar próximo contato (data/hora e observações)
+  const handleSaveProximoContato = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
     if (!lead) return
-    const novoTexto = (textToSave !== undefined ? textToSave : proximoContato).trim()
-    const valorAtual = (lead.proximo_contato || '').trim()
 
-    // Se o valor não mudou, não dispara requisição
-    if (novoTexto === valorAtual) return
+    const novaObs = proximoContatoObs.trim()
+    let dataIsoParaSalvar = ''
+
+    if (proximoContatoData) {
+      const parsedDate = new Date(proximoContatoData)
+      if (isNaN(parsedDate.getTime())) {
+        toast({
+          title: 'Data ou hora inválida',
+          description: 'Por favor, selecione uma data e horário válidos para o próximo contato.',
+          variant: 'destructive',
+        })
+        return
+      }
+      dataIsoParaSalvar = parsedDate.toISOString()
+    }
+
+    // Gerar resumo textual compatível para proximo_contato (exibição no Kanban/legado)
+    let resumoTexto = ''
+    if (dataIsoParaSalvar && novaObs) {
+      resumoTexto = `${formatDateTimeBR(dataIsoParaSalvar)} - ${novaObs}`
+    } else if (dataIsoParaSalvar) {
+      resumoTexto = `Agendado para ${formatDateTimeBR(dataIsoParaSalvar)}`
+    } else if (novaObs) {
+      resumoTexto = novaObs
+    }
+
+    // Se mudou a data, reseta os lembretes para que a nova data possa disparar os 3 avisos
+    const dataMudou =
+      (lead.proximo_contato_data || '').substring(0, 16) !==
+      (dataIsoParaSalvar ? dataIsoParaSalvar.substring(0, 16) : '')
 
     try {
       setSavingProximoContato(true)
@@ -562,27 +628,43 @@ export default function LeadDetail() {
         {
           data: new Date().toISOString(),
           tipo: 'contato',
-          descricao: novoTexto
-            ? `Próximo contato atualizado: "${novoTexto}"`
-            : 'Próximo contato removido.',
+          descricao: dataIsoParaSalvar
+            ? `Próximo contato agendado para ${formatDateTimeBR(dataIsoParaSalvar)}${
+                novaObs ? ` (Obs: "${novaObs}")` : ''
+              }. Lembretes automáticos por e-mail ativados.`
+            : novaObs
+              ? `Próximo contato atualizado: "${novaObs}"`
+              : 'Próximo contato removido.',
         },
       ]
 
-      const updated = await LeadsService.updateLead(lead.id, {
-        proximo_contato: novoTexto,
+      const payload: Partial<Lead> = {
+        proximo_contato: resumoTexto,
+        proximo_contato_data: dataIsoParaSalvar,
+        proximo_contato_obs: novaObs,
         historico: historyList,
-      })
+      }
+
+      // Se a data mudou ou foi reprogramada, resetar os flags para reativar os 3 lembretes
+      if (dataMudou) {
+        payload.lembrete_1d_enviado = false
+        payload.lembrete_4h_enviado = false
+        payload.lembrete_20m_enviado = false
+      }
+
+      const updated = await LeadsService.updateLead(lead.id, payload)
 
       setLead(updated)
       setProximoContato(updated.proximo_contato || '')
+      setProximoContatoObs(updated.proximo_contato_obs || updated.proximo_contato || '')
       setProximoContatoSaved(true)
       setTimeout(() => setProximoContatoSaved(false), 2500)
 
       toast({
         title: 'Próximo contato salvo',
-        description: novoTexto
-          ? 'Informações do próximo follow-up registradas com sucesso.'
-          : 'Anotação de próximo contato limpa com sucesso.',
+        description: dataIsoParaSalvar
+          ? 'Data, horário e observação salvos. Lembretes automáticos ativados (1 dia, 4 horas e 20 minutos antes).'
+          : 'Informações do próximo contato salvas com sucesso.',
       })
     } catch (err) {
       console.error('Error saving proximo_contato:', err)
@@ -592,6 +674,50 @@ export default function LeadDetail() {
           err,
           'Não foi possível salvar a anotação. Tente novamente.',
         ),
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingProximoContato(false)
+    }
+  }
+
+  // Limpar agendamento
+  const handleClearProximoContato = async () => {
+    if (!lead) return
+    try {
+      setSavingProximoContato(true)
+      const historyList: HistoricoItem[] = [
+        ...normalizedHistorico,
+        {
+          data: new Date().toISOString(),
+          tipo: 'contato',
+          descricao: 'Agendamento de próximo contato cancelado/removido.',
+        },
+      ]
+
+      const updated = await LeadsService.updateLead(lead.id, {
+        proximo_contato: '',
+        proximo_contato_data: '',
+        proximo_contato_obs: '',
+        lembrete_1d_enviado: false,
+        lembrete_4h_enviado: false,
+        lembrete_20m_enviado: false,
+        historico: historyList,
+      })
+
+      setLead(updated)
+      setProximoContato('')
+      setProximoContatoData('')
+      setProximoContatoObs('')
+      toast({
+        title: 'Agendamento removido',
+        description: 'O compromisso de próximo contato e lembretes foram cancelados.',
+      })
+    } catch (err) {
+      console.error('Error clearing proximo_contato:', err)
+      toast({
+        title: 'Erro ao remover agendamento',
+        description: toPortugueseErrorMessage(err, 'Falha ao limpar o próximo contato.'),
         variant: 'destructive',
       })
     } finally {
@@ -1161,12 +1287,12 @@ export default function LeadDetail() {
             </CardContent>
           </Card>
 
-          {/* Card: Próximo Contato (Follow-up) */}
+          {/* Card: Próximo Contato & Lembretes Automáticos */}
           <Card className="border-amber-200/80 shadow-xs bg-white overflow-hidden ring-1 ring-amber-100">
             <CardHeader className="pb-3 border-b border-amber-100 bg-amber-50/50 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-bold text-amber-950 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-amber-600" />
-                <span>Próximo Contato</span>
+                <span>Próximo Contato & Lembretes</span>
               </CardTitle>
               {proximoContatoSaved && (
                 <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1 animate-fade-in">
@@ -1175,36 +1301,183 @@ export default function LeadDetail() {
                 </span>
               )}
             </CardHeader>
-            <CardContent className="p-4 space-y-3">
-              <p className="text-xs text-slate-500">
-                Anote compromissos, lembretes de ligação ou data/horário do próximo retorno com este
-                cliente.
+            <CardContent className="p-4 space-y-4">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Agende a <strong>data e horário</strong> do próximo retorno com este cliente. O
+                servidor enviará e-mails automáticos para{' '}
+                <code className="text-[11px] font-mono text-[#0B7A5B] bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200">
+                  ecosolarenergy2022@gmail.com
+                </code>{' '}
+                em 3 momentos: <strong>1 dia antes</strong>, <strong>4 horas antes</strong> e{' '}
+                <strong>20 minutos antes</strong>.
               </p>
 
-              <div className="space-y-2">
-                <Textarea
-                  value={proximoContato}
-                  onChange={(e) => setProximoContato(e.target.value)}
-                  onBlur={() => handleSaveProximoContato()}
-                  placeholder="Ex.: Ligar quinta às 14h, cliente quer fechar"
-                  rows={3}
-                  className="text-xs border-amber-200/70 focus-visible:ring-amber-500 bg-amber-50/20 focus:bg-white resize-none"
-                />
+              <form onSubmit={handleSaveProximoContato} className="space-y-3.5">
+                {/* Seleção de Data e Hora */}
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="proximoContatoData"
+                    className="text-xs font-bold text-slate-800 flex items-center gap-1.5"
+                  >
+                    <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Data e Horário do Contato</span>
+                  </Label>
+                  <Input
+                    id="proximoContatoData"
+                    type="datetime-local"
+                    value={proximoContatoData}
+                    onChange={(e) => setProximoContatoData(e.target.value)}
+                    className="text-xs font-semibold border-amber-200/80 focus-visible:ring-amber-500 bg-amber-50/20 focus:bg-white h-9"
+                  />
+                  {lead.proximo_contato_data && (
+                    <p className="text-[11px] text-slate-500">
+                      Horário agendado:{' '}
+                      <strong className="text-slate-800">
+                        {formatDateTimeBR(lead.proximo_contato_data)}
+                      </strong>
+                    </p>
+                  )}
+                </div>
 
-                <div className="flex items-center justify-between gap-2 pt-1">
-                  <span className="text-[11px] text-slate-400">
-                    Salva automaticamente ao sair do campo
+                {/* Observação do Contato */}
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="proximoContatoObs"
+                    className="text-xs font-bold text-slate-800 flex items-center gap-1.5"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Observação do Contato</span>
+                  </Label>
+                  <Textarea
+                    id="proximoContatoObs"
+                    value={proximoContatoObs}
+                    onChange={(e) => setProximoContatoObs(e.target.value)}
+                    placeholder="Ex.: Ligar para apresentar proposta do kit 5.5kWp e negociar condição de pagamento..."
+                    rows={3}
+                    className="text-xs border-amber-200/70 focus-visible:ring-amber-500 bg-amber-50/20 focus:bg-white resize-none"
+                  />
+                </div>
+
+                {/* Status visual dos 3 Lembretes por E-mail */}
+                <div className="pt-2 border-t border-amber-100/80 space-y-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                    Status dos 3 Lembretes por E-mail:
                   </span>
 
+                  <div className="grid grid-cols-3 gap-2">
+                    {/* Lembrete 1 dia antes */}
+                    <div
+                      className={`p-2 rounded-lg border text-center transition-colors ${
+                        lead.lembrete_1d_enviado
+                          ? 'bg-emerald-50/80 border-emerald-300 text-emerald-900'
+                          : lead.proximo_contato_data
+                            ? 'bg-slate-50 border-slate-200 text-slate-600'
+                            : 'bg-slate-50/50 border-dashed border-slate-200 text-slate-400'
+                      }`}
+                      title={
+                        lead.lembrete_1d_enviado
+                          ? 'Lembrete de 1 dia antes já foi enviado para ecosolarenergy2022@gmail.com'
+                          : 'Aguardando momento (1 dia antes do horário agendado)'
+                      }
+                    >
+                      <div className="flex items-center justify-center gap-1 text-[11px] font-bold">
+                        {lead.lembrete_1d_enviado ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        ) : (
+                          <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                        )}
+                        <span>1 Dia</span>
+                      </div>
+                      <span className="text-[9px] block mt-0.5 font-medium">
+                        {lead.lembrete_1d_enviado ? 'Enviado' : 'Pendente'}
+                      </span>
+                    </div>
+
+                    {/* Lembrete 4 horas antes */}
+                    <div
+                      className={`p-2 rounded-lg border text-center transition-colors ${
+                        lead.lembrete_4h_enviado
+                          ? 'bg-emerald-50/80 border-emerald-300 text-emerald-900'
+                          : lead.proximo_contato_data
+                            ? 'bg-slate-50 border-slate-200 text-slate-600'
+                            : 'bg-slate-50/50 border-dashed border-slate-200 text-slate-400'
+                      }`}
+                      title={
+                        lead.lembrete_4h_enviado
+                          ? 'Lembrete de 4 horas antes já foi enviado para ecosolarenergy2022@gmail.com'
+                          : 'Aguardando momento (4 horas antes do horário agendado)'
+                      }
+                    >
+                      <div className="flex items-center justify-center gap-1 text-[11px] font-bold">
+                        {lead.lembrete_4h_enviado ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        ) : (
+                          <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                        )}
+                        <span>4 Horas</span>
+                      </div>
+                      <span className="text-[9px] block mt-0.5 font-medium">
+                        {lead.lembrete_4h_enviado ? 'Enviado' : 'Pendente'}
+                      </span>
+                    </div>
+
+                    {/* Lembrete 20 minutos antes */}
+                    <div
+                      className={`p-2 rounded-lg border text-center transition-colors ${
+                        lead.lembrete_20m_enviado
+                          ? 'bg-emerald-50/80 border-emerald-300 text-emerald-900'
+                          : lead.proximo_contato_data
+                            ? 'bg-slate-50 border-slate-200 text-slate-600'
+                            : 'bg-slate-50/50 border-dashed border-slate-200 text-slate-400'
+                      }`}
+                      title={
+                        lead.lembrete_20m_enviado
+                          ? 'Lembrete de 20 minutos antes já foi enviado para ecosolarenergy2022@gmail.com'
+                          : 'Aguardando momento (20 minutos antes do horário agendado)'
+                      }
+                    >
+                      <div className="flex items-center justify-center gap-1 text-[11px] font-bold">
+                        {lead.lembrete_20m_enviado ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        ) : (
+                          <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                        )}
+                        <span>20 Min</span>
+                      </div>
+                      <span className="text-[9px] block mt-0.5 font-medium">
+                        {lead.lembrete_20m_enviado ? 'Enviado' : 'Pendente'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] text-slate-400 italic">
+                    * Destinatário fixo: ecosolarenergy2022@gmail.com (duplicações prevenidas
+                    automaticamente).
+                  </p>
+                </div>
+
+                {/* Botões de Ação */}
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                  {lead.proximo_contato_data || lead.proximo_contato || lead.proximo_contato_obs ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearProximoContato}
+                      disabled={savingProximoContato}
+                      className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 h-8 px-2"
+                    >
+                      Limpar Agendamento
+                    </Button>
+                  ) : (
+                    <span />
+                  )}
+
                   <Button
-                    type="button"
-                    onClick={() => handleSaveProximoContato()}
-                    disabled={
-                      savingProximoContato ||
-                      proximoContato.trim() === (lead.proximo_contato || '').trim()
-                    }
+                    type="submit"
+                    disabled={savingProximoContato}
                     size="sm"
-                    className="bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs h-8 px-3 gap-1.5 shadow-xs"
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs h-8 px-3 gap-1.5 shadow-xs ml-auto"
                   >
                     {savingProximoContato ? (
                       <>
@@ -1214,12 +1487,12 @@ export default function LeadDetail() {
                     ) : (
                       <>
                         <Check className="w-3.5 h-3.5" />
-                        <span>Salvar</span>
+                        <span>Salvar Agendamento</span>
                       </>
                     )}
                   </Button>
                 </div>
-              </div>
+              </form>
             </CardContent>
           </Card>
 
