@@ -615,10 +615,12 @@ export default function LeadDetail() {
       resumoTexto = novaObs
     }
 
-    // Se mudou a data, reseta os lembretes para que a nova data possa disparar os 3 avisos
-    const dataMudou =
-      (lead.proximo_contato_data || '').substring(0, 16) !==
-      (dataIsoParaSalvar ? dataIsoParaSalvar.substring(0, 16) : '')
+    // Apenas rearma os 3 lembretes se a data/hora agendada foi alterada de fato para uma NOVA data não-vazia.
+    // Se alterou apenas a observação (ou se limpou a data), mantém os flags ou limpa sem causar reenvio acidental.
+    const dataAnteriorNormalizada = (lead.proximo_contato_data || '').substring(0, 16)
+    const novaDataNormalizada = (dataIsoParaSalvar || '').substring(0, 16)
+    const dataRealmenteMudou =
+      Boolean(novaDataNormalizada) && novaDataNormalizada !== dataAnteriorNormalizada
 
     try {
       setSavingProximoContato(true)
@@ -631,7 +633,7 @@ export default function LeadDetail() {
           descricao: dataIsoParaSalvar
             ? `Próximo contato agendado para ${formatDateTimeBR(dataIsoParaSalvar)}${
                 novaObs ? ` (Obs: "${novaObs}")` : ''
-              }. Lembretes automáticos por e-mail ativados.`
+              }.${dataRealmenteMudou ? ' Lembretes automáticos rearmados para o novo horário.' : ' Lembretes automáticos mantidos.'}`
             : novaObs
               ? `Próximo contato atualizado: "${novaObs}"`
               : 'Próximo contato removido.',
@@ -645,8 +647,8 @@ export default function LeadDetail() {
         historico: historyList,
       }
 
-      // Se a data mudou ou foi reprogramada, resetar os flags para reativar os 3 lembretes
-      if (dataMudou) {
+      // Somente reseta os flags para reativar os 3 lembretes se a data de fato mudou para um novo horário
+      if (dataRealmenteMudou) {
         payload.lembrete_1d_enviado = false
         payload.lembrete_4h_enviado = false
         payload.lembrete_20m_enviado = false

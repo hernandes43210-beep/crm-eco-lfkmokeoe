@@ -1,21 +1,29 @@
 // Hook de cron job para envio de lembretes automáticos de próximo contato
-// Dispara a cada 2 minutos (*/2 * * * *) para garantir precisão temporal
+// Dispara a cada 2 minutos (*/2 * * * *)
 // Envia e-mails para ecosolarenergy2022@gmail.com em 3 momentos:
 // 1) 1 dia antes (24h)
 // 2) 4 horas antes
 // 3) 20 minutos antes
-// Com nome do cliente, data/hora agendada e a observação/nota do contato.
-// Evita e-mails duplicados registrando flags e histórico no registro do lead.
+//
+// GARANTIAS ANTI-DUPLICIDADE E RESILIÊNCIA:
+// 1. Cada lembrete é enviado NO MÁXIMO UMA VEZ por agendamento.
+// 2. Os flags (lembrete_1d_enviado, etc.) são verificados e persistidos no banco ANTES do envio do e-mail.
+// 3. Janelas temporais precisas e estreitas:
+//    - Lembrete 1 dia (24h): entre 1440 min (24h) e 1380 min (23h) antes do contato.
+//    - Lembrete 4 horas: entre 240 min (4h) e 180 min (3h) antes do contato.
+//    - Lembrete 20 minutos: entre 20 min e -10 min (até 10 min pós-horário) do contato.
+// 4. Lembretes Logs protegidos com chave de unicidade tipo+data_agendada e SEMPRE salvos como JSON.stringify(logs)
+//    (no PocketBase v0.36 / Goja, campos json exigem string JSON para validação: "Must be a valid json value").
+// 5. Log explícito de auditoria para cada envio.
 
 cronAdd('cron_lembretes_proximo_contato', '*/2 * * * *', () => {
   const DEST_EMAIL = 'ecosolarenergy2022@gmail.com'
   const now = new Date()
   const nowMs = now.getTime()
 
-  // Janela máxima de busca: agendamentos a partir de agora até daqui a 36 horas
-  // E também agendamentos com até 2 horas de atraso recente (caso o cron estivesse pausado)
-  const minDate = new Date(nowMs - 2 * 60 * 60 * 1000)
-  const maxDate = new Date(nowMs + 36 * 60 * 60 * 1000)
+  // Janela de busca: agendamentos a partir de 1 hora atrás até daqui a 26 horas
+  const minDate = new Date(nowMs - 60 * 60 * 1000)
+  const maxDate = new Date(nowMs + 26 * 60 * 60 * 1000)
 
   const minIso = minDate.toISOString().replace('T', ' ').substring(0, 19) + 'Z'
   const maxIso = maxDate.toISOString().replace('T', ' ').substring(0, 19) + 'Z'
@@ -64,8 +72,7 @@ cronAdd('cron_lembretes_proximo_contato', '*/2 * * * *', () => {
       const leadEmail = lead.getString('email') || 'Não informado'
       const leadId = lead.id
 
-      // Formatar data e hora para horário amigável no e-mail (UTC -4 para Rondônia/Brasil ou formato ISO legível)
-      // Como Date no PocketBase/Goja roda em UTC, geramos formatação completa e explícita:
+      // Formatação amigável para exibição no e-mail (horário UTC legível e explícito)
       const scheduledDay = String(scheduledDate.getUTCDate()).padStart(2, '0')
       const scheduledMonth = String(scheduledDate.getUTCMonth() + 1).padStart(2, '0')
       const scheduledYear = scheduledDate.getUTCFullYear()
@@ -83,13 +90,11 @@ cronAdd('cron_lembretes_proximo_contato', '*/2 * * * *', () => {
         scheduledMin +
         ' (horário UTC)'
 
-      let lembrete1dEnviado = lead.getBool('lembrete_1d_enviado')
-      let lembrete4hEnviado = lead.getBool('lembrete_4h_enviado')
-      let lembrete20mEnviado = lead.getBool('lembrete_20m_enviado')
+      const lembrete1dEnviado = lead.getBool('lembrete_1d_enviado')
+      const lembrete4hEnviado = lead.getBool('lembrete_4h_enviado')
+      const lembrete20mEnviado = lead.getBool('lembrete_20m_enviado')
 
-      let updated = false
-
-      // Obter logs atuais
+      // Extração robusta dos logs existentes de lembretes
       let rawLogs = lead.get('lembretes_logs')
       let logs = []
       if (rawLogs) {
@@ -101,21 +106,42 @@ cronAdd('cron_lembretes_proximo_contato', '*/2 * * * *', () => {
             logs = []
           }
         } else if (Array.isArray(rawLogs)) {
-          logs = rawLogs
+          if (rawLogs.length > 0 && typeof rawLogs[0] === 'number') {
+            try {
+              let s = ''
+              for (let b = 0; b < rawLogs.length; b++) {
+                s += String.fromCharCode(rawLogs[b])
+              }
+              const parsed = JSON.parse(s)
+              if (Array.isArray(parsed)) logs = parsed
+            } catch (_) {
+              logs = []
+            }
+          } else {
+            logs = rawLogs
+          }
         }
       }
 
-      // Função interna de envio e registro de log
-      const enviarLembrete = (tipo, momentoTexto) => {
-        const assunto =
-          '[' +
-          momentoTexto +
-          '] Lembrete de Próximo Contato: ' +
-          nomeCliente +
-          ' - ' +
-          dataHoraFormatada
+      // Função de apoio para checar se determinado tipo de lembrete já foi registrado para esta data agendada
+      const scheduledIsoKey = scheduledDate.toISOString().substring(0, 16)
+      const jaRegistrado = (tipoVerificar) => {
+        for (let l = 0; l < logs.length; l++) {
+          const item = logs[l]
+          if (
+            item &&
+            item.tipo === tipoVerificar &&
+            item.data_agendada &&
+            item.data_agendada.substring(0, 16) === scheduledIsoKey
+          ) {
+            return true
+          }
+        }
+        return false
+      }
 
-        const htmlContent =
+      const montarHtmlLembrete = (momentoTexto) => {
+        return (
           '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff;">' +
           '<div style="background-color: #0B7A5B; padding: 16px 20px; border-radius: 6px 6px 0 0; color: #ffffff;">' +
           '<h2 style="margin: 0; font-size: 18px; font-weight: bold;">Ecosolar Energy - Lembrete de Contato</h2>' +
@@ -149,85 +175,255 @@ cronAdd('cron_lembretes_proximo_contato', '*/2 * * * *', () => {
           '</div>' +
           '</div>' +
           '</div>'
+        )
+      }
 
+      // 1) MOMENTO: 1 DIA ANTES (24 horas)
+      // Janela temporal: entre 24h e 23h antes (1440 min a 1380 min)
+      if (!lembrete1dEnviado && !jaRegistrado('1d') && diffMinutes <= 1440 && diffMinutes >= 1380) {
+        const flagName = 'lembrete_1d_enviado'
+        const tipo = '1d'
+        const momentoTexto = 'Falta 1 Dia'
+
+        // ATOMICALIDADE: persistir flag e log no banco ANTES do envio do e-mail
+        lead.set(flagName, true)
+        const logItem = {
+          tipo: tipo,
+          data_agendada: scheduledDate.toISOString(),
+          destinatario: DEST_EMAIL,
+          enviado_em: now.toISOString(),
+          status: 'sucesso',
+        }
+        logs.push(logItem)
+        // Salvar SEMPRE como string JSON para evitar rejeição "Must be a valid json value"
+        lead.set('lembretes_logs', JSON.stringify(logs))
+
+        let saveSuccess = false
         try {
-          const message = new MailerMessage({
-            from: {
-              address: senderAddr,
-              name: senderName,
-            },
-            to: [{ address: DEST_EMAIL }],
-            subject: assunto,
-            html: htmlContent,
-          })
-          mailClient.send(message)
+          $app.save(lead)
+          saveSuccess = true
           console.log(
-            '[cron_lembretes] Email ' +
-              tipo +
-              ' enviado com sucesso para ' +
-              DEST_EMAIL +
-              ' (Lead: ' +
+            '[cron_lembretes] Flag ' +
+              flagName +
+              ' persistida com sucesso para lead ' +
               leadId +
+              ' (' +
+              nomeCliente +
               ')',
           )
-
-          logs.push({
-            tipo: tipo,
-            destinatario: DEST_EMAIL,
-            enviado_em: now.toISOString(),
-            status: 'sucesso',
-          })
-          return true
-        } catch (mailErr) {
+        } catch (saveErr) {
           console.error(
-            '[cron_lembretes] Erro ao enviar email ' + tipo + ' para lead ' + leadId + ':',
-            mailErr,
+            '[cron_lembretes] Erro ao salvar flag ' + flagName + ' para lead ' + leadId + ':',
+            saveErr,
           )
-          logs.push({
-            tipo: tipo,
-            destinatario: DEST_EMAIL,
-            tentativa_em: now.toISOString(),
-            status: 'erro',
-            erro: String(mailErr),
-          })
-          return false
+        }
+
+        // Se persistiu no banco, dispara o e-mail
+        if (saveSuccess) {
+          const assunto =
+            '[' +
+            momentoTexto +
+            '] Lembrete de Próximo Contato: ' +
+            nomeCliente +
+            ' - ' +
+            dataHoraFormatada
+          const htmlContent = montarHtmlLembrete(momentoTexto)
+
+          try {
+            const message = new MailerMessage({
+              from: {
+                address: senderAddr,
+                name: senderName,
+              },
+              to: [{ address: DEST_EMAIL }],
+              subject: assunto,
+              html: htmlContent,
+            })
+            mailClient.send(message)
+            console.log(
+              '[cron_lembretes] E-mail ' +
+                tipo +
+                ' enviado com sucesso para ' +
+                DEST_EMAIL +
+                ' (Lead: ' +
+                leadId +
+                ', Cliente: ' +
+                nomeCliente +
+                ', Agendamento: ' +
+                scheduledStr +
+                ')',
+            )
+          } catch (mailErr) {
+            console.error(
+              '[cron_lembretes] Erro ao disparar email ' + tipo + ' para lead ' + leadId + ':',
+              mailErr,
+            )
+          }
         }
       }
 
-      // 1) Momento: 1 dia antes (24h)
-      // Janela: entre 23h30 e 24h30 antes do agendamento (1410 a 1470 minutos)
-      // Ou se o agendamento estiver entre 24h e 4h antes e ainda não enviou o de 1d (evita perder se o job atrasou)
-      if (!lembrete1dEnviado && diffMinutes <= 1440 && diffMinutes > 240) {
-        const sent = enviarLembrete('1d', 'Falta 1 Dia')
-        if (sent) {
-          lead.set('lembrete_1d_enviado', true)
-          updated = true
+      // 2) MOMENTO: 4 HORAS ANTES
+      // Janela temporal: entre 240 min (4h) e 180 min (3h) antes do contato
+      if (!lembrete4hEnviado && !jaRegistrado('4h') && diffMinutes <= 240 && diffMinutes >= 180) {
+        const flagName = 'lembrete_4h_enviado'
+        const tipo = '4h'
+        const momentoTexto = 'Faltam 4 Horas'
+
+        // ATOMICALIDADE: persistir flag e log no banco ANTES do envio do e-mail
+        lead.set(flagName, true)
+        const logItem = {
+          tipo: tipo,
+          data_agendada: scheduledDate.toISOString(),
+          destinatario: DEST_EMAIL,
+          enviado_em: now.toISOString(),
+          status: 'sucesso',
+        }
+        logs.push(logItem)
+        lead.set('lembretes_logs', JSON.stringify(logs))
+
+        let saveSuccess = false
+        try {
+          $app.save(lead)
+          saveSuccess = true
+          console.log(
+            '[cron_lembretes] Flag ' +
+              flagName +
+              ' persistida com sucesso para lead ' +
+              leadId +
+              ' (' +
+              nomeCliente +
+              ')',
+          )
+        } catch (saveErr) {
+          console.error(
+            '[cron_lembretes] Erro ao salvar flag ' + flagName + ' para lead ' + leadId + ':',
+            saveErr,
+          )
+        }
+
+        if (saveSuccess) {
+          const assunto =
+            '[' +
+            momentoTexto +
+            '] Lembrete de Próximo Contato: ' +
+            nomeCliente +
+            ' - ' +
+            dataHoraFormatada
+          const htmlContent = montarHtmlLembrete(momentoTexto)
+
+          try {
+            const message = new MailerMessage({
+              from: {
+                address: senderAddr,
+                name: senderName,
+              },
+              to: [{ address: DEST_EMAIL }],
+              subject: assunto,
+              html: htmlContent,
+            })
+            mailClient.send(message)
+            console.log(
+              '[cron_lembretes] E-mail ' +
+                tipo +
+                ' enviado com sucesso para ' +
+                DEST_EMAIL +
+                ' (Lead: ' +
+                leadId +
+                ', Cliente: ' +
+                nomeCliente +
+                ', Agendamento: ' +
+                scheduledStr +
+                ')',
+            )
+          } catch (mailErr) {
+            console.error(
+              '[cron_lembretes] Erro ao disparar email ' + tipo + ' para lead ' + leadId + ':',
+              mailErr,
+            )
+          }
         }
       }
 
-      // 2) Momento: 4 horas antes
-      // Janela: entre 4h e 20 minutos antes do agendamento (diffMinutes <= 240 && diffMinutes > 20)
-      if (!lembrete4hEnviado && diffMinutes <= 240 && diffMinutes > 20) {
-        const sent = enviarLembrete('4h', 'Faltam 4 Horas')
-        if (sent) {
-          lead.set('lembrete_4h_enviado', true)
-          updated = true
-        }
-      }
+      // 3) MOMENTO: 20 MINUTOS ANTES
+      // Janela temporal: entre 20 min antes e até 10 min pós-horário (diffMinutes <= 20 && diffMinutes >= -10)
+      if (!lembrete20mEnviado && !jaRegistrado('20m') && diffMinutes <= 20 && diffMinutes >= -10) {
+        const flagName = 'lembrete_20m_enviado'
+        const tipo = '20m'
+        const momentoTexto = 'Faltam 20 Minutos'
 
-      // 3) Momento: 20 minutos antes
-      // Janela: entre 20 minutos antes até 5 minutos depois do horário agendado (diffMinutes <= 20 && diffMinutes >= -5)
-      if (!lembrete20mEnviado && diffMinutes <= 20 && diffMinutes >= -5) {
-        const sent = enviarLembrete('20m', 'Faltam 20 Minutos')
-        if (sent) {
-          lead.set('lembrete_20m_enviado', true)
-          updated = true
+        // ATOMICALIDADE: persistir flag e log no banco ANTES do envio do e-mail
+        lead.set(flagName, true)
+        const logItem = {
+          tipo: tipo,
+          data_agendada: scheduledDate.toISOString(),
+          destinatario: DEST_EMAIL,
+          enviado_em: now.toISOString(),
+          status: 'sucesso',
         }
-      }
+        logs.push(logItem)
+        lead.set('lembretes_logs', JSON.stringify(logs))
 
-      if (updated) {
-        lead.set('lembretes_logs', logs)
-        $app.save(lead)
+        let saveSuccess = false
+        try {
+          $app.save(lead)
+          saveSuccess = true
+          console.log(
+            '[cron_lembretes] Flag ' +
+              flagName +
+              ' persistida com sucesso para lead ' +
+              leadId +
+              ' (' +
+              nomeCliente +
+              ')',
+          )
+        } catch (saveErr) {
+          console.error(
+            '[cron_lembretes] Falha ao salvar flag ' + flagName + ' para lead ' + leadId + ':',
+            saveErr,
+          )
+        }
+
+        if (saveSuccess) {
+          const assunto =
+            '[' +
+            momentoTexto +
+            '] Lembrete de Próximo Contato: ' +
+            nomeCliente +
+            ' - ' +
+            dataHoraFormatada
+          const htmlContent = montarHtmlLembrete(momentoTexto)
+
+          try {
+            const message = new MailerMessage({
+              from: {
+                address: senderAddr,
+                name: senderName,
+              },
+              to: [{ address: DEST_EMAIL }],
+              subject: assunto,
+              html: htmlContent,
+            })
+            mailClient.send(message)
+            console.log(
+              '[cron_lembretes] E-mail ' +
+                tipo +
+                ' enviado com sucesso para ' +
+                DEST_EMAIL +
+                ' (Lead: ' +
+                leadId +
+                ', Cliente: ' +
+                nomeCliente +
+                ', Agendamento: ' +
+                scheduledStr +
+                ')',
+            )
+          } catch (mailErr) {
+            console.error(
+              '[cron_lembretes] Erro ao disparar email ' + tipo + ' para lead ' + leadId + ':',
+              mailErr,
+            )
+          }
+        }
       }
     }
   } catch (err) {
