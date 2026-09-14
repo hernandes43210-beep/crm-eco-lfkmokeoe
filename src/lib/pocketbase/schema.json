@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T19:10:58.263Z",
+  "generatedAt": "2026-09-14T21:08:30.731Z",
   "collections": [
     {
       "name": "users",
@@ -940,6 +940,50 @@
           "type": "json",
           "required": false,
           "system": false
+        },
+        {
+          "name": "kit_marca_painel",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "kit_marca_inversor",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "kit_tipo_estrutura",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["solo_monoposte", "mini_trilho", "fibrocimento", "outro"]
+        },
+        {
+          "name": "kit_potencia_painel_w",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "kit_potencia_inversor_kw",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "kit_descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "kit_string_box",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["1_entrada", "2_entradas", "3_entradas"]
         }
       ],
       "indexes": [

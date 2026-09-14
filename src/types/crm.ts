@@ -312,6 +312,13 @@ export interface Proposta extends RecordModel {
   ultimo_ip_visualizacao?: string
   ultimo_user_agent?: string
   historico_acessos?: PropostaAcessoItem[] | string
+  kit_marca_painel?: string
+  kit_marca_inversor?: string
+  kit_tipo_estrutura?: KitTipoEstrutura | ''
+  kit_potencia_painel_w?: number
+  kit_potencia_inversor_kw?: number
+  kit_descricao?: string
+  kit_string_box?: KitStringBox | ''
   created: string
   updated: string
   expand?: {
@@ -356,6 +363,13 @@ export interface PublicProposta {
   primeira_visualizacao?: string
   ultima_visualizacao?: string
   created: string
+  kit_marca_painel?: string
+  kit_marca_inversor?: string
+  kit_tipo_estrutura?: KitTipoEstrutura | ''
+  kit_potencia_painel_w?: number
+  kit_potencia_inversor_kw?: number
+  kit_descricao?: string
+  kit_string_box?: KitStringBox | ''
   lead?: {
     id: string
     nome: string

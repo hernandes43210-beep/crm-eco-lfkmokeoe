@@ -17,6 +17,13 @@ export interface CreatePropostaPayload {
   observacoes?: string
   status: 'Rascunho' | 'Enviada' | 'Aceita' | 'Recusada'
   token_publico: string
+  kit_marca_painel?: string
+  kit_marca_inversor?: string
+  kit_tipo_estrutura?: string
+  kit_potencia_painel_w?: number
+  kit_potencia_inversor_kw?: number
+  kit_descricao?: string
+  kit_string_box?: string
 }
 
 export interface GetPropostasParams {
