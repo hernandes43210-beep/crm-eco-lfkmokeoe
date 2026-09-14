@@ -30,11 +30,12 @@ import {
   Calendar,
   DollarSign,
   Layers,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { KitsService } from '@/services/kits'
 import { ProposalsService } from '@/services/proposals'
 import { toPortugueseErrorMessage } from '@/lib/errors'
-import type { Kit, Proposta, PropostaStatus } from '@/types/crm'
+import type { Kit, Proposta, PropostaStatus, KitTipoEstrutura, KitStringBox } from '@/types/crm'
 import {
   formatBRL,
   formatNumberBR,
@@ -47,6 +48,18 @@ import {
   TARIFA_ENERGIA_KWH,
   PARCELA_COMPENSADA_PERCENTUAL,
 } from '@/lib/solarUtils'
+import {
+  calcularKwpPrePronto,
+  sugerirNomeKit,
+  sugerirFabricanteKit,
+  sugerirDescricaoTecnica,
+  aplicarEstruturaAoNomeKit,
+  extrairComponentesKit,
+} from '@/lib/quickKitUtils'
+import {
+  KitTechnicalSelectors,
+  type KitTechnicalSelectorsValues,
+} from '@/components/KitTechnicalSelectors'
 import { toast } from '@/hooks/use-toast'
 
 interface EditarPropostaModalProps {
@@ -80,6 +93,42 @@ export function EditarPropostaModal({
   const [condicoesPagamento, setCondicoesPagamento] = useState('')
   const [observacoes, setObservacoes] = useState('')
 
+  // Equipamentos técnicos do kit (tanto para manual quanto derivados do catálogo)
+  const [technicalValues, setTechnicalValues] = useState<KitTechnicalSelectorsValues>({
+    qtdPaineis: 10,
+    potenciaPainelW: 630,
+    marcaPaineis: 'TSUN POWER',
+    qtdInversores: 1,
+    marcaInversor: 'Sungrow',
+    potenciaInversorKw: 7.5,
+    tipoEstrutura: 'fibrocimento',
+    stringBox: '',
+  })
+  const [isManualQuickMode, setIsManualQuickMode] = useState(true)
+
+  // Modo custom/manual ativo quando 'custom' ou sem kit catalogado vinculado
+  const isCustomMode = selectedKitId === 'custom' || !selectedKitId
+
+  // Cálculos dinâmicos da montagem manual técnica
+  const manualKwpInfo = useMemo(() => {
+    return calcularKwpPrePronto(technicalValues.qtdPaineis, technicalValues.potenciaPainelW)
+  }, [technicalValues.qtdPaineis, technicalValues.potenciaPainelW])
+
+  const manualSuggestedName = useMemo(() => {
+    return sugerirNomeKit({
+      kwp: manualKwpInfo.kwp,
+      marcaPaineis: technicalValues.marcaPaineis,
+      marcaInversor: technicalValues.marcaInversor,
+      qtdPaineis: technicalValues.qtdPaineis,
+      potenciaPainelW: technicalValues.potenciaPainelW,
+      tipoEstrutura: technicalValues.tipoEstrutura,
+    })
+  }, [manualKwpInfo.kwp, technicalValues])
+
+  const manualSuggestedFab = useMemo(() => {
+    return sugerirFabricanteKit(technicalValues.marcaPaineis, technicalValues.marcaInversor)
+  }, [technicalValues.marcaPaineis, technicalValues.marcaInversor])
+
   // Carregar catálogo de kits ao abrir o modal
   useEffect(() => {
     if (open) {
@@ -90,7 +139,8 @@ export function EditarPropostaModal({
   // Preencher dados ao abrir com a proposta selecionada
   useEffect(() => {
     if (open && proposta) {
-      setSelectedKitId(proposta.kit || 'custom')
+      const kitIdVal = proposta.kit || 'custom'
+      setSelectedKitId(kitIdVal)
       setKitNome(proposta.kit_nome || '')
       setKitPotenciaKw(proposta.kit_potencia_kw ?? '')
       setKitFabricante(proposta.kit_fabricante || '')
@@ -102,6 +152,67 @@ export function EditarPropostaModal({
       setStatus(proposta.status || 'Enviada')
       setCondicoesPagamento(proposta.condicoes_pagamento || '')
       setObservacoes(proposta.observacoes || '')
+
+      // Recuperar valores técnicos da proposta ou decompor do kit/texto
+      const kitExpand = proposta.expand?.kit || proposta.kit_expand
+      const componentes = extrairComponentesKit({
+        nome: proposta.kit_nome,
+        potencia_kw: proposta.kit_potencia_kw || 0,
+        fabricante: proposta.kit_fabricante,
+        descricao: (proposta as any).kit_descricao || kitExpand?.descricao,
+        string_box: ((proposta as any).kit_string_box || kitExpand?.string_box) as any,
+        marca_painel: (proposta as any).kit_marca_painel || kitExpand?.marca_painel,
+        marca_inversor: (proposta as any).kit_marca_inversor || kitExpand?.marca_inversor,
+        potencia_painel_w: (proposta as any).kit_potencia_painel_w || kitExpand?.potencia_painel_w,
+        potencia_inversor_kw:
+          (proposta as any).kit_potencia_inversor_kw || kitExpand?.potencia_inversor_kw,
+        tipo_estrutura: ((proposta as any).kit_tipo_estrutura || kitExpand?.tipo_estrutura) as any,
+      })
+
+      const potPainelFinal =
+        (proposta as any).kit_potencia_painel_w ||
+        kitExpand?.potencia_painel_w ||
+        componentes.potenciaPainelW ||
+        630
+
+      const marcaPainelFinal =
+        (proposta as any).kit_marca_painel ||
+        kitExpand?.marca_painel ||
+        componentes.marcaPaineis ||
+        'TSUN POWER'
+
+      const marcaInversorFinal =
+        (proposta as any).kit_marca_inversor ||
+        kitExpand?.marca_inversor ||
+        componentes.marcaInversor ||
+        'Sungrow'
+
+      const potInvFinal =
+        (proposta as any).kit_potencia_inversor_kw ||
+        kitExpand?.potencia_inversor_kw ||
+        componentes.potenciaInversorKw ||
+        7.5
+
+      const tipoEstruturaFinal =
+        (proposta as any).kit_tipo_estrutura ||
+        kitExpand?.tipo_estrutura ||
+        componentes.tipoEstrutura ||
+        'fibrocimento'
+
+      const stringBoxFinal =
+        (proposta as any).kit_string_box || kitExpand?.string_box || componentes.stringBox || ''
+
+      setTechnicalValues({
+        qtdPaineis: componentes.qtdPaineis || 10,
+        potenciaPainelW: potPainelFinal,
+        marcaPaineis: marcaPainelFinal,
+        qtdInversores: componentes.qtdInversores || 1,
+        marcaInversor: marcaInversorFinal,
+        potenciaInversorKw: potInvFinal,
+        tipoEstrutura: tipoEstruturaFinal,
+        stringBox: stringBoxFinal,
+      })
+      setIsManualQuickMode(true)
     }
   }, [open, proposta])
 
@@ -131,6 +242,19 @@ export function EditarPropostaModal({
     setCusto(kit.custo)
     setMargem(kit.margem)
 
+    const componentes = extrairComponentesKit(kit)
+    setTechnicalValues({
+      qtdPaineis: componentes.qtdPaineis || 10,
+      potenciaPainelW: kit.potencia_painel_w || componentes.potenciaPainelW || 630,
+      marcaPaineis: kit.marca_painel || componentes.marcaPaineis || 'TSUN POWER',
+      qtdInversores: componentes.qtdInversores || 1,
+      marcaInversor: kit.marca_inversor || componentes.marcaInversor || 'Sungrow',
+      potenciaInversorKw:
+        kit.potencia_inversor_kw || componentes.potenciaInversorKw || kit.potencia_kw || 7.5,
+      tipoEstrutura: (kit.tipo_estrutura || componentes.tipoEstrutura || 'fibrocimento') as any,
+      stringBox: (kit.string_box || componentes.stringBox || '') as any,
+    })
+
     // Preço de venda base do kit
     let baseVenda = kit.preco_venda
     if (!baseVenda && kit.custo && kit.margem < 100) {
@@ -150,6 +274,54 @@ export function EditarPropostaModal({
     const kit = kits.find((k) => k.id === kitId)
     if (kit) {
       applyKit(kit)
+    }
+  }
+
+  // Atualizar seletores técnicos no kit manual
+  const handleTechnicalValuesChange = (patch: Partial<KitTechnicalSelectorsValues>) => {
+    setTechnicalValues((prev) => {
+      const updated = { ...prev, ...patch }
+
+      if (isCustomMode && isManualQuickMode) {
+        const novoKwp = calcularKwpPrePronto(updated.qtdPaineis, updated.potenciaPainelW).kwp
+        if (novoKwp > 0) {
+          setKitPotenciaKw(novoKwp)
+        }
+
+        const novoNome = sugerirNomeKit({
+          kwp: novoKwp,
+          marcaPaineis: updated.marcaPaineis,
+          marcaInversor: updated.marcaInversor,
+          qtdPaineis: updated.qtdPaineis,
+          potenciaPainelW: updated.potenciaPainelW,
+          tipoEstrutura: updated.tipoEstrutura,
+        })
+        if (novoNome) {
+          setKitNome(novoNome)
+        }
+
+        const novoFab = sugerirFabricanteKit(updated.marcaPaineis, updated.marcaInversor)
+        if (novoFab) {
+          setKitFabricante(novoFab)
+        }
+      } else if (patch.tipoEstrutura && kitNome) {
+        const atualizado = aplicarEstruturaAoNomeKit(kitNome, patch.tipoEstrutura)
+        if (atualizado) setKitNome(atualizado)
+      }
+
+      return updated
+    })
+  }
+
+  const handleReapplyManualSuggestions = () => {
+    if (manualKwpInfo.kwp > 0) {
+      setKitPotenciaKw(manualKwpInfo.kwp)
+    }
+    if (manualSuggestedName) {
+      setKitNome(manualSuggestedName)
+    }
+    if (manualSuggestedFab) {
+      setKitFabricante(manualSuggestedFab)
     }
   }
 
@@ -239,17 +411,40 @@ export function EditarPropostaModal({
 
       const kitRelId = selectedKitId && selectedKitId !== 'custom' ? selectedKitId : null
 
+      // Descrição técnica derivada da montagem manual se for kit customizado
+      const descGerada = isCustomMode
+        ? sugerirDescricaoTecnica({
+            qtdPaineis: technicalValues.qtdPaineis,
+            potenciaPainelW: technicalValues.potenciaPainelW,
+            marcaPaineis: technicalValues.marcaPaineis,
+            qtdInversores: technicalValues.qtdInversores,
+            marcaInversor: technicalValues.marcaInversor,
+            potenciaInversorKw: technicalValues.potenciaInversorKw,
+            kwp: potenciaNum > 0 ? potenciaNum : manualKwpInfo.kwp,
+            stringBox: technicalValues.stringBox || '',
+            tipoEstrutura: technicalValues.tipoEstrutura,
+          })
+        : undefined
+
       const payload: Partial<Proposta> = {
         kit: kitRelId || undefined,
         kit_nome: kitNome.trim(),
-        kit_potencia_kw: potenciaNum > 0 ? potenciaNum : 0,
-        kit_fabricante: kitFabricante.trim() || undefined,
+        kit_potencia_kw: potenciaNum > 0 ? potenciaNum : manualKwpInfo.kwp || 0,
+        kit_fabricante: kitFabricante.trim() || manualSuggestedFab || undefined,
         custo: numCusto,
         margem: numMargem,
         preco_venda: numPrecoVenda,
         validade_dias: validadeDiasNum,
         data_validade: validadeIso,
         status,
+        kit_marca_painel: technicalValues.marcaPaineis?.trim() || undefined,
+        kit_marca_inversor: technicalValues.marcaInversor?.trim() || undefined,
+        kit_tipo_estrutura:
+          (technicalValues.tipoEstrutura?.trim() as KitTipoEstrutura) || undefined,
+        kit_potencia_painel_w: Number(technicalValues.potenciaPainelW) || undefined,
+        kit_potencia_inversor_kw: Number(technicalValues.potenciaInversorKw) || undefined,
+        kit_string_box: (technicalValues.stringBox?.trim() as KitStringBox) || undefined,
+        kit_descricao: descGerada || (proposta as any).kit_descricao || undefined,
         condicoes_pagamento: condicoesPagamento.trim(),
         observacoes: observacoes.trim(),
       }
@@ -380,17 +575,76 @@ export function EditarPropostaModal({
             </p>
           </div>
 
+          {/* Seletor Rico para Kit Manual (idêntico ao GerarPropostaModal e Kits Solares) */}
+          {isCustomMode && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-1 bg-slate-100 rounded-lg border border-slate-200/80">
+                <button
+                  type="button"
+                  onClick={() => setIsManualQuickMode(true)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded-md text-xs font-semibold transition-all ${
+                    isManualQuickMode
+                      ? 'bg-white text-[#0B7A5B] shadow-xs border border-slate-200/70'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Montagem Rápida do Kit Manual</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsManualQuickMode(false)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded-md text-xs font-semibold transition-all ${
+                    !isManualQuickMode
+                      ? 'bg-white text-[#0B7A5B] shadow-xs border border-slate-200/70'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  <span>Edição Direta / Livre</span>
+                </button>
+              </div>
+
+              <KitTechnicalSelectors
+                values={technicalValues}
+                onChange={handleTechnicalValuesChange}
+                kwpCalculado={manualKwpInfo.kwp}
+                formattedKwpBR={manualKwpInfo.formattedBR}
+                showStringBox={true}
+                onReapplySuggestions={handleReapplyManualSuggestions}
+              />
+            </div>
+          )}
+
           {/* Dados do Kit: Nome, Potência e Fabricante */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2 space-y-1">
-              <Label htmlFor="editKitNome" className="text-xs font-semibold text-slate-700">
-                Identificação do Kit / Sistema *
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="editKitNome" className="text-xs font-semibold text-slate-700">
+                  Identificação do Kit / Sistema *
+                </Label>
+                {technicalValues.tipoEstrutura && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const comEstrutura = aplicarEstruturaAoNomeKit(
+                        kitNome,
+                        technicalValues.tipoEstrutura,
+                      )
+                      if (comEstrutura) setKitNome(comEstrutura)
+                    }}
+                    className="text-[11px] text-blue-700 hover:text-blue-900 hover:underline font-medium"
+                    title="Inclui o tipo de estrutura atual ao nome do kit"
+                  >
+                    + Incluir estrutura no nome
+                  </button>
+                )}
+              </div>
               <Input
                 id="editKitNome"
                 value={kitNome}
                 onChange={(e) => setKitNome(e.target.value)}
-                placeholder="Ex: Kit Solar 5.5 kWp Canadian — Fibrocimento"
+                placeholder="Ex: Kit Solar 6,3 kWp — TSUN POWER + Sungrow — Fibrocimento"
                 required
                 className="h-9 text-xs"
               />
@@ -407,7 +661,7 @@ export function EditarPropostaModal({
                 min="0"
                 value={kitPotenciaKw}
                 onChange={(e) => setKitPotenciaKw(e.target.value)}
-                placeholder="Ex: 5.5"
+                placeholder="Ex: 6.3"
                 className="h-9 text-xs font-mono-numbers"
               />
             </div>

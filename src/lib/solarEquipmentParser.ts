@@ -294,9 +294,33 @@ export function extractSolarEquipmentFromProposal(
   let modulos = ''
   let inversor = ''
 
+  // Prioridade 0: Campos técnicos diretos do kit (kit manual ou catalogado)
+  const directMarcaPainel = (primaryProposal as any)?.kit_marca_painel || kitExpanded?.marca_painel
+  const directPotPainelW =
+    (primaryProposal as any)?.kit_potencia_painel_w || kitExpanded?.potencia_painel_w
+  if (directMarcaPainel && directPotPainelW) {
+    modulos = `Módulos ${directMarcaPainel} ${directPotPainelW} Wp`
+  } else if (directMarcaPainel) {
+    modulos = `Módulos ${directMarcaPainel}`
+  }
+
+  const directMarcaInv = (primaryProposal as any)?.kit_marca_inversor || kitExpanded?.marca_inversor
+  const directPotInvKw =
+    (primaryProposal as any)?.kit_potencia_inversor_kw || kitExpanded?.potencia_inversor_kw
+  if (directMarcaInv && directPotInvKw) {
+    modulos = modulos || ''
+    inversor = `Inversor ${directMarcaInv} ${String(directPotInvKw).replace('.', ',')} kW`
+  } else if (directMarcaInv) {
+    inversor = `Inversor ${directMarcaInv}`
+  }
+
   // Tentativa 1: Analisar descrição técnica do kit expandido ou observações da proposta
-  const descCandidate = kitExpanded?.descricao || primaryProposal?.observacoes || ''
-  if (descCandidate) {
+  const descCandidate =
+    (primaryProposal as any)?.kit_descricao ||
+    kitExpanded?.descricao ||
+    primaryProposal?.observacoes ||
+    ''
+  if (descCandidate && (!modulos || !inversor)) {
     const fromDesc = extractFromDescription(descCandidate)
     if (fromDesc.modulos) modulos = fromDesc.modulos
     if (fromDesc.inversor) inversor = fromDesc.inversor

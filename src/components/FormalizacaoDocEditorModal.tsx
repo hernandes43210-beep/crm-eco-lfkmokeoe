@@ -95,6 +95,12 @@ export function FormalizacaoDocEditorModal({
         : 'Na assinatura do contrato 50% do valor. No fim da Instalação 50% do valor.')
 
     // Tabela de equipamentos inicial: inclui linha do kit + itens decompostos reais do kit
+    const kitPotStr = pot
+      ? typeof pot === 'number'
+        ? `${pot.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} kWp`
+        : String(pot)
+      : ''
+
     const tabelaItens = [
       ...(proposta?.kit_nome
         ? [
@@ -102,8 +108,9 @@ export function FormalizacaoDocEditorModal({
               item: proposta.kit_nome,
               unidade: 'kit',
               quantidade: '1,00',
-              fabricanteModelo: proposta?.kit_fabricante || '',
-              especificacao: 'Kit Solar Fotovoltaico Completo',
+              potencia: kitPotStr || undefined,
+              fabricanteModelo: proposta?.kit_fabricante || specs.fabricantesPrincipais || '',
+              especificacao: 'Kit Solar Fotovoltaico Completo — Chave na Mão',
             },
           ]
         : []),
@@ -179,6 +186,35 @@ export function FormalizacaoDocEditorModal({
     if (open) {
       const valorTotal = proposta?.preco_venda || lead.preco_venda || 0
       const pot = proposta?.kit_potencia_kw || specs.potenciaTotalKwp || 0
+      const kitPotStr = pot
+        ? typeof pot === 'number'
+          ? `${pot.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} kWp`
+          : String(pot)
+        : ''
+
+      const recarregaTabela = [
+        ...(proposta?.kit_nome
+          ? [
+              {
+                item: proposta.kit_nome,
+                unidade: 'kit',
+                quantidade: '1,00',
+                potencia: kitPotStr || undefined,
+                fabricanteModelo: proposta?.kit_fabricante || specs.fabricantesPrincipais || '',
+                especificacao: 'Kit Solar Fotovoltaico Completo — Chave na Mão',
+              },
+            ]
+          : []),
+        ...specs.itens.map((it) => ({
+          item: it.nome,
+          unidade: it.unidade || 'un',
+          quantidade:
+            typeof it.quantidade === 'number' ? `${it.quantidade},00` : String(it.quantidade),
+          potencia: it.potenciaUnit || '',
+          especificacao: it.especificacao || '',
+          fabricanteModelo: it.fabricanteModelo || '',
+        })),
+      ]
 
       setContratoState((prev) => ({
         ...prev,
@@ -200,6 +236,9 @@ export function FormalizacaoDocEditorModal({
             : String(pot)
           : prev.potenciaKwp,
         kitFabricante: proposta?.kit_fabricante || prev.kitFabricante,
+        kitDescricao: (proposta as any)?.kit_descricao || prev.kitDescricao,
+        kitStringBox: (proposta as any)?.kit_string_box || prev.kitStringBox,
+        tabelaEquipamentos: recarregaTabela.length > 0 ? recarregaTabela : prev.tabelaEquipamentos,
         valorTotal: valorTotal || prev.valorTotal,
         valorFinal: valorTotal || prev.valorFinal,
         condicoesPagamento: proposta?.condicoes_pagamento || prev.condicoesPagamento,

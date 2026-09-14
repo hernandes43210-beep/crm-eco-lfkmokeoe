@@ -158,4 +158,41 @@ describe('kitItemsParser', () => {
     expect(inversor?.potenciaUnit).toBe('7,5 kW')
     expect(inversor?.fabricanteModelo).toContain('7,5 kW')
   })
+
+  it('decompõe equipamentos de kit manual configurado com seletores técnicos (TSUN POWER 630W + Sungrow 7,5kW + Fibrocimento)', () => {
+    const res = parseKitDetailedItems({
+      kitNome: 'Kit Solar 6,3 kWp — TSUN POWER + Sungrow — Fibrocimento',
+      kitPotenciaKw: 6.3,
+      kitFabricante: 'TSUN POWER / Sungrow',
+      marcaPainel: 'TSUN POWER',
+      potenciaPainelW: 630,
+      marcaInversor: 'Sungrow',
+      potenciaInversorKw: 7.5,
+      tipoEstrutura: 'fibrocimento',
+      stringBox: '2_entradas',
+    })
+
+    expect(res.potenciaTotalKwp).toBe(6.3)
+    expect(res.quantidadeModulosTotal).toBe(10) // 6.3 * 1000 / 630 = 10 painéis
+
+    const modulo = res.itens.find((i) => i.tipo === 'modulo')
+    expect(modulo).toBeDefined()
+    expect(modulo?.quantidade).toBe(10)
+    expect(modulo?.fabricanteModelo).toContain('TSUN POWER')
+    expect(modulo?.potenciaUnit).toBe('630 W')
+
+    const inversor = res.itens.find((i) => i.tipo === 'inversor')
+    expect(inversor).toBeDefined()
+    expect(inversor?.quantidade).toBe(1)
+    expect(inversor?.fabricanteModelo).toContain('Sungrow')
+    expect(inversor?.potenciaUnit).toBe('7,5 kW')
+
+    const estrutura = res.itens.find((i) => i.tipo === 'estrutura')
+    expect(estrutura).toBeDefined()
+    expect(estrutura?.nome).toContain('Fibrocimento')
+
+    const sb = res.itens.find((i) => i.tipo === 'string_box')
+    expect(sb).toBeDefined()
+    expect(sb?.nome).toBe('String box 2 entradas / 2 saídas')
+  })
 })

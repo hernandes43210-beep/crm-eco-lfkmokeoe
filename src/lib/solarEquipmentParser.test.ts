@@ -204,4 +204,49 @@ describe('solarEquipmentParser', () => {
     // 13.8 * 4.6 * 0.80 * 30 = 1524 kWh/mês * 1.15 * 0.85 = ~1490
     expect(result.economiaMensal).toBeGreaterThan(1000)
   })
+
+  it('extrai equipamentos a partir dos novos campos técnicos diretos da proposta com kit manual', () => {
+    const lead: Lead = {
+      id: 'lead-5',
+      collectionId: 'leads',
+      collectionName: 'leads',
+      nome: 'Maria Fernandes',
+      email: 'maria@example.com',
+      consumo_mensal_kwh: 650,
+      sla_dias: 7,
+      status: 'Proposta Enviada',
+      proprietario: 'user-1',
+      created: '2026-09-08',
+      updated: '2026-09-08',
+    }
+
+    const propManual: Proposta = {
+      id: 'prop-manual-1',
+      collectionId: 'propostas',
+      collectionName: 'propostas',
+      lead: 'lead-5',
+      kit_nome: 'Kit Solar 6,3 kWp — TSUN POWER + Sungrow — Fibrocimento',
+      kit_potencia_kw: 6.3,
+      kit_fabricante: 'TSUN POWER / Sungrow',
+      kit_marca_painel: 'TSUN POWER',
+      kit_potencia_painel_w: 630,
+      kit_marca_inversor: 'Sungrow',
+      kit_potencia_inversor_kw: 7.5,
+      kit_tipo_estrutura: 'fibrocimento',
+      custo: 10000,
+      margem: 30,
+      preco_venda: 14285.71,
+      data_validade: '2026-09-25',
+      status: 'Aceita',
+      token_publico: 'token-manual-1',
+      created: '2026-09-08',
+      updated: '2026-09-08',
+    }
+
+    const result = extractSolarEquipmentFromProposal([propManual], lead)
+    expect(result.modulos).toBe('Módulos TSUN POWER 630 Wp')
+    expect(result.inversor).toBe('Inversor Sungrow 7,5 kW')
+    expect(result.potenciaKw).toBe(6.3)
+    expect(result.potenciaDisplay).toBe('6,3 KWp')
+  })
 })
