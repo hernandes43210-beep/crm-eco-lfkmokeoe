@@ -93,6 +93,7 @@ export default function LeadForm() {
   const [cidade, setCidade] = useState('')
   const [estado, setEstado] = useState('RO')
   const [status, setStatus] = useState<LeadStatus>('Novo')
+  const [motivoPerda, setMotivoPerda] = useState('')
   const [prPostEncerramento, setPrPostEncerramento] = useState('')
   const [proximoContato, setProximoContato] = useState('')
   const [slaDias, setSlaDias] = useState<number>(7)
@@ -117,6 +118,7 @@ export default function LeadForm() {
           setCidade(lead.cidade || '')
           setEstado(lead.estado || 'RO')
           setStatus(lead.status)
+          setMotivoPerda(lead.motivo_perda || '')
           setPrPostEncerramento(
             lead.pr_post_encerramento ? lead.pr_post_encerramento.substring(0, 10) : '',
           )
@@ -241,6 +243,10 @@ export default function LeadForm() {
         sla_dias: Math.max(1, Number(slaDias) || 7),
         preco_venda: Math.max(0, Number(precoVenda) || 0),
         proximo_contato: proximoContato.trim(),
+      }
+
+      if (status === 'Fechado Perdido') {
+        payload.motivo_perda = motivoPerda.trim()
       }
 
       if (formattedPrPost) {
@@ -676,6 +682,24 @@ export default function LeadForm() {
                   ))}
                 </select>
               </div>
+
+              {status === 'Fechado Perdido' && (
+                <div className="space-y-1.5 sm:col-span-2 p-3 rounded-lg bg-rose-50/70 border border-rose-200 animate-fade-in">
+                  <Label htmlFor="motivoPerda" className="text-xs font-semibold text-rose-800">
+                    Motivo da Perda
+                  </Label>
+                  <Input
+                    id="motivoPerda"
+                    value={motivoPerda}
+                    onChange={(e) => setMotivoPerda(e.target.value)}
+                    placeholder="Ex: Preço alto / Optou por concorrente / Sem limite no banco"
+                    className="h-10 text-sm bg-white border-rose-300 focus-visible:ring-rose-500"
+                  />
+                  <p className="text-[11px] text-rose-600">
+                    Explique a razão pela qual a negociação foi perdida.
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <Label htmlFor="prPost" className="text-xs font-semibold text-slate-700">

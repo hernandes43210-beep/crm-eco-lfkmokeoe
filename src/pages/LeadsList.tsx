@@ -668,14 +668,24 @@ export default function LeadsList() {
                               {lead.motivo_descarte || 'Sem motivo especificado'}
                             </span>
                           ) : (
-                            <Badge
-                              variant="outline"
-                              className={`text-xs px-2 py-0.5 rounded-md font-medium border ${getStatusBadgeStyle(
-                                lead.status,
-                              )}`}
-                            >
-                              {lead.status}
-                            </Badge>
+                            <div className="flex flex-col items-start gap-1">
+                              <Badge
+                                variant="outline"
+                                className={`text-xs px-2 py-0.5 rounded-md font-medium border ${getStatusBadgeStyle(
+                                  lead.status,
+                                )}`}
+                              >
+                                {lead.status}
+                              </Badge>
+                              {lead.status === 'Fechado Perdido' && lead.motivo_perda && (
+                                <span
+                                  className="text-[11px] text-rose-700 font-medium truncate max-w-[170px]"
+                                  title={`Motivo da perda: ${lead.motivo_perda}`}
+                                >
+                                  Motivo: {lead.motivo_perda}
+                                </span>
+                              )}
+                            </div>
                           )}
                         </td>
 
@@ -860,12 +870,22 @@ export default function LeadsList() {
                           Aguardando
                         </Badge>
                       ) : (
-                        <Badge
-                          variant="outline"
-                          className={`text-xs px-2 py-0.5 border ${getStatusBadgeStyle(lead.status)}`}
-                        >
-                          {lead.status}
-                        </Badge>
+                        <div className="flex flex-col items-end gap-0.5">
+                          <Badge
+                            variant="outline"
+                            className={`text-xs px-2 py-0.5 border ${getStatusBadgeStyle(lead.status)}`}
+                          >
+                            {lead.status}
+                          </Badge>
+                          {lead.status === 'Fechado Perdido' && lead.motivo_perda && (
+                            <span
+                              className="text-[10px] text-rose-700 font-medium truncate max-w-[160px]"
+                              title={`Motivo da perda: ${lead.motivo_perda}`}
+                            >
+                              {lead.motivo_perda}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
 

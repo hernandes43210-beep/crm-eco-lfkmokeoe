@@ -10,6 +10,7 @@ import {
   Calendar,
   Clock,
   AlertTriangle,
+  AlertCircle,
   CheckCircle2,
   FileText,
   Upload,
@@ -39,6 +40,7 @@ import { GerarPropostaModal } from '@/components/GerarPropostaModal'
 import { InvestmentComparison } from '@/components/InvestmentComparison'
 import { DeletePropostaDialog } from '@/components/DeletePropostaDialog'
 import { EditarPropostaModal } from '@/components/EditarPropostaModal'
+import { MotivoPerdaModal } from '@/components/MotivoPerdaModal'
 import { LeadInstallationPhotos } from '@/components/LeadInstallationPhotos'
 import { LeadFormalizacaoSection } from '@/components/LeadFormalizacaoSection'
 import { openProposalPDFPrint } from '@/lib/proposalPdf'
@@ -103,6 +105,10 @@ export default function LeadDetail() {
   const [propostaToDelete, setPropostaToDelete] = useState<Proposta | null>(null)
   const [isDeletingProposta, setIsDeletingProposta] = useState(false)
   const [propostaToEdit, setPropostaToEdit] = useState<Proposta | null>(null)
+
+  // Motivo de perda modal
+  const [showMotivoPerdaModal, setShowMotivoPerdaModal] = useState(false)
+  const [isMarkingLost, setIsMarkingLost] = useState(false)
 
   // Quick note modal/field
   const [novaNota, setNovaNota] = useState('')
@@ -380,6 +386,56 @@ export default function LeadDetail() {
       })
     } finally {
       setDiscarding(false)
+    }
+  }
+
+  // Pipeline advance/retreat: se for Fechado Perdido, abre modal para coletar motivo
+  const requestChangeStage = (newStatus: LeadStatus) => {
+    if (!lead) return
+    if (newStatus === 'Fechado Perdido') {
+      setShowMotivoPerdaModal(true)
+      return
+    }
+    changeStage(newStatus)
+  }
+
+  // Confirmação de perda via modal
+  const handleConfirmPerda = async ({
+    motivo,
+    observacao,
+  }: {
+    motivo: string
+    observacao?: string
+  }) => {
+    if (!lead) return
+    try {
+      setIsMarkingLost(true)
+      const updated = await LeadsService.marcarPerdido(
+        lead.id,
+        motivo,
+        observacao,
+        user ? { id: user.id, nome: user.name, email: user.email } : undefined,
+      )
+      setLead(updated)
+      setShowMotivoPerdaModal(false)
+      toast({
+        title: 'Lead marcado como Perdido',
+        description: `Oportunidade encerrada como perdida. Motivo: ${motivo}`,
+      })
+    } catch (err) {
+      console.error('Error marking lead as lost:', err)
+      const errorMsg = toPortugueseErrorMessage(
+        err,
+        'Não foi possível registrar o motivo da perda. Tente novamente.',
+      )
+      toast({
+        title: 'Erro ao marcar perda',
+        description: errorMsg,
+        variant: 'destructive',
+      })
+      throw err
+    } finally {
+      setIsMarkingLost(false)
     }
   }
 
@@ -769,7 +825,7 @@ export default function LeadDetail() {
           </Button>
           <div className="h-4 w-px bg-slate-300"></div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
                 {lead.nome}
               </h2>
@@ -779,6 +835,16 @@ export default function LeadDetail() {
               >
                 {lead.status}
               </Badge>
+
+              {lead.status === 'Fechado Perdido' && lead.motivo_perda && (
+                <Badge
+                  variant="outline"
+                  className="text-xs px-2.5 py-0.5 border bg-rose-50 text-rose-800 border-rose-300 font-medium"
+                  title={`Motivo da perda: ${lead.motivo_perda}`}
+                >
+                  Perda: {lead.motivo_perda}
+                </Badge>
+              )}
 
               {propostas.length > 0 && (
                 <Badge
@@ -910,6 +976,44 @@ export default function LeadDetail() {
               participa das métricas ativas do funil.
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Card de Alerta se estiver Fechado Perdido com o motivo exibido com destaque */}
+      {lead.status === 'Fechado Perdido' && (
+        <div className="bg-rose-50 border border-rose-300 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-rose-950">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-rose-200/80 text-rose-700 flex items-center justify-center shrink-0">
+              <AlertCircle className="w-5 h-5 text-rose-700" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-sm text-rose-950">
+                  Oportunidade Fechada como Perdida
+                </h4>
+                <Badge
+                  variant="outline"
+                  className="bg-white text-rose-800 border-rose-300 text-[10px]"
+                >
+                  Fechado Perdido
+                </Badge>
+              </div>
+              <p className="text-xs text-rose-900 mt-0.5">
+                Motivo registrado:{' '}
+                <strong className="text-rose-950 font-semibold">
+                  {lead.motivo_perda || 'Motivo não especificado'}
+                </strong>
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowMotivoPerdaModal(true)}
+            className="border-rose-300 text-rose-700 hover:bg-rose-100 text-xs font-semibold h-8.5 px-3 self-start sm:self-auto"
+          >
+            Editar Motivo
+          </Button>
         </div>
       )}
 
@@ -1261,6 +1365,7 @@ export default function LeadDetail() {
                 ) : (
                   [...normalizedHistorico].reverse().map((item, idx) => {
                     const isSlaAlert = item.tipo === 'alerta_sla'
+                    const isPerda = item.tipo === 'perda'
                     const histKey = `hist-${(item as { id?: string }).id ?? item.tipo ?? 'item'}-${item.data ?? 'nodate'}-${idx}`
                     return (
                       <div
@@ -1268,13 +1373,15 @@ export default function LeadDetail() {
                         className={`p-3 rounded-lg border text-xs flex items-start gap-3 ${
                           isSlaAlert
                             ? 'bg-red-50/50 border-red-200 text-red-900'
-                            : 'bg-slate-50/70 border-slate-100 text-slate-700'
+                            : isPerda
+                              ? 'bg-rose-50/70 border-rose-200 text-rose-950'
+                              : 'bg-slate-50/70 border-slate-100 text-slate-700'
                         }`}
                       >
                         <div
                           className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                            isSlaAlert
-                              ? 'bg-red-200 text-red-700'
+                            isSlaAlert || isPerda
+                              ? 'bg-rose-100 text-rose-700'
                               : item.tipo === 'status'
                                 ? 'bg-blue-100 text-blue-700'
                                 : item.tipo === 'fechamento'
@@ -1288,6 +1395,8 @@ export default function LeadDetail() {
                         >
                           {isSlaAlert ? (
                             <AlertTriangle className="w-3 h-3" />
+                          ) : isPerda ? (
+                            <AlertCircle className="w-3 h-3 text-rose-600" />
                           ) : item.tipo === 'proposta' ? (
                             <Eye className="w-3 h-3" />
                           ) : item.tipo === 'contato' ? (
@@ -1818,7 +1927,7 @@ export default function LeadDetail() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => changeStage('Fechado Perdido')}
+                onClick={() => requestChangeStage('Fechado Perdido')}
                 className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs h-8"
               >
                 Marcar Perdido
@@ -2072,6 +2181,20 @@ export default function LeadDetail() {
           }}
         />
       )}
+
+      {/* Modal Motivo da Perda */}
+      <MotivoPerdaModal
+        open={showMotivoPerdaModal}
+        onOpenChange={(open) => {
+          if (!open && !isMarkingLost) {
+            setShowMotivoPerdaModal(false)
+          }
+        }}
+        leadNome={lead?.nome}
+        isSubmitting={isMarkingLost}
+        onConfirm={handleConfirmPerda}
+        onCancel={() => setShowMotivoPerdaModal(false)}
+      />
     </div>
   )
 }

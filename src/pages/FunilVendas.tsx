@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { DeleteLeadDialog } from '@/components/DeleteLeadDialog'
+import { MotivoPerdaModal } from '@/components/MotivoPerdaModal'
 import { toast } from '@/hooks/use-toast'
 
 interface ColumnDef {
@@ -134,6 +135,10 @@ export default function FunilVendas() {
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
+  // Motivo de perda modal state
+  const [leadToMarkLost, setLeadToMarkLost] = useState<Lead | null>(null)
+  const [isMarkingLost, setIsMarkingLost] = useState(false)
+
   const fetchLeads = async () => {
     try {
       // Exclui leads da fila de pré-qualificação e descartados para que só apareçam após qualificação no estágio "Novo"
@@ -160,6 +165,77 @@ export default function FunilVendas() {
   useRealtime<Lead>('leads', () => {
     fetchLeads()
   })
+
+  // Interceptador para mover etapa: se for Fechado Perdido, abre modal de motivo
+  const requestMoveLeadToStage = (leadId: string, newStatus: LeadStatus) => {
+    const targetLead = leads.find((l) => l.id === leadId)
+    if (!targetLead || targetLead.status === newStatus) return
+
+    if (newStatus === 'Fechado Perdido') {
+      setLeadToMarkLost(targetLead)
+      return
+    }
+
+    moveLeadToStage(leadId, newStatus)
+  }
+
+  // Confirmação de perda através do modal com motivo
+  const handleConfirmPerda = async ({
+    motivo,
+    observacao,
+  }: {
+    motivo: string
+    observacao?: string
+  }) => {
+    if (!leadToMarkLost) return
+    const targetLead = leadToMarkLost
+    const previousStatus = targetLead.status
+
+    try {
+      setIsMarkingLost(true)
+
+      // Atualização otimista
+      const motivoCompleto = observacao?.trim() ? `${motivo} (${observacao.trim()})` : motivo
+      setLeads((prev) =>
+        prev.map((l) =>
+          l.id === targetLead.id
+            ? { ...l, status: 'Fechado Perdido', motivo_perda: motivoCompleto }
+            : l,
+        ),
+      )
+
+      await LeadsService.marcarPerdido(
+        targetLead.id,
+        motivo,
+        observacao,
+        user ? { id: user.id, nome: user.name, email: user.email } : undefined,
+      )
+
+      toast({
+        title: 'Lead marcado como Perdido',
+        description: `O lead "${targetLead.nome}" foi movido para Fechado Perdido. Motivo: ${motivo}`,
+      })
+      setLeadToMarkLost(null)
+    } catch (err: unknown) {
+      console.error('Falha ao marcar lead como perdido:', err)
+      // Reverter alteração otimista
+      setLeads((prev) =>
+        prev.map((l) => (l.id === targetLead.id ? { ...l, status: previousStatus } : l)),
+      )
+      const errorMsg = toPortugueseErrorMessage(
+        err,
+        'Não foi possível registrar o motivo da perda. Tente novamente.',
+      )
+      toast({
+        title: 'Erro ao marcar perda',
+        description: errorMsg,
+        variant: 'destructive',
+      })
+      throw err
+    } finally {
+      setIsMarkingLost(false)
+    }
+  }
 
   // Optimistic status update
   const moveLeadToStage = async (leadId: string, newStatus: LeadStatus) => {
@@ -303,7 +379,7 @@ export default function FunilVendas() {
     setDragOverCol(null)
     const leadId = e.dataTransfer.getData('text/plain') || draggedLeadId
     if (leadId) {
-      moveLeadToStage(leadId, colStatus)
+      requestMoveLeadToStage(leadId, colStatus)
     }
     setDraggedLeadId(null)
   }
@@ -527,6 +603,24 @@ export default function FunilVendas() {
                           {/* Email */}
                           <p className="text-[11px] text-slate-500 truncate mt-0.5">{lead.email}</p>
 
+                          {/* Motivo de perda se for Fechado Perdido */}
+                          {lead.status === 'Fechado Perdido' && lead.motivo_perda && (
+                            <div
+                              className="mt-2 p-1.5 rounded-md bg-rose-50/90 border border-rose-200/90 text-rose-950 flex items-start gap-1.5"
+                              title={`Motivo da perda: ${lead.motivo_perda}`}
+                            >
+                              <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0 mt-1" />
+                              <div className="min-w-0 flex-1">
+                                <span className="text-[9px] font-bold uppercase tracking-wider text-rose-800 block leading-tight">
+                                  Motivo da Perda
+                                </span>
+                                <p className="text-[11px] text-rose-950 font-medium leading-snug line-clamp-2 break-words">
+                                  {lead.motivo_perda}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Próximo Contato (Destaque visual se preenchido) */}
                           {lead.proximo_contato && lead.proximo_contato.trim() && (
                             <div
@@ -592,7 +686,7 @@ export default function FunilVendas() {
                             <select
                               value={lead.status}
                               onChange={(e) =>
-                                moveLeadToStage(lead.id, e.target.value as LeadStatus)
+                                requestMoveLeadToStage(lead.id, e.target.value as LeadStatus)
                               }
                               className="text-[11px] py-0.5 px-1.5 bg-slate-50 border border-slate-200 rounded text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-[#0B7A5B]"
                             >
@@ -621,6 +715,20 @@ export default function FunilVendas() {
         leadName={leadToDelete?.nome}
         isDeleting={isDeleting}
         onConfirm={handleDeleteLead}
+      />
+
+      {/* Modal de Registro do Motivo da Perda */}
+      <MotivoPerdaModal
+        open={!!leadToMarkLost}
+        onOpenChange={(open) => {
+          if (!open && !isMarkingLost) {
+            setLeadToMarkLost(null)
+          }
+        }}
+        leadNome={leadToMarkLost?.nome}
+        isSubmitting={isMarkingLost}
+        onConfirm={handleConfirmPerda}
+        onCancel={() => setLeadToMarkLost(null)}
       />
     </div>
   )

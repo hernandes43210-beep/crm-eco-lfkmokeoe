@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11T21:16:10.301Z",
+  "generatedAt": "2026-09-14T11:38:14.918Z",
   "collections": [
     {
       "name": "users",
@@ -264,6 +264,12 @@
         },
         {
           "name": "cep",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo_perda",
           "type": "text",
           "required": false,
           "system": false

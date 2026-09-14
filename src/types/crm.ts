@@ -61,6 +61,7 @@ export interface Lead extends RecordModel {
   qualificado_em?: string
   qualificado_por?: string
   motivo_descarte?: string
+  motivo_perda?: string
   proximo_contato?: string
   pr_post_encerramento?: string
   sla_dias: number

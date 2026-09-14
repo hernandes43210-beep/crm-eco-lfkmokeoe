@@ -159,6 +159,64 @@ export const LeadsService = {
     return pb.collection('leads').update<Lead>(id, payload)
   },
 
+  async marcarPerdido(
+    id: string,
+    motivo: string,
+    observacao?: string,
+    usuario?: { id: string; nome?: string; email?: string },
+  ): Promise<Lead> {
+    const lead = await this.getLeadById(id)
+
+    let currentHist: unknown = lead.historico
+    if (typeof currentHist === 'string') {
+      try {
+        currentHist = JSON.parse(currentHist)
+      } catch (_) {
+        currentHist = []
+      }
+    }
+    if (
+      Array.isArray(currentHist) &&
+      currentHist.length > 0 &&
+      typeof currentHist[0] === 'number'
+    ) {
+      try {
+        let str = ''
+        for (let i = 0; i < currentHist.length; i++) {
+          str += String.fromCharCode(Number(currentHist[i]))
+        }
+        currentHist = JSON.parse(str)
+      } catch (_) {
+        currentHist = []
+      }
+    }
+    const historico = Array.isArray(currentHist) ? [...(currentHist as any[])] : []
+
+    const agora = new Date()
+    const nomeResponsavel = usuario?.nome || usuario?.email || 'Vendedor'
+    const motivoLimpo = motivo?.trim() || 'Não informado'
+    const obsLimpa = observacao?.trim() ? ` — Detalhes: "${observacao.trim()}"` : ''
+    const motivoCompleto = observacao?.trim()
+      ? `${motivoLimpo} (${observacao.trim()})`
+      : motivoLimpo
+
+    const desc = `Lead movido para "Fechado Perdido" por ${nomeResponsavel}. Motivo: ${motivoLimpo}${obsLimpa}`
+
+    historico.push({
+      data: agora.toISOString(),
+      tipo: 'perda',
+      descricao: desc,
+    })
+
+    const payload: Record<string, unknown> = {
+      status: 'Fechado Perdido',
+      motivo_perda: motivoCompleto,
+      historico,
+    }
+
+    return pb.collection('leads').update<Lead>(id, payload)
+  },
+
   async countAguardandoQualificacao(): Promise<number> {
     try {
       const res = await pb.collection('leads').getList(1, 1, {
