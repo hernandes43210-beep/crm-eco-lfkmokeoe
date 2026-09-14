@@ -239,8 +239,9 @@ export function calcularKwpPrePronto(
 }
 
 /**
- * Sugere o nome comercial do kit a partir dos dados preenchidos:
- * Ex.: "Kit Solar 6,1 kWp — Canadian Solar + Growatt"
+ * Sugere o nome comercial do kit a partir dos dados preenchidos,
+ * incluindo marcas e o tipo de estrutura selecionado:
+ * Ex.: "Kit Solar 6,1 kWp — Canadian Solar + Growatt — Fibrocimento"
  */
 export function sugerirNomeKit(params: {
   kwp: number
@@ -248,8 +249,9 @@ export function sugerirNomeKit(params: {
   marcaInversor?: string
   qtdPaineis?: number | string
   potenciaPainelW?: number | string
+  tipoEstrutura?: string
 }): string {
-  const { kwp, marcaPaineis, marcaInversor } = params
+  const { kwp, marcaPaineis, marcaInversor, tipoEstrutura } = params
 
   if (kwp <= 0) {
     return ''
@@ -270,7 +272,45 @@ export function sugerirNomeKit(params: {
 
   const sufixoMarcas = partesMarcas.length > 0 ? ` — ${partesMarcas.join(' + ')}` : ''
 
-  return `Kit Solar ${kwpStr} kWp${sufixoMarcas}`
+  const rotuloEstrutura = formatarRotuloEstrutura(tipoEstrutura)
+  const sufixoEstrutura = rotuloEstrutura ? ` — ${rotuloEstrutura}` : ''
+
+  return `Kit Solar ${kwpStr} kWp${sufixoMarcas}${sufixoEstrutura}`
+}
+
+/**
+ * Atualiza um nome de kit comercial existente com o rótulo da estrutura fornecida.
+ * Se o nome já contiver outra estrutura ou a mesma estrutura, substitui de forma limpa.
+ * Se não houver estrutura no nome, anexa ao final no padrão consistente " — [Estrutura]".
+ */
+export function aplicarEstruturaAoNomeKit(
+  nomeOriginal: string,
+  tipoEstrutura?: string | null,
+): string {
+  const rotulo = formatarRotuloEstrutura(tipoEstrutura)
+  if (!rotulo) return nomeOriginal
+
+  let limpo = (nomeOriginal || '').trim()
+  if (!limpo) return ''
+
+  // Lista de rótulos conhecidos de estrutura para remover se já existirem no nome
+  // (ex: " — Fibrocimento", " — Solo monoposte", " — Mini trilho", " — Outra estrutura", "-SOLO-", "-TELHADO")
+  const rotulosConhecidos = [
+    'Solo monoposte',
+    'Mini trilho',
+    'Fibrocimento',
+    'Outra estrutura',
+    'Solo Monoposte',
+    'Mini Trilho',
+  ]
+
+  for (const r of rotulosConhecidos) {
+    // Procura " — [r]" ou " - [r]" ou " — [r]" no final ou com traço
+    const regexTrailing = new RegExp(`\\s*[—–-]\\s*${r}\\s*$`, 'i')
+    limpo = limpo.replace(regexTrailing, '').trim()
+  }
+
+  return `${limpo} — ${rotulo}`
 }
 
 /**

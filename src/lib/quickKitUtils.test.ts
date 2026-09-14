@@ -11,6 +11,7 @@ import {
   formatarNomeItemEstrutura,
   formatarPotenciaW,
   formatarPotenciaKw,
+  aplicarEstruturaAoNomeKit,
 } from './quickKitUtils'
 
 describe('quickKitUtils', () => {
@@ -31,20 +32,37 @@ describe('quickKitUtils', () => {
     expect(res3.formattedBR).toBe('0,00')
   })
 
-  it('sugere o nome do kit a partir dos componentes', () => {
+  it('sugere o nome do kit a partir dos componentes incluindo a estrutura', () => {
     const nome1 = sugerirNomeKit({
       kwp: 6.1,
       marcaPaineis: 'Canadian Solar',
       marcaInversor: 'Growatt',
+      tipoEstrutura: 'fibrocimento',
     })
-    expect(nome1).toBe('Kit Solar 6,1 kWp — Canadian Solar + Growatt')
+    expect(nome1).toBe('Kit Solar 6,1 kWp — Canadian Solar + Growatt — Fibrocimento')
 
     const nome2 = sugerirNomeKit({
       kwp: 10.08,
       marcaPaineis: 'TSUN',
       marcaInversor: 'Sungrow 10kW',
+      tipoEstrutura: 'solo_monoposte',
     })
-    expect(nome2).toBe('Kit Solar 10,08 kWp — TSUN + Sungrow 10kW')
+    expect(nome2).toBe('Kit Solar 10,08 kWp — TSUN + Sungrow 10kW — Solo monoposte')
+
+    const nomeMiniTrilho = sugerirNomeKit({
+      kwp: 6.3,
+      marcaPaineis: 'TSUN POWER',
+      marcaInversor: 'HUAWEI',
+      tipoEstrutura: 'mini_trilho',
+    })
+    expect(nomeMiniTrilho).toBe('Kit Solar 6,3 kWp — TSUN POWER + HUAWEI — Mini trilho')
+
+    const nomeSemEstrutura = sugerirNomeKit({
+      kwp: 6.1,
+      marcaPaineis: 'Canadian Solar',
+      marcaInversor: 'Growatt',
+    })
+    expect(nomeSemEstrutura).toBe('Kit Solar 6,1 kWp — Canadian Solar + Growatt')
 
     const nomeSemMarcas = sugerirNomeKit({
       kwp: 5.5,
@@ -115,6 +133,19 @@ describe('quickKitUtils', () => {
     expect(formatarRotuloStringBox('3_entradas')).toBe('String box 3 entradas / 3 saídas')
     expect(formatarRotuloStringBox('')).toBe('')
     expect(formatarRotuloStringBox(undefined)).toBe('')
+  })
+
+  it('aplica ou atualiza o tipo de estrutura em um nome de kit existente', () => {
+    const original = 'Kit Solar 8,82 kWp — TSUN POWER + Sungrow'
+    const atualizadoFibro = aplicarEstruturaAoNomeKit(original, 'fibrocimento')
+    expect(atualizadoFibro).toBe('Kit Solar 8,82 kWp — TSUN POWER + Sungrow — Fibrocimento')
+
+    // Se já tinha outra estrutura, substitui sem duplicar
+    const alteradoSolo = aplicarEstruturaAoNomeKit(atualizadoFibro, 'solo_monoposte')
+    expect(alteradoSolo).toBe('Kit Solar 8,82 kWp — TSUN POWER + Sungrow — Solo monoposte')
+
+    // Se tipo de estrutura for vazio, mantém o nome original
+    expect(aplicarEstruturaAoNomeKit(original, '')).toBe(original)
   })
 
   it('gera nome duplicado com sufixo "— Cópia"', () => {

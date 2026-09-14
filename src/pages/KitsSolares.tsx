@@ -42,6 +42,7 @@ import {
   formatarRotuloEstrutura,
   formatarPotenciaW,
   formatarPotenciaKw,
+  aplicarEstruturaAoNomeKit,
 } from '@/lib/quickKitUtils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -149,8 +150,9 @@ export default function KitsSolares() {
       marcaInversor,
       qtdPaineis,
       potenciaPainelW,
+      tipoEstrutura,
     })
-  }, [quickKwpInfo.kwp, marcaPaineis, marcaInversor, qtdPaineis, potenciaPainelW])
+  }, [quickKwpInfo.kwp, marcaPaineis, marcaInversor, qtdPaineis, potenciaPainelW, tipoEstrutura])
 
   const suggestedFab = useMemo(() => {
     return sugerirFabricanteKit(marcaPaineis, marcaInversor)
@@ -228,7 +230,7 @@ export default function KitsSolares() {
     setTipoEstrutura('solo_monoposte')
 
     const initialKwp = calcularKwpPrePronto(10, 630).kwp
-    setNome('Kit Solar 6,3 kWp — TSUN POWER + Sungrow')
+    setNome('Kit Solar 6,3 kWp — TSUN POWER + Sungrow — Solo monoposte')
     setFabricante('TSUN POWER / Sungrow')
     setPotenciaKw(initialKwp)
     setCategoria('Residencial')
@@ -1246,7 +1248,7 @@ export default function KitsSolares() {
                         }),
                       )
                     }}
-                    className="h-6 px-2 text-[11px] text-[#0B7A5B] hover:text-[#095C44] hover:bg-emerald-50"
+                    className="h-6 px-2 text-[11px] text-[#0B7A5B] hover:text-[#095C44] hover:bg-emerald-50 font-medium"
                   >
                     Reaplicar sugestões
                   </Button>
@@ -1282,6 +1284,15 @@ export default function KitsSolares() {
                     const novaEstrut = e.target.value
                     setTipoEstrutura(novaEstrut)
                     if (isQuickMode && !editingKit && !isCloning) {
+                      const novoNome = sugerirNomeKit({
+                        kwp: quickKwpInfo.kwp,
+                        marcaPaineis,
+                        marcaInversor,
+                        qtdPaineis,
+                        potenciaPainelW,
+                        tipoEstrutura: novaEstrut,
+                      })
+                      if (novoNome) setNome(novoNome)
                       setDescricao(
                         sugerirDescricaoTecnica({
                           qtdPaineis,
@@ -1295,6 +1306,11 @@ export default function KitsSolares() {
                           tipoEstrutura: novaEstrut,
                         }),
                       )
+                    } else if (novaEstrut && nome) {
+                      // Ao mudar a estrutura em modo de edição ou manual, se o usuário quiser, pode atualizar
+                      // ou podemos atualizar o nome automaticamente se tiver rótulo de estrutura anterior
+                      const atualizado = aplicarEstruturaAoNomeKit(nome, novaEstrut)
+                      setNome(atualizado)
                     }
                   }}
                   className="w-full h-9.5 px-3 text-xs sm:text-sm bg-white border border-slate-200 rounded-lg text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
@@ -1365,22 +1381,37 @@ export default function KitsSolares() {
                   <Label htmlFor="kitNome" className="text-xs font-semibold text-slate-700">
                     Nome Comercial do Kit *
                   </Label>
-                  {isQuickMode && suggestedName && nome !== suggestedName && (
-                    <button
-                      type="button"
-                      onClick={() => setNome(suggestedName)}
-                      className="text-[11px] text-[#0B7A5B] hover:underline"
-                    >
-                      Usar sugestão: &quot;{suggestedName}&quot;
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {tipoEstrutura && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const comEstrutura = aplicarEstruturaAoNomeKit(nome, tipoEstrutura)
+                          if (comEstrutura) setNome(comEstrutura)
+                        }}
+                        className="text-[11px] text-blue-700 hover:text-blue-900 hover:underline font-medium"
+                        title="Inclui o tipo de estrutura atual ao nome do kit"
+                      >
+                        + Incluir estrutura no nome
+                      </button>
+                    )}
+                    {isQuickMode && suggestedName && nome !== suggestedName && (
+                      <button
+                        type="button"
+                        onClick={() => setNome(suggestedName)}
+                        className="text-[11px] text-[#0B7A5B] hover:underline"
+                      >
+                        Usar sugestão: &quot;{suggestedName}&quot;
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <Input
                   id="kitNome"
                   required
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
-                  placeholder="Ex: Kit Solar 6,1 kWp — Canadian Solar + Growatt"
+                  placeholder="Ex: Kit Solar 6,1 kWp — Canadian Solar + Growatt — Fibrocimento"
                   className="h-9.5 text-sm border-slate-200 focus-visible:ring-[#0B7A5B]"
                 />
               </div>

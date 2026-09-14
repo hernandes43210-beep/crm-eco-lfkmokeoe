@@ -390,7 +390,7 @@ export function EditarPropostaModal({
                 id="editKitNome"
                 value={kitNome}
                 onChange={(e) => setKitNome(e.target.value)}
-                placeholder="Ex: Kit Solar 5.5 kWp Canadian"
+                placeholder="Ex: Kit Solar 5.5 kWp Canadian — Fibrocimento"
                 required
                 className="h-9 text-xs"
               />
