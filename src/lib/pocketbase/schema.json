@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T21:08:30.731Z",
+  "generatedAt": "2026-09-15T18:46:14.967Z",
   "collections": [
     {
       "name": "users",
@@ -1218,12 +1218,6 @@
           "system": false
         },
         {
-          "name": "conteudo_html",
-          "type": "text",
-          "required": false,
-          "system": false
-        },
-        {
           "name": "arquivo_pdf",
           "type": "file",
           "required": false,
@@ -1249,6 +1243,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "conteudo_html",
+          "type": "editor",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

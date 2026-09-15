@@ -1,5 +1,6 @@
 import pb from '@/lib/pocketbase/client'
 import { FormalizacaoDocumento, FormalizacaoTipo, Lead, User } from '@/types/crm'
+import { toPortugueseErrorMessage } from '@/lib/errors'
 
 export interface SaveFormalizacaoPayload {
   lead: string
@@ -136,10 +137,26 @@ export const FormalizacaoService = {
             '[FormalizacaoService.saveDocumento] Falha também no fallback sem arquivo:',
             JSON.stringify(fallbackData || fallbackErr?.message || fallbackErr),
           )
-          throw fallbackErr
+          const mensagemPt = toPortugueseErrorMessage(
+            fallbackErr,
+            'Não foi possível salvar o documento de formalização. Verifique os dados e tente novamente.',
+          )
+          const customErr = new Error(mensagemPt)
+          ;(customErr as any).originalError = fallbackErr
+          ;(customErr as any).response = fallbackErr?.response
+          ;(customErr as any).data = fallbackErr?.data
+          throw customErr
         }
       } else {
-        throw err
+        const mensagemPt = toPortugueseErrorMessage(
+          err,
+          'Não foi possível salvar o documento de formalização. Verifique os dados e tente novamente.',
+        )
+        const customErr = new Error(mensagemPt)
+        ;(customErr as any).originalError = err
+        ;(customErr as any).response = err?.response
+        ;(customErr as any).data = err?.data
+        throw customErr
       }
     }
 

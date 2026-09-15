@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import pb from './pocketbase/client'
 
-describe('temp diagnose test', () => {
-  it('calls diagnose endpoint', async () => {
+describe('temp check field type', () => {
+  it('calls diagnose endpoint to inspect field', async () => {
     try {
       const res = await pb.send('/backend/v1/custom-diagnose-formalizacao', {
         method: 'POST',
