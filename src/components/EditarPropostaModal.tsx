@@ -31,6 +31,7 @@ import {
   DollarSign,
   Layers,
   SlidersHorizontal,
+  Boxes,
 } from 'lucide-react'
 import { KitsService } from '@/services/kits'
 import { ProposalsService } from '@/services/proposals'
@@ -61,6 +62,8 @@ import {
   type KitTechnicalSelectorsValues,
 } from '@/components/KitTechnicalSelectors'
 import { toast } from '@/hooks/use-toast'
+import { useKitFilters } from '@/hooks/useKitFilters'
+import { KitFilterBar } from '@/components/KitFilterBar'
 
 interface EditarPropostaModalProps {
   open: boolean
@@ -78,6 +81,22 @@ export function EditarPropostaModal({
   const [kits, setKits] = useState<Kit[]>([])
   const [loadingKits, setLoadingKits] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+
+  // Filtros compartilhados para seleção de kits
+  const {
+    searchTerm,
+    setSearchTerm,
+    selectedMarcaInversor,
+    setSelectedMarcaInversor,
+    selectedFaixaPotencia,
+    setSelectedFaixaPotencia,
+    selectedEstrutura,
+    setSelectedEstrutura,
+    marcasInversorDisponiveis,
+    hasActiveFilters,
+    handleClearFilters,
+    filteredKits,
+  } = useKitFilters(kits)
 
   // Form states
   const [selectedKitId, setSelectedKitId] = useState<string>('')
@@ -539,8 +558,8 @@ export function EditarPropostaModal({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-          {/* Seletor de Kit do Catálogo */}
-          <div className="p-3.5 rounded-lg bg-emerald-50/50 border border-emerald-100 space-y-2">
+          {/* Seletor de Kit do Catálogo com Filtros Idênticos à aba Kits Solares */}
+          <div className="p-3.5 rounded-lg bg-emerald-50/50 border border-emerald-100 space-y-2.5">
             <div className="flex items-center justify-between">
               <Label className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />
@@ -553,20 +572,45 @@ export function EditarPropostaModal({
               )}
             </div>
 
+            {/* Barra de Filtros Combináveis: Inversor, Potência, Estrutura, Busca + Contagem e Limpar */}
+            <KitFilterBar
+              searchTerm={searchTerm}
+              onSearchTermChange={setSearchTerm}
+              selectedMarcaInversor={selectedMarcaInversor}
+              onMarcaInversorChange={setSelectedMarcaInversor}
+              marcasInversorDisponiveis={marcasInversorDisponiveis}
+              selectedFaixaPotencia={selectedFaixaPotencia}
+              onFaixaPotenciaChange={setSelectedFaixaPotencia}
+              selectedEstrutura={selectedEstrutura}
+              onEstruturaChange={setSelectedEstrutura}
+              hasActiveFilters={hasActiveFilters}
+              onClearFilters={handleClearFilters}
+              totalKits={kits.length}
+              filteredCount={filteredKits.length}
+              compact={true}
+            />
+
             <Select value={selectedKitId} onValueChange={handleKitSelect}>
               <SelectTrigger className="h-10 text-xs bg-white border-emerald-200 focus:ring-[#0B7A5B]">
                 <SelectValue placeholder="Selecione um kit ou mantenha personalizado..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-72">
                 <SelectItem value="custom" className="text-xs font-semibold text-[#0B7A5B]">
                   ★ Personalizado (Digitar dados manualmente)
                 </SelectItem>
-                {kits.map((kit) => (
-                  <SelectItem key={kit.id} value={kit.id} className="text-xs">
-                    {kit.nome} — {kit.potencia_kw} kWp ({kit.categoria}) • Venda:{' '}
-                    {formatBRL(kit.preco_venda)}
-                  </SelectItem>
-                ))}
+                {filteredKits.length === 0 ? (
+                  <div className="p-3 text-center text-xs text-slate-500">
+                    <Boxes className="w-4 h-4 mx-auto mb-1 text-slate-400" />
+                    <span>Nenhum kit corresponde aos filtros aplicados</span>
+                  </div>
+                ) : (
+                  filteredKits.map((kit) => (
+                    <SelectItem key={kit.id} value={kit.id} className="text-xs">
+                      {kit.nome} — {kit.potencia_kw} kWp ({kit.categoria}) • Venda:{' '}
+                      {formatBRL(kit.preco_venda)}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
             <p className="text-[11px] text-emerald-800">

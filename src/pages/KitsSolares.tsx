@@ -44,6 +44,8 @@ import {
   formatarPotenciaKw,
   aplicarEstruturaAoNomeKit,
 } from '@/lib/quickKitUtils'
+import { useKitFilters, getKitEstrutura } from '@/hooks/useKitFilters'
+import { KitFilterBar } from '@/components/KitFilterBar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -107,12 +109,23 @@ export default function KitsSolares() {
   const [deleteKitId, setDeleteKitId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Filtros de busca, categoria, marca de inversor, faixa de potência e estrutura
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedCategoria, setSelectedCategoria] = useState<string>('all')
-  const [selectedMarcaInversor, setSelectedMarcaInversor] = useState<string>('all')
-  const [selectedFaixaPotencia, setSelectedFaixaPotencia] = useState<string>('all')
-  const [selectedEstrutura, setSelectedEstrutura] = useState<string>('all')
+  // Filtros de busca, categoria, marca de inversor, faixa de potência e estrutura via hook compartilhado
+  const {
+    searchTerm,
+    setSearchTerm,
+    selectedCategoria,
+    setSelectedCategoria,
+    selectedMarcaInversor,
+    setSelectedMarcaInversor,
+    selectedFaixaPotencia,
+    setSelectedFaixaPotencia,
+    selectedEstrutura,
+    setSelectedEstrutura,
+    marcasInversorDisponiveis,
+    hasActiveFilters,
+    handleClearFilters,
+    filteredKits,
+  } = useKitFilters(kits, { includeCategoria: true })
 
   const fetchKits = async () => {
     try {
@@ -453,136 +466,6 @@ export default function KitsSolares() {
     }
   }
 
-  // Lista dinâmica de marcas de inversor extraídas dos kits cadastrados
-  const marcasInversorDisponiveis = useMemo(() => {
-    const setMarcas = new Set<string>()
-
-    kits.forEach((k) => {
-      // 1. Campo direto kit.marca_inversor
-      if (k.marca_inversor && k.marca_inversor.trim()) {
-        setMarcas.add(k.marca_inversor.trim())
-      } else {
-        // 2. Extração inteligente via regex dos componentes do kit
-        const comp = extrairComponentesKit(k)
-        if (comp.marcaInversor && comp.marcaInversor.trim()) {
-          setMarcas.add(comp.marcaInversor.trim())
-        }
-      }
-    })
-
-    return Array.from(setMarcas).sort((a, b) =>
-      a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }),
-    )
-  }, [kits])
-
-  // Função auxiliar para obter a marca do inversor do kit (normalizada)
-  const getKitMarcaInversor = (k: Kit): string => {
-    if (k.marca_inversor && k.marca_inversor.trim()) {
-      return k.marca_inversor.trim()
-    }
-    const comp = extrairComponentesKit(k)
-    return (comp.marcaInversor || '').trim()
-  }
-
-  // Função auxiliar para obter o tipo de estrutura do kit
-  const getKitEstrutura = (k: Kit): string => {
-    return (
-      k.tipo_estrutura ||
-      (k.descricao && /monoposte|solo.*monoposte/i.test(k.descricao)
-        ? 'solo_monoposte'
-        : k.descricao && /mini\s*trilho/i.test(k.descricao)
-          ? 'mini_trilho'
-          : k.descricao && /fibrocimento/i.test(k.descricao)
-            ? 'fibrocimento'
-            : k.nome && /solo/i.test(k.nome)
-              ? 'solo_monoposte'
-              : '')
-    )
-  }
-  // Definição das faixas de potência do kit (kWp)
-  const FAIXAS_POTENCIA = [
-    { id: 'ate_5', label: 'Até 5 kWp', min: 0, max: 5 },
-    { id: '5_10', label: '5 a 10 kWp', min: 5.0001, max: 10 },
-    { id: '10_20', label: '10 a 20 kWp', min: 10.0001, max: 20 },
-    { id: '20_plus', label: '20+ kWp', min: 20.0001, max: Infinity },
-  ] as const
-
-  // Verifica se há algum filtro ativo (marca, faixa de potência, estrutura, busca ou categoria)
-  const hasActiveFilters =
-    selectedMarcaInversor !== 'all' ||
-    selectedFaixaPotencia !== 'all' ||
-    selectedEstrutura !== 'all' ||
-    selectedCategoria !== 'all' ||
-    searchTerm.trim().length > 0
-
-  const handleClearFilters = () => {
-    setSelectedMarcaInversor('all')
-    setSelectedFaixaPotencia('all')
-    setSelectedEstrutura('all')
-    setSelectedCategoria('all')
-    setSearchTerm('')
-  }
-
-  // Lista filtrada de kits combinando todos os filtros
-  const filteredKits = useMemo(() => {
-    return kits.filter((kit) => {
-      // 1. Filtro por Categoria
-      const matchesCategoria = selectedCategoria === 'all' || kit.categoria === selectedCategoria
-      if (!matchesCategoria) return false
-
-      // 2. Filtro por Marca do Inversor
-      if (selectedMarcaInversor !== 'all') {
-        const marca = getKitMarcaInversor(kit)
-        const matchesMarca =
-          marca.toLowerCase() === selectedMarcaInversor.toLowerCase() ||
-          marca.toLowerCase().includes(selectedMarcaInversor.toLowerCase())
-        if (!matchesMarca) return false
-      }
-
-      // 3. Filtro por Faixa de Potência do kit (kWp)
-      if (selectedFaixaPotencia !== 'all') {
-        const faixa = FAIXAS_POTENCIA.find((f) => f.id === selectedFaixaPotencia)
-        if (faixa) {
-          const pot = Number(kit.potencia_kw) || 0
-          if (faixa.id === 'ate_5') {
-            if (pot > faixa.max) return false
-          } else {
-            if (pot < faixa.min || pot > faixa.max) return false
-          }
-        }
-      }
-
-      // 4. Filtro por Tipo de Estrutura
-      if (selectedEstrutura !== 'all') {
-        const estKit = getKitEstrutura(kit)
-        if (estKit !== selectedEstrutura) return false
-      }
-
-      // 5. Filtro de Texto (busca livre)
-      const term = searchTerm.toLowerCase().trim()
-      if (term) {
-        const matchesTerm =
-          kit.nome.toLowerCase().includes(term) ||
-          (kit.fabricante && kit.fabricante.toLowerCase().includes(term)) ||
-          (kit.descricao && kit.descricao.toLowerCase().includes(term)) ||
-          (kit.marca_painel && kit.marca_painel.toLowerCase().includes(term)) ||
-          (kit.marca_inversor && kit.marca_inversor.toLowerCase().includes(term)) ||
-          (kit.tipo_estrutura && kit.tipo_estrutura.toLowerCase().includes(term)) ||
-          `${kit.potencia_kw}`.includes(term)
-        if (!matchesTerm) return false
-      }
-
-      return true
-    })
-  }, [
-    kits,
-    selectedCategoria,
-    selectedMarcaInversor,
-    selectedFaixaPotencia,
-    selectedEstrutura,
-    searchTerm,
-  ])
-
   return (
     <div className="space-y-6 select-none animate-fade-in-up pb-12">
       {/* Header */}
@@ -614,168 +497,25 @@ export default function KitsSolares() {
         </Button>
       </div>
 
-      {/* Barra Completa de Filtros Combináveis */}
-      <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs space-y-3">
-        {/* Linha 1: Busca de texto e Tabs de Categoria */}
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <Input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por nome, inversor, painel ou potência..."
-              className="pl-9 pr-8 h-9 text-xs sm:text-sm border-slate-200 focus-visible:ring-[#0B7A5B]"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                title="Limpar busca"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200/80 text-xs font-medium">
-              <button
-                type="button"
-                onClick={() => setSelectedCategoria('all')}
-                className={`px-2.5 py-1 rounded-md transition-all ${
-                  selectedCategoria === 'all'
-                    ? 'bg-white text-slate-900 font-bold shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Todas categorias ({kits.length})
-              </button>
-              {CATEGORIAS.map((cat) => {
-                const count = kits.filter((k) => k.categoria === cat).length
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setSelectedCategoria(cat)}
-                    className={`px-2.5 py-1 rounded-md transition-all ${
-                      selectedCategoria === cat
-                        ? 'bg-white text-[#0B7A5B] font-bold shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {cat} ({count})
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Linha 2: Dropdowns Combináveis (Marca do Inversor, Faixa de Potência, Tipo de Estrutura) + Contagem e Limpar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
-          <div className="flex flex-wrap items-center gap-2.5 flex-1">
-            {/* Ícone de filtros */}
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 mr-1">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
-              <span>Filtros:</span>
-            </div>
-
-            {/* 1. Filtro por Marca do Inversor */}
-            <div className="flex items-center gap-1.5">
-              <Label className="text-xs text-slate-500 font-medium whitespace-nowrap hidden sm:inline">
-                Inversor:
-              </Label>
-              <select
-                value={selectedMarcaInversor}
-                onChange={(e) => setSelectedMarcaInversor(e.target.value)}
-                className="h-8 px-2.5 text-xs bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-[#0B7A5B] cursor-pointer transition-colors"
-                title="Filtrar por marca do inversor"
-              >
-                <option value="all">Todas as marcas de inversor</option>
-                {marcasInversorDisponiveis.map((marca) => (
-                  <option key={marca} value={marca}>
-                    {marca}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 2. Filtro por Faixa de Potência (kWp) */}
-            <div className="flex items-center gap-1.5">
-              <Label className="text-xs text-slate-500 font-medium whitespace-nowrap hidden sm:inline">
-                Potência:
-              </Label>
-              <select
-                value={selectedFaixaPotencia}
-                onChange={(e) => setSelectedFaixaPotencia(e.target.value)}
-                className="h-8 px-2.5 text-xs bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-[#0B7A5B] cursor-pointer transition-colors"
-                title="Filtrar por faixa de potência do kit"
-              >
-                <option value="all">Todas as potências</option>
-                {FAIXAS_POTENCIA.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 3. Filtro por Tipo de Estrutura */}
-            <div className="flex items-center gap-1.5">
-              <Label className="text-xs text-slate-500 font-medium whitespace-nowrap hidden sm:inline">
-                Estrutura:
-              </Label>
-              <select
-                value={selectedEstrutura}
-                onChange={(e) => setSelectedEstrutura(e.target.value)}
-                className="h-8 px-2.5 text-xs bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-[#0B7A5B] cursor-pointer transition-colors"
-                title="Filtrar por tipo de estrutura"
-              >
-                <option value="all">Todas as estruturas</option>
-                {TIPOS_ESTRUTURA_OPCOES.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Lado direito: Contagem de resultados e Botão Limpar Filtros */}
-          <div className="flex items-center gap-3">
-            {/* Contagem de resultados visível */}
-            <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/80">
-              {filteredKits.length === kits.length ? (
-                `${kits.length} kits`
-              ) : (
-                <>
-                  <strong className="text-[#0B7A5B] font-bold">{filteredKits.length}</strong> de{' '}
-                  {kits.length} kits
-                </>
-              )}
-            </span>
-
-            {/* Botão Limpar Filtros */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleClearFilters}
-              disabled={!hasActiveFilters}
-              className={`h-8 px-2.5 text-xs font-semibold gap-1 transition-all ${
-                hasActiveFilters
-                  ? 'text-rose-600 hover:text-rose-700 hover:bg-rose-50'
-                  : 'text-slate-300 pointer-events-none'
-              }`}
-              title="Resetar todos os filtros de busca"
-            >
-              <X className="w-3.5 h-3.5" />
-              <span>Limpar filtros</span>
-            </Button>
-          </div>
-        </div>
-      </div>
+      {/* Barra Completa de Filtros Compartilhada */}
+      <KitFilterBar
+        searchTerm={searchTerm}
+        onSearchTermChange={setSearchTerm}
+        selectedMarcaInversor={selectedMarcaInversor}
+        onMarcaInversorChange={setSelectedMarcaInversor}
+        marcasInversorDisponiveis={marcasInversorDisponiveis}
+        selectedFaixaPotencia={selectedFaixaPotencia}
+        onFaixaPotenciaChange={setSelectedFaixaPotencia}
+        selectedEstrutura={selectedEstrutura}
+        onEstruturaChange={setSelectedEstrutura}
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={handleClearFilters}
+        totalKits={kits.length}
+        filteredCount={filteredKits.length}
+        selectedCategoria={selectedCategoria}
+        onCategoriaChange={setSelectedCategoria}
+        categoriasList={CATEGORIAS}
+      />
       {loading ? (
         <div className="p-16 text-center text-slate-400">
           <div className="w-8 h-8 border-2 border-[#0B7A5B] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
