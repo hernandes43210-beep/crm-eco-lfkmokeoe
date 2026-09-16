@@ -19,7 +19,10 @@ import {
   SlidersHorizontal,
   Search,
   X,
+  Share2,
+  Image as ImageIcon,
 } from 'lucide-react'
+import { KitMarketingModal } from '@/components/KitMarketingModal'
 import { KitsService } from '@/services/kits'
 import type { Kit, KitCategoria, KitTipoEstrutura } from '@/types/crm'
 import useRealtime from '@/hooks/use-realtime'
@@ -80,6 +83,10 @@ export default function KitsSolares() {
   const [isCloning, setIsCloning] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [errorBanner, setErrorBanner] = useState('')
+
+  // Marketing modal state
+  const [marketingKit, setMarketingKit] = useState<Kit | null>(null)
+  const [isMarketingModalOpen, setIsMarketingModalOpen] = useState(false)
 
   // Form Fields
   const [nome, setNome] = useState('')
@@ -572,6 +579,21 @@ export default function KitsSolares() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 -mr-1.5 -mt-1">
+                    {/* Botão Gerar Foto de Marketing direto no header do card */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setMarketingKit(kit)
+                        setIsMarketingModalOpen(true)
+                      }}
+                      title="Gerar foto de marketing deste kit"
+                      className="h-7 w-7 text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      <span className="sr-only">Gerar foto de marketing</span>
+                    </Button>
+
                     {/* Botão Clonar direto no card para fácil acesso por qualquer usuário */}
                     <Button
                       variant="ghost"
@@ -594,7 +616,17 @@ export default function KitsSolares() {
                           <MoreVertical className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-36">
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setMarketingKit(kit)
+                            setIsMarketingModalOpen(true)
+                          }}
+                          className="font-medium text-slate-800"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 mr-2 text-amber-500" />
+                          <span>Foto de marketing</span>
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleCloneKit(kit)}>
                           <Copy className="w-3.5 h-3.5 mr-2 text-[#0B7A5B]" />
                           <span>Clonar kit</span>
@@ -731,11 +763,37 @@ export default function KitsSolares() {
                     {formatBRL(kit.preco_venda)}
                   </span>
                 </div>
+
+                {/* Botão dedicado em destaque: Gerar Foto de Marketing */}
+                <div className="pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setMarketingKit(kit)
+                      setIsMarketingModalOpen(true)
+                    }}
+                    className="w-full h-8 text-xs font-semibold text-slate-700 hover:text-amber-900 bg-slate-50 hover:bg-amber-50/80 border-slate-200 hover:border-amber-300 gap-1.5 transition-all"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Gerar foto de marketing</span>
+                  </Button>
+                </div>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Modal de Gerar Foto de Marketing */}
+      <KitMarketingModal
+        kit={marketingKit}
+        open={isMarketingModalOpen}
+        onOpenChange={(open) => {
+          setIsMarketingModalOpen(open)
+          if (!open) setMarketingKit(null)
+        }}
+      />
 
       {/* Kit Creation / Editing Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
