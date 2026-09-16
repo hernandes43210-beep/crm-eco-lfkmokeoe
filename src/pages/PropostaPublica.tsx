@@ -154,6 +154,9 @@ export default function PropostaPublica() {
       custo: proposta.custo,
       margem: proposta.margem,
       preco_venda: proposta.preco_venda,
+      desconto_percentual: proposta.desconto_percentual,
+      valor_desconto: proposta.valor_desconto,
+      valor_bruto: proposta.valor_bruto,
       validade_dias: proposta.validade_dias,
       data_validade: proposta.data_validade,
       condicoes_pagamento: proposta.condicoes_pagamento,
@@ -1013,9 +1016,35 @@ export default function PropostaPublica() {
             <span className="text-[11px] uppercase tracking-wider font-extrabold text-amber-300 block">
               Valor Total do Projeto
             </span>
-            <span className="text-3xl sm:text-4xl font-black text-amber-300 font-mono-numbers block tracking-tight my-1.5">
-              {formatBRL(proposta.preco_venda)}
-            </span>
+            {proposta.desconto_percentual && proposta.desconto_percentual > 0 ? (
+              <div className="my-1.5 space-y-0.5">
+                <div className="flex items-center justify-end gap-2">
+                  <span className="line-through text-slate-300/80 font-mono-numbers text-sm sm:text-base">
+                    {formatBRL(proposta.valor_bruto || proposta.preco_venda)}
+                  </span>
+                  <span className="bg-emerald-500 text-white font-black text-[10px] uppercase px-2 py-0.5 rounded">
+                    -{proposta.desconto_percentual}% OFF
+                  </span>
+                </div>
+                <span className="text-3xl sm:text-4xl font-black text-amber-300 font-mono-numbers block tracking-tight">
+                  {formatBRL(proposta.preco_venda)}
+                </span>
+                <span className="text-[11px] text-emerald-300 font-semibold block">
+                  Economia imediata de{' '}
+                  {formatBRL(
+                    proposta.valor_desconto ||
+                      Math.max(
+                        0,
+                        (proposta.valor_bruto || proposta.preco_venda) - proposta.preco_venda,
+                      ),
+                  )}
+                </span>
+              </div>
+            ) : (
+              <span className="text-3xl sm:text-4xl font-black text-amber-300 font-mono-numbers block tracking-tight my-1.5">
+                {formatBRL(proposta.preco_venda)}
+              </span>
+            )}
             <span className="text-xs text-slate-200 block font-medium">
               Sem surpresas • Tudo incluso
             </span>

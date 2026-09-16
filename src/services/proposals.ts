@@ -11,6 +11,9 @@ export interface CreatePropostaPayload {
   custo: number
   margem: number
   preco_venda: number
+  desconto_percentual?: number
+  valor_desconto?: number
+  valor_bruto?: number
   validade_dias: number
   data_validade: string
   condicoes_pagamento?: string
@@ -89,9 +92,25 @@ export const ProposalsService = {
   },
 
   async createProposta(data: CreatePropostaPayload) {
-    return await pb.collection('propostas').create<Proposta>(data, {
+    const created = await pb.collection('propostas').create<Proposta>(data, {
       expand: 'lead,kit,criado_por',
     })
+
+    // Sincronizar o preco_venda final da proposta no lead para garantir que o KPI "Receita em Jogo" reflita o valor com desconto
+    if (data.lead && data.preco_venda && data.preco_venda > 0) {
+      try {
+        await pb.collection('leads').update(data.lead, {
+          preco_venda: data.preco_venda,
+        })
+      } catch (leadSyncErr) {
+        console.warn(
+          'Aviso: Não foi possível atualizar preco_venda no lead ao criar proposta:',
+          leadSyncErr,
+        )
+      }
+    }
+
+    return created
   },
 
   async updateProposta(
@@ -363,6 +382,9 @@ export const ProposalsService = {
           custo: found.custo,
           margem: found.margem,
           preco_venda: found.preco_venda,
+          desconto_percentual: found.desconto_percentual ?? 0,
+          valor_desconto: found.valor_desconto ?? 0,
+          valor_bruto: found.valor_bruto ?? found.preco_venda,
           validade_dias: found.validade_dias,
           data_validade: found.data_validade,
           condicoes_pagamento: found.condicoes_pagamento,

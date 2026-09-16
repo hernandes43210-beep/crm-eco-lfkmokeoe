@@ -84,13 +84,18 @@ export function FormalizacaoDocEditorModal({
 
   // Estado do formulário de CONTRATO
   const [contratoState, setContratoState] = useState<DadosContratoFormalizacao>(() => {
-    const valorTotal = proposta?.preco_venda || lead.preco_venda || 0
+    const valorBrutoBase = proposta?.valor_bruto || proposta?.preco_venda || lead.preco_venda || 0
+    const valorFinalBase = proposta?.preco_venda || lead.preco_venda || 0
+    const descontoReaisBase =
+      proposta?.valor_desconto !== undefined && proposta.valor_desconto > 0
+        ? proposta.valor_desconto
+        : Math.max(0, valorBrutoBase - valorFinalBase)
     const pot = proposta?.kit_potencia_kw || specs.potenciaTotalKwp || 0
-    const parcelaEntrada = valorTotal > 0 ? valorTotal * 0.5 : 0
-    const parcelaFinal = valorTotal > 0 ? valorTotal * 0.5 : 0
+    const parcelaEntrada = valorFinalBase > 0 ? valorFinalBase * 0.5 : 0
+    const parcelaFinal = valorFinalBase > 0 ? valorFinalBase * 0.5 : 0
     const condPagtoDefault =
       proposta?.condicoes_pagamento ||
-      (valorTotal > 0
+      (valorFinalBase > 0
         ? `Na assinatura do contrato o valor de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parcelaEntrada)}. No fim da Instalação ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parcelaFinal)}.`
         : 'Na assinatura do contrato 50% do valor. No fim da Instalação 50% do valor.')
 
@@ -147,9 +152,9 @@ export function FormalizacaoDocEditorModal({
       kitDescricao: (proposta as any)?.kit_descricao || '',
       kitStringBox: (proposta as any)?.kit_string_box || '',
       tabelaEquipamentos: tabelaItens,
-      valorTotal: valorTotal,
-      descontoAvista: 0,
-      valorFinal: valorTotal,
+      valorTotal: valorBrutoBase,
+      descontoAvista: descontoReaisBase,
+      valorFinal: valorFinalBase,
       condicoesPagamento: condPagtoDefault,
       parcelaEntrada: parcelaEntrada,
       parcelaFinal: parcelaFinal,
@@ -184,7 +189,12 @@ export function FormalizacaoDocEditorModal({
   // Recarregar campos se o lead ou proposta mudarem ao abrir
   React.useEffect(() => {
     if (open) {
-      const valorTotal = proposta?.preco_venda || lead.preco_venda || 0
+      const valorBrutoBase = proposta?.valor_bruto || proposta?.preco_venda || lead.preco_venda || 0
+      const valorFinalBase = proposta?.preco_venda || lead.preco_venda || 0
+      const descontoReaisBase =
+        proposta?.valor_desconto !== undefined && proposta.valor_desconto > 0
+          ? proposta.valor_desconto
+          : Math.max(0, valorBrutoBase - valorFinalBase)
       const pot = proposta?.kit_potencia_kw || specs.potenciaTotalKwp || 0
       const kitPotStr = pot
         ? typeof pot === 'number'
@@ -239,11 +249,12 @@ export function FormalizacaoDocEditorModal({
         kitDescricao: (proposta as any)?.kit_descricao || prev.kitDescricao,
         kitStringBox: (proposta as any)?.kit_string_box || prev.kitStringBox,
         tabelaEquipamentos: recarregaTabela.length > 0 ? recarregaTabela : prev.tabelaEquipamentos,
-        valorTotal: valorTotal || prev.valorTotal,
-        valorFinal: valorTotal || prev.valorFinal,
+        valorTotal: valorBrutoBase || prev.valorTotal,
+        descontoAvista: descontoReaisBase ?? prev.descontoAvista,
+        valorFinal: valorFinalBase || prev.valorFinal,
         condicoesPagamento: proposta?.condicoes_pagamento || prev.condicoesPagamento,
-        parcelaEntrada: valorTotal ? valorTotal * 0.5 : prev.parcelaEntrada,
-        parcelaFinal: valorTotal ? valorTotal * 0.5 : prev.parcelaFinal,
+        parcelaEntrada: valorFinalBase ? valorFinalBase * 0.5 : prev.parcelaEntrada,
+        parcelaFinal: valorFinalBase ? valorFinalBase * 0.5 : prev.parcelaFinal,
       }))
 
       setProcuracaoState((prev) => ({

@@ -297,6 +297,9 @@ export interface Proposta extends RecordModel {
   custo: number
   margem: number
   preco_venda: number
+  desconto_percentual?: number
+  valor_desconto?: number
+  valor_bruto?: number
   validade_dias?: number
   data_validade: string
   condicoes_pagamento?: string
@@ -353,6 +356,9 @@ export interface PublicProposta {
   custo: number
   margem: number
   preco_venda: number
+  desconto_percentual?: number
+  valor_desconto?: number
+  valor_bruto?: number
   validade_dias?: number
   data_validade: string
   condicoes_pagamento?: string

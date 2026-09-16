@@ -82,6 +82,8 @@ export function GerarPropostaModal({
   const [kitFabricante, setKitFabricante] = useState('')
   const [custo, setCusto] = useState<number | string>('')
   const [margem, setMargem] = useState<number | string>(25)
+  const [valorBruto, setValorBruto] = useState<number | string>('')
+  const [descontoPercentualStr, setDescontoPercentualStr] = useState<string>('')
   const [precoVenda, setPrecoVenda] = useState<number | string>('')
   const [validadeDias, setValidadeDias] = useState<number>(15)
   const [condicoesPagamento, setCondicoesPagamento] = useState(
@@ -201,12 +203,18 @@ export function GerarPropostaModal({
       stringBox: kit.string_box || componentes.stringBox || '',
     })
 
-    // Preço de venda
-    if (kit.preco_venda) {
-      setPrecoVenda(kit.preco_venda)
-    } else if (kit.custo && kit.margem < 100) {
-      const calc = kit.custo / (1 - kit.margem / 100)
-      setPrecoVenda(Math.round(calc * 100) / 100)
+    // Preço bruto e de venda
+    let precoBrutoCalc = kit.preco_venda
+    if (!precoBrutoCalc && kit.custo && kit.margem < 100) {
+      precoBrutoCalc = Math.round((kit.custo / (1 - kit.margem / 100)) * 100) / 100
+    }
+    setValorBruto(precoBrutoCalc || '')
+    const descPct = parseFloat(descontoPercentualStr.replace(',', '.')) || 0
+    if (descPct > 0 && descPct <= 90 && precoBrutoCalc) {
+      const descVal = Math.round(((precoBrutoCalc * descPct) / 100) * 100) / 100
+      setPrecoVenda(Math.round((precoBrutoCalc - descVal) * 100) / 100)
+    } else {
+      setPrecoVenda(precoBrutoCalc || '')
     }
   }
 
@@ -250,7 +258,14 @@ export function GerarPropostaModal({
       setKitFabricante('TSUN POWER / Sungrow')
       setCusto(12000)
       setMargem(25)
-      setPrecoVenda(16000)
+      setValorBruto(16000)
+      const descPct = parseFloat(descontoPercentualStr.replace(',', '.')) || 0
+      if (descPct > 0 && descPct <= 90) {
+        const descVal = Math.round(((16000 * descPct) / 100) * 100) / 100
+        setPrecoVenda(Math.round((16000 - descVal) * 100) / 100)
+      } else {
+        setPrecoVenda(16000)
+      }
       return
     }
 
@@ -310,14 +325,26 @@ export function GerarPropostaModal({
     }
   }
 
+  // Atualiza preço final a partir de valor bruto e desconto em %
+  const recalcularValoresComDesconto = (novoBruto: number, novoDescontoStr: string) => {
+    const descPct = parseFloat(novoDescontoStr.replace(',', '.')) || 0
+    if (descPct > 0 && descPct <= 90 && novoBruto > 0) {
+      const descVal = Math.round(((novoBruto * descPct) / 100) * 100) / 100
+      setPrecoVenda(Math.round(Math.max(0, novoBruto - descVal) * 100) / 100)
+    } else {
+      setPrecoVenda(novoBruto > 0 ? novoBruto : '')
+    }
+  }
+
   // Recalcular preço de venda quando custo ou margem são alterados manualmente
   const handleCustoChange = (val: string) => {
     setCusto(val)
     const numCusto = parseFloat(val) || 0
     const numMargem = parseFloat(String(margem)) || 0
     if (numCusto > 0 && numMargem >= 0 && numMargem < 100) {
-      const calc = numCusto / (1 - numMargem / 100)
-      setPrecoVenda(Math.round(calc * 100) / 100)
+      const calc = Math.round((numCusto / (1 - numMargem / 100)) * 100) / 100
+      setValorBruto(calc)
+      recalcularValoresComDesconto(calc, descontoPercentualStr)
     }
   }
 
@@ -326,9 +353,23 @@ export function GerarPropostaModal({
     const numMargem = parseFloat(val) || 0
     const numCusto = parseFloat(String(custo)) || 0
     if (numCusto > 0 && numMargem >= 0 && numMargem < 100) {
-      const calc = numCusto / (1 - numMargem / 100)
-      setPrecoVenda(Math.round(calc * 100) / 100)
+      const calc = Math.round((numCusto / (1 - numMargem / 100)) * 100) / 100
+      setValorBruto(calc)
+      recalcularValoresComDesconto(calc, descontoPercentualStr)
     }
+  }
+
+  const handleValorBrutoChange = (val: string) => {
+    setValorBruto(val)
+    const numBruto = parseFloat(val) || 0
+    recalcularValoresComDesconto(numBruto, descontoPercentualStr)
+  }
+
+  const handleDescontoPercentualChange = (val: string) => {
+    // Permite digitação com vírgula ou ponto (ex: 5 ou 7,5)
+    setDescontoPercentualStr(val)
+    const numBruto = parseFloat(String(valorBruto)) || parseFloat(String(precoVenda)) || 0
+    recalcularValoresComDesconto(numBruto, val)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -345,6 +386,18 @@ export function GerarPropostaModal({
     const numCusto = parseFloat(String(custo)) || 0
     const numMargem = parseFloat(String(margem)) || 0
     const numPrecoVenda = parseFloat(String(precoVenda)) || 0
+    const descPctParsed = parseFloat(descontoPercentualStr.replace(',', '.')) || 0
+
+    if (descontoPercentualStr.trim() !== '') {
+      if (isNaN(descPctParsed) || descPctParsed < 0 || descPctParsed > 90) {
+        toast({
+          title: 'Desconto inválido',
+          description: 'O desconto deve ser um valor percentual entre 0% e 90%.',
+          variant: 'destructive',
+        })
+        return
+      }
+    }
 
     if (numPrecoVenda <= 0) {
       toast({
@@ -354,6 +407,15 @@ export function GerarPropostaModal({
       })
       return
     }
+
+    const numBrutoFinal =
+      parseFloat(String(valorBruto)) ||
+      (descPctParsed > 0
+        ? Math.round((numPrecoVenda / (1 - descPctParsed / 100)) * 100) / 100
+        : numPrecoVenda)
+
+    const numValorDesconto =
+      descPctParsed > 0 ? Math.round(Math.max(0, numBrutoFinal - numPrecoVenda) * 100) / 100 : 0
 
     try {
       setSubmitting(true)
@@ -388,6 +450,9 @@ export function GerarPropostaModal({
         custo: numCusto,
         margem: numMargem,
         preco_venda: numPrecoVenda,
+        desconto_percentual: descPctParsed > 0 ? descPctParsed : 0,
+        valor_desconto: numValorDesconto,
+        valor_bruto: numBrutoFinal,
         validade_dias: Number(validadeDias) || 15,
         data_validade: validadeIso,
         condicoes_pagamento: condicoesPagamento.trim(),
@@ -612,58 +677,142 @@ export function GerarPropostaModal({
             />
           </div>
 
-          {/* Precificação: Custo, Margem, Preço de Venda */}
-          <div className="p-3 rounded-lg border border-slate-200 bg-slate-50/70 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <Label htmlFor="propCusto" className="text-xs font-semibold text-slate-700">
-                Preço de Custo (R$) *
-              </Label>
-              <Input
-                id="propCusto"
-                type="number"
-                step="0.01"
-                min="0"
-                value={custo}
-                onChange={(e) => handleCustoChange(e.target.value)}
-                placeholder="Ex: 15000"
-                required
-                className="h-9 text-xs font-mono-numbers bg-white"
-              />
+          {/* Precificação: Custo, Margem, Valor Bruto do Kit, Desconto em % e Preço de Venda Final */}
+          <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-800">
+                Precificação e Condições Comerciais
+              </span>
+              <span className="text-[11px] text-slate-500 font-medium">
+                Desconto opcional em % com recálculo em tempo real
+              </span>
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="propMargem" className="text-xs font-semibold text-slate-700">
-                Margem Comercial (%)
-              </Label>
-              <Input
-                id="propMargem"
-                type="number"
-                step="0.1"
-                min="0"
-                max="99"
-                value={margem}
-                onChange={(e) => handleMargemChange(e.target.value)}
-                placeholder="Ex: 25"
-                className="h-9 text-xs font-mono-numbers bg-white"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="propCusto" className="text-xs font-semibold text-slate-700">
+                  Preço de Custo (R$) *
+                </Label>
+                <Input
+                  id="propCusto"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={custo}
+                  onChange={(e) => handleCustoChange(e.target.value)}
+                  placeholder="Ex: 15000"
+                  required
+                  className="h-9 text-xs font-mono-numbers bg-white"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="propMargem" className="text-xs font-semibold text-slate-700">
+                  Margem (%)
+                </Label>
+                <Input
+                  id="propMargem"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="99"
+                  value={margem}
+                  onChange={(e) => handleMargemChange(e.target.value)}
+                  placeholder="Ex: 25"
+                  className="h-9 text-xs font-mono-numbers bg-white"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="propValorBruto" className="text-xs font-semibold text-slate-700">
+                  Valor Bruto do Kit (R$) *
+                </Label>
+                <Input
+                  id="propValorBruto"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={valorBruto}
+                  onChange={(e) => handleValorBrutoChange(e.target.value)}
+                  placeholder="Ex: 20000"
+                  className="h-9 text-xs font-semibold font-mono-numbers bg-white"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <Label
+                    htmlFor="propDescontoPct"
+                    className="text-xs font-semibold text-emerald-900"
+                  >
+                    Desconto (%)
+                  </Label>
+                  <span className="text-[10px] text-slate-500">0% a 90%</span>
+                </div>
+                <Input
+                  id="propDescontoPct"
+                  type="text"
+                  inputMode="decimal"
+                  value={descontoPercentualStr}
+                  onChange={(e) => handleDescontoPercentualChange(e.target.value)}
+                  placeholder="Ex: 5 ou 7,5"
+                  className="h-9 text-xs font-mono-numbers bg-white border-emerald-300 focus-visible:ring-emerald-500"
+                />
+              </div>
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="propVenda" className="text-xs font-bold text-emerald-900">
-                Preço de Venda Final (R$) *
-              </Label>
-              <Input
-                id="propVenda"
-                type="number"
-                step="0.01"
-                min="0"
-                value={precoVenda}
-                onChange={(e) => setPrecoVenda(e.target.value)}
-                placeholder="Ex: 20000"
-                required
-                className="h-9 text-xs font-bold font-mono-numbers bg-white border-emerald-400 text-emerald-900"
-              />
-            </div>
+            {/* Painel de Cálculo em Tempo Real do Desconto */}
+            {(() => {
+              const numBruto = parseFloat(String(valorBruto)) || parseFloat(String(precoVenda)) || 0
+              const numDescPct = parseFloat(descontoPercentualStr.replace(',', '.')) || 0
+              const temDesconto = numDescPct > 0 && numDescPct <= 90
+              const numDescReais = temDesconto
+                ? Math.round(((numBruto * numDescPct) / 100) * 100) / 100
+                : 0
+              const numFinal = Math.max(0, numBruto - numDescReais)
+
+              return (
+                <div
+                  className={`p-3 rounded-lg border transition-all ${
+                    temDesconto
+                      ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950'
+                      : 'bg-white border-slate-200 text-slate-800'
+                  }`}
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">
+                        Valor Bruto do Kit
+                      </span>
+                      <span className="text-sm font-bold font-mono-numbers">
+                        {numBruto > 0 ? formatBRL(numBruto) : 'R$ 0,00'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-800 block">
+                        Desconto Aplicado ({temDesconto ? `${descontoPercentualStr}%` : '0%'})
+                      </span>
+                      <span className="text-sm font-bold text-emerald-700 font-mono-numbers">
+                        {temDesconto ? `- ${formatBRL(numDescReais)}` : 'R$ 0,00'}
+                      </span>
+                    </div>
+
+                    <div className="sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200 sm:border-l sm:pl-3">
+                      <span className="text-[10px] uppercase font-black tracking-wider text-emerald-950 block">
+                        VALOR FINAL DA PROPOSTA
+                      </span>
+                      <span className="text-lg sm:text-xl font-black text-[#0B7A5B] font-mono-numbers block">
+                        {formatBRL(numFinal > 0 ? numFinal : numBruto)}
+                      </span>
+                      <span className="text-[10px] text-slate-500">
+                        {temDesconto ? 'Valor com desconto comercial aplicado' : 'Sem desconto'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
           </div>
 
           {/* Validade */}

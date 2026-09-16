@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-16T14:53:39.370Z",
+  "generatedAt": "2026-09-16T21:36:25.795Z",
   "collections": [
     {
       "name": "users",
@@ -984,6 +984,24 @@
           "required": false,
           "system": false,
           "selectValues": ["1_entrada", "2_entradas", "3_entradas"]
+        },
+        {
+          "name": "desconto_percentual",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_desconto",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_bruto",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

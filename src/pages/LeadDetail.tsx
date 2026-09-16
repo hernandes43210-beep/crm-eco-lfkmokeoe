@@ -897,6 +897,9 @@ export default function LeadDetail() {
       custo: prop.custo,
       margem: prop.margem,
       preco_venda: prop.preco_venda,
+      desconto_percentual: prop.desconto_percentual,
+      valor_desconto: prop.valor_desconto,
+      valor_bruto: prop.valor_bruto,
       validade_dias: prop.validade_dias,
       data_validade: prop.data_validade,
       condicoes_pagamento: prop.condicoes_pagamento,
@@ -1974,13 +1977,27 @@ export default function LeadDetail() {
                           ) : null}
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
-                          <span>
-                            Valor da Venda:{' '}
-                            <strong className="text-slate-900 font-bold font-mono-numbers text-sm text-[#0B7A5B]">
-                              {formatBRL(prop.preco_venda)}
-                            </strong>
-                          </span>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-600">
+                          <div className="inline-flex items-center gap-1.5 flex-wrap">
+                            <span className="text-slate-500">Valor da Proposta:</span>
+                            {prop.desconto_percentual && prop.desconto_percentual > 0 ? (
+                              <>
+                                <span className="line-through text-slate-400 font-mono-numbers text-xs">
+                                  {formatBRL(prop.valor_bruto || prop.preco_venda)}
+                                </span>
+                                <Badge className="bg-emerald-100 hover:bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] px-1.5 py-0 font-bold">
+                                  -{prop.desconto_percentual}% OFF
+                                </Badge>
+                                <strong className="text-slate-900 font-extrabold font-mono-numbers text-base text-[#0B7A5B]">
+                                  {formatBRL(prop.preco_venda)}
+                                </strong>
+                              </>
+                            ) : (
+                              <strong className="text-slate-900 font-bold font-mono-numbers text-sm text-[#0B7A5B]">
+                                {formatBRL(prop.preco_venda)}
+                              </strong>
+                            )}
+                          </div>
                           <span>
                             Custo:{' '}
                             <span className="font-mono-numbers">{formatBRL(prop.custo)}</span>
@@ -2452,7 +2469,10 @@ export default function LeadDetail() {
               }
               return [nova, ...prev]
             })
-            fetchLead() // Recarrega para obter possível histórico atualizado
+            if (nova.preco_venda) {
+              setPrecoVenda(nova.preco_venda)
+            }
+            fetchLead() // Recarrega para obter possível histórico atualizado e preco_venda sincronizado
           }}
         />
       )}

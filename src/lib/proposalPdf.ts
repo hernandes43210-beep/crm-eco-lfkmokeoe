@@ -21,6 +21,9 @@ export interface ProposalPDFData {
   custo?: number
   margem?: number
   preco_venda: number
+  desconto_percentual?: number
+  valor_desconto?: number
+  valor_bruto?: number
   validade_dias?: number
   data_validade: string
   condicoes_pagamento?: string
@@ -1208,7 +1211,28 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     </div>
     <div style="text-align: right; min-width: 180px;">
       <span style="font-size: 9px; text-transform: uppercase; color: #E2E8F0; display: block; font-weight: 700;">Valor Total</span>
-      <span style="font-size: 26px; font-weight: 900; color: #FACC15; font-family: monospace; letter-spacing: -0.5px;">${formatBRL(data.preco_venda)}</span>
+      ${
+        data.desconto_percentual && data.desconto_percentual > 0
+          ? `
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 2px;">
+          <span style="text-decoration: line-through; font-size: 13px; color: #CBD5E1; font-family: monospace;">
+            ${formatBRL(data.valor_bruto || data.preco_venda)}
+          </span>
+          <span style="background: #10B981; color: #ffffff; font-size: 8.5px; font-weight: 900; padding: 1px 5px; border-radius: 3px; text-transform: uppercase;">
+            -${data.desconto_percentual}% OFF
+          </span>
+        </div>
+        <span style="font-size: 26px; font-weight: 900; color: #FACC15; font-family: monospace; letter-spacing: -0.5px; display: block; margin-top: 2px;">
+          ${formatBRL(data.preco_venda)}
+        </span>
+        <span style="font-size: 8.5px; color: #86EFAC; display: block;">
+          Desconto de ${formatBRL(data.valor_desconto || Math.max(0, (data.valor_bruto || data.preco_venda) - data.preco_venda))}
+        </span>
+      `
+          : `
+        <span style="font-size: 26px; font-weight: 900; color: #FACC15; font-family: monospace; letter-spacing: -0.5px;">${formatBRL(data.preco_venda)}</span>
+      `
+      }
     </div>
   </div>
 

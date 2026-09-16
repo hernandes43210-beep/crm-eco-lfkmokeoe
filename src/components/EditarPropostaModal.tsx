@@ -105,8 +105,9 @@ export function EditarPropostaModal({
   const [kitFabricante, setKitFabricante] = useState('')
   const [custo, setCusto] = useState<number | string>('')
   const [margem, setMargem] = useState<number | string>(25)
+  const [valorBruto, setValorBruto] = useState<number | string>('')
+  const [descontoPercentualStr, setDescontoPercentualStr] = useState<string>('')
   const [precoVenda, setPrecoVenda] = useState<number | string>('')
-  const [descontoReais, setDescontoReais] = useState<number | string>(0)
   const [validadeDias, setValidadeDias] = useState<number>(15)
   const [status, setStatus] = useState<PropostaStatus>('Enviada')
   const [condicoesPagamento, setCondicoesPagamento] = useState('')
@@ -165,8 +166,15 @@ export function EditarPropostaModal({
       setKitFabricante(proposta.kit_fabricante || '')
       setCusto(proposta.custo ?? '')
       setMargem(proposta.margem ?? 25)
+
+      const pBruto = proposta.valor_bruto || proposta.preco_venda || ''
+      setValorBruto(pBruto)
+      const pDescPct =
+        proposta.desconto_percentual !== undefined && proposta.desconto_percentual > 0
+          ? String(proposta.desconto_percentual).replace('.', ',')
+          : ''
+      setDescontoPercentualStr(pDescPct)
       setPrecoVenda(proposta.preco_venda ?? '')
-      setDescontoReais(0)
       setValidadeDias(proposta.validade_dias || 15)
       setStatus(proposta.status || 'Enviada')
       setCondicoesPagamento(proposta.condicoes_pagamento || '')
@@ -279,9 +287,14 @@ export function EditarPropostaModal({
     if (!baseVenda && kit.custo && kit.margem < 100) {
       baseVenda = Math.round((kit.custo / (1 - kit.margem / 100)) * 100) / 100
     }
-    const desc = parseFloat(String(descontoReais)) || 0
-    const finalVenda = Math.max(0, (baseVenda || 0) - desc)
-    setPrecoVenda(finalVenda)
+    setValorBruto(baseVenda || '')
+    const descPct = parseFloat(descontoPercentualStr.replace(',', '.')) || 0
+    if (descPct > 0 && descPct <= 90 && baseVenda) {
+      const descVal = Math.round(((baseVenda * descPct) / 100) * 100) / 100
+      setPrecoVenda(Math.round((baseVenda - descVal) * 100) / 100)
+    } else {
+      setPrecoVenda(baseVenda || '')
+    }
   }
 
   const handleKitSelect = (kitId: string) => {
@@ -344,16 +357,26 @@ export function EditarPropostaModal({
     }
   }
 
+  // Atualiza preço final a partir de valor bruto e desconto em %
+  const recalcularValoresComDesconto = (novoBruto: number, novoDescontoStr: string) => {
+    const descPct = parseFloat(novoDescontoStr.replace(',', '.')) || 0
+    if (descPct > 0 && descPct <= 90 && novoBruto > 0) {
+      const descVal = Math.round(((novoBruto * descPct) / 100) * 100) / 100
+      setPrecoVenda(Math.round(Math.max(0, novoBruto - descVal) * 100) / 100)
+    } else {
+      setPrecoVenda(novoBruto > 0 ? novoBruto : '')
+    }
+  }
+
   // Recalcular preço de venda quando custo ou margem são alterados
   const handleCustoChange = (val: string) => {
     setCusto(val)
     const numCusto = parseFloat(val) || 0
     const numMargem = parseFloat(String(margem)) || 0
-    const desc = parseFloat(String(descontoReais)) || 0
     if (numCusto > 0 && numMargem >= 0 && numMargem < 100) {
-      const baseCalc = numCusto / (1 - numMargem / 100)
-      const finalCalc = Math.max(0, baseCalc - desc)
-      setPrecoVenda(Math.round(finalCalc * 100) / 100)
+      const baseCalc = Math.round((numCusto / (1 - numMargem / 100)) * 100) / 100
+      setValorBruto(baseCalc)
+      recalcularValoresComDesconto(baseCalc, descontoPercentualStr)
     }
   }
 
@@ -361,24 +384,23 @@ export function EditarPropostaModal({
     setMargem(val)
     const numMargem = parseFloat(val) || 0
     const numCusto = parseFloat(String(custo)) || 0
-    const desc = parseFloat(String(descontoReais)) || 0
     if (numCusto > 0 && numMargem >= 0 && numMargem < 100) {
-      const baseCalc = numCusto / (1 - numMargem / 100)
-      const finalCalc = Math.max(0, baseCalc - desc)
-      setPrecoVenda(Math.round(finalCalc * 100) / 100)
+      const baseCalc = Math.round((numCusto / (1 - numMargem / 100)) * 100) / 100
+      setValorBruto(baseCalc)
+      recalcularValoresComDesconto(baseCalc, descontoPercentualStr)
     }
   }
 
-  const handleDescontoChange = (val: string) => {
-    setDescontoReais(val)
-    const desc = parseFloat(val) || 0
-    const numCusto = parseFloat(String(custo)) || 0
-    const numMargem = parseFloat(String(margem)) || 0
-    if (numCusto > 0 && numMargem >= 0 && numMargem < 100) {
-      const baseCalc = numCusto / (1 - numMargem / 100)
-      const finalCalc = Math.max(0, baseCalc - desc)
-      setPrecoVenda(Math.round(finalCalc * 100) / 100)
-    }
+  const handleValorBrutoChange = (val: string) => {
+    setValorBruto(val)
+    const numBruto = parseFloat(val) || 0
+    recalcularValoresComDesconto(numBruto, descontoPercentualStr)
+  }
+
+  const handleDescontoPercentualChange = (val: string) => {
+    setDescontoPercentualStr(val)
+    const numBruto = parseFloat(String(valorBruto)) || parseFloat(String(precoVenda)) || 0
+    recalcularValoresComDesconto(numBruto, val)
   }
 
   // Cálculos solares derivados em tempo real baseados na fórmula oficial:
@@ -408,6 +430,18 @@ export function EditarPropostaModal({
     const numCusto = parseFloat(String(custo)) || 0
     const numMargem = parseFloat(String(margem)) || 0
     const numPrecoVenda = parseFloat(String(precoVenda)) || 0
+    const descPctParsed = parseFloat(descontoPercentualStr.replace(',', '.')) || 0
+
+    if (descontoPercentualStr.trim() !== '') {
+      if (isNaN(descPctParsed) || descPctParsed < 0 || descPctParsed > 90) {
+        toast({
+          title: 'Desconto inválido',
+          description: 'O desconto deve ser um valor percentual entre 0% e 90%.',
+          variant: 'destructive',
+        })
+        return
+      }
+    }
 
     if (numPrecoVenda <= 0) {
       toast({
@@ -417,6 +451,15 @@ export function EditarPropostaModal({
       })
       return
     }
+
+    const numBrutoFinal =
+      parseFloat(String(valorBruto)) ||
+      (descPctParsed > 0
+        ? Math.round((numPrecoVenda / (1 - descPctParsed / 100)) * 100) / 100
+        : numPrecoVenda)
+
+    const numValorDesconto =
+      descPctParsed > 0 ? Math.round(Math.max(0, numBrutoFinal - numPrecoVenda) * 100) / 100 : 0
 
     try {
       setSubmitting(true)
@@ -453,6 +496,9 @@ export function EditarPropostaModal({
         custo: numCusto,
         margem: numMargem,
         preco_venda: numPrecoVenda,
+        desconto_percentual: descPctParsed > 0 ? descPctParsed : 0,
+        valor_desconto: numValorDesconto,
+        valor_bruto: numBrutoFinal,
         validade_dias: validadeDiasNum,
         data_validade: validadeIso,
         status,
@@ -794,14 +840,16 @@ export function EditarPropostaModal({
             </div>
           )}
 
-          {/* Precificação: Custo, Margem, Desconto e Preço de Venda */}
-          <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50/70 space-y-3">
+          {/* Precificação: Custo, Margem, Valor Bruto, Desconto em % e Preço de Venda Final */}
+          <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50/80 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 flex items-center gap-1">
                 <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
                 Precificação e Condições Comerciais
               </span>
-              <span className="text-[11px] text-slate-400">Valores calculados em R$ (BRL)</span>
+              <span className="text-[11px] text-slate-500 font-medium">
+                Desconto opcional em % com recálculo em tempo real
+              </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -840,38 +888,95 @@ export function EditarPropostaModal({
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="editDesconto" className="text-xs font-semibold text-slate-700">
-                  Desconto (R$)
+                <Label htmlFor="editValorBruto" className="text-xs font-semibold text-slate-700">
+                  Valor Bruto do Kit (R$) *
                 </Label>
                 <Input
-                  id="editDesconto"
+                  id="editValorBruto"
                   type="number"
                   step="0.01"
                   min="0"
-                  value={descontoReais}
-                  onChange={(e) => handleDescontoChange(e.target.value)}
-                  placeholder="Ex: 500"
-                  className="h-9 text-xs font-mono-numbers bg-white"
+                  value={valorBruto}
+                  onChange={(e) => handleValorBrutoChange(e.target.value)}
+                  placeholder="Ex: 20000"
+                  className="h-9 text-xs font-semibold font-mono-numbers bg-white"
                 />
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="editVenda" className="text-xs font-bold text-emerald-900">
-                  Preço de Venda Final (R$) *
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label
+                    htmlFor="editDescontoPct"
+                    className="text-xs font-semibold text-emerald-900"
+                  >
+                    Desconto (%)
+                  </Label>
+                  <span className="text-[10px] text-slate-500">0% a 90%</span>
+                </div>
                 <Input
-                  id="editVenda"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={precoVenda}
-                  onChange={(e) => setPrecoVenda(e.target.value)}
-                  placeholder="Ex: 20000"
-                  required
-                  className="h-9 text-xs font-bold font-mono-numbers bg-white border-emerald-400 text-emerald-900"
+                  id="editDescontoPct"
+                  type="text"
+                  inputMode="decimal"
+                  value={descontoPercentualStr}
+                  onChange={(e) => handleDescontoPercentualChange(e.target.value)}
+                  placeholder="Ex: 5 ou 7,5"
+                  className="h-9 text-xs font-mono-numbers bg-white border-emerald-300 focus-visible:ring-emerald-500"
                 />
               </div>
             </div>
+
+            {/* Painel de Cálculo em Tempo Real do Desconto */}
+            {(() => {
+              const numBruto = parseFloat(String(valorBruto)) || parseFloat(String(precoVenda)) || 0
+              const numDescPct = parseFloat(descontoPercentualStr.replace(',', '.')) || 0
+              const temDesconto = numDescPct > 0 && numDescPct <= 90
+              const numDescReais = temDesconto
+                ? Math.round(((numBruto * numDescPct) / 100) * 100) / 100
+                : 0
+              const numFinal = Math.max(0, numBruto - numDescReais)
+
+              return (
+                <div
+                  className={`p-3 rounded-lg border transition-all ${
+                    temDesconto
+                      ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950'
+                      : 'bg-white border-slate-200 text-slate-800'
+                  }`}
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">
+                        Valor Bruto do Kit
+                      </span>
+                      <span className="text-sm font-bold font-mono-numbers">
+                        {numBruto > 0 ? formatBRL(numBruto) : 'R$ 0,00'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-800 block">
+                        Desconto Aplicado ({temDesconto ? `${descontoPercentualStr}%` : '0%'})
+                      </span>
+                      <span className="text-sm font-bold text-emerald-700 font-mono-numbers">
+                        {temDesconto ? `- ${formatBRL(numDescReais)}` : 'R$ 0,00'}
+                      </span>
+                    </div>
+
+                    <div className="sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200 sm:border-l sm:pl-3">
+                      <span className="text-[10px] uppercase font-black tracking-wider text-emerald-950 block">
+                        VALOR FINAL DA PROPOSTA
+                      </span>
+                      <span className="text-lg sm:text-xl font-black text-[#0B7A5B] font-mono-numbers block">
+                        {formatBRL(numFinal > 0 ? numFinal : numBruto)}
+                      </span>
+                      <span className="text-[10px] text-slate-500">
+                        {temDesconto ? 'Valor com desconto comercial aplicado' : 'Sem desconto'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
           </div>
 
           {/* Validade */}
