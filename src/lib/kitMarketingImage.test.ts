@@ -3,11 +3,17 @@ import {
   formatarDadosMarketingKit,
   gerarTextoWhatsAppMarketing,
   wrapCanvasText,
+  draw3DTitle,
+  drawPromoBadge,
+  drawGleamingSolarPanels,
+  drawVibrantSolarBackground,
+  drawEnergySpark,
+  drawLightningBolt,
   SLOGAN_ECOSOLAR,
 } from './kitMarketingImage'
 import type { Kit } from '@/types/crm'
 
-describe('kitMarketingImage utils', () => {
+describe('kitMarketingImage utils & visual elements', () => {
   it('extrai e formata o NOME COMERCIAL REAL do kit exatamente como cadastrado', () => {
     const kit: Partial<Kit> = {
       id: 'k1',
@@ -54,6 +60,9 @@ describe('kitMarketingImage utils', () => {
 
     // Potência total
     expect(details.potenciaTotalLinha).toBe('10,08 kWp')
+
+    // Preço formatado em BRL
+    expect(details.precoFormatado).toContain('27.749,63')
   })
 
   it('formata adequadamente estruturas diferentes como Mini trilho e Fibrocimento', () => {
@@ -87,7 +96,7 @@ describe('kitMarketingImage utils', () => {
     expect(details.estruturaLinha).toBe('Solo monoposte')
   })
 
-  it('gera legenda pronta e atraente para o WhatsApp com todos os dados técnicos e chamada', () => {
+  it('gera legenda pronta e atraente para o WhatsApp com todos os dados técnicos, promoção e chamada', () => {
     const kit: Partial<Kit> = {
       nome: 'Kit Solar 6,3 kWp — TSUN POWER + Sungrow — Fibrocimento',
       marca_painel: 'TSUN POWER',
@@ -103,15 +112,16 @@ describe('kitMarketingImage utils', () => {
 
     expect(texto).toContain('*KIT SOLAR 6,3 KWP — TSUN POWER + SUNGROW — FIBROCIMENTO*')
     expect(texto).toContain(SLOGAN_ECOSOLAR)
+    expect(texto).toContain('PROMOÇÃO EXCLUSIVA')
     expect(texto).toContain('*Módulos Fotovoltaicos:* TSUN POWER 630 W')
     expect(texto).toContain('*Inversor Solar:* Sungrow 7,5 kW')
     expect(texto).toContain('*Estrutura:* Fibrocimento')
     expect(texto).toContain('*Potência Total:* 6,3 kWp')
+    expect(texto).toContain('23.500,00')
     expect(texto).toContain('Ecosolar Energy')
   })
 
   it('quebra textos longos corretamente em linhas sem estourar a largura do Canvas', () => {
-    // Mock de CanvasRenderingContext2D.measureText para teste determinístico
     const mockCtx = {
       measureText: (txt: string) => ({
         width: txt.length * 10,
@@ -120,11 +130,47 @@ describe('kitMarketingImage utils', () => {
 
     const text =
       'Kit Solar Fotovoltaico 10,08 kWp TSUN POWER com Inversor Sungrow e Estrutura Fibrocimento'
-    // Limite de 200 de largura = ~20 caracteres por linha
     const lines = wrapCanvasText(mockCtx, text, 200)
 
     expect(lines.length).toBeGreaterThan(1)
-    // A junção das linhas separadas por espaço deve conter todas as palavras originais
     expect(lines.join(' ')).toBe(text)
+  })
+
+  it('exporta e executa funções do novo visual super vibrante sem erros', () => {
+    const mockCtx = {
+      save: () => {},
+      restore: () => {},
+      beginPath: () => {},
+      closePath: () => {},
+      moveTo: () => {},
+      lineTo: () => {},
+      stroke: () => {},
+      fill: () => {},
+      fillRect: () => {},
+      strokeRect: () => {},
+      fillText: () => {},
+      strokeText: () => {},
+      arc: () => {},
+      roundRect: () => {},
+      clip: () => {},
+      translate: () => {},
+      rotate: () => {},
+      scale: () => {},
+      quadraticCurveTo: () => {},
+      createLinearGradient: () => ({
+        addColorStop: () => {},
+      }),
+      createRadialGradient: () => ({
+        addColorStop: () => {},
+      }),
+      measureText: (txt: string) => ({ width: txt.length * 10 }),
+    } as unknown as CanvasRenderingContext2D
+
+    expect(() => drawVibrantSolarBackground(mockCtx, 1080, 1080, 540, 540)).not.toThrow()
+    expect(() => draw3DTitle(mockCtx, 'KITS SOLARES', 540, 200, 80)).not.toThrow()
+    expect(() => drawPromoBadge(mockCtx, 540, 300, 240, 60)).not.toThrow()
+    expect(() => drawGleamingSolarPanels(mockCtx, 540, 400, 700, 180)).not.toThrow()
+    expect(() => drawEnergySpark(mockCtx, 100, 100, 10, '#39FF14')).not.toThrow()
+    expect(() => drawLightningBolt(mockCtx, 50, 50, 1, 0)).not.toThrow()
   })
 })

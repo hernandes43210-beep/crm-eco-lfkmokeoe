@@ -1,6 +1,13 @@
 import officialLogoPng from '@/assets/a-613c6.png'
 import { loadMascotImage } from '@/lib/mascotUtils'
-import { wrapCanvasText } from '@/lib/kitMarketingImage'
+import {
+  wrapCanvasText,
+  drawRoundedRect,
+  drawVibrantSolarBackground,
+  drawEnergySpark,
+  drawLightningBolt,
+  draw3DTitle,
+} from '@/lib/kitMarketingImage'
 
 export type SaudacaoTipo = 'bom_dia' | 'boa_tarde' | 'boa_noite' | 'personalizado'
 
@@ -49,103 +56,14 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   })
 }
 
-function drawRoundedRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-  fillStyle?: string | CanvasGradient,
-  strokeStyle?: string,
-  lineWidth = 1,
-) {
-  ctx.save()
-  ctx.beginPath()
-  ctx.roundRect(x, y, w, h, r)
-  if (fillStyle) {
-    ctx.fillStyle = fillStyle
-    ctx.fill()
-  }
-  if (strokeStyle) {
-    ctx.strokeStyle = strokeStyle
-    ctx.lineWidth = lineWidth
-    ctx.stroke()
-  }
-  ctx.restore()
-}
-
-/**
- * Desenha o fundo corporativo sofisticado Ecosolar
- * Fundo escuro verde/petróleo profundo com aura dourada solar e raios suaves
- */
-function drawCorporateGreetingBackground(
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-) {
-  // Gradiente escuro corporativo profundo
-  const bgGrad = ctx.createRadialGradient(
-    width * 0.5,
-    height * 0.45,
-    60,
-    width * 0.5,
-    height * 0.5,
-    Math.max(width, height) * 0.85,
-  )
-  bgGrad.addColorStop(0, '#0F2E22') // Verde esmeralda profundo
-  bgGrad.addColorStop(0.42, '#0B1D28') // Azul petróleo escuro
-  bgGrad.addColorStop(1, '#050D14') // Grafite / quase preto solar
-  ctx.fillStyle = bgGrad
-  ctx.fillRect(0, 0, width, height)
-
-  // Aura solar circular suave atrás do mascote
-  const mascotGlow = ctx.createRadialGradient(
-    width * 0.5,
-    height * 0.46,
-    30,
-    width * 0.5,
-    height * 0.46,
-    width * 0.48,
-  )
-  mascotGlow.addColorStop(0, 'rgba(245, 197, 24, 0.28)') // Dourado solar vibrante
-  mascotGlow.addColorStop(0.45, 'rgba(16, 185, 129, 0.12)') // Verde solar
-  mascotGlow.addColorStop(1, 'rgba(0, 0, 0, 0)')
-  ctx.fillStyle = mascotGlow
-  ctx.fillRect(0, 0, width, height)
-
-  // Grade sutil isométrica solar
-  ctx.save()
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)'
-  ctx.lineWidth = 1.5
-  const gridSize = 72
-  for (let x = 0; x < width; x += gridSize) {
-    ctx.beginPath()
-    ctx.moveTo(x, 0)
-    ctx.lineTo(x, height)
-    ctx.stroke()
-  }
-  for (let y = 0; y < height; y += gridSize) {
-    ctx.beginPath()
-    ctx.moveTo(0, y)
-    ctx.lineTo(width, y)
-    ctx.stroke()
-  }
-
-  // Raios solares em leque partindo do canto superior
-  ctx.strokeStyle = 'rgba(245, 197, 24, 0.035)'
-  ctx.lineWidth = 2
-  for (let angle = 0; angle < Math.PI / 2; angle += 0.1) {
-    ctx.beginPath()
-    ctx.moveTo(width, 0)
-    ctx.lineTo(width - Math.cos(angle) * 1800, Math.sin(angle) * 1800)
-    ctx.stroke()
-  }
-  ctx.restore()
-}
-
 /**
  * Gera a arte de saudação com o Mascote Centralizado em destaque
+ * sob a mesma linguagem visual SUPER VIBRANTE:
+ * - Raios de sol explodindo do centro
+ * - Cores saturadas (laranja solar, amarelo dourado, azul profundo, verde neon)
+ * - Faíscas de energia e raios gráficos
+ * - Título em destaque com estilo 3D e contorno luminoso
+ * - Mascote centralizado com moldura circular solar iluminada
  */
 export async function generateSaudacaoCanvas(options: SaudacaoOptions): Promise<HTMLCanvasElement> {
   const { tipo, mensagemPersonalizada, format } = options
@@ -158,9 +76,6 @@ export async function generateSaudacaoCanvas(options: SaudacaoOptions): Promise<
 
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Não foi possível inicializar o contexto do Canvas')
-
-  // Fundo corporativo Ecosolar
-  drawCorporateGreetingBackground(ctx, width, height)
 
   // Carregar assets (Logo e Mascote)
   let logoImg: HTMLImageElement | null = null
@@ -183,7 +98,6 @@ export async function generateSaudacaoCanvas(options: SaudacaoOptions): Promise<
   if (tipo === 'personalizado') {
     const custom = (mensagemPersonalizada || '').trim()
     if (custom) {
-      // Se for multilinha ou longa, a primeira linha vira título ou todo o texto vira subtítulo
       const parts = custom.split(/\n+/)
       if (parts.length > 1) {
         greetingTitle = parts[0]
@@ -198,7 +112,7 @@ export async function generateSaudacaoCanvas(options: SaudacaoOptions): Promise<
     }
   }
 
-  const marginX = 64
+  const marginX = 56
   const contentWidth = width - marginX * 2
 
   if (format === 'square') {
@@ -206,82 +120,109 @@ export async function generateSaudacaoCanvas(options: SaudacaoOptions): Promise<
     // QUADRADO 1:1 (1080 x 1080 px)
     // ==========================================
 
-    // Moldura elegante
+    const sunX = width / 2
+    const sunY = 500
+    // Fundo super vibrante com raios de sol e lens flare
+    drawVibrantSolarBackground(ctx, width, height, sunX, sunY)
+
+    // Raios e faíscas gráficos
+    drawLightningBolt(ctx, 35, 230, 0.9, -0.25)
+    drawLightningBolt(ctx, width - 55, 220, 0.9, 0.3)
+
+    // Moldura decorativa
     drawRoundedRect(
       ctx,
-      28,
-      28,
-      width - 56,
-      height - 56,
-      28,
+      20,
+      20,
+      width - 40,
+      height - 40,
+      24,
       undefined,
-      'rgba(245, 197, 24, 0.28)',
-      2,
+      'rgba(255, 215, 0, 0.65)',
+      3,
     )
 
-    // Topo: Card com Logo Oficial e Selo Corporativo
-    const headerY = 52
+    // 1. TOPO: Logo Oficial da Ecosolar Energy em card translúcido escuro
+    const headerY = 36
     const headerH = 110
+    const logoCardW = contentWidth - 300
+
     drawRoundedRect(
       ctx,
       marginX,
       headerY,
-      contentWidth,
+      logoCardW,
       headerH,
-      22,
-      'rgba(255, 255, 255, 0.04)',
-      'rgba(255, 255, 255, 0.1)',
-      1.5,
+      20,
+      'rgba(7, 22, 45, 0.85)',
+      'rgba(255, 215, 0, 0.5)',
+      2,
     )
 
     if (logoImg) {
-      const logoH = 80
+      const logoH = 86
       const naturalAspect = (logoImg.naturalWidth || 1) / (logoImg.naturalHeight || 1)
-      const logoW = Math.min(280, logoH * naturalAspect)
-      ctx.drawImage(logoImg, marginX + 32, headerY + (headerH - logoH) / 2, logoW, logoH)
+      const logoW = Math.min(logoCardW - 40, logoH * naturalAspect)
+      ctx.drawImage(logoImg, marginX + 24, headerY + (headerH - logoH) / 2, logoW, logoH)
     }
 
-    // Balão / Badge com o Título da Saudação no topo direito do header
-    const tagH = 58
-    const tagW = 320
-    const tagX = marginX + contentWidth - tagW - 24
+    // Selo da Saudação no Topo Direito (Card Laranja/Dourado)
+    const tagH = 68
+    const tagW = 280
+    const tagX = marginX + contentWidth - tagW
     const tagY = headerY + (headerH - tagH) / 2
 
     const tagGrad = ctx.createLinearGradient(tagX, tagY, tagX + tagW, tagY + tagH)
-    tagGrad.addColorStop(0, '#F5C518')
-    tagGrad.addColorStop(1, '#D99B00')
-    drawRoundedRect(ctx, tagX, tagY, tagW, tagH, 18, tagGrad)
+    tagGrad.addColorStop(0, '#FF4500')
+    tagGrad.addColorStop(0.5, '#FF8C00')
+    tagGrad.addColorStop(1, '#FFD700')
+    drawRoundedRect(ctx, tagX, tagY, tagW, tagH, 18, tagGrad, '#FFFFFF', 2)
 
     ctx.textAlign = 'center'
-    ctx.fillStyle = '#0F172A'
-    ctx.font = '900 30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    ctx.fillText(greetingTitle, tagX + tagW / 2, tagY + 39)
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font =
+      '900 28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Arial Black", sans-serif'
+    ctx.fillText(greetingTitle, tagX + tagW / 2, tagY + tagH / 2)
 
-    // Área Central do Mascote: Moldura circular sutil iluminada
-    const mascotCenterY = 500
-    const mascotSize = 580
+    // 2. TÍTULO CENTRAL VIBRANTE (quando for saudação padrão ou personalizada)
+    const titleCenterY = 195
+    draw3DTitle(ctx, greetingTitle.toUpperCase(), width / 2, titleCenterY, 64)
+
+    // 3. MASCOTE CENTRALIZADO EM DESTAQUE COM MOLDURA SOLAR ILUMINADA
+    const mascotCenterY = 485
+    const mascotSize = 510
     const mascotRadius = mascotSize / 2
 
-    // Base circular com glow suave
+    // Grande halo de brilho dourado e verde neon atrás do mascote
     ctx.save()
-    ctx.shadowColor = 'rgba(245, 197, 24, 0.35)'
-    ctx.shadowBlur = 32
+    ctx.shadowColor = 'rgba(255, 215, 0, 0.85)'
+    ctx.shadowBlur = 45
     ctx.beginPath()
-    ctx.arc(width / 2, mascotCenterY, mascotRadius, 0, Math.PI * 2)
-    ctx.fillStyle = '#FFFFFF'
+    ctx.arc(width / 2, mascotCenterY, mascotRadius + 6, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
     ctx.fill()
-    ctx.lineWidth = 4
-    ctx.strokeStyle = '#F5C518'
+    ctx.lineWidth = 6
+    ctx.strokeStyle = '#FFD700'
     ctx.stroke()
     ctx.restore()
 
-    // Desenha a imagem do Mascote com clip circular
+    // Borda dupla verde neon e laranja
+    ctx.save()
+    ctx.beginPath()
+    ctx.arc(width / 2, mascotCenterY, mascotRadius + 14, 0, Math.PI * 2)
+    ctx.lineWidth = 2.5
+    ctx.strokeStyle = '#39FF14'
+    ctx.stroke()
+    ctx.restore()
+
+    // Imagem do Mascote com clip circular perfeito
     if (mascotImg) {
       ctx.save()
       ctx.beginPath()
       ctx.arc(width / 2, mascotCenterY, mascotRadius - 2, 0, Math.PI * 2)
       ctx.clip()
-      // Enquadramento
+
       const naturalW = mascotImg.naturalWidth || 1024
       const naturalH = mascotImg.naturalHeight || 1024
       const aspect = naturalW / naturalH
@@ -298,76 +239,92 @@ export async function generateSaudacaoCanvas(options: SaudacaoOptions): Promise<
       ctx.restore()
     }
 
-    // Selo elegante "Mascote Oficial Ecosolar"
-    const sealH = 34
-    const sealW = 240
+    // Selo sobre a base do Mascote: "ECOSOLAR ENERGY"
+    const sealH = 38
+    const sealW = 260
     const sealX = width / 2 - sealW / 2
-    const sealY = mascotCenterY + mascotRadius - 17
-    drawRoundedRect(ctx, sealX, sealY, sealW, sealH, sealH / 2, '#0B7A5B', '#F5C518', 2)
+    const sealY = mascotCenterY + mascotRadius - 19
+    drawRoundedRect(ctx, sealX, sealY, sealW, sealH, sealH / 2, '#FF6B00', '#FFD700', 2.5)
     ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
     ctx.fillStyle = '#FFFFFF'
-    ctx.font = '800 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    ctx.font =
+      '900 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Arial Black", sans-serif'
     ctx.letterSpacing = '1px'
-    ctx.fillText('ECOSOLAR ENERGY', width / 2, sealY + 22)
+    ctx.fillText('ECOSOLAR ENERGY', width / 2, sealY + sealH / 2)
     ctx.letterSpacing = '0px'
 
-    // Bloco Inferior: Subtítulo / Mensagem inspiradora e Oferta de Valor
+    // Faíscas ao redor do mascote
+    drawEnergySpark(ctx, width / 2 - mascotRadius - 20, mascotCenterY - 40, 10, '#39FF14')
+    drawEnergySpark(ctx, width / 2 + mascotRadius + 24, mascotCenterY + 30, 12, '#FFD700')
+
+    // 4. BLOCO INFERIOR: MENSAGEM INSPIRADORA + OFERTA DE VALOR
     const footerY = height - 210
-    const footerH = 155
-    const footerGrad = ctx.createLinearGradient(marginX, footerY, marginX + contentWidth, footerY)
-    footerGrad.addColorStop(0, 'rgba(11, 122, 91, 0.9)')
-    footerGrad.addColorStop(1, 'rgba(15, 23, 42, 0.95)')
-    drawRoundedRect(
-      ctx,
+    const footerH = 175
+
+    const footerGrad = ctx.createLinearGradient(
       marginX,
       footerY,
-      contentWidth,
-      footerH,
-      22,
-      footerGrad,
-      'rgba(245, 197, 24, 0.45)',
-      2,
+      marginX + contentWidth,
+      footerY + footerH,
     )
+    footerGrad.addColorStop(0, 'rgba(7, 22, 56, 0.96)')
+    footerGrad.addColorStop(0.5, 'rgba(11, 61, 145, 0.96)')
+    footerGrad.addColorStop(1, 'rgba(15, 38, 28, 0.96)')
 
-    // Subtítulo envolvente com wrap automático
+    drawRoundedRect(ctx, marginX, footerY, contentWidth, footerH, 22, footerGrad, '#FFD700', 2.5)
+
+    // Subtítulo envolvente
     ctx.textAlign = 'center'
+    ctx.textBaseline = 'alphabetic'
     ctx.fillStyle = '#FFFFFF'
-    ctx.font = '700 23px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    ctx.font = '800 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     const subLines = wrapCanvasText(ctx, `"${greetingSubtitle}"`, contentWidth - 60)
-    const lineH = 30
+    const lineH = 32
     const totalTextH = subLines.length * lineH
-    const startTextY = footerY + (footerH - 45 - totalTextH) / 2 + 28
+    const startTextY = footerY + (footerH - 50 - totalTextH) / 2 + 30
     subLines.forEach((line, idx) => {
       ctx.fillText(line, width / 2, startTextY + idx * lineH)
     })
 
-    // Slogan no rodapé do card
-    ctx.fillStyle = '#F5C518'
-    ctx.font = '900 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    // Slogan em destaque Laranja/Dourado no rodapé do card
+    ctx.fillStyle = '#FFD700'
+    ctx.font =
+      '900 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Arial Black", sans-serif'
     ctx.letterSpacing = '1.5px'
-    ctx.fillText('A ENERGIA DO FUTURO, HOJE! • ECOSOLAR ENERGY', width / 2, footerY + footerH - 18)
+    ctx.fillText('A ENERGIA DO FUTURO, HOJE!', width / 2, footerY + footerH - 24)
     ctx.letterSpacing = '0px'
   } else {
     // ==========================================
     // VERTICAL / STORY 9:16 (1080 x 1920 px)
     // ==========================================
 
+    const sunX = width / 2
+    const sunY = 920
+    drawVibrantSolarBackground(ctx, width, height, sunX, sunY)
+
+    // Raios de energia nas laterais
+    drawLightningBolt(ctx, 45, 320, 1.2, -0.2)
+    drawLightningBolt(ctx, width - 65, 300, 1.2, 0.25)
+    drawLightningBolt(ctx, 40, 1260, 1.1, 0.3)
+    drawLightningBolt(ctx, width - 60, 1280, 1.1, -0.3)
+
     // Moldura decorativa
     drawRoundedRect(
       ctx,
+      24,
+      24,
+      width - 48,
+      height - 48,
       32,
-      32,
-      width - 64,
-      height - 64,
-      36,
       undefined,
-      'rgba(245, 197, 24, 0.25)',
-      2,
+      'rgba(255, 215, 0, 0.65)',
+      3,
     )
 
-    // Header com Logo Centralizada
+    // 1. TOPO COM LOGO OFICIAL
     const headerY = 130
-    const headerH = 170
+    const headerH = 160
     drawRoundedRect(
       ctx,
       marginX,
@@ -375,79 +332,72 @@ export async function generateSaudacaoCanvas(options: SaudacaoOptions): Promise<
       contentWidth,
       headerH,
       28,
-      'rgba(255, 255, 255, 0.04)',
-      'rgba(255, 255, 255, 0.12)',
+      'rgba(7, 22, 45, 0.85)',
+      'rgba(255, 215, 0, 0.55)',
       2,
     )
 
     if (logoImg) {
-      const logoH = 120
+      const logoH = 115
       const naturalAspect = (logoImg.naturalWidth || 1) / (logoImg.naturalHeight || 1)
       const logoW = Math.min(contentWidth - 60, logoH * naturalAspect)
       ctx.drawImage(logoImg, width / 2 - logoW / 2, headerY + (headerH - logoH) / 2, logoW, logoH)
     }
 
-    // Destaque da Saudação em Card Dourado Largo
-    const greetCardY = headerY + headerH + 42
-    const greetCardH = 130
-    const greetCardW = 600
-    const greetCardX = width / 2 - greetCardW / 2
+    // 2. TÍTULO 3D DA SAUDAÇÃO EM GRANDE ESTILO
+    const titleY = headerY + headerH + 90
+    draw3DTitle(ctx, greetingTitle.toUpperCase(), width / 2, titleY, 96)
 
-    const greetGrad = ctx.createLinearGradient(
-      greetCardX,
-      greetCardY,
-      greetCardX + greetCardW,
-      greetCardY + greetCardH,
-    )
-    greetGrad.addColorStop(0, '#F5C518')
-    greetGrad.addColorStop(1, '#D99B00')
-    drawRoundedRect(ctx, greetCardX, greetCardY, greetCardW, greetCardH, 26, greetGrad)
-
-    ctx.textAlign = 'center'
-    ctx.fillStyle = '#0F172A'
-    ctx.font = '900 56px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    ctx.fillText(greetingTitle, width / 2, greetCardY + 82)
-
-    // Tag descritiva
+    // Tag descritiva vibrante
     const tagStory = 'ENERGIA SOLAR & SUSTENTABILIDADE'
-    ctx.font = '800 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    const tagStoryW = ctx.measureText(tagStory).width + 36
+    ctx.font = '900 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    const tagStoryW = ctx.measureText(tagStory).width + 42
     drawRoundedRect(
       ctx,
       width / 2 - tagStoryW / 2,
-      greetCardY + greetCardH + 28,
+      titleY + 55,
       tagStoryW,
-      36,
-      18,
-      'rgba(11, 122, 91, 0.45)',
-      '#0B7A5B',
-      1.5,
+      40,
+      20,
+      '#FF6B00',
+      '#FFD700',
+      2,
     )
     ctx.textAlign = 'center'
-    ctx.fillStyle = '#34D399'
-    ctx.fillText(tagStory, width / 2, greetCardY + greetCardH + 51)
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillText(tagStory, width / 2, titleY + 75)
 
-    // Mascote em Grande Destaque no Story (Círculo de ~760px)
+    // 3. MASCOTE EM GRANDE DESTAQUE CENTRALIZADO NO STORY (~720px)
     const mascotCenterY = 960
-    const mascotSize = 780
+    const mascotSize = 720
     const mascotRadius = mascotSize / 2
 
     ctx.save()
-    ctx.shadowColor = 'rgba(245, 197, 24, 0.35)'
-    ctx.shadowBlur = 40
+    ctx.shadowColor = 'rgba(255, 215, 0, 0.95)'
+    ctx.shadowBlur = 55
     ctx.beginPath()
-    ctx.arc(width / 2, mascotCenterY, mascotRadius, 0, Math.PI * 2)
+    ctx.arc(width / 2, mascotCenterY, mascotRadius + 8, 0, Math.PI * 2)
     ctx.fillStyle = '#FFFFFF'
     ctx.fill()
-    ctx.lineWidth = 5
-    ctx.strokeStyle = '#F5C518'
+    ctx.lineWidth = 8
+    ctx.strokeStyle = '#FFD700'
+    ctx.stroke()
+    ctx.restore()
+
+    // Borda externa neon
+    ctx.save()
+    ctx.beginPath()
+    ctx.arc(width / 2, mascotCenterY, mascotRadius + 18, 0, Math.PI * 2)
+    ctx.lineWidth = 3
+    ctx.strokeStyle = '#39FF14'
     ctx.stroke()
     ctx.restore()
 
     if (mascotImg) {
       ctx.save()
       ctx.beginPath()
-      ctx.arc(width / 2, mascotCenterY, mascotRadius - 3, 0, Math.PI * 2)
+      ctx.arc(width / 2, mascotCenterY, mascotRadius - 2, 0, Math.PI * 2)
       ctx.clip()
       const naturalW = mascotImg.naturalWidth || 1024
       const naturalH = mascotImg.naturalHeight || 1024
@@ -466,30 +416,45 @@ export async function generateSaudacaoCanvas(options: SaudacaoOptions): Promise<
     }
 
     // Selo sobre a base do círculo
-    const sealH = 46
-    const sealW = 320
+    const sealH = 50
+    const sealW = 340
     const sealX = width / 2 - sealW / 2
-    const sealY = mascotCenterY + mascotRadius - 23
-    drawRoundedRect(ctx, sealX, sealY, sealW, sealH, sealH / 2, '#0B7A5B', '#F5C518', 2.5)
+    const sealY = mascotCenterY + mascotRadius - 25
+    drawRoundedRect(ctx, sealX, sealY, sealW, sealH, sealH / 2, '#FF6B00', '#FFD700', 3)
     ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
     ctx.fillStyle = '#FFFFFF'
-    ctx.font = '800 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    ctx.letterSpacing = '1px'
-    ctx.fillText('ECOSOLAR ENERGY', width / 2, sealY + 29)
+    ctx.font =
+      '900 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Arial Black", sans-serif'
+    ctx.letterSpacing = '1.5px'
+    ctx.fillText('ECOSOLAR ENERGY', width / 2, sealY + sealH / 2)
     ctx.letterSpacing = '0px'
 
-    // Card da Mensagem e Rodapé no Story
-    const storyFooterY = height - 380
-    const storyFooterH = 240
+    // Faíscas dinâmicas ao redor do mascote no Story
+    drawEnergySpark(ctx, width / 2 - mascotRadius - 30, mascotCenterY - 80, 14, '#39FF14')
+    drawEnergySpark(ctx, width / 2 + mascotRadius + 35, mascotCenterY + 40, 16, '#FFD700')
+    drawEnergySpark(
+      ctx,
+      width / 2 - mascotRadius + 20,
+      mascotCenterY + mascotRadius - 40,
+      12,
+      '#FFFFFF',
+    )
+
+    // 4. CARD DA MENSAGEM E RODAPÉ NO STORY
+    const storyFooterY = height - 390
+    const storyFooterH = 260
 
     const storyFooterGrad = ctx.createLinearGradient(
       marginX,
       storyFooterY,
       marginX + contentWidth,
-      storyFooterY,
+      storyFooterY + storyFooterH,
     )
-    storyFooterGrad.addColorStop(0, 'rgba(11, 122, 91, 0.95)')
-    storyFooterGrad.addColorStop(1, 'rgba(15, 23, 42, 0.98)')
+    storyFooterGrad.addColorStop(0, 'rgba(7, 22, 56, 0.96)')
+    storyFooterGrad.addColorStop(0.5, 'rgba(11, 61, 145, 0.96)')
+    storyFooterGrad.addColorStop(1, 'rgba(15, 38, 28, 0.96)')
+
     drawRoundedRect(
       ctx,
       marginX,
@@ -498,36 +463,38 @@ export async function generateSaudacaoCanvas(options: SaudacaoOptions): Promise<
       storyFooterH,
       28,
       storyFooterGrad,
-      'rgba(245, 197, 24, 0.55)',
-      2.5,
+      '#FFD700',
+      3,
     )
 
     // Subtítulo
     ctx.textAlign = 'center'
+    ctx.textBaseline = 'alphabetic'
     ctx.fillStyle = '#FFFFFF'
-    ctx.font = '700 30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    ctx.font = '800 32px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     const storyLines = wrapCanvasText(ctx, `"${greetingSubtitle}"`, contentWidth - 80)
-    const storyLineH = 42
+    const storyLineH = 44
     const totalStoryTextH = storyLines.length * storyLineH
-    const startStoryY = storyFooterY + (storyFooterH - 60 - totalStoryTextH) / 2 + 36
+    const startStoryY = storyFooterY + (storyFooterH - 70 - totalStoryTextH) / 2 + 42
 
     storyLines.forEach((line, idx) => {
       ctx.fillText(line, width / 2, startStoryY + idx * storyLineH)
     })
 
-    // Slogan em destaque dourado
-    ctx.fillStyle = '#F5C518'
-    ctx.font = '900 28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    ctx.letterSpacing = '1.8px'
-    ctx.fillText('A ENERGIA DO FUTURO, HOJE!', width / 2, storyFooterY + storyFooterH - 42)
+    // Slogan em destaque dourado/laranja
+    ctx.fillStyle = '#FFD700'
+    ctx.font =
+      '900 30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Arial Black", sans-serif'
+    ctx.letterSpacing = '2px'
+    ctx.fillText('A ENERGIA DO FUTURO, HOJE!', width / 2, storyFooterY + storyFooterH - 52)
     ctx.letterSpacing = '0px'
 
-    ctx.fillStyle = '#94A3B8'
-    ctx.font = '600 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    ctx.fillStyle = '#39FF14'
+    ctx.font = '800 17px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     ctx.fillText(
       'Engenharia Solar de Alta Performance',
       width / 2,
-      storyFooterY + storyFooterH - 18,
+      storyFooterY + storyFooterH - 22,
     )
   }
 
@@ -576,7 +543,7 @@ export function gerarTextoWhatsAppSaudacao(options: SaudacaoOptions): string {
   }
 
   const linhas = [
-    `☀️ *${title.toUpperCase()}*`,
+    `☀️🔥 *${title.toUpperCase()}*`,
     '',
     body,
     '',

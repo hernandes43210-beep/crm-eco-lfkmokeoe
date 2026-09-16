@@ -172,19 +172,19 @@ export function SaudacaoModal({ open, onOpenChange }: SaudacaoModalProps) {
         <DialogHeader className="pb-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <DialogTitle className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-amber-100 text-amber-900">
-                <Sun className="w-4 h-4 text-amber-600" />
+              <span className="p-1.5 rounded-lg bg-amber-100 text-[#FF6B00]">
+                <Sun className="w-4 h-4 text-[#FF6B00]" />
               </span>
-              <span>Arte de Saudação com Mascote</span>
+              <span>Arte de Saudação Vibrante com Mascote</span>
             </DialogTitle>
-            <Badge className="bg-emerald-100 text-[#0B7A5B] border-emerald-300 font-semibold gap-1 text-[11px]">
-              <Sparkles className="w-3 h-3 text-emerald-600" />
-              Mascote Oficial Ecosolar
+            <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold gap-1 text-[11px] shadow-2xs border-0">
+              <Sparkles className="w-3 h-3 text-yellow-200" />
+              Visual Solar Radiante
             </Badge>
           </div>
           <DialogDescription className="text-xs text-slate-500">
-            Crie artes corporativas de engajamento para seus clientes e status do WhatsApp com o
-            mascote em destaque e identidade visual solar de alta performance.
+            Artes de saudação super vibrantes com explosão solar, cores saturadas e mascote em
+            destaque para status do WhatsApp e engajamento comercial.
           </DialogDescription>
         </DialogHeader>
 
@@ -336,9 +336,9 @@ export function SaudacaoModal({ open, onOpenChange }: SaudacaoModalProps) {
         <div className="relative rounded-2xl bg-slate-950 p-3 sm:p-4 border border-slate-800 flex items-center justify-center overflow-hidden min-h-[300px] sm:min-h-[380px] shadow-inner">
           {generating ? (
             <div className="flex flex-col items-center justify-center text-slate-400 py-12 gap-3">
-              <Loader2 className="w-8 h-8 text-[#0B7A5B] animate-spin" />
+              <Loader2 className="w-8 h-8 text-[#FF6B00] animate-spin" />
               <p className="text-xs font-medium text-slate-300">
-                Renderizando mascote e arte corporativa Ecosolar...
+                Renderizando mascote com raios de sol radiantes...
               </p>
             </div>
           ) : errorMsg ? (

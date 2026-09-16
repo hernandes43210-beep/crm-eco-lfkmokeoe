@@ -150,18 +150,19 @@ export function KitMarketingModal({ kit, open, onOpenChange }: KitMarketingModal
         <DialogHeader className="pb-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <DialogTitle className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-emerald-100 text-[#0B7A5B]">
-                <Sparkles className="w-4 h-4" />
+              <span className="p-1.5 rounded-lg bg-amber-100 text-[#FF6B00]">
+                <Sparkles className="w-4 h-4 text-[#FF6B00]" />
               </span>
-              <span>Foto de Marketing do Kit</span>
+              <span>Arte Publicitária do Kit Solar</span>
             </DialogTitle>
-            <Badge className="bg-amber-100 text-amber-900 border-amber-300 font-semibold gap-1 text-[11px]">
-              Ecosolar Energy Oficial
+            <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold gap-1 text-[11px] shadow-2xs border-0">
+              Visual Super Vibrante ★ Promoção
             </Badge>
           </div>
           <DialogDescription className="text-xs text-slate-500">
-            Geração instantânea em alta resolução com a identidade visual corporativa da Ecosolar,
-            nome comercial real e especificações completas dos equipamentos.
+            Design publicitário em alta definição: fundo com raios de sol radiantes, painéis
+            brilhantes, título 3D &quot;KITS SOLARES&quot;, etiqueta de promoção em vermelho vivo e
+            especificações técnicas nítidas.
           </DialogDescription>
         </DialogHeader>
 
@@ -262,9 +263,9 @@ export function KitMarketingModal({ kit, open, onOpenChange }: KitMarketingModal
         <div className="relative rounded-2xl bg-slate-950 p-3 sm:p-4 border border-slate-800 flex items-center justify-center overflow-hidden min-h-[300px] sm:min-h-[380px] shadow-inner">
           {generating ? (
             <div className="flex flex-col items-center justify-center text-slate-400 py-12 gap-3">
-              <Loader2 className="w-8 h-8 text-[#0B7A5B] animate-spin" />
+              <Loader2 className="w-8 h-8 text-[#FF6B00] animate-spin" />
               <p className="text-xs font-medium text-slate-300">
-                Renderizando arte corporativa Ecosolar...
+                Renderizando arte vibrante com raios de sol e painéis 3D...
               </p>
             </div>
           ) : errorMsg ? (
