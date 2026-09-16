@@ -1,4 +1,4 @@
-import officialLogoPng from '@/assets/a-613c6.png'
+import { loadHorizontalLogoImage, getCleanHorizontalLogoCanvas } from '@/lib/logoUtils'
 import { loadMascotImage, drawSupportMascotBadge } from '@/lib/mascotUtils'
 import type { Kit } from '@/types/crm'
 import {
@@ -766,15 +766,19 @@ export async function generateKitMarketingCanvas(
 
   const details = formatarDadosMarketingKit(kit)
 
-  // Carregar logo oficial da Ecosolar e Mascote de apoio
+  // Carregar logo oficial da Ecosolar (versão horizontal) e Mascote de apoio
   let logoImg: HTMLImageElement | null = null
   let mascotImg: HTMLImageElement | null = null
+  let cleanLogoCanvas: HTMLCanvasElement | null = null
   try {
     const [loadedLogo, loadedMascot] = await Promise.allSettled([
-      loadImage(officialLogoPng),
+      loadHorizontalLogoImage(),
       loadMascotImage(),
     ])
-    if (loadedLogo.status === 'fulfilled') logoImg = loadedLogo.value
+    if (loadedLogo.status === 'fulfilled') {
+      logoImg = loadedLogo.value
+      cleanLogoCanvas = getCleanHorizontalLogoCanvas(logoImg)
+    }
     if (loadedMascot.status === 'fulfilled') mascotImg = loadedMascot.value
   } catch (err) {
     console.warn('Não foi possível carregar os assets de imagem:', err)
@@ -810,12 +814,16 @@ export async function generateKitMarketingCanvas(
       3,
     )
 
-    // 1. TOPO: Logo Oficial da Ecosolar Energy em destaque com selo de potência
-    const headerY = 36
-    const headerH = 112
+    // 1. TOPO: Logo Oficial da Ecosolar Energy em versão HORIZONTAL em destaque (~55-65% da largura da arte)
+    const headerY = 32
+    const headerH = 124
 
-    // Card elegante translúcido para a logo
+    // Card elegante com fundo branco limpo e sutil brilho solar para abrigar perfeitamente a logo horizontal
     const logoCardW = contentWidth - (details.potenciaTotalLinha ? 250 : 0)
+    ctx.save()
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.35)'
+    ctx.shadowBlur = 18
+    ctx.shadowOffsetY = 6
     drawRoundedRect(
       ctx,
       marginX,
@@ -823,24 +831,39 @@ export async function generateKitMarketingCanvas(
       logoCardW,
       headerH,
       20,
-      'rgba(7, 22, 45, 0.82)',
-      'rgba(255, 215, 0, 0.5)',
-      2,
+      'rgba(255, 255, 255, 0.98)',
+      '#FFD700',
+      2.5,
     )
+    ctx.restore()
 
-    if (logoImg) {
-      const logoH = 88
-      const naturalAspect = (logoImg.naturalWidth || 1) / (logoImg.naturalHeight || 1)
-      const logoW = Math.min(logoCardW - 40, logoH * naturalAspect)
-      ctx.drawImage(logoImg, marginX + 24, headerY + (headerH - logoH) / 2, logoW, logoH)
+    const logoDrawable = cleanLogoCanvas || logoImg
+    if (logoDrawable) {
+      const padY = 8
+      const padX = 14
+      const maxDrawW = logoCardW - padX * 2
+      const maxDrawH = headerH - padY * 2
+      const srcW = 'naturalWidth' in logoDrawable ? logoDrawable.naturalWidth : logoDrawable.width
+      const srcH =
+        'naturalHeight' in logoDrawable ? logoDrawable.naturalHeight : logoDrawable.height
+      const naturalAspect = (srcW || 2.6) / (srcH || 1)
+
+      let logoW = maxDrawH * naturalAspect
+      let logoH = maxDrawH
+      if (logoW > maxDrawW) {
+        logoW = maxDrawW
+        logoH = logoW / naturalAspect
+      }
+
+      // Centraliza a logo horizontal no card branco
+      const drawX = marginX + (logoCardW - logoW) / 2
+      const drawY = headerY + (headerH - logoH) / 2
+      ctx.drawImage(logoDrawable, drawX, drawY, logoW, logoH)
     } else {
-      ctx.textAlign = 'left'
+      ctx.textAlign = 'center'
       ctx.font = '900 36px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-      ctx.fillStyle = '#FFFFFF'
-      ctx.fillText('ECO', marginX + 24, headerY + 70)
-      const ew = ctx.measureText('ECO').width
-      ctx.fillStyle = '#FFD700'
-      ctx.fillText('SOLAR', marginX + 24 + ew, headerY + 70)
+      ctx.fillStyle = '#071638'
+      ctx.fillText('ECOSOLAR ENERGY', marginX + logoCardW / 2, headerY + 72)
     }
 
     // Selo de Potência Total no Topo Direito (se disponível)
@@ -851,19 +874,24 @@ export async function generateKitMarketingCanvas(
       const pGrad = ctx.createLinearGradient(pX, pY, pX + pW, pY + headerH)
       pGrad.addColorStop(0, '#FFD700')
       pGrad.addColorStop(1, '#FF8C00')
+      ctx.save()
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.35)'
+      ctx.shadowBlur = 18
+      ctx.shadowOffsetY = 6
       drawRoundedRect(ctx, pX, pY, pW, headerH, 20, pGrad, '#FFFFFF', 2)
+      ctx.restore()
 
       ctx.textAlign = 'center'
       ctx.fillStyle = '#071638'
       ctx.font = '900 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
       ctx.letterSpacing = '1px'
-      ctx.fillText('POTÊNCIA TOTAL', pX + pW / 2, pY + 36)
+      ctx.fillText('POTÊNCIA TOTAL', pX + pW / 2, pY + 40)
       ctx.letterSpacing = '0px'
 
       ctx.fillStyle = '#071638'
       ctx.font =
         '900 38px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Arial Black", sans-serif'
-      ctx.fillText(details.potenciaTotalLinha, pX + pW / 2, pY + 84)
+      ctx.fillText(details.potenciaTotalLinha, pX + pW / 2, pY + 88)
     }
 
     // 2. TÍTULO 3D "KITS SOLARES" com efeito de profundidade, contorno laranja vibrante e glow
@@ -1094,11 +1122,15 @@ export async function generateKitMarketingCanvas(
       3,
     )
 
-    // 1. TOPO DO STORY (respiro de status bar ~120px)
-    const headerY = 130
-    const headerH = 150
+    // 1. TOPO DO STORY (respiro de status bar ~120px) com logo HORIZONTAL em destaque (~50% da arte)
+    const headerY = 125
+    const headerH = 175
 
-    // Card da Logo oficial Ecosolar
+    // Card elegante branco com borda dourada para a logo horizontal se destacar com máxima legibilidade e beleza
+    ctx.save()
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.38)'
+    ctx.shadowBlur = 24
+    ctx.shadowOffsetY = 8
     drawRoundedRect(
       ctx,
       marginX,
@@ -1106,21 +1138,47 @@ export async function generateKitMarketingCanvas(
       contentWidth,
       headerH,
       26,
-      'rgba(7, 22, 45, 0.85)',
-      'rgba(255, 215, 0, 0.55)',
-      2,
+      'rgba(255, 255, 255, 0.98)',
+      '#FFD700',
+      3,
     )
+    ctx.restore()
 
-    if (logoImg) {
-      const logoH = 115
-      const naturalAspect = (logoImg.naturalWidth || 1) / (logoImg.naturalHeight || 1)
-      const logoW = Math.min(contentWidth - 60, logoH * naturalAspect)
-      ctx.drawImage(logoImg, width / 2 - logoW / 2, headerY + (headerH - logoH) / 2, logoW, logoH)
+    const storyLogoDrawable = cleanLogoCanvas || logoImg
+    if (storyLogoDrawable) {
+      const padY = 12
+      const padX = 20
+      const maxDrawW = contentWidth - padX * 2
+      const maxDrawH = headerH - padY * 2
+      const srcW =
+        'naturalWidth' in storyLogoDrawable
+          ? storyLogoDrawable.naturalWidth
+          : storyLogoDrawable.width
+      const srcH =
+        'naturalHeight' in storyLogoDrawable
+          ? storyLogoDrawable.naturalHeight
+          : storyLogoDrawable.height
+      const naturalAspect = (srcW || 2.6) / (srcH || 1)
+
+      let logoW = maxDrawH * naturalAspect
+      let logoH = maxDrawH
+      if (logoW > maxDrawW) {
+        logoW = maxDrawW
+        logoH = logoW / naturalAspect
+      }
+
+      ctx.drawImage(
+        storyLogoDrawable,
+        width / 2 - logoW / 2,
+        headerY + (headerH - logoH) / 2,
+        logoW,
+        logoH,
+      )
     } else {
       ctx.textAlign = 'center'
       ctx.font = '900 48px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-      ctx.fillStyle = '#FFFFFF'
-      ctx.fillText('ECOSOLAR ENERGY', width / 2, headerY + 95)
+      ctx.fillStyle = '#071638'
+      ctx.fillText('ECOSOLAR ENERGY', width / 2, headerY + 100)
     }
 
     // 2. TÍTULO 3D "KITS SOLARES" GIGANTE E CENTRALIZADO

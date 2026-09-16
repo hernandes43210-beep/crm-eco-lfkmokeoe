@@ -5,8 +5,15 @@ import {
   type SaudacaoOptions,
 } from './saudacaoImage'
 import { ECOSOLAR_MASCOT_ASSET } from './mascotUtils'
+import { ECOSOLAR_HORIZONTAL_LOGO_ASSET } from './logoUtils'
 
 describe('saudacaoImage e mascotUtils', () => {
+  it('o asset da logo horizontal está definido e apontando para a imagem correta', () => {
+    expect(ECOSOLAR_HORIZONTAL_LOGO_ASSET).toBeTruthy()
+    expect(typeof ECOSOLAR_HORIZONTAL_LOGO_ASSET).toBe('string')
+    expect(ECOSOLAR_HORIZONTAL_LOGO_ASSET).toContain('design-sem-nome-abb38')
+  })
+
   it('o asset do mascote está definido e apontando para a imagem correta', () => {
     expect(ECOSOLAR_MASCOT_ASSET).toBeTruthy()
     expect(typeof ECOSOLAR_MASCOT_ASSET).toBe('string')

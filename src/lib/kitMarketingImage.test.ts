@@ -11,6 +11,7 @@ import {
   drawLightningBolt,
   SLOGAN_ECOSOLAR,
 } from './kitMarketingImage'
+import { ECOSOLAR_HORIZONTAL_LOGO_ASSET } from './logoUtils'
 import type { Kit } from '@/types/crm'
 
 describe('kitMarketingImage utils & visual elements', () => {
@@ -134,6 +135,11 @@ describe('kitMarketingImage utils & visual elements', () => {
 
     expect(lines.length).toBeGreaterThan(1)
     expect(lines.join(' ')).toBe(text)
+  })
+
+  it('utiliza o asset da nova logo horizontal da Ecosolar Energy nas imagens geradas', () => {
+    expect(ECOSOLAR_HORIZONTAL_LOGO_ASSET).toBeTruthy()
+    expect(ECOSOLAR_HORIZONTAL_LOGO_ASSET).toContain('design-sem-nome-abb38')
   })
 
   it('exporta e executa funções do novo visual super vibrante sem erros', () => {

@@ -1,4 +1,4 @@
-import officialLogoPng from '@/assets/a-613c6.png'
+import { loadHorizontalLogoImage, getCleanHorizontalLogoCanvas } from '@/lib/logoUtils'
 import { loadMascotImage } from '@/lib/mascotUtils'
 import {
   wrapCanvasText,
@@ -77,15 +77,19 @@ export async function generateSaudacaoCanvas(options: SaudacaoOptions): Promise<
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Não foi possível inicializar o contexto do Canvas')
 
-  // Carregar assets (Logo e Mascote)
+  // Carregar assets (Logo Horizontal e Mascote)
   let logoImg: HTMLImageElement | null = null
+  let cleanLogoCanvas: HTMLCanvasElement | null = null
   let mascotImg: HTMLImageElement | null = null
   try {
     const [logoRes, mascotRes] = await Promise.allSettled([
-      loadImage(officialLogoPng),
+      loadHorizontalLogoImage(),
       loadMascotImage(),
     ])
-    if (logoRes.status === 'fulfilled') logoImg = logoRes.value
+    if (logoRes.status === 'fulfilled') {
+      logoImg = logoRes.value
+      cleanLogoCanvas = getCleanHorizontalLogoCanvas(logoImg)
+    }
     if (mascotRes.status === 'fulfilled') mascotImg = mascotRes.value
   } catch (err) {
     console.warn('Erro ao carregar assets para arte de saudação:', err)
@@ -142,11 +146,15 @@ export async function generateSaudacaoCanvas(options: SaudacaoOptions): Promise<
       3,
     )
 
-    // 1. TOPO: Logo Oficial da Ecosolar Energy em card translúcido escuro
-    const headerY = 36
-    const headerH = 110
+    // 1. TOPO: Logo Horizontal da Ecosolar Energy em card branco com borda dourada
+    const headerY = 34
+    const headerH = 112
     const logoCardW = contentWidth - 300
 
+    ctx.save()
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.32)'
+    ctx.shadowBlur = 16
+    ctx.shadowOffsetY = 5
     drawRoundedRect(
       ctx,
       marginX,
@@ -154,16 +162,38 @@ export async function generateSaudacaoCanvas(options: SaudacaoOptions): Promise<
       logoCardW,
       headerH,
       20,
-      'rgba(7, 22, 45, 0.85)',
-      'rgba(255, 215, 0, 0.5)',
-      2,
+      'rgba(255, 255, 255, 0.98)',
+      '#FFD700',
+      2.5,
     )
+    ctx.restore()
 
-    if (logoImg) {
-      const logoH = 86
-      const naturalAspect = (logoImg.naturalWidth || 1) / (logoImg.naturalHeight || 1)
-      const logoW = Math.min(logoCardW - 40, logoH * naturalAspect)
-      ctx.drawImage(logoImg, marginX + 24, headerY + (headerH - logoH) / 2, logoW, logoH)
+    const logoDrawable = cleanLogoCanvas || logoImg
+    if (logoDrawable) {
+      const padY = 10
+      const padX = 18
+      const maxDrawW = logoCardW - padX * 2
+      const maxDrawH = headerH - padY * 2
+      const srcW = 'naturalWidth' in logoDrawable ? logoDrawable.naturalWidth : logoDrawable.width
+      const srcH =
+        'naturalHeight' in logoDrawable ? logoDrawable.naturalHeight : logoDrawable.height
+      const naturalAspect = (srcW || 2.6) / (srcH || 1)
+
+      let logoW = maxDrawH * naturalAspect
+      let logoH = maxDrawH
+      if (logoW > maxDrawW) {
+        logoW = maxDrawW
+        logoH = logoW / naturalAspect
+      }
+
+      const drawX = marginX + (logoCardW - logoW) / 2
+      const drawY = headerY + (headerH - logoH) / 2
+      ctx.drawImage(logoDrawable, drawX, drawY, logoW, logoH)
+    } else {
+      ctx.textAlign = 'center'
+      ctx.font = '900 32px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      ctx.fillStyle = '#071638'
+      ctx.fillText('ECOSOLAR ENERGY', marginX + logoCardW / 2, headerY + 68)
     }
 
     // Selo da Saudação no Topo Direito (Card Laranja/Dourado)
@@ -322,26 +352,62 @@ export async function generateSaudacaoCanvas(options: SaudacaoOptions): Promise<
       3,
     )
 
-    // 1. TOPO COM LOGO OFICIAL
-    const headerY = 130
-    const headerH = 160
+    // 1. TOPO COM LOGO HORIZONTAL EM DESTAQUE NO STORY
+    const headerY = 125
+    const headerH = 165
+
+    ctx.save()
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.38)'
+    ctx.shadowBlur = 24
+    ctx.shadowOffsetY = 8
     drawRoundedRect(
       ctx,
       marginX,
       headerY,
       contentWidth,
       headerH,
-      28,
-      'rgba(7, 22, 45, 0.85)',
-      'rgba(255, 215, 0, 0.55)',
-      2,
+      26,
+      'rgba(255, 255, 255, 0.98)',
+      '#FFD700',
+      3,
     )
+    ctx.restore()
 
-    if (logoImg) {
-      const logoH = 115
-      const naturalAspect = (logoImg.naturalWidth || 1) / (logoImg.naturalHeight || 1)
-      const logoW = Math.min(contentWidth - 60, logoH * naturalAspect)
-      ctx.drawImage(logoImg, width / 2 - logoW / 2, headerY + (headerH - logoH) / 2, logoW, logoH)
+    const storyLogoDrawable = cleanLogoCanvas || logoImg
+    if (storyLogoDrawable) {
+      const padY = 14
+      const padX = 24
+      const maxDrawW = contentWidth - padX * 2
+      const maxDrawH = headerH - padY * 2
+      const srcW =
+        'naturalWidth' in storyLogoDrawable
+          ? storyLogoDrawable.naturalWidth
+          : storyLogoDrawable.width
+      const srcH =
+        'naturalHeight' in storyLogoDrawable
+          ? storyLogoDrawable.naturalHeight
+          : storyLogoDrawable.height
+      const naturalAspect = (srcW || 2.6) / (srcH || 1)
+
+      let logoW = maxDrawH * naturalAspect
+      let logoH = maxDrawH
+      if (logoW > maxDrawW) {
+        logoW = maxDrawW
+        logoH = logoW / naturalAspect
+      }
+
+      ctx.drawImage(
+        storyLogoDrawable,
+        width / 2 - logoW / 2,
+        headerY + (headerH - logoH) / 2,
+        logoW,
+        logoH,
+      )
+    } else {
+      ctx.textAlign = 'center'
+      ctx.font = '900 48px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      ctx.fillStyle = '#071638'
+      ctx.fillText('ECOSOLAR ENERGY', width / 2, headerY + 95)
     }
 
     // 2. TÍTULO 3D DA SAUDAÇÃO EM GRANDE ESTILO
