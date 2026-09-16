@@ -10,6 +10,7 @@ describe('saudacaoImage e mascotUtils', () => {
   it('o asset do mascote está definido e apontando para a imagem correta', () => {
     expect(ECOSOLAR_MASCOT_ASSET).toBeTruthy()
     expect(typeof ECOSOLAR_MASCOT_ASSET).toBe('string')
+    expect(ECOSOLAR_MASCOT_ASSET).toContain('editedimage1777166474816-0d67d')
   })
 
   it('possui as três saudações predefinidas principais e seus textos motivacionais', () => {

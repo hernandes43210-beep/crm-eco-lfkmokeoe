@@ -1,4 +1,4 @@
-import mascotImgUrl from '@/assets/editedimage1773228973392-e62fd.png'
+import mascotImgUrl from '@/assets/editedimage1777166474816-0d67d.png'
 
 export const ECOSOLAR_MASCOT_ASSET = mascotImgUrl
 
@@ -25,14 +25,10 @@ export function loadMascotImage(src: string = mascotImgUrl): Promise<HTMLImageEl
 }
 
 /**
- * Desenha o mascote recortado de forma limpa (removendo o fundo branco/cinza claro da arte original).
- *
- * Utiliza o algoritmo de recorte por amostragem e chave de cor (chroma key para fundo claro / vinheta clara):
- * 1. Desenha a imagem do mascote em um canvas temporário offscreen.
- * 2. Percorre os pixels: pixels com tonalidade clara (R, G, B altos e sem saturação forte) recebem transparência proporcional.
- * 3. Faz blend suave nas bordas para evitar serrilhado.
- * 4. Como segurança / fallback garantido caso haja falha de pixel-manipulation (CORS tained),
- *    desenha dentro de um badge circular ou oval suave com borda sutil.
+ * Retorna o canvas com a imagem do mascote.
+ * A nova imagem oficial já é um PNG de alta definição com canal alfa transparente
+ * (mascote de chapéu de palha, óculos escuros, camiseta azul-marinho ECOSOLAR ENERGY e painel solar na mão).
+ * Não aplica recorte desnecessário que possa danificar o painel solar, dentes ou brilhos do personagem.
  */
 let cachedCroppedMascotCanvas: HTMLCanvasElement | null = null
 
@@ -47,73 +43,15 @@ export function getCroppedMascotCanvas(mascotImg: HTMLImageElement): HTMLCanvasE
   const offCanvas = document.createElement('canvas')
   offCanvas.width = naturalW
   offCanvas.height = naturalH
-  const offCtx = offCanvas.getContext('2d', { willReadFrequently: true })
+  const offCtx = offCanvas.getContext('2d')
 
   if (!offCtx) {
-    // Se não puder inicializar, retorna o próprio img como canvas básico
-    offCanvas.width = naturalW
-    offCanvas.height = naturalH
-    const fallbackCtx = offCanvas.getContext('2d')
-    if (fallbackCtx) fallbackCtx.drawImage(mascotImg, 0, 0, naturalW, naturalH)
     return offCanvas
   }
 
   offCtx.drawImage(mascotImg, 0, 0, naturalW, naturalH)
-
-  try {
-    const imgData = offCtx.getImageData(0, 0, naturalW, naturalH)
-    const data = imgData.data
-    const totalPixels = naturalW * naturalH
-
-    // A imagem do mascote tem um fundo esbranquiçado / cinza claro de estúdio (radial suave de #FFFFFF a #E5E7EB)
-    // O personagem tem chapéu amarelo/palha, pele morena/clara, óculos pretos, camiseta azul-marinho e painel solar azul escuro.
-    // Todos os elementos do personagem têm cores saturadas ou escuras, com exceção de pequenos brilhos especulares no chapéu/óculos/dentes.
-    // Para não apagar os dentes ou reflexos do óculos, verificamos a proximidade com as bordas e a luminância.
-    for (let i = 0; i < totalPixels; i++) {
-      const idx = i * 4
-      const r = data[idx]
-      const g = data[idx + 1]
-      const b = data[idx + 2]
-      const a = data[idx + 3]
-
-      if (a === 0) continue
-
-      const x = i % naturalW
-      const y = Math.floor(i / naturalW)
-
-      // Distância do fundo claro: quase neutro (baixo delta entre R, G, B) e alta luminosidade
-      const maxC = Math.max(r, g, b)
-      const minC = Math.min(r, g, b)
-      const diff = maxC - minC
-      const brightness = (r * 299 + g * 587 + b * 114) / 1000
-
-      // Se for muito claro e baixa saturação (fundo de estúdio fotográfico)
-      // Especialmente perto do topo ou cantos onde só existe o fundo
-      const isTopOrCorner = y < naturalH * 0.25 || x < naturalW * 0.12 || x > naturalW * 0.88
-
-      if (brightness > 240 && diff < 22) {
-        // Fundo praticamente branco puro -> 100% transparente
-        data[idx + 3] = 0
-      } else if (brightness > 215 && diff < 20 && isTopOrCorner) {
-        // Gradiente cinza claro suave nos cantos
-        const fade = (brightness - 215) / (240 - 215)
-        data[idx + 3] = Math.round(data[idx + 3] * (1 - fade))
-      } else if (brightness > 228 && diff < 16) {
-        const fade = (brightness - 228) / (240 - 228)
-        data[idx + 3] = Math.round(data[idx + 3] * (1 - fade * 0.9))
-      }
-    }
-
-    offCtx.putImageData(imgData, 0, 0)
-    cachedCroppedMascotCanvas = offCanvas
-    return offCanvas
-  } catch (err) {
-    console.warn(
-      'Recorte por canvas pixel falhou (CORS ou restrição de contexto), usando original:',
-      err,
-    )
-    return offCanvas
-  }
+  cachedCroppedMascotCanvas = offCanvas
+  return offCanvas
 }
 
 /**
