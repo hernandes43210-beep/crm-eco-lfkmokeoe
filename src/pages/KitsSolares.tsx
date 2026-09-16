@@ -23,6 +23,7 @@ import {
   Image as ImageIcon,
 } from 'lucide-react'
 import { KitMarketingModal } from '@/components/KitMarketingModal'
+import { SaudacaoModal } from '@/components/SaudacaoModal'
 import { KitsService } from '@/services/kits'
 import type { Kit, KitCategoria, KitTipoEstrutura } from '@/types/crm'
 import useRealtime from '@/hooks/use-realtime'
@@ -87,6 +88,7 @@ export default function KitsSolares() {
   // Marketing modal state
   const [marketingKit, setMarketingKit] = useState<Kit | null>(null)
   const [isMarketingModalOpen, setIsMarketingModalOpen] = useState(false)
+  const [isSaudacaoModalOpen, setIsSaudacaoModalOpen] = useState(false)
 
   // Form Fields
   const [nome, setNome] = useState('')
@@ -493,15 +495,31 @@ export default function KitsSolares() {
           </p>
         </div>
 
-        {/* Botão em destaque de Adicionar / Criar Kit */}
-        <Button
-          onClick={openCreateModal}
-          size="default"
-          className="bg-[#0B7A5B] hover:bg-[#095C44] text-white font-bold shadow-md shadow-[#0B7A5B]/30 gap-2 h-10 px-5 rounded-lg self-start sm:self-auto shrink-0 transition-all hover:scale-[1.02] active:scale-95"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" />
-          <span>Novo Kit</span>
-        </Button>
+        {/* Ações do Topo: Arte de Saudação com Mascote + Novo Kit */}
+        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsSaudacaoModalOpen(true)}
+            size="default"
+            className="border-amber-300/80 bg-amber-50/70 hover:bg-amber-100/90 text-amber-950 font-bold gap-2 h-10 px-4 rounded-lg shadow-2xs transition-all hover:scale-[1.02] active:scale-95"
+          >
+            <Sparkles className="w-4 h-4 text-amber-600" />
+            <span>Arte de Saudação</span>
+            <Badge className="bg-amber-200/80 text-amber-900 border-amber-300 text-[10px] px-1.5 py-0">
+              Mascote
+            </Badge>
+          </Button>
+
+          <Button
+            onClick={openCreateModal}
+            size="default"
+            className="bg-[#0B7A5B] hover:bg-[#095C44] text-white font-bold shadow-md shadow-[#0B7A5B]/30 gap-2 h-10 px-5 rounded-lg transition-all hover:scale-[1.02] active:scale-95"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>Novo Kit</span>
+          </Button>
+        </div>
       </div>
 
       {/* Barra Completa de Filtros Compartilhada */}
@@ -794,6 +812,9 @@ export default function KitsSolares() {
           if (!open) setMarketingKit(null)
         }}
       />
+
+      {/* Modal de Gerar Arte de Saudação com Mascote Centralizado */}
+      <SaudacaoModal open={isSaudacaoModalOpen} onOpenChange={setIsSaudacaoModalOpen} />
 
       {/* Kit Creation / Editing Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>

@@ -1,4 +1,5 @@
 import officialLogoPng from '@/assets/a-613c6.png'
+import { loadMascotImage, drawSupportMascotBadge } from '@/lib/mascotUtils'
 import type { Kit } from '@/types/crm'
 import {
   extrairComponentesKit,
@@ -246,12 +247,18 @@ export async function generateKitMarketingCanvas(
   // 1. Fundo institucional corporativo Ecosolar
   drawGeometricBackground(ctx, width, height)
 
-  // Carregar logo oficial da Ecosolar
+  // Carregar logo oficial da Ecosolar e Mascote de apoio
   let logoImg: HTMLImageElement | null = null
+  let mascotImg: HTMLImageElement | null = null
   try {
-    logoImg = await loadImage(officialLogoPng)
+    const [loadedLogo, loadedMascot] = await Promise.allSettled([
+      loadImage(officialLogoPng),
+      loadMascotImage(),
+    ])
+    if (loadedLogo.status === 'fulfilled') logoImg = loadedLogo.value
+    if (loadedMascot.status === 'fulfilled') mascotImg = loadedMascot.value
   } catch (err) {
-    console.warn('Não foi possível carregar a imagem oficial da logo:', err)
+    console.warn('Não foi possível carregar os assets de imagem:', err)
   }
 
   const marginX = 72
@@ -466,6 +473,10 @@ export async function generateKitMarketingCanvas(
     const footerY = height - 142
     const footerH = 88
 
+    // Se houver mascote, reserva espaço de apoio no canto direito do rodapé sem cobrir a oferta
+    const mascotBadgeSize = 108
+    const hasMascot = Boolean(mascotImg)
+
     // Card elegante dourado/verde para a oferta de valor
     const footerGrad = ctx.createLinearGradient(marginX, footerY, marginX + contentWidth, footerY)
     footerGrad.addColorStop(0, 'rgba(11, 122, 91, 0.85)')
@@ -482,17 +493,33 @@ export async function generateKitMarketingCanvas(
       2,
     )
 
-    // Oferta de valor no centro do card
+    // Oferta de valor no card (com alinhamento cuidadoso para não sobrepor o mascote)
+    const textCenterX = hasMascot ? (width - marginX - mascotBadgeSize / 2) / 2 + 10 : width / 2
     ctx.textAlign = 'center'
     ctx.fillStyle = '#F5C518'
-    ctx.font = '900 28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    ctx.letterSpacing = '1.5px'
-    ctx.fillText(details.slogan, width / 2, footerY + 44)
+    ctx.font = '900 27px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    ctx.letterSpacing = '1.2px'
+    ctx.fillText(details.slogan, textCenterX, footerY + 44)
     ctx.letterSpacing = '0px'
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.85)'
-    ctx.font = '700 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    ctx.fillText('ECOSOLAR ENERGY • ENGENHARIA SOLAR DE ALTA PERFORMANCE', width / 2, footerY + 69)
+    ctx.font = '700 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    ctx.fillText(
+      'ECOSOLAR ENERGY • ENGENHARIA SOLAR DE ALTA PERFORMANCE',
+      textCenterX,
+      footerY + 69,
+    )
+
+    // Mascote como elemento de apoio no canto inferior direito
+    if (mascotImg) {
+      const mascotX = marginX + contentWidth - mascotBadgeSize + 8
+      const mascotY = footerY - 14
+      drawSupportMascotBadge(ctx, mascotImg, mascotX, mascotY, mascotBadgeSize, {
+        useBadgeBg: true,
+        borderColor: '#F5C518',
+        shadow: true,
+      })
+    }
   } else {
     // ==========================================
     // FORMATO 9:16 VERTICAL / STORY (1080 x 1920)
@@ -698,6 +725,8 @@ export async function generateKitMarketingCanvas(
     // Rodapé de Oferta de Valor no Story
     const storyFooterY = height - 260
     const storyFooterH = 140
+    const storyMascotBadgeSize = 150
+    const hasMascot = Boolean(mascotImg)
 
     const storyFooterGrad = ctx.createLinearGradient(
       marginX,
@@ -719,24 +748,42 @@ export async function generateKitMarketingCanvas(
       2.5,
     )
 
+    const storyTextCenterX = hasMascot
+      ? (width - marginX - storyMascotBadgeSize / 2) / 2 + 15
+      : width / 2
     ctx.textAlign = 'center'
     ctx.fillStyle = '#F5C518'
-    ctx.font = '900 34px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    ctx.letterSpacing = '2px'
-    ctx.fillText(details.slogan, width / 2, storyFooterY + 58)
+    ctx.font = '900 32px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    ctx.letterSpacing = '1.8px'
+    ctx.fillText(details.slogan, storyTextCenterX, storyFooterY + 56)
     ctx.letterSpacing = '0px'
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
-    ctx.font = '800 17px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    ctx.font = '800 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     ctx.fillText(
       'ECOSOLAR ENERGY • ENGENHARIA SOLAR DE ALTA PERFORMANCE',
-      width / 2,
-      storyFooterY + 98,
+      storyTextCenterX,
+      storyFooterY + 96,
     )
 
     ctx.fillStyle = '#94A3B8'
     ctx.font = '600 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    ctx.fillText('Solicite seu estudo de viabilidade gratuito', width / 2, storyFooterY + 124)
+    ctx.fillText(
+      'Solicite seu estudo de viabilidade gratuito',
+      storyTextCenterX,
+      storyFooterY + 122,
+    )
+
+    // Mascote como elemento de apoio no canto inferior direito do Story
+    if (mascotImg) {
+      const mascotX = marginX + contentWidth - storyMascotBadgeSize + 8
+      const mascotY = storyFooterY - 18
+      drawSupportMascotBadge(ctx, mascotImg, mascotX, mascotY, storyMascotBadgeSize, {
+        useBadgeBg: true,
+        borderColor: '#F5C518',
+        shadow: true,
+      })
+    }
   }
 
   return canvas
