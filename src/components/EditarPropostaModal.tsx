@@ -37,6 +37,7 @@ import { KitsService } from '@/services/kits'
 import { ProposalsService } from '@/services/proposals'
 import { toPortugueseErrorMessage } from '@/lib/errors'
 import type { Kit, Proposta, PropostaStatus, KitTipoEstrutura, KitStringBox } from '@/types/crm'
+import { calcularMargemReal } from '@/utils/marginUtils'
 import {
   formatBRL,
   formatNumberBR,
@@ -925,7 +926,7 @@ export function EditarPropostaModal({
               </div>
             </div>
 
-            {/* Painel de Cálculo em Tempo Real do Desconto */}
+            {/* Painel de Cálculo em Tempo Real do Desconto & Margem Real da Negociação */}
             {(() => {
               const numBruto = parseFloat(String(valorBruto)) || parseFloat(String(precoVenda)) || 0
               const numDescPct = parseFloat(descontoPercentualStr.replace(',', '.')) || 0
@@ -934,13 +935,15 @@ export function EditarPropostaModal({
                 ? Math.round(((numBruto * numDescPct) / 100) * 100) / 100
                 : 0
               const numFinal = Math.max(0, numBruto - numDescReais)
+              const valorFinalEfetivo = numFinal > 0 ? numFinal : numBruto
+              const margemReal = calcularMargemReal(valorFinalEfetivo, custo)
 
               return (
                 <div
-                  className={`p-3 rounded-lg border transition-all ${
+                  className={`p-3.5 rounded-xl border transition-all space-y-3 ${
                     temDesconto
-                      ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950'
-                      : 'bg-white border-slate-200 text-slate-800'
+                      ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950'
+                      : 'bg-slate-50/80 border-slate-200 text-slate-800'
                   }`}
                 >
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
@@ -967,11 +970,46 @@ export function EditarPropostaModal({
                         VALOR FINAL DA PROPOSTA
                       </span>
                       <span className="text-lg sm:text-xl font-black text-[#0B7A5B] font-mono-numbers block">
-                        {formatBRL(numFinal > 0 ? numFinal : numBruto)}
+                        {formatBRL(valorFinalEfetivo)}
                       </span>
                       <span className="text-[10px] text-slate-500">
                         {temDesconto ? 'Valor com desconto comercial aplicado' : 'Sem desconto'}
                       </span>
+                    </div>
+                  </div>
+
+                  {/* Margem Real da Negociação (Custo do Kit vs Valor Final com Desconto) */}
+                  <div
+                    className={`p-2.5 rounded-lg border bg-white/90 shadow-2xs transition-all ${margemReal.status.borderClass}`}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`w-2 h-2 rounded-full shrink-0 ${margemReal.status.dotClass}`}
+                        />
+                        <div>
+                          <span className="text-[11px] font-bold text-slate-800 block leading-tight">
+                            Margem real da negociação:
+                          </span>
+                          <span className="text-[10px] text-slate-500 leading-tight">
+                            Custo do kit ({formatBRL(Number(custo) || 0)}) vs Valor final com
+                            desconto ({formatBRL(valorFinalEfetivo)})
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 self-start sm:self-center">
+                        <Badge
+                          className={`text-[10px] px-2 py-0.5 font-bold border ${margemReal.status.badgeClass}`}
+                        >
+                          {margemReal.status.label}
+                        </Badge>
+                        <span
+                          className={`text-sm sm:text-base font-black font-mono-numbers ${margemReal.status.textClass}`}
+                        >
+                          {margemReal.formatado}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>

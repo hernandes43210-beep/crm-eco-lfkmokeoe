@@ -56,6 +56,7 @@ import {
   calcularEconomiaMensal,
   calcularFaturaMensalEstimada,
 } from '@/lib/solarUtils'
+import { calcularMargemReal } from '@/utils/marginUtils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -2002,10 +2003,21 @@ export default function LeadDetail() {
                             Custo:{' '}
                             <span className="font-mono-numbers">{formatBRL(prop.custo)}</span>
                           </span>
-                          <span>
-                            Margem:{' '}
-                            <span className="font-mono-numbers font-semibold">{prop.margem}%</span>
-                          </span>
+                          {(() => {
+                            const precoFinalNegociado = prop.preco_venda || prop.valor_bruto || 0
+                            const margemReal = calcularMargemReal(precoFinalNegociado, prop.custo)
+                            return (
+                              <span className="inline-flex items-center gap-1.5 flex-wrap">
+                                <span>Margem real:</span>
+                                <Badge
+                                  className={`text-[10px] px-1.5 py-0 font-bold border font-mono-numbers ${margemReal.status.badgeClass}`}
+                                  title={`${margemReal.status.label}: ${margemReal.status.descricao}`}
+                                >
+                                  {margemReal.formatado}
+                                </Badge>
+                              </span>
+                            )
+                          })()}
                           <span>
                             Validade até:{' '}
                             <strong className="text-slate-800 font-mono-numbers">

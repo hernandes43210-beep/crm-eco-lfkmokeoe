@@ -25,6 +25,7 @@ import { EditarPropostaModal } from '@/components/EditarPropostaModal'
 import type { Proposta } from '@/types/crm'
 import useRealtime from '@/hooks/use-realtime'
 import { formatBRL, formatDateBR, formatDateTimeBR } from '@/lib/solarUtils'
+import { calcularMargemReal } from '@/utils/marginUtils'
 import { openProposalPDFPrint } from '@/lib/proposalPdf'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -445,6 +446,22 @@ export default function PropostasList() {
                           Margem:{' '}
                           <span className="font-mono-numbers font-semibold">{prop.margem}%</span>
                         </span>
+
+                        {(() => {
+                          const precoFinal = prop.preco_venda || prop.valor_bruto || 0
+                          const mReal = calcularMargemReal(precoFinal, prop.custo)
+                          return (
+                            <span className="inline-flex items-center gap-1.5 flex-wrap">
+                              <span className="text-slate-500">Margem real:</span>
+                              <Badge
+                                className={`text-[10px] px-1.5 py-0 font-bold border font-mono-numbers ${mReal.status.badgeClass}`}
+                                title={`${mReal.status.label}: ${mReal.status.descricao}`}
+                              >
+                                {mReal.formatado}
+                              </Badge>
+                            </span>
+                          )
+                        })()}
 
                         <span>
                           Validade:{' '}
