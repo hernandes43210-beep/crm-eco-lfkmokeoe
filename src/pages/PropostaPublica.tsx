@@ -35,6 +35,7 @@ import {
   IRRADIACAO_MEDIA_DIARIA_HORAS,
   FATOR_PERDAS_SISTEMA,
 } from '@/lib/solarUtils'
+import { CONTATO_ECOSOLAR } from '@/constants/empresa'
 import { openProposalPDFPrint } from '@/lib/proposalPdf'
 import { parseKitDetailedItems } from '@/lib/kitItemsParser'
 import { InvestmentComparison } from '@/components/InvestmentComparison'
@@ -273,7 +274,7 @@ export default function PropostaPublica() {
   const localCliente =
     [proposta.lead?.cidade, proposta.lead?.estado].filter(Boolean).join(' - ') || 'Brasil'
   const consultorNome = proposta.vendedor?.name || 'Equipe Ecosolar Energy'
-  const consultorEmail = proposta.vendedor?.email || 'contato@ecosolarenergy.com.br'
+  const consultorEmail = proposta.vendedor?.email || CONTATO_ECOSOLAR.email
 
   // Checar validade
   const dataValidade = new Date(proposta.data_validade)
@@ -283,13 +284,11 @@ export default function PropostaPublica() {
     (proposta.is_expirada === true || dataValidade < hoje) && proposta.status !== 'Aceita'
 
   const proposalNumber = (proposta.id || 'ECO').slice(-6).toUpperCase()
-  const consultorTelefone = proposta.lead?.telefone || ''
-  const cleanPhone = consultorTelefone.replace(/\D/g, '')
-  const consultorWhatsappLink = cleanPhone
-    ? `https://wa.me/${cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`}?text=${encodeURIComponent(
-        `Olá! Estou no link da proposta comercial Nº ${proposalNumber} da Ecosolar Energy e gostaria de solicitar uma renovação do prazo de validade das condições.`,
-      )}`
-    : null
+  // Contato do consultor/empresa para atendimento comercial na proposta (especialmente na tela expirada)
+  const consultorTelefoneExibicao = CONTATO_ECOSOLAR.telefoneExibicao
+  const consultorWhatsappLink = `https://wa.me/${CONTATO_ECOSOLAR.whatsappDDI}?text=${encodeURIComponent(
+    `Olá! Estou no link da proposta comercial Nº ${proposalNumber} da Ecosolar Energy e gostaria de solicitar uma renovação do prazo de validade das condições.`,
+  )}`
 
   // 3) Se a proposta estiver expirada (e o cliente não tiver aceitado anteriormente):
   // Exibir a tela elegante de Proposta Expirada da marca Ecosolar Energy (Navy/Amarelo)
@@ -374,22 +373,20 @@ export default function PropostaPublica() {
 
           {/* Botões de Ação */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-            {consultorWhatsappLink ? (
-              <a
-                href={consultorWhatsappLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full sm:w-auto"
+            <a
+              href={consultorWhatsappLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto"
+            >
+              <Button
+                size="lg"
+                className="w-full bg-[#25D366] hover:bg-[#1EBE5D] text-slate-950 font-black text-xs sm:text-sm gap-2 h-11 px-5 shadow-lg border border-[#25D366]"
               >
-                <Button
-                  size="lg"
-                  className="w-full bg-[#25D366] hover:bg-[#1EBE5D] text-slate-950 font-black text-xs sm:text-sm gap-2 h-11 px-5 shadow-lg border border-[#25D366]"
-                >
-                  <Phone className="w-4 h-4 text-slate-950" />
-                  <span>Falar pelo WhatsApp ({consultorTelefone})</span>
-                </Button>
-              </a>
-            ) : null}
+                <Phone className="w-4 h-4 text-slate-950" />
+                <span>Falar pelo WhatsApp ({consultorTelefoneExibicao})</span>
+              </Button>
+            </a>
 
             <a
               href={`mailto:${consultorEmail}?subject=Renova%C3%A7%C3%A3o%20da%20Proposta%20Comercial%20N%C2%BA%20${proposalNumber}&body=Ol%C3%A1%2C%20gostaria%20de%20solicitar%20a%20renova%C3%A7%C3%A3o%20da%20minha%20proposta%20comercial%20solar.`}
@@ -397,12 +394,8 @@ export default function PropostaPublica() {
             >
               <Button
                 size="lg"
-                variant={consultorWhatsappLink ? 'outline' : 'default'}
-                className={`w-full text-xs sm:text-sm font-bold gap-2 h-11 px-5 ${
-                  consultorWhatsappLink
-                    ? 'bg-white/10 hover:bg-white/20 text-white border-white/25'
-                    : 'bg-amber-400 hover:bg-amber-300 text-slate-950 font-black shadow-lg border border-amber-400'
-                }`}
+                variant="outline"
+                className="w-full text-xs sm:text-sm font-bold gap-2 h-11 px-5 bg-white/10 hover:bg-white/20 text-white border-white/25"
               >
                 <Mail className="w-4 h-4" />
                 <span>Enviar E-mail ao Consultor</span>
@@ -694,6 +687,8 @@ export default function PropostaPublica() {
             <div>
               Contato Comercial:{' '}
               <strong className="text-white font-semibold">{consultorEmail}</strong>
+              {' • WhatsApp: '}
+              <strong className="text-white font-semibold">{consultorTelefoneExibicao}</strong>
             </div>
             <div>
               Atendimento Especializado •{' '}

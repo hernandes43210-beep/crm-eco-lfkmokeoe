@@ -8,6 +8,7 @@ import {
 } from './solarUtils'
 import { calculateInvestmentComparison } from '../utils/investmentComparison'
 import { parseKitDetailedItems } from './kitItemsParser'
+import { CONTATO_ECOSOLAR } from '@/constants/empresa'
 import officialLogoPng from '@/assets/a-613c6.png'
 import { INSTITUTIONAL_INSTALLATION_PHOTOS } from '@/data/socialProofPhotos'
 
@@ -110,7 +111,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
   const localCliente =
     [data.cliente.cidade, data.cliente.estado].filter(Boolean).join(' - ') || 'Brasil'
   const consultorNome = data.vendedor?.name || 'Equipe Ecosolar Energy'
-  const consultorEmail = data.vendedor?.email || 'contato@ecosolarenergy.com.br'
+  const consultorEmail = data.vendedor?.email || CONTATO_ECOSOLAR.email
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -1040,7 +1041,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
       </div>
       <div class="cover-footer-contacts">
         <div>E-mail: <strong>${consultorEmail}</strong></div>
-        <div>WhatsApp / Suporte: <strong>${data.cliente.telefone ? '(Atendimento Especializado)' : 'contato@ecosolarenergy.com.br'}</strong></div>
+        <div>WhatsApp / Suporte: <strong>${CONTATO_ECOSOLAR.telefoneExibicao}</strong></div>
       </div>
     </div>
   </div>
@@ -1125,7 +1126,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
       </div>
       <div class="card-row">
         <span class="label">Contato Comercial:</span>
-        <span class="value">${data.vendedor?.email || 'contato@ecosolarenergy.com.br'}</span>
+        <span class="value">${data.vendedor?.email || CONTATO_ECOSOLAR.email}</span>
       </div>
       <div class="card-row">
         <span class="label">Consumo Atual Informado:</span>
