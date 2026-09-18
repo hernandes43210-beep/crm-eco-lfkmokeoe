@@ -152,7 +152,7 @@ export default function Login() {
               </>
             ) : (
               <>
-                <span>Entrar no Sistema</span>
+                <span>Entrar</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
@@ -169,19 +169,12 @@ export default function Login() {
               Criar conta com código
             </Link>
           </p>
-          <div className="p-2.5 rounded-md bg-slate-50 border border-slate-200/70 text-center w-full">
-            <p className="text-[11px] text-slate-500 font-medium">
-              Demo Admin:{' '}
-              <span className="font-semibold text-slate-700">hernandes43210@gmail.com</span> /{' '}
-              <span className="font-mono text-slate-700">Skip@Pass</span>
-            </p>
-          </div>
         </div>
       </div>
 
       {/* Helper Footer */}
       <p className="text-xs text-slate-400 mt-6 relative z-10 text-center">
-        Acesso restrito à equipe autorizada Ecosolar Energy • Todos os direitos reservados.
+        Acesso restrito à equipe autorizada.
       </p>
     </div>
   )

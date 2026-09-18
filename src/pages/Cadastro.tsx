@@ -145,11 +145,6 @@ export default function Cadastro() {
                 className="pl-9 h-10 font-mono tracking-wider font-bold text-sm uppercase border-amber-200 bg-amber-50/30 focus-visible:ring-amber-500"
               />
             </div>
-            <p className="text-[11px] text-slate-400">
-              Convite demo disponível:{' '}
-              <span className="font-mono font-bold text-slate-600">SOL789</span> (para
-              vendedor.demo@ecosolarenergy.com)
-            </p>
           </div>
 
           <div className="space-y-1">
@@ -180,7 +175,7 @@ export default function Cadastro() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="vendedor.demo@ecosolarenergy.com"
+                placeholder="seu.nome@empresa.com.br"
                 className="pl-9 h-10 text-sm border-slate-200"
               />
             </div>
