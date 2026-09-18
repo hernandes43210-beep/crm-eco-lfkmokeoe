@@ -21,6 +21,7 @@ import {
 import officialLogoPng from '@/assets/a-613c6.png'
 import EcosolarLogo from '@/components/EcosolarLogo'
 import { useAuth } from '@/context/AuthContext'
+import { NotificationBell } from '@/components/NotificationBell'
 import { LeadsService } from '@/services/leads'
 import useRealtime from '@/hooks/use-realtime'
 import { Button } from '@/components/ui/button'
@@ -198,27 +199,34 @@ export default function Layout() {
       {/* Desktop Sidebar (Fixed 260px, Navy #0F172A) */}
       <aside className="hidden md:flex w-[260px] flex-col fixed inset-y-0 left-0 bg-[#0F172A] border-r border-slate-800 z-30 select-none">
         {/* Brand / Logo */}
-        <div className="h-18 flex items-center gap-3 px-4 py-3 border-b border-slate-800/90">
-          <div className="bg-white rounded-xl p-1 shadow-md shadow-black/30 flex items-center justify-center shrink-0 border border-white/20">
-            <img
-              src={officialLogoPng}
-              alt="Ecosolar Energy Logo"
-              className="w-9 h-9 object-contain"
-            />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-baseline gap-1 leading-none">
-              <span className="font-black text-[15px] text-white tracking-tight">ECO</span>
-              <span className="font-black text-[15px] text-[#F5C518] tracking-tight border-b-2 border-[#F5C518] pb-0.5">
-                SOLAR
-              </span>
-              <span className="font-black text-[15px] text-white tracking-tight ml-0.5">
-                ENERGY
-              </span>
+        <div className="h-18 flex items-center justify-between px-4 py-3 border-b border-slate-800/90">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="bg-white rounded-xl p-1 shadow-md shadow-black/30 flex items-center justify-center shrink-0 border border-white/20">
+              <img
+                src={officialLogoPng}
+                alt="Ecosolar Energy Logo"
+                className="w-9 h-9 object-contain"
+              />
             </div>
-            <p className="text-[10px] text-slate-300 tracking-wider font-semibold truncate mt-1 uppercase">
-              A ENERGIA DO FUTURO, HOJE!
-            </p>
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-1 leading-none">
+                <span className="font-black text-[15px] text-white tracking-tight">ECO</span>
+                <span className="font-black text-[15px] text-[#F5C518] tracking-tight border-b-2 border-[#F5C518] pb-0.5">
+                  SOLAR
+                </span>
+                <span className="font-black text-[15px] text-white tracking-tight ml-0.5">
+                  ENERGY
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-300 tracking-wider font-semibold truncate mt-1 uppercase">
+                A ENERGIA DO FUTURO, HOJE!
+              </p>
+            </div>
+          </div>
+
+          {/* Sino de Notificações na Sidebar Desktop */}
+          <div className="shrink-0 pl-1">
+            <NotificationBell side="right" align="start" />
           </div>
         </div>
 
@@ -249,6 +257,11 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center gap-2.5">
+            {/* Sino também acessível na topbar mobile/desktop para conveniência */}
+            <div className="md:hidden">
+              <NotificationBell side="bottom" align="end" />
+            </div>
+
             <Button
               onClick={() => navigate('/leads/novo')}
               className="bg-[#0B7A5B] hover:bg-[#095C44] text-white font-medium shadow-sm shadow-[#0B7A5B]/30 flex items-center gap-1.5 h-9.5 px-4 rounded-lg"
@@ -294,14 +307,17 @@ export default function Layout() {
                 </p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setMobileDrawerOpen(false)}
-              className="text-slate-400 hover:text-white"
-            >
-              <X className="w-5 h-5" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <NotificationBell side="bottom" align="end" />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileDrawerOpen(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
           </SheetHeader>
 
           <NavLinks onClickItem={() => setMobileDrawerOpen(false)} />

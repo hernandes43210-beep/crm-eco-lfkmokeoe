@@ -17,6 +17,8 @@ import {
   Lock,
   Eye,
   EyeOff,
+  MapPin,
+  Pencil,
 } from 'lucide-react'
 import { EquipeService } from '@/services/equipe'
 import { useAuth } from '@/context/AuthContext'
@@ -66,6 +68,11 @@ export default function Equipe() {
   const [showAdminConfirmPassword, setShowAdminConfirmPassword] = useState(false)
   const [isAdminResetting, setIsAdminResetting] = useState(false)
   const [resetError, setResetError] = useState<string | null>(null)
+
+  // Edit Cidade de Atuação State
+  const [cidadeTargetUser, setCidadeTargetUser] = useState<User | null>(null)
+  const [cidadeAtuacaoInput, setCidadeAtuacaoInput] = useState('')
+  const [isSavingCidade, setIsSavingCidade] = useState(false)
 
   const fetchData = async () => {
     try {
@@ -252,6 +259,42 @@ export default function Equipe() {
     setResetError(null)
   }
 
+  const openEditCidadeModal = (user: User) => {
+    setCidadeTargetUser(user)
+    setCidadeAtuacaoInput(user.cidade_atuacao || '')
+  }
+
+  const handleSaveCidadeAtuacao = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!cidadeTargetUser) return
+
+    try {
+      setIsSavingCidade(true)
+      const novaCidade = cidadeAtuacaoInput.trim()
+      await EquipeService.updateUserCidadeAtuacao(cidadeTargetUser.id, novaCidade)
+
+      toast({
+        title: 'Cidade de atuação atualizada!',
+        description: novaCidade
+          ? `O vendedor ${cidadeTargetUser.name || cidadeTargetUser.email} receberá alertas para ${novaCidade}.`
+          : `Cidade de atuação de ${cidadeTargetUser.name || cidadeTargetUser.email} foi removida.`,
+      })
+
+      setCidadeTargetUser(null)
+      fetchData()
+    } catch (err: unknown) {
+      console.error('Error updating cidade atuacao:', err)
+      const msg = err instanceof Error ? err.message : 'Falha ao salvar cidade de atuação.'
+      toast({
+        title: 'Erro ao atualizar cidade',
+        description: msg,
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSavingCidade(false)
+    }
+  }
+
   const handleAdminResetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setResetError(null)
@@ -344,6 +387,7 @@ export default function Equipe() {
                       <th className="py-3 px-4">Membro</th>
                       <th className="py-3 px-4">E-mail</th>
                       <th className="py-3 px-4">Função / Cargo</th>
+                      <th className="py-3 px-4">Cidade de Atuação</th>
                       <th className="py-3 px-4">Membro desde</th>
                       <th className="py-3 px-4">Status</th>
                       {isAdmin && <th className="py-3 px-4 text-right">Ações</th>}
@@ -381,6 +425,30 @@ export default function Equipe() {
                           </Badge>
                         </td>
 
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-1.5">
+                            {usr.cidade_atuacao ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-[#0B7A5B] border border-emerald-200 text-xs font-semibold">
+                                <MapPin className="w-3 h-3 text-[#0B7A5B] shrink-0" />
+                                <span className="truncate max-w-[150px]">{usr.cidade_atuacao}</span>
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-400 italic">Não definida</span>
+                            )}
+                            {isAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEditCidadeModal(usr)}
+                                className="h-6 w-6 text-slate-400 hover:text-[#0B7A5B] hover:bg-emerald-50"
+                                title="Editar cidade de atuação"
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+
                         <td className="py-3 px-4 text-xs text-slate-400">
                           {formatDateBR(usr.created)}
                         </td>
@@ -393,16 +461,29 @@ export default function Equipe() {
 
                         {isAdmin && (
                           <td className="py-3 px-4 text-right">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openAdminResetModal(usr)}
-                              className="h-8 text-xs text-slate-700 hover:text-[#0B7A5B] hover:bg-emerald-50 gap-1.5 font-medium"
-                              title={`Redefinir senha de ${usr.name || usr.email}`}
-                            >
-                              <KeyRound className="w-3.5 h-3.5 text-amber-500" />
-                              <span>Redefinir senha</span>
-                            </Button>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEditCidadeModal(usr)}
+                                className="h-8 text-xs text-slate-700 hover:text-[#0B7A5B] hover:bg-emerald-50 gap-1 font-medium"
+                                title={`Editar cidade de ${usr.name || usr.email}`}
+                              >
+                                <MapPin className="w-3.5 h-3.5 text-[#0B7A5B]" />
+                                <span>Cidade</span>
+                              </Button>
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openAdminResetModal(usr)}
+                                className="h-8 text-xs text-slate-700 hover:text-[#0B7A5B] hover:bg-emerald-50 gap-1.5 font-medium"
+                                title={`Redefinir senha de ${usr.name || usr.email}`}
+                              >
+                                <KeyRound className="w-3.5 h-3.5 text-amber-500" />
+                                <span>Senha</span>
+                              </Button>
+                            </div>
                           </td>
                         )}
                       </tr>
@@ -892,6 +973,94 @@ export default function Equipe() {
                   <>
                     <Lock className="w-3.5 h-3.5" />
                     <span>Salvar nova senha</span>
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Edição de Cidade de Atuação */}
+      <Dialog
+        open={!!cidadeTargetUser}
+        onOpenChange={(open) => {
+          if (!open && !isSavingCidade) setCidadeTargetUser(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-md bg-white border-slate-200 text-slate-900 shadow-xl">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-1 text-[#0B7A5B]">
+              <MapPin className="w-5 h-5 text-[#0B7A5B]" />
+              <DialogTitle className="text-lg font-bold text-slate-900">
+                Cidade de Atuação do Vendedor
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-slate-500">
+              Defina a cidade em que{' '}
+              <strong className="text-slate-700 font-semibold">
+                {cidadeTargetUser?.name || cidadeTargetUser?.email}
+              </strong>{' '}
+              atua. Ao entrar um novo lead desta cidade, o vendedor receberá notificação imediata
+              por e-mail e no CRM.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveCidadeAtuacao} className="space-y-4 pt-1">
+            <div className="space-y-1.5">
+              <Label htmlFor="cidadeAtuacao" className="text-xs font-semibold text-slate-700">
+                Cidade(s) de Atuação
+              </Label>
+              <Input
+                id="cidadeAtuacao"
+                value={cidadeAtuacaoInput}
+                onChange={(e) => setCidadeAtuacaoInput(e.target.value)}
+                placeholder="Ex: Seringueiras, São Miguel do Guaporé"
+                className="h-10 text-sm border-slate-200 focus-visible:ring-[#0B7A5B]"
+                autoFocus
+              />
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                A comparação é tolerante (ignora acentos e maiúsculas). Para mais de uma cidade,
+                separe por vírgula.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-emerald-50/70 border border-emerald-200 text-emerald-900 text-xs space-y-1">
+              <div className="font-semibold flex items-center gap-1.5">
+                <Check className="w-3.5 h-3.5 text-[#0B7A5B]" />
+                <span>Notificação Automática de Novos Leads</span>
+              </div>
+              <p className="text-[11px] text-slate-600 leading-normal">
+                Sempre que um lead for cadastrado com esta cidade (via formulário, planilha ou API),
+                este vendedor será avisado no sino do CRM e receberá um e-mail com os dados de
+                contato.
+              </p>
+            </div>
+
+            <DialogFooter className="pt-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSavingCidade}
+                onClick={() => setCidadeTargetUser(null)}
+                className="text-xs"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSavingCidade}
+                className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold gap-1.5"
+              >
+                {isSavingCidade ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Salvando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Salvar Cidade</span>
                   </>
                 )}
               </Button>

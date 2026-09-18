@@ -8,8 +8,32 @@ export interface User extends RecordModel {
   name?: string
   role?: UserRole
   avatar?: string
+  cidade_atuacao?: string
   created: string
   updated: string
+}
+
+export type NotificacaoTipo = 'lead_cidade' | 'geral' | 'sla' | 'contato'
+
+export interface NotificacaoCRM extends RecordModel {
+  id: string
+  usuario: string
+  lead?: string
+  titulo: string
+  mensagem: string
+  tipo: NotificacaoTipo
+  lida: boolean
+  lead_nome?: string
+  lead_cidade?: string
+  lead_bairro?: string
+  lead_telefone?: string
+  metadados?: Record<string, unknown> | string
+  created: string
+  updated: string
+  expand?: {
+    lead?: Lead
+    usuario?: User
+  }
 }
 
 export type LeadStatus =
@@ -54,6 +78,7 @@ export interface Lead extends RecordModel {
   origem?: LeadOrigem
   consumo_mensal_kwh: number
   endereco?: string
+  bairro?: string
   cidade?: string
   estado?: string
   status: LeadStatus

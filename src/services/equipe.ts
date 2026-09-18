@@ -98,6 +98,12 @@ export const EquipeService = {
     return await pb.collection('users').update<User>(userId, { role })
   },
 
+  async updateUserCidadeAtuacao(userId: string, cidade_atuacao: string) {
+    return await pb.collection('users').update<User>(userId, {
+      cidade_atuacao: cidade_atuacao.trim(),
+    })
+  },
+
   async adminResetPassword(userId: string, newPassword: string) {
     return await pb.collection('users').update<User>(userId, {
       password: newPassword,

@@ -176,7 +176,7 @@ export function FormalizacaoDocEditorModal({
       clienteRg: '',
       clienteCpfCnpj: lead.cpf_cnpj || '',
       clienteEndereco: lead.endereco || '',
-      clienteBairro: 'Centro',
+      clienteBairro: lead.bairro || 'Centro',
       clienteCidade: lead.cidade || 'Seringueiras',
       clienteEstado: lead.estado || 'RO',
       clienteCep: lead.cep || '',

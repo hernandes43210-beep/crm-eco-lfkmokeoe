@@ -90,6 +90,7 @@ export default function LeadForm() {
   const [origem, setOrigem] = useState<LeadOrigem>('Site')
   const [consumoMensal, setConsumoMensal] = useState<number | string>(450)
   const [endereco, setEndereco] = useState('')
+  const [bairro, setBairro] = useState('')
   const [cidade, setCidade] = useState('')
   const [estado, setEstado] = useState('RO')
   const [status, setStatus] = useState<LeadStatus>('Novo')
@@ -117,6 +118,7 @@ export default function LeadForm() {
           setOrigem(lead.origem || 'Site')
           setConsumoMensal(lead.consumo_mensal_kwh || '')
           setEndereco(lead.endereco || '')
+          setBairro(lead.bairro || '')
           setCidade(lead.cidade || '')
           setEstado(lead.estado || 'RO')
           setStatus(lead.status)
@@ -253,6 +255,7 @@ export default function LeadForm() {
         origem,
         consumo_mensal_kwh: numConsumo,
         endereco: endereco.trim(),
+        bairro: bairro.trim(),
         cidade: cidade.trim(),
         estado: cleanEstado || 'RO',
         status: status || 'Novo',
@@ -556,11 +559,26 @@ export default function LeadForm() {
                   id="endereco"
                   value={endereco}
                   onChange={(e) => setEndereco(e.target.value)}
-                  placeholder="Rua, Número, Bairro"
+                  placeholder="Rua, Número"
                   className="h-10 text-sm border-slate-200"
                 />
               </div>
 
+              <div className="space-y-1.5">
+                <Label htmlFor="bairro" className="text-xs font-semibold text-slate-700">
+                  Bairro
+                </Label>
+                <Input
+                  id="bairro"
+                  value={bairro}
+                  onChange={(e) => setBairro(e.target.value)}
+                  placeholder="Centro"
+                  className="h-10 text-sm border-slate-200"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="cep" className="text-xs font-semibold text-slate-700">
                   CEP
@@ -573,10 +591,8 @@ export default function LeadForm() {
                   className="h-10 text-sm border-slate-200"
                 />
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="sm:col-span-2 space-y-1.5">
+              <div className="space-y-1.5">
                 <Label htmlFor="cidade" className="text-xs font-semibold text-slate-700">
                   Cidade
                 </Label>

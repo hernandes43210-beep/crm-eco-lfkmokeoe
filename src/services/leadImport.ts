@@ -97,10 +97,17 @@ export const CRM_FIELDS: FieldDefinition[] = [
   },
   {
     key: 'endereco',
-    label: 'Endereço / Bairro',
+    label: 'Endereço / Logradouro',
     required: false,
-    description: 'Logradouro, número ou bairro.',
-    heuristicMatches: ['endereco', 'endereço', 'rua', 'logradouro', 'bairro'],
+    description: 'Logradouro e número.',
+    heuristicMatches: ['endereco', 'endereço', 'rua', 'logradouro'],
+  },
+  {
+    key: 'bairro',
+    label: 'Bairro',
+    required: false,
+    description: 'Bairro do cliente.',
+    heuristicMatches: ['bairro', 'suburbio', 'subúrbio', 'distrito'],
   },
   {
     key: 'cpf_cnpj',
@@ -224,6 +231,7 @@ export interface ProcessedLeadRow {
   cidade: string
   estado: string
   endereco: string
+  bairro?: string
   cpf_cnpj?: string
   cep?: string
   nacionalidade?: string
@@ -368,6 +376,7 @@ export function autoDetectMapping(
     cidade: '',
     estado: '',
     endereco: '',
+    bairro: '',
     cpf_cnpj: '',
     cep: '',
     nacionalidade: '',
@@ -601,6 +610,7 @@ export function evaluateRowDeduplication(
     const rawCidade = mapping.cidade ? r[mapping.cidade] || '' : ''
     const rawEstado = mapping.estado ? r[mapping.estado] || '' : ''
     const rawEndereco = mapping.endereco ? r[mapping.endereco] || '' : ''
+    const rawBairro = mapping.bairro ? r[mapping.bairro] || '' : ''
     const rawCpfCnpj = mapping.cpf_cnpj ? r[mapping.cpf_cnpj] || '' : ''
     const rawCep = mapping.cep ? r[mapping.cep] || '' : ''
     const rawNacionalidade = mapping.nacionalidade ? r[mapping.nacionalidade] || '' : ''
@@ -618,6 +628,7 @@ export function evaluateRowDeduplication(
     const cidade = String(rawCidade).trim()
     const estado = parseUFSafe(rawEstado)
     const endereco = String(rawEndereco).trim()
+    const bairro = String(rawBairro).trim()
     const cpf_cnpj = String(rawCpfCnpj).trim()
     const cep = String(rawCep).trim()
     const nacionalidade = String(rawNacionalidade).trim()
@@ -663,6 +674,7 @@ export function evaluateRowDeduplication(
         cidade,
         estado,
         endereco,
+        bairro,
         cpf_cnpj,
         cep,
         nacionalidade,
@@ -722,6 +734,7 @@ export function evaluateRowDeduplication(
         cidade,
         estado,
         endereco,
+        bairro,
         cpf_cnpj,
         cep,
         nacionalidade,
@@ -749,6 +762,7 @@ export function evaluateRowDeduplication(
         cidade,
         estado,
         endereco,
+        bairro,
         cpf_cnpj,
         cep,
         nacionalidade,
@@ -773,6 +787,7 @@ export function evaluateRowDeduplication(
         cidade,
         estado,
         endereco,
+        bairro,
         cpf_cnpj,
         cep,
         nacionalidade,
@@ -855,6 +870,7 @@ export async function executeLeadImport(
           if (row.cidade) updatePayload.cidade = row.cidade
           if (row.estado) updatePayload.estado = row.estado
           if (row.endereco) updatePayload.endereco = row.endereco
+          if (row.bairro) updatePayload.bairro = row.bairro
           if (row.cpf_cnpj) updatePayload.cpf_cnpj = row.cpf_cnpj
           if (row.cep) updatePayload.cep = row.cep
           if (row.nacionalidade) updatePayload.nacionalidade = row.nacionalidade
@@ -911,6 +927,7 @@ export async function executeLeadImport(
         cidade: row.cidade,
         estado: row.estado || 'SP',
         endereco: row.endereco,
+        bairro: row.bairro || '',
         cpf_cnpj: row.cpf_cnpj || '',
         cep: row.cep || '',
         nacionalidade: row.nacionalidade || '',
