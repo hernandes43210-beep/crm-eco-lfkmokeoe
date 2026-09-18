@@ -161,6 +161,7 @@ describe('leadImport utilities', () => {
       cidade: 'Cidade',
       estado: 'Estado',
       endereco: '',
+      bairro: '',
       cpf_cnpj: '',
       cep: '',
       nacionalidade: '',

@@ -18,6 +18,7 @@ export type CRMField =
   | 'cidade'
   | 'estado'
   | 'endereco'
+  | 'bairro'
   | 'cpf_cnpj'
   | 'cep'
   | 'nacionalidade'

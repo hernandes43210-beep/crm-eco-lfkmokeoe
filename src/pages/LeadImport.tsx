@@ -78,6 +78,7 @@ export default function LeadImportPage() {
     cidade: '',
     estado: '',
     endereco: '',
+    bairro: '',
     cpf_cnpj: '',
     cep: '',
     nacionalidade: '',
