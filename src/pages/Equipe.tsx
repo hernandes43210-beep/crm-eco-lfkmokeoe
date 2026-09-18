@@ -49,8 +49,14 @@ export default function Equipe() {
   const [inviteRole, setInviteRole] = useState<UserRole>('Vendedor')
   const [generatedCode, setGeneratedCode] = useState('')
   const [createdInviteCode, setCreatedInviteCode] = useState<string | null>(null)
+  const [inviteEmailResult, setInviteEmailResult] = useState<{
+    status: 'sucesso' | 'erro' | 'duplicado_ignorado'
+    mensagem: string
+    destinatario: string
+  } | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [copiedCode, setCopiedCode] = useState(false)
+  const [resendingInviteId, setResendingInviteId] = useState<string | null>(null)
 
   // Admin Reset Password State
   const [resetTargetUser, setResetTargetUser] = useState<User | null>(null)
@@ -101,39 +107,95 @@ export default function Equipe() {
     setInviteRole('Vendedor')
     setGeneratedCode(generateNewInviteCode())
     setCreatedInviteCode(null)
+    setInviteEmailResult(null)
     setCopiedCode(false)
     setIsInviteModalOpen(true)
   }
 
   const handleCreateInvite = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!inviteEmail.trim() || !generatedCode) return
+    const targetEmail = inviteEmail.trim().toLowerCase() || 'ecosolarenergy2022@gmail.com'
+    const code = generatedCode.trim().toUpperCase()
+    if (!code) return
 
     try {
       setIsSubmitting(true)
-      await EquipeService.createInvite({
+      const result = await EquipeService.createInvite({
         nome: inviteName.trim(),
-        email: inviteEmail.trim().toLowerCase(),
+        email: targetEmail,
         role: inviteRole,
-        codigo_convite: generatedCode.trim().toUpperCase(),
+        codigo_convite: code,
       })
 
-      setCreatedInviteCode(generatedCode)
-      toast({
-        title: 'Convite criado com sucesso!',
-        description: `Código ${generatedCode} gerado e pronto para envio.`,
+      setCreatedInviteCode(code)
+      setInviteEmailResult({
+        status: result.email_status,
+        mensagem: result.email_mensagem,
+        destinatario: targetEmail,
       })
+
+      if (result.email_status === 'sucesso') {
+        toast({
+          title: 'Convite criado e e-mail enviado!',
+          description: `E-mail de convite enviado para ${targetEmail}. Código: ${code}.`,
+        })
+      } else if (result.email_status === 'duplicado_ignorado') {
+        toast({
+          title: 'Convite atualizado!',
+          description: `O código foi gerado. O e-mail já havia sido disparado anteriormente para ${targetEmail}.`,
+        })
+      } else {
+        toast({
+          title: 'Convite criado (atenção ao envio do e-mail)',
+          description:
+            result.email_mensagem ||
+            'Não foi possível enviar o e-mail automaticamente. Copie o código para enviar.',
+          variant: 'destructive',
+        })
+      }
+
       fetchData()
     } catch (err: unknown) {
       console.error('Error creating invite:', err)
       const msg = err instanceof Error ? err.message : 'Falha ao gerar convite.'
       toast({
         title: 'Erro ao criar convite',
-        description: msg.includes('unique') ? 'Já existe um convite para este e-mail.' : msg,
+        description: msg.includes('unique')
+          ? 'Já existe um convite com este código ou e-mail.'
+          : msg,
         variant: 'destructive',
       })
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleResendInviteEmail = async (invite: Convidado) => {
+    try {
+      setResendingInviteId(invite.id)
+      const res = await EquipeService.resendInviteEmail(invite.id)
+      if (res.success) {
+        toast({
+          title: 'E-mail reenviado com sucesso!',
+          description: `Novo e-mail de convite enviado para ${invite.email || 'ecosolarenergy2022@gmail.com'}.`,
+        })
+        fetchData()
+      } else {
+        toast({
+          title: 'Falha no reenvio de e-mail',
+          description: res.email_mensagem || 'Não foi possível disparar o e-mail.',
+          variant: 'destructive',
+        })
+      }
+    } catch (err: unknown) {
+      console.error('Error resending invite email:', err)
+      toast({
+        title: 'Erro ao reenviar e-mail',
+        description: err instanceof Error ? err.message : 'Falha na comunicação com o servidor.',
+        variant: 'destructive',
+      })
+    } finally {
+      setResendingInviteId(null)
     }
   }
 
@@ -374,6 +436,7 @@ export default function Equipe() {
                         <th className="py-3 px-4">E-mail Convidado</th>
                         <th className="py-3 px-4">Código de Convite</th>
                         <th className="py-3 px-4">Função</th>
+                        <th className="py-3 px-4">E-mail Notificação</th>
                         <th className="py-3 px-4">Status</th>
                         <th className="py-3 px-4 text-right">Ações</th>
                       </tr>
@@ -415,6 +478,47 @@ export default function Equipe() {
                             >
                               {inv.role}
                             </Badge>
+                          </td>
+
+                          <td className="py-3 px-4">
+                            {inv.email_enviado ? (
+                              <div className="flex flex-col gap-0.5">
+                                <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[11px] font-semibold hover:bg-emerald-100 w-fit gap-1">
+                                  <Mail className="w-3 h-3 text-emerald-700" />
+                                  <span>E-mail enviado</span>
+                                </Badge>
+                                {inv.email_enviado_em && (
+                                  <span className="text-[10px] text-slate-400 font-medium">
+                                    {formatDateBR(inv.email_enviado_em)}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5">
+                                <Badge
+                                  variant="outline"
+                                  className="bg-amber-50 text-amber-800 border-amber-200 text-[11px] font-medium gap-1"
+                                >
+                                  <AlertCircle className="w-3 h-3 text-amber-600" />
+                                  <span>Pendente / Manual</span>
+                                </Badge>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={resendingInviteId === inv.id}
+                                  onClick={() => handleResendInviteEmail(inv)}
+                                  className="h-6 px-1.5 text-[11px] text-[#0B7A5B] hover:text-[#095C44] hover:bg-emerald-50"
+                                  title="Enviar e-mail para o convidado agora"
+                                >
+                                  {resendingInviteId === inv.id ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <Mail className="w-3 h-3" />
+                                  )}
+                                  <span className="ml-1 text-[10px]">Enviar</span>
+                                </Button>
+                              </div>
+                            )}
                           </td>
 
                           <td className="py-3 px-4">
@@ -476,9 +580,10 @@ export default function Equipe() {
           {createdInviteCode ? (
             /* Success & Code display state */
             <div className="space-y-4 py-2 animate-fade-in-up">
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-center space-y-2">
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-center space-y-3">
                 <p className="text-xs font-semibold text-emerald-800">
-                  Convite criado com sucesso para {inviteEmail}!
+                  Convite criado para{' '}
+                  {inviteEmailResult?.destinatario || inviteEmail || 'o colaborador'}!
                 </p>
                 <div className="flex items-center justify-center gap-2 pt-1">
                   <span className="font-mono text-2xl font-black text-emerald-950 tracking-widest bg-white px-4 py-1.5 rounded-lg border border-emerald-300 shadow-xs">
@@ -492,10 +597,56 @@ export default function Equipe() {
                     <span>{copiedCode ? 'Copiado' : 'Copiar'}</span>
                   </Button>
                 </div>
-                <p className="text-[11px] text-emerald-700 mt-2">
-                  Envie este código ao colaborador. Ele deve acessar a página <code>/cadastro</code>{' '}
-                  e inserir o código para criar a senha.
-                </p>
+
+                {/* Email delivery status banner */}
+                {inviteEmailResult && (
+                  <div
+                    className={`p-2.5 rounded-lg text-left text-xs border ${
+                      inviteEmailResult.status === 'sucesso'
+                        ? 'bg-emerald-100/70 border-emerald-300 text-emerald-900'
+                        : inviteEmailResult.status === 'duplicado_ignorado'
+                          ? 'bg-blue-50 border-blue-200 text-blue-900'
+                          : 'bg-amber-50 border-amber-300 text-amber-900'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      {inviteEmailResult.status === 'sucesso' ? (
+                        <Mail className="w-4 h-4 text-emerald-700 mt-0.5 shrink-0" />
+                      ) : inviteEmailResult.status === 'duplicado_ignorado' ? (
+                        <Check className="w-4 h-4 text-blue-700 mt-0.5 shrink-0" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                      )}
+                      <div>
+                        <div className="font-semibold">
+                          {inviteEmailResult.status === 'sucesso'
+                            ? 'E-mail de convite enviado com sucesso!'
+                            : inviteEmailResult.status === 'duplicado_ignorado'
+                              ? 'Envio duplicado evitado'
+                              : 'Aviso sobre envio de e-mail'}
+                        </div>
+                        <p className="text-[11px] opacity-90 mt-0.5">
+                          {inviteEmailResult.mensagem}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="text-[11px] text-slate-600 bg-white p-2.5 rounded-lg border border-emerald-200/60 text-left space-y-1">
+                  <div className="font-semibold text-slate-800">
+                    Instruções enviadas ao colaborador:
+                  </div>
+                  <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-slate-600">
+                    <li>
+                      Acessar o link oficial: <code>/cadastro</code>
+                    </li>
+                    <li>Preencher nome, e-mail e senha</li>
+                    <li>
+                      Digitar o código de 6 dígitos: <strong>{createdInviteCode}</strong>
+                    </li>
+                  </ul>
+                </div>
               </div>
 
               <DialogFooter>
@@ -524,16 +675,20 @@ export default function Equipe() {
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="invEmail" className="text-xs font-semibold text-slate-700">
-                  E-mail Corporativo *
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="invEmail" className="text-xs font-semibold text-slate-700">
+                    E-mail Corporativo do Convidado
+                  </Label>
+                  <span className="text-[10px] text-slate-400">
+                    Padrão: ecosolarenergy2022@gmail.com se vazio
+                  </span>
+                </div>
                 <Input
                   id="invEmail"
                   type="email"
-                  required
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="lucas@empresa.com.br"
+                  placeholder="lucas@empresa.com.br (ou deixe em branco para o e-mail padrão)"
                   className="h-9.5 text-sm border-slate-200"
                 />
               </div>

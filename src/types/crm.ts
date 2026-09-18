@@ -186,6 +186,10 @@ export interface Convidado extends RecordModel {
   role: UserRole
   codigo_convite: string
   ativo: boolean
+  email_enviado?: boolean
+  email_enviado_em?: string
+  email_destinatario?: string
+  email_erro?: string
   created: string
   updated: string
 }

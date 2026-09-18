@@ -19,10 +19,68 @@ export const EquipeService = {
     email: string
     role: 'Admin' | 'Vendedor'
     codigo_convite: string
-  }) {
-    return await pb.collection('convidados').create<Convidado>({
-      ...data,
-      ativo: true,
+    forcar_reenvio?: boolean
+  }): Promise<{
+    convite: Convidado
+    email_status: 'sucesso' | 'erro' | 'duplicado_ignorado'
+    email_mensagem: string
+  }> {
+    try {
+      const response = await pb.send<{
+        success: boolean
+        convite: Convidado
+        email_status: 'sucesso' | 'erro' | 'duplicado_ignorado'
+        email_mensagem: string
+        message?: string
+      }>('/backend/v1/equipe/convidar', {
+        method: 'POST',
+        body: data,
+      })
+
+      if (response && response.convite) {
+        return {
+          convite: response.convite,
+          email_status: response.email_status || 'sucesso',
+          email_mensagem: response.email_mensagem || 'E-mail de convite enviado!',
+        }
+      }
+      throw new Error(response?.message || 'Falha ao processar convite.')
+    } catch (endpointErr) {
+      console.warn('Endpoint automatizado falhou, tentando fallback direto no banco:', endpointErr)
+      // Fallback gracioso: persistir direto na collection para nunca bloquear o usuário
+      const fallbackConvidado = await pb.collection('convidados').create<Convidado>({
+        nome: data.nome,
+        email: data.email || 'ecosolarenergy2022@gmail.com',
+        role: data.role,
+        codigo_convite: data.codigo_convite,
+        ativo: true,
+        email_enviado: false,
+      })
+      return {
+        convite: fallbackConvidado,
+        email_status: 'erro',
+        email_mensagem:
+          endpointErr instanceof Error
+            ? endpointErr.message
+            : 'Convite criado, mas o serviço de e-mail está indisponível no momento.',
+      }
+    }
+  },
+
+  async resendInviteEmail(inviteId: string): Promise<{
+    success: boolean
+    email_status: 'sucesso' | 'erro'
+    email_mensagem: string
+    convite?: Partial<Convidado>
+  }> {
+    return await pb.send<{
+      success: boolean
+      email_status: 'sucesso' | 'erro'
+      email_mensagem: string
+      convite?: Partial<Convidado>
+    }>('/backend/v1/equipe/reenviar-convite', {
+      method: 'POST',
+      body: { id: inviteId },
     })
   },
 
