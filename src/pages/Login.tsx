@@ -48,9 +48,18 @@ export default function Login() {
       navigate(from, { replace: true })
     } catch (err: unknown) {
       console.error('Login error:', err)
-      setErrorMsg(
-        toPortugueseErrorMessage(err, 'E-mail ou senha inválidos. Verifique suas credenciais.'),
+      let msg = toPortugueseErrorMessage(
+        err,
+        'E-mail ou senha inválidos. Verifique suas credenciais.',
       )
+      if (
+        !msg ||
+        msg.toLowerCase().includes('something went wrong') ||
+        msg.toLowerCase().includes('clientresponseerror')
+      ) {
+        msg = 'E-mail ou senha inválidos. Verifique suas credenciais.'
+      }
+      setErrorMsg(msg)
     } finally {
       setIsSubmitting(false)
     }

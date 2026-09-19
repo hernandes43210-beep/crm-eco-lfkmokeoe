@@ -278,6 +278,14 @@ export function toPortugueseErrorMessage(
       return `Dados inválidos: ${details}`
     }
 
+    // Status 0: falha de rede/conexão, requisição cancelada ou servidor offline
+    if (status === 0) {
+      if (pbErr.isAbort) {
+        return 'A requisição foi cancelada. Tente novamente.'
+      }
+      return 'Não foi possível conectar ao servidor. Verifique sua conexão com a internet ou tente novamente em instantes.'
+    }
+
     // Tratamento de códigos HTTP comuns
     if (status === 401 || status === 403) {
       const msg = pbErr.message?.toLowerCase() || ''
@@ -291,6 +299,14 @@ export function toPortugueseErrorMessage(
     }
     if (status === 400) {
       const originalMsg = pbErr.message || (pbErr.response as any)?.message || ''
+      const lower = originalMsg.toLowerCase()
+      if (
+        lower.includes('failed to authenticate') ||
+        lower.includes('invalid credentials') ||
+        lower.includes('something went wrong')
+      ) {
+        return 'E-mail ou senha inválidos. Verifique suas credenciais.'
+      }
       const translated = translateValidationMessage(originalMsg)
       if (
         translated &&

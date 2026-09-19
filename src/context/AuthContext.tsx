@@ -51,6 +51,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, pass: string) => {
     const authData = await pb.collection('users').authWithPassword(email, pass)
+    if (!authData || !authData.record) {
+      throw new Error('Falha na autenticação: dados de usuário não retornados.')
+    }
     setUser(authData.record as unknown as User)
   }
 
