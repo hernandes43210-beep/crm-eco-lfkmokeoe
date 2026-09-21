@@ -69,9 +69,10 @@ export default function Equipe() {
   const [isAdminResetting, setIsAdminResetting] = useState(false)
   const [resetError, setResetError] = useState<string | null>(null)
 
-  // Edit Cidade de Atuação State
+  // Edit Cidade de Atuação & Telefone State
   const [cidadeTargetUser, setCidadeTargetUser] = useState<User | null>(null)
   const [cidadeAtuacaoInput, setCidadeAtuacaoInput] = useState('')
+  const [telefoneInput, setTelefoneInput] = useState('')
   const [isSavingCidade, setIsSavingCidade] = useState(false)
 
   const fetchData = async () => {
@@ -262,6 +263,7 @@ export default function Equipe() {
   const openEditCidadeModal = (user: User) => {
     setCidadeTargetUser(user)
     setCidadeAtuacaoInput(user.cidade_atuacao || '')
+    setTelefoneInput(user.telefone || '')
   }
 
   const handleSaveCidadeAtuacao = async (e: React.FormEvent) => {
@@ -271,13 +273,16 @@ export default function Equipe() {
     try {
       setIsSavingCidade(true)
       const novaCidade = cidadeAtuacaoInput.trim()
-      await EquipeService.updateUserCidadeAtuacao(cidadeTargetUser.id, novaCidade)
+      const novoTelefone = telefoneInput.trim()
+
+      await Promise.all([
+        EquipeService.updateUserCidadeAtuacao(cidadeTargetUser.id, novaCidade),
+        EquipeService.updateUserTelefone(cidadeTargetUser.id, novoTelefone),
+      ])
 
       toast({
-        title: 'Cidade de atuação atualizada!',
-        description: novaCidade
-          ? `O vendedor ${cidadeTargetUser.name || cidadeTargetUser.email} receberá alertas para ${novaCidade}.`
-          : `Cidade de atuação de ${cidadeTargetUser.name || cidadeTargetUser.email} foi removida.`,
+        title: 'Dados do vendedor atualizados!',
+        description: `Cidade de atuação e WhatsApp de ${cidadeTargetUser.name || cidadeTargetUser.email} foram salvos com sucesso.`,
       })
 
       setCidadeTargetUser(null)
@@ -388,7 +393,8 @@ export default function Equipe() {
                       <th className="py-3 px-4">E-mail</th>
                       <th className="py-3 px-4">Função / Cargo</th>
                       <th className="py-3 px-4">Cidade de Atuação</th>
-                      <th className="py-3 px-4">Membro desde</th>
+                      <th className="py-3 px-4">WhatsApp</th>
+                      <th className="py-3 px-4">Membro desde</th>{' '}
                       <th className="py-3 px-4">Status</th>
                       {isAdmin && <th className="py-3 px-4 text-right">Ações</th>}
                     </tr>
@@ -441,7 +447,7 @@ export default function Equipe() {
                                 size="icon"
                                 onClick={() => openEditCidadeModal(usr)}
                                 className="h-6 w-6 text-slate-400 hover:text-[#0B7A5B] hover:bg-emerald-50"
-                                title="Editar cidade de atuação"
+                                title="Editar cidade e telefone"
                               >
                                 <Pencil className="w-3 h-3" />
                               </Button>
@@ -449,10 +455,19 @@ export default function Equipe() {
                           </div>
                         </td>
 
+                        <td className="py-3 px-4 text-xs text-slate-600">
+                          {usr.telefone ? (
+                            <span className="font-mono text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                              {usr.telefone}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic">Não informado</span>
+                          )}
+                        </td>
+
                         <td className="py-3 px-4 text-xs text-slate-400">
                           {formatDateBR(usr.created)}
                         </td>
-
                         <td className="py-3 px-4">
                           <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-xs font-semibold hover:bg-emerald-100">
                             Ativo
@@ -1025,18 +1040,34 @@ export default function Equipe() {
               </p>
             </div>
 
-            <div className="p-3 rounded-lg bg-emerald-50/70 border border-emerald-200 text-emerald-900 text-xs space-y-1">
-              <div className="font-semibold flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5 text-[#0B7A5B]" />
-                <span>Notificação Automática de Novos Leads</span>
-              </div>
-              <p className="text-[11px] text-slate-600 leading-normal">
-                Sempre que um lead for cadastrado com esta cidade (via formulário, planilha ou API),
-                este vendedor será avisado no sino do CRM e receberá um e-mail com os dados de
-                contato.
+            <div className="space-y-1.5">
+              <Label htmlFor="vendedorTelefone" className="text-xs font-semibold text-slate-700">
+                WhatsApp do Vendedor (com DDD)
+              </Label>
+              <Input
+                id="vendedorTelefone"
+                value={telefoneInput}
+                onChange={(e) => setTelefoneInput(e.target.value)}
+                placeholder="Ex: (69) 99234-6989"
+                className="h-10 text-sm border-slate-200 focus-visible:ring-[#0B7A5B]"
+              />
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                O vendedor receberá alertas de novos leads diretamente em seu WhatsApp pessoal ou
+                comercial.
               </p>
             </div>
 
+            <div className="p-3 rounded-lg bg-emerald-50/70 border border-emerald-200 text-emerald-900 text-xs space-y-1">
+              <div className="font-semibold flex items-center gap-1.5">
+                <Check className="w-3.5 h-3.5 text-[#0B7A5B]" />
+                <span>Notificação Automática de Novos Leads (E-mail + WhatsApp)</span>
+              </div>
+              <p className="text-[11px] text-slate-600 leading-normal">
+                Sempre que um lead for cadastrado com esta cidade (via formulário, planilha ou
+                WhatsApp), este vendedor será avisado no sino do CRM, receberá um e-mail com os
+                dados de contato e mensagem no WhatsApp.
+              </p>
+            </div>
             <DialogFooter className="pt-2 gap-2">
               <Button
                 type="button"

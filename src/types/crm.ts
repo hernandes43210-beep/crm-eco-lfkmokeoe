@@ -9,6 +9,7 @@ export interface User extends RecordModel {
   role?: UserRole
   avatar?: string
   cidade_atuacao?: string
+  telefone?: string
   created: string
   updated: string
 }

@@ -1,9 +1,9 @@
-// POST /backend/v1/whatsapp/webhook
-// Webhook público para receber eventos da Evolution API v2 (MESSAGES_UPSERT, CONNECTION_UPDATE, MESSAGES_UPDATE/MESSAGE_STATUS)
+// POST /backend/v1/webhooks/evolution
+// Endpoint complementar específico para webhook da Evolution API
 // Validação por header 'apikey' contra o segredo EVOLUTION_API_KEY ou configuração whatsapp_settings.
 // Auto-cria lead no topo do funil para números desconhecidos e salva mensagens com deduplicação por wa_message_id.
 
-routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
+routerAdd('POST', '/backend/v1/webhooks/evolution', (e) => {
   // 1. Obter a API KEY esperada do ambiente ($os.getenv) ou da coleção whatsapp_settings
   let expectedApiKey = ''
   try {
@@ -22,7 +22,7 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
   // Se a chave não estiver configurada no servidor, responder 200 rápido com flag explicativa em português
   if (!expectedApiKey || expectedApiKey === 'placeholder_api_key') {
     console.warn(
-      '[whatsapp_webhook] Aviso: EVOLUTION_API_KEY não configurada no servidor. Requisição de webhook aceita em modo degradado.',
+      '[evolution_webhook] Aviso: EVOLUTION_API_KEY não configurada no servidor. Requisição de webhook aceita em modo degradado.',
     )
     return e.json(200, {
       received: true,
@@ -44,7 +44,7 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
 
   if (!reqApiKey || reqApiKey !== expectedApiKey) {
     console.warn(
-      '[whatsapp_webhook] Tentativa não autorizada de acesso ao webhook: API KEY inválida ou ausente.',
+      '[evolution_webhook] Tentativa não autorizada de acesso ao webhook: API KEY inválida ou ausente.',
     )
     return e.json(401, {
       error: 'Não autorizado: API KEY inválida.',
@@ -66,10 +66,10 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
           state === 'open' ? 'connected' : state === 'connecting' ? 'connecting' : 'disconnected'
         settings.set('connection_status', newStatus)
         $app.save(settings)
-        console.log('[whatsapp_webhook] Status de conexão atualizado para: ' + newStatus)
+        console.log('[evolution_webhook] Status de conexão atualizado para: ' + newStatus)
       }
     } catch (connErr) {
-      console.error('[whatsapp_webhook] Erro ao atualizar status de conexão:', connErr)
+      console.error('[evolution_webhook] Erro ao atualizar status de conexão:', connErr)
     }
     return e.json(200, { received: true, event: 'CONNECTION_UPDATE', state: state })
   }
@@ -273,11 +273,10 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
         ]
         newLead.set('historico', JSON.stringify(hist))
 
-        // Salvar lead (o hook onRecordAfterCreateSuccess de notificação por cidade dispara aqui se tiver cidade)
         $app.save(newLead)
         leadRecord = newLead
       } catch (createLeadErr) {
-        console.error('[whatsapp_webhook] Erro ao auto-criar lead:', createLeadErr)
+        console.error('[evolution_webhook] Erro ao auto-criar lead:', createLeadErr)
       }
     } else if (leadRecord && !fromMe) {
       // Se lead já existe e mensagem veio dele, registrar no histórico do lead
@@ -308,7 +307,7 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
         leadRecord.set('historico', JSON.stringify(hist))
         $app.save(leadRecord)
       } catch (histErr) {
-        console.error('[whatsapp_webhook] Erro ao atualizar histórico do lead:', histErr)
+        console.error('[evolution_webhook] Erro ao atualizar histórico do lead:', histErr)
       }
     }
 
@@ -335,7 +334,7 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
         lead_id: leadRecord ? leadRecord.id : null,
       })
     } catch (saveErr) {
-      console.error('[whatsapp_webhook] Erro ao salvar registro de mensagem:', saveErr)
+      console.error('[evolution_webhook] Erro ao salvar registro de mensagem:', saveErr)
       return e.json(500, { error: 'Erro ao salvar mensagem: ' + saveErr.message })
     }
   }

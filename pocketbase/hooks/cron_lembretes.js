@@ -259,11 +259,80 @@ cronAdd('cron_lembretes_proximo_contato', '*/2 * * * *', () => {
               mailErr,
             )
           }
+
+          // Notificação WhatsApp para o cliente (best-effort)
+          if (telefoneCliente && telefoneCliente !== 'Não informado') {
+            let clienteTelefoneNorm = telefoneCliente.replace(/\D/g, '')
+            if (
+              clienteTelefoneNorm.startsWith('0') &&
+              (clienteTelefoneNorm.length === 11 || clienteTelefoneNorm.length === 12)
+            ) {
+              clienteTelefoneNorm = clienteTelefoneNorm.slice(1)
+            }
+            if (
+              !clienteTelefoneNorm.startsWith('55') &&
+              (clienteTelefoneNorm.length === 10 || clienteTelefoneNorm.length === 11)
+            ) {
+              clienteTelefoneNorm = '55' + clienteTelefoneNorm
+            }
+
+            if (clienteTelefoneNorm) {
+              let evoUrl = ''
+              let evoKey = ''
+              let evoInst = 'ecosolar'
+              try {
+                evoUrl = ($os.getenv('EVOLUTION_API_URL') || '').trim()
+                evoKey = ($os.getenv('EVOLUTION_API_KEY') || '').trim()
+                evoInst = ($os.getenv('EVOLUTION_INSTANCE_NAME') || 'ecosolar').trim()
+              } catch (_) {}
+
+              if (!evoUrl || !evoKey || evoKey === 'placeholder_api_key') {
+                try {
+                  const waList = $app.findRecordsByFilter('whatsapp_settings', '', '-created', 1, 0)
+                  if (waList && waList.length > 0) {
+                    if (!evoUrl) evoUrl = (waList[0].getString('api_url') || '').trim()
+                    if (!evoKey || evoKey === 'placeholder_api_key')
+                      evoKey = (waList[0].getString('api_key') || '').trim()
+                    if (!evoInst || evoInst === 'ecosolar')
+                      evoInst = (waList[0].getString('instance_name') || 'ecosolar').trim()
+                  }
+                } catch (_) {}
+              }
+
+              if (evoUrl && evoKey && evoKey !== 'placeholder_api_key') {
+                if (evoUrl.endsWith('/')) evoUrl = evoUrl.slice(0, -1)
+                const msgWa =
+                  '☀️ *Ecosolar Energy — Lembrete do seu Atendimento Solar*\n\n' +
+                  'Olá, ' +
+                  nomeCliente +
+                  '!\n' +
+                  'Passando para lembrar que temos um contato agendado para amanhã, ' +
+                  dataHoraFormatada +
+                  ', para conversarmos sobre o seu projeto de energia solar.\n\n' +
+                  'Nos falamos em breve! Caso precise remarcar, basta nos responder por aqui. 🌱'
+
+                try {
+                  $http.send({
+                    url: evoUrl + '/message/sendText/' + encodeURIComponent(evoInst),
+                    method: 'POST',
+                    headers: {
+                      apikey: evoKey,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      number: clienteTelefoneNorm,
+                      text: msgWa,
+                    }),
+                    timeout: 10,
+                  })
+                } catch (_) {}
+              }
+            }
+          }
         }
       }
 
-      // 2) MOMENTO: 4 HORAS ANTES
-      // Janela temporal: entre 240 min (4h) e 180 min (3h) antes do contato
+      // 2) MOMENTO: 4 HORAS ANTES      // Janela temporal: entre 240 min (4h) e 180 min (3h) antes do contato
       if (!lembrete4hEnviado && !jaRegistrado('4h') && diffMinutes <= 240 && diffMinutes >= 180) {
         const flagName = 'lembrete_4h_enviado'
         const tipo = '4h'
@@ -341,11 +410,80 @@ cronAdd('cron_lembretes_proximo_contato', '*/2 * * * *', () => {
               mailErr,
             )
           }
+
+          // Notificação WhatsApp para o cliente (best-effort)
+          if (telefoneCliente && telefoneCliente !== 'Não informado') {
+            let clienteTelefoneNorm = telefoneCliente.replace(/\D/g, '')
+            if (
+              clienteTelefoneNorm.startsWith('0') &&
+              (clienteTelefoneNorm.length === 11 || clienteTelefoneNorm.length === 12)
+            ) {
+              clienteTelefoneNorm = clienteTelefoneNorm.slice(1)
+            }
+            if (
+              !clienteTelefoneNorm.startsWith('55') &&
+              (clienteTelefoneNorm.length === 10 || clienteTelefoneNorm.length === 11)
+            ) {
+              clienteTelefoneNorm = '55' + clienteTelefoneNorm
+            }
+
+            if (clienteTelefoneNorm) {
+              let evoUrl = ''
+              let evoKey = ''
+              let evoInst = 'ecosolar'
+              try {
+                evoUrl = ($os.getenv('EVOLUTION_API_URL') || '').trim()
+                evoKey = ($os.getenv('EVOLUTION_API_KEY') || '').trim()
+                evoInst = ($os.getenv('EVOLUTION_INSTANCE_NAME') || 'ecosolar').trim()
+              } catch (_) {}
+
+              if (!evoUrl || !evoKey || evoKey === 'placeholder_api_key') {
+                try {
+                  const waList = $app.findRecordsByFilter('whatsapp_settings', '', '-created', 1, 0)
+                  if (waList && waList.length > 0) {
+                    if (!evoUrl) evoUrl = (waList[0].getString('api_url') || '').trim()
+                    if (!evoKey || evoKey === 'placeholder_api_key')
+                      evoKey = (waList[0].getString('api_key') || '').trim()
+                    if (!evoInst || evoInst === 'ecosolar')
+                      evoInst = (waList[0].getString('instance_name') || 'ecosolar').trim()
+                  }
+                } catch (_) {}
+              }
+
+              if (evoUrl && evoKey && evoKey !== 'placeholder_api_key') {
+                if (evoUrl.endsWith('/')) evoUrl = evoUrl.slice(0, -1)
+                const msgWa =
+                  '☀️ *Ecosolar Energy — Lembrete de Atendimento Hoje*\n\n' +
+                  'Olá, ' +
+                  nomeCliente +
+                  '!\n' +
+                  'Lembramos que hoje, ' +
+                  dataHoraFormatada +
+                  ', nosso consultor solar entrará em contato para apresentar sua proposta e esclarecer dúvidas.\n\n' +
+                  'Até breve! 🌱'
+
+                try {
+                  $http.send({
+                    url: evoUrl + '/message/sendText/' + encodeURIComponent(evoInst),
+                    method: 'POST',
+                    headers: {
+                      apikey: evoKey,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      number: clienteTelefoneNorm,
+                      text: msgWa,
+                    }),
+                    timeout: 10,
+                  })
+                } catch (_) {}
+              }
+            }
+          }
         }
       }
 
-      // 3) MOMENTO: 20 MINUTOS ANTES
-      // Janela temporal: entre 20 min antes e até 10 min pós-horário (diffMinutes <= 20 && diffMinutes >= -10)
+      // 3) MOMENTO: 20 MINUTOS ANTES      // Janela temporal: entre 20 min antes e até 10 min pós-horário (diffMinutes <= 20 && diffMinutes >= -10)
       if (!lembrete20mEnviado && !jaRegistrado('20m') && diffMinutes <= 20 && diffMinutes >= -10) {
         const flagName = 'lembrete_20m_enviado'
         const tipo = '20m'
@@ -422,6 +560,74 @@ cronAdd('cron_lembretes_proximo_contato', '*/2 * * * *', () => {
               '[cron_lembretes] Erro ao disparar email ' + tipo + ' para lead ' + leadId + ':',
               mailErr,
             )
+          }
+
+          // Notificação WhatsApp para o cliente (best-effort)
+          if (telefoneCliente && telefoneCliente !== 'Não informado') {
+            let clienteTelefoneNorm = telefoneCliente.replace(/\D/g, '')
+            if (
+              clienteTelefoneNorm.startsWith('0') &&
+              (clienteTelefoneNorm.length === 11 || clienteTelefoneNorm.length === 12)
+            ) {
+              clienteTelefoneNorm = clienteTelefoneNorm.slice(1)
+            }
+            if (
+              !clienteTelefoneNorm.startsWith('55') &&
+              (clienteTelefoneNorm.length === 10 || clienteTelefoneNorm.length === 11)
+            ) {
+              clienteTelefoneNorm = '55' + clienteTelefoneNorm
+            }
+
+            if (clienteTelefoneNorm) {
+              let evoUrl = ''
+              let evoKey = ''
+              let evoInst = 'ecosolar'
+              try {
+                evoUrl = ($os.getenv('EVOLUTION_API_URL') || '').trim()
+                evoKey = ($os.getenv('EVOLUTION_API_KEY') || '').trim()
+                evoInst = ($os.getenv('EVOLUTION_INSTANCE_NAME') || 'ecosolar').trim()
+              } catch (_) {}
+
+              if (!evoUrl || !evoKey || evoKey === 'placeholder_api_key') {
+                try {
+                  const waList = $app.findRecordsByFilter('whatsapp_settings', '', '-created', 1, 0)
+                  if (waList && waList.length > 0) {
+                    if (!evoUrl) evoUrl = (waList[0].getString('api_url') || '').trim()
+                    if (!evoKey || evoKey === 'placeholder_api_key')
+                      evoKey = (waList[0].getString('api_key') || '').trim()
+                    if (!evoInst || evoInst === 'ecosolar')
+                      evoInst = (waList[0].getString('instance_name') || 'ecosolar').trim()
+                  }
+                } catch (_) {}
+              }
+
+              if (evoUrl && evoKey && evoKey !== 'placeholder_api_key') {
+                if (evoUrl.endsWith('/')) evoUrl = evoUrl.slice(0, -1)
+                const msgWa =
+                  '☀️ *Ecosolar Energy — Começando em 20 minutos!*\n\n' +
+                  'Olá, ' +
+                  nomeCliente +
+                  '!\n' +
+                  'Em instantes nosso consultor solar entrará em contato para falar sobre o seu projeto fotovoltaico.\n\n' +
+                  'Até logo! ⚡'
+
+                try {
+                  $http.send({
+                    url: evoUrl + '/message/sendText/' + encodeURIComponent(evoInst),
+                    method: 'POST',
+                    headers: {
+                      apikey: evoKey,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      number: clienteTelefoneNorm,
+                      text: msgWa,
+                    }),
+                    timeout: 10,
+                  })
+                } catch (_) {}
+              }
+            }
           }
         }
       }

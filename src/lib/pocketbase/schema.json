@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-18T20:53:24.212Z",
+  "generatedAt": "2026-09-21T13:51:52.801Z",
   "collections": [
     {
       "name": "users",
@@ -47,6 +47,12 @@
         },
         {
           "name": "cidade_atuacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "telefone",
           "type": "text",
           "required": false,
           "system": false

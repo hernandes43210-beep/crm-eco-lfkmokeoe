@@ -329,6 +329,117 @@ onRecordAfterCreateSuccess((e) => {
           )
         }
       }
+
+      // 4. Disparo opcional de notificação via WhatsApp para o vendedor (best-effort)
+      const vendedorTelefoneRaw = vendedor.getString('telefone') || ''
+      if (vendedorTelefoneRaw) {
+        let vendedorTelefoneNorm = vendedorTelefoneRaw.replace(/\D/g, '')
+        if (
+          vendedorTelefoneNorm.startsWith('0') &&
+          (vendedorTelefoneNorm.length === 11 || vendedorTelefoneNorm.length === 12)
+        ) {
+          vendedorTelefoneNorm = vendedorTelefoneNorm.slice(1)
+        }
+        if (
+          !vendedorTelefoneNorm.startsWith('55') &&
+          (vendedorTelefoneNorm.length === 10 || vendedorTelefoneNorm.length === 11)
+        ) {
+          vendedorTelefoneNorm = '55' + vendedorTelefoneNorm
+        }
+
+        if (vendedorTelefoneNorm) {
+          // Obter configurações da Evolution API
+          let evoUrl = ''
+          let evoKey = ''
+          let evoInst = 'ecosolar'
+          try {
+            evoUrl = ($os.getenv('EVOLUTION_API_URL') || '').trim()
+            evoKey = ($os.getenv('EVOLUTION_API_KEY') || '').trim()
+            evoInst = ($os.getenv('EVOLUTION_INSTANCE_NAME') || 'ecosolar').trim()
+          } catch (_) {}
+
+          if (!evoUrl || !evoKey || evoKey === 'placeholder_api_key') {
+            try {
+              const waList = $app.findRecordsByFilter('whatsapp_settings', '', '-created', 1, 0)
+              if (waList && waList.length > 0) {
+                if (!evoUrl) evoUrl = (waList[0].getString('api_url') || '').trim()
+                if (!evoKey || evoKey === 'placeholder_api_key')
+                  evoKey = (waList[0].getString('api_key') || '').trim()
+                if (!evoInst || evoInst === 'ecosolar')
+                  evoInst = (waList[0].getString('instance_name') || 'ecosolar').trim()
+              }
+            } catch (_) {}
+          }
+
+          if (evoUrl && evoKey && evoKey !== 'placeholder_api_key') {
+            if (evoUrl.endsWith('/')) evoUrl = evoUrl.slice(0, -1)
+            const msgTexto =
+              '☀️ *Ecosolar CRM — Novo Lead na sua Cidade!*\n\n' +
+              'Olá, ' +
+              vendedorNome +
+              '!\n' +
+              'Um novo lead compatível com *' +
+              leadCidadeRaw +
+              '* acabou de entrar no CRM:\n\n' +
+              '👤 *Nome:* ' +
+              leadNome +
+              '\n' +
+              '📍 *Local:* ' +
+              leadCidadeRaw +
+              (leadBairro ? ' (Bairro: ' + leadBairro + ')' : '') +
+              '\n' +
+              '📱 *Telefone:* ' +
+              leadTelefone +
+              '\n' +
+              (leadValorConta > 0
+                ? '💰 *Conta de Energia:* R$ ' + leadValorConta.toFixed(2) + '\n'
+                : '') +
+              (leadConsumo > 0 ? '⚡ *Consumo:* ' + leadConsumo + ' kWh/mês\n' : '') +
+              '\n🔗 *Acessar no CRM:* ' +
+              crmLeadUrl
+
+            try {
+              const evoSendRes = $http.send({
+                url: evoUrl + '/message/sendText/' + encodeURIComponent(evoInst),
+                method: 'POST',
+                headers: {
+                  apikey: evoKey,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  number: vendedorTelefoneNorm,
+                  text: msgTexto,
+                }),
+                timeout: 10,
+              })
+
+              if (evoSendRes.statusCode >= 200 && evoSendRes.statusCode < 300) {
+                console.log(
+                  '[lead_cidade_notificacao] WhatsApp enviado com sucesso para vendedor ' +
+                    vendedorNome +
+                    ' (' +
+                    vendedorTelefoneNorm +
+                    ')',
+                )
+              } else {
+                console.warn(
+                  '[lead_cidade_notificacao] Falha ao enviar WhatsApp para vendedor: Status ' +
+                    evoSendRes.statusCode,
+                )
+              }
+            } catch (evoErr) {
+              console.error(
+                '[lead_cidade_notificacao] Erro de rede ao disparar WhatsApp para vendedor:',
+                evoErr,
+              )
+            }
+          } else {
+            console.log(
+              '[lead_cidade_notificacao] Notificação WhatsApp para vendedor ignorada: Evolution API não configurada.',
+            )
+          }
+        }
+      }
     }
   } catch (globalErr) {
     console.error('[lead_cidade_notificacao] Erro não tratado no hook:', globalErr)

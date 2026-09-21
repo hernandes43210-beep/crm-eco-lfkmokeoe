@@ -104,6 +104,12 @@ export const EquipeService = {
     })
   },
 
+  async updateUserTelefone(userId: string, telefone: string) {
+    return await pb.collection('users').update<User>(userId, {
+      telefone: telefone.trim(),
+    })
+  },
+
   async adminResetPassword(userId: string, newPassword: string) {
     return await pb.collection('users').update<User>(userId, {
       password: newPassword,

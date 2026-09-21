@@ -195,6 +195,82 @@ routerAdd(
           })
           leadRec.set('historico', JSON.stringify(hist))
           $app.save(leadRec)
+
+          // Enviar WhatsApp de confirmação de assinatura para o cliente (best-effort)
+          const clienteTelefoneRaw =
+            envelopeRec.getString('signatario_telefone') || leadRec.getString('telefone') || ''
+          const clienteNome =
+            envelopeRec.getString('signatario_nome') || leadRec.getString('nome') || 'Cliente'
+
+          if (clienteTelefoneRaw) {
+            let clienteTelefoneNorm = clienteTelefoneRaw.replace(/\D/g, '')
+            if (
+              clienteTelefoneNorm.startsWith('0') &&
+              (clienteTelefoneNorm.length === 11 || clienteTelefoneNorm.length === 12)
+            ) {
+              clienteTelefoneNorm = clienteTelefoneNorm.slice(1)
+            }
+            if (
+              !clienteTelefoneNorm.startsWith('55') &&
+              (clienteTelefoneNorm.length === 10 || clienteTelefoneNorm.length === 11)
+            ) {
+              clienteTelefoneNorm = '55' + clienteTelefoneNorm
+            }
+
+            if (clienteTelefoneNorm) {
+              let evoUrl = ''
+              let evoKey = ''
+              let evoInst = 'ecosolar'
+              try {
+                evoUrl = ($os.getenv('EVOLUTION_API_URL') || '').trim()
+                evoKey = ($os.getenv('EVOLUTION_API_KEY') || '').trim()
+                evoInst = ($os.getenv('EVOLUTION_INSTANCE_NAME') || 'ecosolar').trim()
+              } catch (_) {}
+
+              if (!evoUrl || !evoKey || evoKey === 'placeholder_api_key') {
+                try {
+                  const waList = $app.findRecordsByFilter('whatsapp_settings', '', '-created', 1, 0)
+                  if (waList && waList.length > 0) {
+                    if (!evoUrl) evoUrl = (waList[0].getString('api_url') || '').trim()
+                    if (!evoKey || evoKey === 'placeholder_api_key')
+                      evoKey = (waList[0].getString('api_key') || '').trim()
+                    if (!evoInst || evoInst === 'ecosolar')
+                      evoInst = (waList[0].getString('instance_name') || 'ecosolar').trim()
+                  }
+                } catch (_) {}
+              }
+
+              if (evoUrl && evoKey && evoKey !== 'placeholder_api_key') {
+                if (evoUrl.endsWith('/')) evoUrl = evoUrl.slice(0, -1)
+                const msgCliente =
+                  '☀️ *Ecosolar Energy — Documento Assinado com Sucesso!*\n\n' +
+                  'Olá, ' +
+                  clienteNome +
+                  '!\n' +
+                  'Confirmamos o recebimento da assinatura do seu ' +
+                  docNome +
+                  '.\n\n' +
+                  'Nossa equipe técnica já está cuidando dos próximos passos do seu sistema fotovoltaico.\n\n' +
+                  'Obrigado pela confiança na Ecosolar Energy! 🌱✨'
+
+                try {
+                  $http.send({
+                    url: evoUrl + '/message/sendText/' + encodeURIComponent(evoInst),
+                    method: 'POST',
+                    headers: {
+                      apikey: evoKey,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      number: clienteTelefoneNorm,
+                      text: msgCliente,
+                    }),
+                    timeout: 10,
+                  })
+                } catch (_) {}
+              }
+            }
+          }
         } catch (_) {}
       }
     }
