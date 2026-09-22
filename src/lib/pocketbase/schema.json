@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-22T12:59:31.429Z",
+  "generatedAt": "2026-09-22T13:17:58.477Z",
   "collections": [
     {
       "name": "users",
@@ -1044,13 +1044,6 @@
           "type": "number",
           "required": false,
           "system": false
-        },
-        {
-          "name": "foto_instalacao_destaque",
-          "type": "select",
-          "required": false,
-          "system": false,
-          "selectValues": ["posto_br", "academia", "nenhuma"]
         }
       ],
       "indexes": [

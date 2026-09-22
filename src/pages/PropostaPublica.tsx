@@ -43,7 +43,6 @@ import { AnimatedInvestmentRace } from '@/components/AnimatedInvestmentRace'
 import {
   INSTITUTIONAL_INSTALLATION_PHOTOS,
   type InstitutionalInstallationPhoto,
-  getFotoInstalacaoDestaque,
 } from '@/data/socialProofPhotos'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -194,7 +193,6 @@ export default function PropostaPublica() {
         name: proposta.vendedor?.name || 'Equipe Ecosolar Energy',
         email: proposta.vendedor?.email,
       },
-      foto_instalacao_destaque: proposta.foto_instalacao_destaque || 'posto_br',
       fotos_obra: proposta.fotos_obra,
     })
   }
@@ -1158,9 +1156,6 @@ export default function PropostaPublica() {
 
         {/* 5. Prova Social — Obras Concluídas & Padrão de Engenharia (Fotos Reais) */}
         {(() => {
-          // Verificar se o usuário escolheu uma foto de instalação em destaque na proposta (ou nenhuma)
-          const fotoDestaqueSalva = getFotoInstalacaoDestaque(proposta.foto_instalacao_destaque)
-
           // Galeria completa de fotos com metadados para o modal
           const displayPhotos: Array<{
             id: string
@@ -1228,103 +1223,6 @@ export default function PropostaPublica() {
                 </div>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 bg-slate-50/50 space-y-4">
-                {/* Banner de Destaque da Instalação Selecionada com Identidade Visual Ecosolar */}
-                {fotoDestaqueSalva && fotoDestaqueSalva.src && (
-                  <div
-                    onClick={() =>
-                      setSelectedPhotoModal({
-                        id: fotoDestaqueSalva.id,
-                        url: fotoDestaqueSalva.src!,
-                        titulo: fotoDestaqueSalva.titulo,
-                        legenda: fotoDestaqueSalva.legenda,
-                        descricao: fotoDestaqueSalva.descricao,
-                        tag: fotoDestaqueSalva.tag,
-                        local: fotoDestaqueSalva.local,
-                      })
-                    }
-                    className="group cursor-pointer relative overflow-hidden rounded-2xl border-2 border-amber-400/80 bg-gradient-to-br from-[#0A192F] via-[#0F284E] to-[#163868] text-white shadow-md hover:shadow-xl transition-all duration-300"
-                  >
-                    {/* Moldura / Marca D'água Visual Ecosolar */}
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-0 items-stretch">
-                      {/* Foto com overlay e watermark */}
-                      <div className="md:col-span-7 relative aspect-16/10 md:aspect-auto min-h-[220px] md:min-h-[280px] overflow-hidden bg-slate-950">
-                        <img
-                          src={fotoDestaqueSalva.src}
-                          alt={fotoDestaqueSalva.legenda}
-                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent md:bg-gradient-to-r md:from-transparent md:via-transparent md:to-[#0A192F]/80" />
-
-                        {/* Tag no topo da foto */}
-                        <div className="absolute top-3 left-3 flex items-center gap-2">
-                          <span className="bg-[#0A192F]/95 backdrop-blur-xs text-amber-300 border border-amber-400/50 text-[11px] font-black uppercase px-2.5 py-1 rounded-md shadow-sm">
-                            ★ Instalação em Destaque
-                          </span>
-                          <span className="bg-emerald-500/90 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-sm">
-                            ✓ Obra Homologada
-                          </span>
-                        </div>
-
-                        {/* Marca d'água oficial Ecosolar sutil no canto inferior da foto */}
-                        <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-[#0A192F]/85 backdrop-blur-md border border-amber-400/40 rounded-lg px-2.5 py-1.5 shadow-md">
-                          <img
-                            src={officialLogoPng}
-                            alt="Ecosolar Energy"
-                            className="h-5 w-auto object-contain bg-white rounded px-1 py-0.5"
-                          />
-                          <span className="text-[10px] font-extrabold text-amber-300 tracking-wide">
-                            ECOSOLAR ENERGY
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Informações técnicas e destaque visual Ecosolar */}
-                      <div className="md:col-span-5 p-5 md:p-6 flex flex-col justify-between bg-gradient-to-br from-[#0A192F] to-[#163868] relative">
-                        {/* Brilhos sutis de fundo */}
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
-
-                        <div className="space-y-3 relative z-1">
-                          <div className="flex items-center justify-between text-xs text-amber-300 font-bold uppercase tracking-wider">
-                            <span>{fotoDestaqueSalva.tag}</span>
-                            <span className="text-sky-300">NR10/NR35</span>
-                          </div>
-
-                          <h3 className="text-base sm:text-lg font-black text-white leading-snug group-hover:text-amber-300 transition-colors">
-                            {fotoDestaqueSalva.legenda}
-                          </h3>
-
-                          <p className="text-xs text-slate-200 leading-relaxed">
-                            {fotoDestaqueSalva.descricao}
-                          </p>
-
-                          <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-xs text-slate-300 space-y-1">
-                            <div className="flex items-center justify-between text-[11px]">
-                              <span className="text-slate-400">Local da Obra:</span>
-                              <strong className="text-white">{fotoDestaqueSalva.local}</strong>
-                            </div>
-                            <div className="flex items-center justify-between text-[11px]">
-                              <span className="text-slate-400">Padrão Técnico:</span>
-                              <span className="text-emerald-400 font-bold">
-                                Instalação realizada pela Ecosolar
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="pt-4 mt-3 border-t border-white/10 flex items-center justify-between text-xs relative z-1">
-                          <span className="text-amber-400 font-bold flex items-center gap-1.5 group-hover:translate-x-0.5 transition-transform">
-                            <Camera className="w-4 h-4 text-amber-400" />
-                            <span>Clique para ampliar foto em alta resolução</span>
-                          </span>
-                          <span className="text-[10px] text-sky-200 font-semibold uppercase">
-                            100% Real
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {displayPhotos.map((ph, idx) => (
                     <div

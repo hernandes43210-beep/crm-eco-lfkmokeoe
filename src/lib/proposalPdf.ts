@@ -10,10 +10,7 @@ import { calculateInvestmentComparison } from '../utils/investmentComparison'
 import { parseKitDetailedItems } from './kitItemsParser'
 import { CONTATO_ECOSOLAR } from '@/constants/empresa'
 import officialLogoPng from '@/assets/a-613c6.png'
-import {
-  INSTITUTIONAL_INSTALLATION_PHOTOS,
-  getFotoInstalacaoDestaque,
-} from '@/data/socialProofPhotos'
+import { INSTITUTIONAL_INSTALLATION_PHOTOS } from '@/data/socialProofPhotos'
 
 export interface ProposalPDFData {
   id?: string
@@ -67,7 +64,6 @@ export interface ProposalPDFData {
   lead?: {
     consumo_mensal_kwh?: number
   }
-  foto_instalacao_destaque?: string
   fotos_obra?: Array<{
     id: string
     url?: string
@@ -825,108 +821,6 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
       page-break-inside: avoid;
       box-shadow: 0 1px 3px rgba(10, 25, 47, 0.05);
     }
-    .featured-photo-card {
-      border: 2px solid #EAB308;
-      border-radius: 8px;
-      overflow: hidden;
-      background: linear-gradient(135deg, #0A192F 0%, #163868 100%);
-      color: #ffffff;
-      margin-bottom: 10px;
-      display: flex;
-      page-break-inside: avoid;
-      box-shadow: 0 4px 10px rgba(10, 25, 47, 0.15);
-    }
-    .featured-photo-img-box {
-      width: 48%;
-      min-height: 140px;
-      max-height: 165px;
-      position: relative;
-      background: #000000;
-      overflow: hidden;
-    }
-    .featured-photo-img-box img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-    .featured-photo-tag {
-      position: absolute;
-      top: 6px;
-      left: 6px;
-      background: rgba(10, 25, 47, 0.95);
-      border: 1px solid #FACC15;
-      color: #FACC15;
-      font-size: 7.5px;
-      font-weight: 800;
-      padding: 2px 6px;
-      border-radius: 3px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .featured-photo-watermark {
-      position: absolute;
-      bottom: 6px;
-      left: 6px;
-      background: rgba(10, 25, 47, 0.88);
-      border: 1px solid rgba(250, 204, 21, 0.4);
-      padding: 2px 6px;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .featured-photo-watermark img {
-      height: 11px;
-      width: auto;
-      background: #ffffff;
-      border-radius: 2px;
-      padding: 1px 2px;
-    }
-    .featured-photo-watermark span {
-      font-size: 7px;
-      font-weight: 800;
-      color: #FACC15;
-      letter-spacing: 0.4px;
-    }
-    .featured-photo-info {
-      width: 52%;
-      padding: 10px 14px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-    .featured-photo-info-top h4 {
-      font-size: 11px;
-      font-weight: 800;
-      color: #ffffff;
-      line-height: 1.25;
-      margin-top: 3px;
-      margin-bottom: 4px;
-    }
-    .featured-photo-info-top p {
-      font-size: 8px;
-      color: #CBD5E1;
-      line-height: 1.35;
-    }
-    .featured-photo-footer {
-      border-top: 1px solid rgba(255, 255, 255, 0.15);
-      padding-top: 5px;
-      margin-top: 6px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 7.5px;
-    }
-    .featured-photo-footer .badge-real {
-      color: #86EFAC;
-      font-weight: 800;
-      text-transform: uppercase;
-    }
-    .featured-photo-footer .local {
-      color: #93C5FD;
-      font-weight: 600;
-    }
     .social-proof-header {
       display: flex;
       justify-content: space-between;
@@ -1432,9 +1326,6 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
 
   <!-- 5. Prova Social — Fotos de Obras Concluídas -->
   ${(() => {
-    // Foto de destaque da proposta selecionada pelo vendedor (Posto BR por padrão ou Academia ou Nenhuma)
-    const fotoDestaque = getFotoInstalacaoDestaque(data.foto_instalacao_destaque)
-
     // Mesclar fotos específicas da proposta com a prova social institucional padrão
     const fotosParaExibir: Array<{ url: string; legenda: string; tag: string; local?: string }> = []
 
@@ -1470,34 +1361,6 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     <p style="font-size: 8.5px; color: #475569; margin-top: 2px; margin-bottom: 6px;">
       Conheça o acabamento, a robustez das estruturas metálicas e a precisão do cabeamento técnico executados pelos engenheiros e instaladores da <strong>Ecosolar Energy</strong>:
     </p>
-
-    ${
-      fotoDestaque && fotoDestaque.src
-        ? `
-    <!-- Destaque Visual Ecosolar da Instalação Escolhida -->
-    <div class="featured-photo-card">
-      <div class="featured-photo-img-box">
-        <span class="featured-photo-tag">★ Instalação em Destaque</span>
-        <img src="${fotoDestaque.src}" alt="${fotoDestaque.legenda}" />
-        <div class="featured-photo-watermark">
-          <img src="${officialLogoPng}" alt="Ecosolar" />
-          <span>ECOSOLAR ENERGY</span>
-        </div>
-      </div>
-      <div class="featured-photo-info">
-        <div class="featured-photo-info-top">
-          <span style="font-size: 7.5px; font-weight: 800; color: #FACC15; text-transform: uppercase; letter-spacing: 0.5px;">${fotoDestaque.tag}</span>
-          <h4>${fotoDestaque.legenda}</h4>
-          <p>${fotoDestaque.descricao}</p>
-        </div>
-        <div class="featured-photo-footer">
-          <span class="badge-real">✓ Instalação realizada pela Ecosolar</span>
-          <span class="local">${fotoDestaque.local}</span>
-        </div>
-      </div>
-    </div>`
-        : ''
-    }
 
     <div class="photos-grid">
       ${fotosParaExibir

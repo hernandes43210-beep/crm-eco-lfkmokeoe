@@ -352,7 +352,6 @@ export interface Proposta extends RecordModel {
   kit_potencia_inversor_kw?: number
   kit_descricao?: string
   kit_string_box?: KitStringBox | ''
-  foto_instalacao_destaque?: 'posto_br' | 'academia' | 'nenhuma' | string
   created: string
   updated: string
   expand?: {
@@ -407,7 +406,6 @@ export interface PublicProposta {
   kit_potencia_inversor_kw?: number
   kit_descricao?: string
   kit_string_box?: KitStringBox | ''
-  foto_instalacao_destaque?: 'posto_br' | 'academia' | 'nenhuma' | string
   lead?: {
     id: string
     nome: string

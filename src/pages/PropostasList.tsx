@@ -169,7 +169,6 @@ export default function PropostasList() {
       data_aceite: prop.data_aceite,
       aceito_por_nome: prop.aceito_por_nome,
       created: prop.created,
-      foto_instalacao_destaque: (prop as any)?.foto_instalacao_destaque || 'posto_br',
       kit_descricao: (prop as any)?.kit_descricao || prop.expand?.kit?.descricao,
       kit_string_box:
         (prop as any)?.kit_string_box || (prop.expand?.kit as any)?.string_box || undefined,

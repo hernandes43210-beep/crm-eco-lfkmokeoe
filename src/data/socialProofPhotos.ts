@@ -7,67 +7,6 @@ import fotoTelhadoMetalico from '@/assets/djifly2026022311352901771860929504phot
 import fotoPostoBr from '@/assets/captura-de-tela-2026-09-17-112751-45b12.png'
 import fotoAcademia from '@/assets/whatsapp-image-2026-09-08-at-21.36.47-927f9.jpeg'
 
-export type FotoInstalacaoDestaqueTipo = 'posto_br' | 'academia' | 'nenhuma'
-
-export interface FotoInstalacaoDestaqueOption {
-  id: FotoInstalacaoDestaqueTipo
-  titulo: string
-  subtitulo: string
-  legenda: string
-  descricao: string
-  tag: string
-  local: string
-  src?: string
-  isPadrao?: boolean
-}
-
-export const OPCOES_FOTO_INSTALACAO_DESTAQUE: FotoInstalacaoDestaqueOption[] = [
-  {
-    id: 'posto_br',
-    titulo: 'Posto BR (carport)',
-    subtitulo: 'Carport Solar em Posto de Combustíveis Petrobras BR',
-    legenda: 'Posto BR — Cobertura Carport Solar Homologada',
-    descricao:
-      'Projeto e instalação de grande porte realizada pela Ecosolar Energy cobrindo pista de abastecimento com dezenas de módulos solares de alta potência, gerando economia máxima e sustentabilidade com segurança NR10/NR35.',
-    tag: 'Carport Comercial • Posto BR',
-    local: 'Posto Petrobras BR — Homologação Ecosolar',
-    src: fotoPostoBr,
-    isPadrao: true,
-  },
-  {
-    id: 'academia',
-    titulo: 'Academia (telhado)',
-    subtitulo: 'Grande Cobertura Fotovoltaica sobre Telhado Comercial',
-    legenda: 'Academia — Instalação Comercial de Alta Performance',
-    descricao:
-      'Ampla usina fotovoltaica comercial instalada sobre telhado metálico e laje pela engenharia Ecosolar Energy, garantindo autossuficiência energética para maquinários de alta demanda contínua.',
-    tag: 'Telhado Comercial • Academia',
-    local: 'Complexo Comercial / Academia — Homologação Ecosolar',
-    src: fotoAcademia,
-    isPadrao: false,
-  },
-  {
-    id: 'nenhuma',
-    titulo: 'Nenhuma foto em destaque',
-    subtitulo: 'Não exibir foto de instalação em destaque na proposta comercial',
-    legenda: '',
-    descricao: '',
-    tag: '',
-    local: '',
-    isPadrao: false,
-  },
-]
-
-export function getFotoInstalacaoDestaque(
-  tipo?: FotoInstalacaoDestaqueTipo | string | null,
-): FotoInstalacaoDestaqueOption | null {
-  // Posto BR é o padrão quando não informado ou undefined
-  const selecionada = tipo || 'posto_br'
-  if (selecionada === 'nenhuma') return null
-  const found = OPCOES_FOTO_INSTALACAO_DESTAQUE.find((opt) => opt.id === selecionada)
-  return found?.src ? found : null
-}
-
 export interface InstitutionalInstallationPhoto {
   id: string
   titulo: string
