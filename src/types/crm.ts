@@ -316,6 +316,12 @@ export interface PropostaAcessoItem {
   origem?: string
 }
 
+export interface PropostaFotoSelecionada {
+  origem: 'lead' | 'institucional'
+  id: string
+  legenda?: string
+}
+
 export interface Proposta extends RecordModel {
   id: string
   lead: string
@@ -352,6 +358,7 @@ export interface Proposta extends RecordModel {
   kit_potencia_inversor_kw?: number
   kit_descricao?: string
   kit_string_box?: KitStringBox | ''
+  fotos_selecionadas?: PropostaFotoSelecionada[] | string
   created: string
   updated: string
   expand?: {
@@ -406,6 +413,7 @@ export interface PublicProposta {
   kit_potencia_inversor_kw?: number
   kit_descricao?: string
   kit_string_box?: KitStringBox | ''
+  fotos_selecionadas?: PropostaFotoSelecionada[]
   lead?: {
     id: string
     nome: string

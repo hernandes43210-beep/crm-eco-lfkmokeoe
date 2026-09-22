@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-22T13:17:58.477Z",
+  "generatedAt": "2026-09-22T13:52:42.376Z",
   "collections": [
     {
       "name": "users",
@@ -1042,6 +1042,12 @@
         {
           "name": "valor_bruto",
           "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fotos_selecionadas",
+          "type": "json",
           "required": false,
           "system": false
         }

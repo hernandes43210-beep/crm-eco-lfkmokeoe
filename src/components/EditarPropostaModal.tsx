@@ -36,7 +36,15 @@ import {
 import { KitsService } from '@/services/kits'
 import { ProposalsService } from '@/services/proposals'
 import { toPortugueseErrorMessage } from '@/lib/errors'
-import type { Kit, Proposta, PropostaStatus, KitTipoEstrutura, KitStringBox } from '@/types/crm'
+import type {
+  Kit,
+  Proposta,
+  PropostaStatus,
+  KitTipoEstrutura,
+  KitStringBox,
+  PropostaFotoSelecionada,
+} from '@/types/crm'
+import { ProposalPhotoSelector } from '@/components/ProposalPhotoSelector'
 import { calcularMargemReal } from '@/utils/marginUtils'
 import {
   formatBRL,
@@ -113,6 +121,7 @@ export function EditarPropostaModal({
   const [status, setStatus] = useState<PropostaStatus>('Enviada')
   const [condicoesPagamento, setCondicoesPagamento] = useState('')
   const [observacoes, setObservacoes] = useState('')
+  const [fotosSelecionadas, setFotosSelecionadas] = useState<PropostaFotoSelecionada[]>([])
 
   // Equipamentos técnicos do kit (tanto para manual quanto derivados do catálogo)
   const [technicalValues, setTechnicalValues] = useState<KitTechnicalSelectorsValues>({
@@ -180,6 +189,21 @@ export function EditarPropostaModal({
       setStatus(proposta.status || 'Enviada')
       setCondicoesPagamento(proposta.condicoes_pagamento || '')
       setObservacoes(proposta.observacoes || '')
+
+      // Carregar fotos_selecionadas salvas na proposta
+      let parsedFotos: PropostaFotoSelecionada[] = []
+      try {
+        if (proposta.fotos_selecionadas) {
+          if (Array.isArray(proposta.fotos_selecionadas)) {
+            parsedFotos = proposta.fotos_selecionadas
+          } else if (typeof proposta.fotos_selecionadas === 'string') {
+            parsedFotos = JSON.parse(proposta.fotos_selecionadas)
+          }
+        }
+      } catch {
+        parsedFotos = []
+      }
+      setFotosSelecionadas(Array.isArray(parsedFotos) ? parsedFotos : [])
 
       // Recuperar valores técnicos da proposta ou decompor do kit/texto
       const kitExpand = proposta.expand?.kit || proposta.kit_expand
@@ -511,6 +535,7 @@ export function EditarPropostaModal({
         kit_potencia_inversor_kw: Number(technicalValues.potenciaInversorKw) || undefined,
         kit_string_box: (technicalValues.stringBox?.trim() as KitStringBox) || undefined,
         kit_descricao: descGerada || (proposta as any).kit_descricao || undefined,
+        fotos_selecionadas: fotosSelecionadas,
         condicoes_pagamento: condicoesPagamento.trim(),
         observacoes: observacoes.trim(),
       }
@@ -1053,6 +1078,13 @@ export function EditarPropostaModal({
               </span>
             </div>
           </div>
+
+          {/* Seletor Discreto de Fotos da Proposta (Prova Social) */}
+          <ProposalPhotoSelector
+            leadId={proposta.lead}
+            value={fotosSelecionadas}
+            onChange={setFotosSelecionadas}
+          />
 
           {/* Condições de Pagamento */}
           <div className="space-y-1">

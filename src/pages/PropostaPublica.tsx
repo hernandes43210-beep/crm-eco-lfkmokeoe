@@ -194,6 +194,7 @@ export default function PropostaPublica() {
         email: proposta.vendedor?.email,
       },
       fotos_obra: proposta.fotos_obra,
+      fotos_selecionadas: proposta.fotos_selecionadas,
     })
   }
 
@@ -1156,8 +1157,11 @@ export default function PropostaPublica() {
 
         {/* 5. Prova Social — Obras Concluídas & Padrão de Engenharia (Fotos Reais) */}
         {(() => {
-          // Galeria completa de fotos com metadados para o modal
-          const displayPhotos: Array<{
+          // Resolver fotos selecionadas ou padrão
+          const hasCustomSelection =
+            Array.isArray(proposta.fotos_selecionadas) && proposta.fotos_selecionadas.length >= 0
+
+          let rawItemsToDisplay: Array<{
             id: string
             url: string
             titulo: string
@@ -1167,40 +1171,87 @@ export default function PropostaPublica() {
             local: string
           }> = []
 
-          if (proposta.fotos_obra && proposta.fotos_obra.length > 0) {
-            proposta.fotos_obra.forEach((ph, i) => {
-              displayPhotos.push({
-                id: ph.id || `lead-photo-${i}`,
-                url: ph.url || ph.foto || '',
-                titulo: ph.legenda || `Obra Homologada #${i + 1}`,
-                legenda: ph.legenda || `Instalação executada pela Ecosolar`,
-                descricao: 'Instalação homologada com acompanhamento de engenharia e ART assinada.',
-                tag: 'Obra Executada',
-                local: proposta.lead?.cidade
-                  ? `${proposta.lead.cidade}/${proposta.lead.estado || 'RO'}`
-                  : 'Rondônia / RO',
+          if (hasCustomSelection) {
+            const selList = proposta.fotos_selecionadas || []
+            // Se o usuário explicitamente deixou nenhuma marcada ([]), não exibe a galeria adicional de fotos
+            if (selList.length === 0) {
+              return null
+            }
+
+            selList.forEach((sel, i) => {
+              if (sel.origem === 'lead') {
+                const leadPh = (proposta.fotos_obra || []).find((p) => p.id === sel.id)
+                const url = leadPh?.url || leadPh?.foto || ''
+                if (url) {
+                  rawItemsToDisplay.push({
+                    id: `lead-${sel.id}-${i}`,
+                    url,
+                    titulo: sel.legenda || leadPh?.legenda || `Instalação do Cliente #${i + 1}`,
+                    legenda: sel.legenda || leadPh?.legenda || `Instalação do cliente homologada`,
+                    descricao:
+                      'Instalação executada pela equipe Ecosolar com acompanhamento de engenharia.',
+                    tag: 'Foto da Obra',
+                    local: proposta.lead?.cidade
+                      ? `${proposta.lead.cidade}/${proposta.lead.estado || 'RO'}`
+                      : 'Rondônia / RO',
+                  })
+                }
+              } else {
+                // Origem institucional
+                const inst = INSTITUTIONAL_INSTALLATION_PHOTOS.find((p) => p.id === sel.id)
+                if (inst) {
+                  rawItemsToDisplay.push({
+                    id: inst.id,
+                    url: inst.src,
+                    titulo: inst.titulo,
+                    legenda: sel.legenda || inst.legenda,
+                    descricao: inst.descricao,
+                    tag: inst.tag,
+                    local: inst.local,
+                  })
+                }
+              }
+            })
+          } else {
+            // Propostas legadas sem campo fotos_selecionadas: fallback para a galeria mista padrão
+            if (proposta.fotos_obra && proposta.fotos_obra.length > 0) {
+              proposta.fotos_obra.forEach((ph, i) => {
+                rawItemsToDisplay.push({
+                  id: ph.id || `lead-photo-${i}`,
+                  url: ph.url || ph.foto || '',
+                  titulo: ph.legenda || `Obra Homologada #${i + 1}`,
+                  legenda: ph.legenda || `Instalação executada pela Ecosolar`,
+                  descricao:
+                    'Instalação homologada com acompanhamento de engenharia e ART assinada.',
+                  tag: 'Obra Executada',
+                  local: proposta.lead?.cidade
+                    ? `${proposta.lead.cidade}/${proposta.lead.estado || 'RO'}`
+                    : 'Rondônia / RO',
+                })
               })
+            }
+
+            INSTITUTIONAL_INSTALLATION_PHOTOS.forEach((inst: InstitutionalInstallationPhoto) => {
+              if (!rawItemsToDisplay.some((p) => p.legenda === inst.legenda)) {
+                rawItemsToDisplay.push({
+                  id: inst.id,
+                  url: inst.src,
+                  titulo: inst.titulo,
+                  legenda: inst.legenda,
+                  descricao: inst.descricao,
+                  tag: inst.tag,
+                  local: inst.local,
+                })
+              }
             })
           }
 
-          // Se a proposta tiver fotos específicas, mescla; completa com a galeria institucional da Ecosolar
-          INSTITUTIONAL_INSTALLATION_PHOTOS.forEach((inst: InstitutionalInstallationPhoto) => {
-            if (!displayPhotos.some((p) => p.legenda === inst.legenda)) {
-              displayPhotos.push({
-                id: inst.id,
-                url: inst.src,
-                titulo: inst.titulo,
-                legenda: inst.legenda,
-                descricao: inst.descricao,
-                tag: inst.tag,
-                local: inst.local,
-              })
-            }
-          })
+          if (rawItemsToDisplay.length === 0) {
+            return null
+          }
 
           return (
             <Card className="border border-slate-200/90 bg-white shadow-sm overflow-hidden rounded-2xl">
-              {' '}
               <CardHeader className="pb-4 border-b border-slate-100 bg-gradient-to-r from-[#0A192F] to-[#163868] text-white">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
@@ -1218,13 +1269,13 @@ export default function PropostaPublica() {
                     </div>
                   </div>
                   <Badge className="bg-amber-400 text-slate-950 hover:bg-amber-400 text-xs font-black uppercase px-2.5 py-1 self-start sm:self-auto shrink-0 shadow-sm">
-                    ✓ Galeria de Obras Reais
+                    ✓ Galeria de Obras Reais ({rawItemsToDisplay.length})
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 bg-slate-50/50 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {displayPhotos.map((ph, idx) => (
+                  {rawItemsToDisplay.map((ph, idx) => (
                     <div
                       key={`social-proof-${ph.id || idx}`}
                       onClick={() => setSelectedPhotoModal(ph)}

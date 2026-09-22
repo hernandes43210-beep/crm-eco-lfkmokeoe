@@ -22,7 +22,15 @@ import { Loader2, Sparkles, Sun, Check, SlidersHorizontal, Boxes } from 'lucide-
 import { KitsService } from '@/services/kits'
 import { ProposalsService, type CreatePropostaPayload } from '@/services/proposals'
 import { toPortugueseErrorMessage } from '@/lib/errors'
-import type { Kit, Lead, Proposta, KitTipoEstrutura, KitStringBox } from '@/types/crm'
+import type {
+  Kit,
+  Lead,
+  Proposta,
+  KitTipoEstrutura,
+  KitStringBox,
+  PropostaFotoSelecionada,
+} from '@/types/crm'
+import { ProposalPhotoSelector } from '@/components/ProposalPhotoSelector'
 import { formatBRL } from '@/lib/solarUtils'
 import { calcularMargemReal } from '@/utils/marginUtils'
 import { Badge } from '@/components/ui/badge'
@@ -94,6 +102,7 @@ export function GerarPropostaModal({
   const [observacoes, setObservacoes] = useState(
     'Incluso projeto de engenharia, homologação na concessionária local, estrutura de fixação em alumínio, cabos, proteções CC/CA e monitoramento via Wi-Fi.',
   )
+  const [fotosSelecionadas, setFotosSelecionadas] = useState<PropostaFotoSelecionada[]>([])
 
   // Estados dos seletores técnicos do kit manual / selecionado
   const [isManualQuickMode, setIsManualQuickMode] = useState(true)
@@ -466,6 +475,7 @@ export function GerarPropostaModal({
         kit_potencia_inversor_kw: Number(technicalValues.potenciaInversorKw) || undefined,
         kit_string_box: technicalValues.stringBox?.trim() || undefined,
         kit_descricao: descGerada || undefined,
+        fotos_selecionadas: fotosSelecionadas,
         status: 'Enviada',
         token_publico: token,
       }
@@ -880,6 +890,13 @@ export function GerarPropostaModal({
               </span>
             </div>
           </div>
+
+          {/* Seletor Discreto de Fotos da Proposta (Prova Social) */}
+          <ProposalPhotoSelector
+            leadId={lead.id}
+            value={fotosSelecionadas}
+            onChange={setFotosSelecionadas}
+          />
 
           {/* Condições de Pagamento */}
           <div className="space-y-1">

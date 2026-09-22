@@ -199,6 +199,7 @@ export default function PropostasList() {
         name: prop.expand?.criado_por?.name,
         email: prop.expand?.criado_por?.email,
       },
+      fotos_selecionadas: prop.fotos_selecionadas,
     })
   }
 

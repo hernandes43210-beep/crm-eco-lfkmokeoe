@@ -1,5 +1,5 @@
 import pb from '@/lib/pocketbase/client'
-import type { Proposta, PublicProposta } from '@/types/crm'
+import type { Proposta, PublicProposta, PropostaFotoSelecionada } from '@/types/crm'
 
 export interface CreatePropostaPayload {
   lead: string
@@ -27,6 +27,7 @@ export interface CreatePropostaPayload {
   kit_potencia_inversor_kw?: number
   kit_descricao?: string
   kit_string_box?: string
+  fotos_selecionadas?: PropostaFotoSelecionada[]
 }
 
 export interface GetPropostasParams {
@@ -372,6 +373,19 @@ export const ProposalsService = {
           /* intentionally ignored */
         }
 
+        let parsedFotosSelecionadas: PropostaFotoSelecionada[] | undefined
+        try {
+          if (found.fotos_selecionadas) {
+            if (Array.isArray(found.fotos_selecionadas)) {
+              parsedFotosSelecionadas = found.fotos_selecionadas
+            } else if (typeof found.fotos_selecionadas === 'string') {
+              parsedFotosSelecionadas = JSON.parse(found.fotos_selecionadas)
+            }
+          }
+        } catch {
+          parsedFotosSelecionadas = undefined
+        }
+
         return {
           id: found.id,
           token_publico: found.token_publico,
@@ -425,6 +439,7 @@ export const ProposalsService = {
                 email: expandedVendedor.email,
               }
             : null,
+          fotos_selecionadas: parsedFotosSelecionadas,
           fotos_obra: fallbackFotos,
         }
       } catch (fallbackErr: unknown) {

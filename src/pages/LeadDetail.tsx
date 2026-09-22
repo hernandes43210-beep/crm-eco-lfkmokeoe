@@ -938,6 +938,7 @@ export default function LeadDetail() {
         name: lead.expand?.proprietario?.name || user?.name,
         email: lead.expand?.proprietario?.email || user?.email,
       },
+      fotos_selecionadas: prop.fotos_selecionadas,
     })
   }
 

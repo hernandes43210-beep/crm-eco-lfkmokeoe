@@ -64,6 +64,13 @@ export interface ProposalPDFData {
   lead?: {
     consumo_mensal_kwh?: number
   }
+  fotos_selecionadas?:
+    | Array<{
+        origem: 'lead' | 'institucional'
+        id: string
+        legenda?: string
+      }>
+    | string
   fotos_obra?: Array<{
     id: string
     url?: string
@@ -1326,37 +1333,97 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
 
   <!-- 5. Prova Social — Fotos de Obras Concluídas -->
   ${(() => {
-    // Mesclar fotos específicas da proposta com a prova social institucional padrão
+    // Processar fotos_selecionadas (se houver seleção explícita salva)
+    let parsedSel: Array<{
+      origem: 'lead' | 'institucional'
+      id: string
+      legenda?: string
+    }> | null = null
+    if (data.fotos_selecionadas) {
+      if (Array.isArray(data.fotos_selecionadas)) {
+        parsedSel = data.fotos_selecionadas
+      } else if (typeof data.fotos_selecionadas === 'string') {
+        try {
+          parsedSel = JSON.parse(data.fotos_selecionadas)
+        } catch (_) {
+          parsedSel = null
+        }
+      }
+    }
+
     const fotosParaExibir: Array<{ url: string; legenda: string; tag: string; local?: string }> = []
 
-    if (data.fotos_obra && data.fotos_obra.length > 0) {
-      data.fotos_obra.forEach((ph, i) => {
-        fotosParaExibir.push({
-          url: ph.url || ph.foto || '',
-          legenda: ph.legenda || `Instalação Concluída #${i + 1}`,
-          tag: 'Obra Executada',
-          local: 'Projeto Homologado Ecosolar',
+    if (parsedSel !== null) {
+      // O usuário fez uma seleção consciente (pode ser 0, 1 ou várias)
+      if (parsedSel.length === 0) {
+        // Nenhuma foto selecionada: omite a seção da proposta
+        return ''
+      }
+
+      parsedSel.forEach((sel, i) => {
+        if (sel.origem === 'lead') {
+          const leadPh = (data.fotos_obra || []).find((p) => p.id === sel.id)
+          const url = leadPh?.url || leadPh?.foto || ''
+          if (url) {
+            fotosParaExibir.push({
+              url,
+              legenda: sel.legenda || leadPh?.legenda || `Instalação do Cliente #${i + 1}`,
+              tag: 'Foto da Obra',
+              local: data.cliente.cidade
+                ? `${data.cliente.cidade} - ${data.cliente.estado || 'RO'}`
+                : 'Projeto Homologado Ecosolar',
+            })
+          }
+        } else {
+          // Institucional
+          const inst = INSTITUTIONAL_INSTALLATION_PHOTOS.find((p) => p.id === sel.id)
+          if (inst) {
+            fotosParaExibir.push({
+              url: inst.src,
+              legenda: sel.legenda || inst.legenda,
+              tag: inst.tag,
+              local: inst.local,
+            })
+          }
+        }
+      })
+    } else {
+      // Proposta legada sem o campo fotos_selecionadas: exibe o conjunto padrão
+      if (data.fotos_obra && data.fotos_obra.length > 0) {
+        data.fotos_obra.forEach((ph, i) => {
+          fotosParaExibir.push({
+            url: ph.url || ph.foto || '',
+            legenda: ph.legenda || `Instalação Concluída #${i + 1}`,
+            tag: 'Obra Executada',
+            local: 'Projeto Homologado Ecosolar',
+          })
         })
+      }
+
+      INSTITUTIONAL_INSTALLATION_PHOTOS.forEach((inst) => {
+        if (
+          !fotosParaExibir.some((f) => f.legenda === inst.legenda) &&
+          fotosParaExibir.length < 6
+        ) {
+          fotosParaExibir.push({
+            url: inst.src,
+            legenda: inst.legenda,
+            tag: inst.tag,
+            local: inst.local,
+          })
+        }
       })
     }
 
-    // Completa com a prova social institucional da empresa até cobrir todas as obras cadastradas (6 fotos)
-    INSTITUTIONAL_INSTALLATION_PHOTOS.forEach((inst) => {
-      if (!fotosParaExibir.some((f) => f.legenda === inst.legenda) && fotosParaExibir.length < 6) {
-        fotosParaExibir.push({
-          url: inst.src,
-          legenda: inst.legenda,
-          tag: inst.tag,
-          local: inst.local,
-        })
-      }
-    })
+    if (fotosParaExibir.length === 0) {
+      return ''
+    }
 
     return `
   <div class="social-proof">
     <div class="social-proof-header">
       <div class="section-title" style="margin-bottom: 0;">Prova Social — Padrão de Engenharia em Obras Executadas</div>
-      <span class="social-proof-badge">✓ Fotos Reais de Obras Homologadas</span>
+      <span class="social-proof-badge">✓ Fotos Reais de Obras Homologadas (${fotosParaExibir.length})</span>
     </div>
     <p style="font-size: 8.5px; color: #475569; margin-top: 2px; margin-bottom: 6px;">
       Conheça o acabamento, a robustez das estruturas metálicas e a precisão do cabeamento técnico executados pelos engenheiros e instaladores da <strong>Ecosolar Energy</strong>:
@@ -1364,7 +1431,6 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
 
     <div class="photos-grid">
       ${fotosParaExibir
-        .slice(0, 6)
         .map(
           (ph) => `
         <div class="photo-card">

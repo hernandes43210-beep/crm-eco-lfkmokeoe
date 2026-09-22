@@ -248,7 +248,25 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
       } catch (_) {}
     }
 
-    // Buscar fotos de obras já instaladas para prova social no modelo da proposta
+    // Parse fotos_selecionadas salvas na proposta
+    let fotosSelecionadas = []
+    try {
+      const rawFotosSel = proposta.get('fotos_selecionadas')
+      if (rawFotosSel) {
+        if (typeof rawFotosSel === 'string') {
+          fotosSelecionadas = JSON.parse(rawFotosSel)
+        } else if (Array.isArray(rawFotosSel)) {
+          fotosSelecionadas = rawFotosSel
+        }
+      }
+    } catch (_) {
+      fotosSelecionadas = []
+    }
+    if (!Array.isArray(fotosSelecionadas)) {
+      fotosSelecionadas = []
+    }
+
+    // Buscar fotos de obras do lead ou gerais para compor galeria e resolver fotos_selecionadas do tipo lead
     let fotosObra = []
     try {
       let photosList = []
@@ -257,12 +275,12 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
           'lead_photos',
           "lead = '" + leadId + "'",
           'ordem,created',
-          4,
+          50,
           0,
         )
       }
       if (!photosList || photosList.length === 0) {
-        photosList = $app.findRecordsByFilter('lead_photos', "foto != ''", '-created', 4, 0)
+        photosList = $app.findRecordsByFilter('lead_photos', "foto != ''", '-created', 8, 0)
       }
 
       if (photosList && photosList.length > 0) {
@@ -331,6 +349,7 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
       lead: leadData,
       kit: kitData,
       vendedor: vendedorData,
+      fotos_selecionadas: fotosSelecionadas,
       fotos_obra: fotosObra,
       is_expirada: isExpirada,
     }
