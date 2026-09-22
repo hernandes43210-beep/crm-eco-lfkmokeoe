@@ -65,6 +65,11 @@ import {
 import { toast } from '@/hooks/use-toast'
 import { useKitFilters } from '@/hooks/useKitFilters'
 import { KitFilterBar } from '@/components/KitFilterBar'
+import {
+  OPCOES_FOTO_INSTALACAO_DESTAQUE,
+  type FotoInstalacaoDestaqueTipo,
+} from '@/data/socialProofPhotos'
+import { Camera, Image as ImageIcon } from 'lucide-react'
 
 interface EditarPropostaModalProps {
   open: boolean
@@ -109,6 +114,8 @@ export function EditarPropostaModal({
   const [valorBruto, setValorBruto] = useState<number | string>('')
   const [descontoPercentualStr, setDescontoPercentualStr] = useState<string>('')
   const [precoVenda, setPrecoVenda] = useState<number | string>('')
+  const [fotoInstalacaoDestaque, setFotoInstalacaoDestaque] =
+    useState<FotoInstalacaoDestaqueTipo>('posto_br')
   const [validadeDias, setValidadeDias] = useState<number>(15)
   const [status, setStatus] = useState<PropostaStatus>('Enviada')
   const [condicoesPagamento, setCondicoesPagamento] = useState('')
@@ -176,6 +183,9 @@ export function EditarPropostaModal({
           : ''
       setDescontoPercentualStr(pDescPct)
       setPrecoVenda(proposta.preco_venda ?? '')
+      setFotoInstalacaoDestaque(
+        ((proposta as any).foto_instalacao_destaque as FotoInstalacaoDestaqueTipo) || 'posto_br',
+      )
       setValidadeDias(proposta.validade_dias || 15)
       setStatus(proposta.status || 'Enviada')
       setCondicoesPagamento(proposta.condicoes_pagamento || '')
@@ -513,6 +523,7 @@ export function EditarPropostaModal({
         kit_descricao: descGerada || (proposta as any).kit_descricao || undefined,
         condicoes_pagamento: condicoesPagamento.trim(),
         observacoes: observacoes.trim(),
+        foto_instalacao_destaque: fotoInstalacaoDestaque,
       }
 
       const updated = await ProposalsService.updateProposta(proposta.id, payload, {
@@ -1011,6 +1022,91 @@ export function EditarPropostaModal({
                         </span>
                       </div>
                     </div>
+                  </div>
+                </div>
+              )
+            })()}
+          </div>
+
+          {/* Seletor de Foto de Instalação Real em Destaque */}
+          <div className="p-3.5 rounded-xl border border-amber-200/90 bg-gradient-to-r from-amber-50/70 via-white to-sky-50/50 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <Label
+                htmlFor="editFotoInstalacao"
+                className="text-xs font-bold text-slate-900 flex items-center gap-1.5"
+              >
+                <Camera className="w-4 h-4 text-amber-600" />
+                <span>Foto de Instalação Real em Destaque (Prova Social)</span>
+              </Label>
+              <Badge className="bg-[#0A192F] text-amber-300 hover:bg-[#0A192F] text-[10px] font-bold px-2 py-0.5">
+                Identidade Ecosolar
+              </Badge>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-relaxed">
+              Escolha a foto de obra real da Ecosolar a ser exibida com destaque na proposta pública
+              e no PDF. Por padrão, o <strong>Posto BR (carport)</strong> vem selecionado.
+            </p>
+
+            <Select
+              value={fotoInstalacaoDestaque}
+              onValueChange={(v) => setFotoInstalacaoDestaque(v as FotoInstalacaoDestaqueTipo)}
+            >
+              <SelectTrigger
+                id="editFotoInstalacao"
+                className="h-10 text-xs bg-white border-amber-300 focus:ring-amber-500 font-medium"
+              >
+                <SelectValue placeholder="Selecione a foto de instalação..." />
+              </SelectTrigger>
+              <SelectContent>
+                {OPCOES_FOTO_INSTALACAO_DESTAQUE.map((opcao) => (
+                  <SelectItem key={opcao.id} value={opcao.id} className="text-xs py-2">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-bold text-slate-900">
+                        {opcao.titulo} {opcao.isPadrao ? '(Padrão Ecosolar)' : ''}
+                      </span>
+                      <span className="text-[11px] text-slate-500">{opcao.subtitulo}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Prévia da Foto Escolhida */}
+            {(() => {
+              const fotoSelecionada = OPCOES_FOTO_INSTALACAO_DESTAQUE.find(
+                (o) => o.id === fotoInstalacaoDestaque,
+              )
+              if (!fotoSelecionada || !fotoSelecionada.src) {
+                return (
+                  <div className="p-2.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-[11px] text-slate-500 flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span>
+                      Nenhuma foto de instalação será exibida em destaque na proposta comercial.
+                    </span>
+                  </div>
+                )
+              }
+              return (
+                <div className="p-2.5 rounded-lg border border-amber-200 bg-white flex items-center gap-3">
+                  <div className="w-20 h-14 rounded-md overflow-hidden bg-slate-900 shrink-0 border border-amber-300/60 shadow-2xs">
+                    <img
+                      src={fotoSelecionada.src}
+                      alt={fotoSelecionada.legenda}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="min-w-0 text-xs">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <strong className="text-slate-900 font-bold leading-tight">
+                        {fotoSelecionada.legenda}
+                      </strong>
+                      <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-[10px] px-1.5 py-0 font-semibold">
+                        {fotoSelecionada.tag}
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+                      {fotoSelecionada.local}
+                    </p>
                   </div>
                 </div>
               )

@@ -27,6 +27,7 @@ export interface CreatePropostaPayload {
   kit_potencia_inversor_kw?: number
   kit_descricao?: string
   kit_string_box?: string
+  foto_instalacao_destaque?: string
 }
 
 export interface GetPropostasParams {
@@ -395,6 +396,7 @@ export const ProposalsService = {
           primeira_visualizacao: found.primeira_visualizacao,
           ultima_visualizacao: found.ultima_visualizacao,
           created: found.created,
+          foto_instalacao_destaque: (found as any).foto_instalacao_destaque || 'posto_br',
           lead: expandedLead
             ? {
                 id: expandedLead.id,
