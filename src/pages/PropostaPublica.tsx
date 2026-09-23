@@ -93,7 +93,31 @@ export default function PropostaPublica() {
     try {
       setLoading(true)
       setErrorMsg(null)
-      const data = await ProposalsService.getPublicProposta(t, { preview: isInternalViewer })
+
+      // Throttle de ~1 minuto por sessão do navegador (sessionStorage) para clientes reais
+      // Se acabou de carregar a proposta nos últimos 60 segundos nesta mesma aba, usa flag preview/internal
+      // para evitar contabilizar recarregamentos em sequência imediata (F5 repetido)
+      let effectivePreview = isInternalViewer
+      if (!effectivePreview && typeof window !== 'undefined' && window.sessionStorage) {
+        try {
+          const storageKey = `crm_prop_view_${t}`
+          const lastViewTime = window.sessionStorage.getItem(storageKey)
+          const now = Date.now()
+          if (lastViewTime) {
+            const diff = now - Number(lastViewTime)
+            if (diff < 60000 && diff >= 0) {
+              effectivePreview = true
+            }
+          }
+          if (!effectivePreview) {
+            window.sessionStorage.setItem(storageKey, String(now))
+          }
+        } catch {
+          /* intentionally ignored */
+        }
+      }
+
+      const data = await ProposalsService.getPublicProposta(t, { preview: effectivePreview })
       setProposta(data)
       if (data.lead?.nome) {
         setNomeConfirmacao(data.lead.nome)

@@ -133,7 +133,7 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
           proposta.set('ultimo_user_agent', userAgent)
         }
 
-        // Histórico de acessos na própria proposta (limite dos últimos 20 acessos)
+        // Histórico de acessos na própria proposta (limite dos últimos 50 acessos)
         let histAcessos = []
         try {
           const rawAcessos = proposta.get('historico_acessos')
@@ -155,10 +155,33 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
           ip: clientIp || undefined,
           origem: 'link_publico',
         })
-        if (histAcessos.length > 20) {
-          histAcessos = histAcessos.slice(-20)
+        if (histAcessos.length > 50) {
+          histAcessos = histAcessos.slice(-50)
         }
         proposta.set('historico_acessos', JSON.stringify(histAcessos))
+
+        // visualizacoes_historico como array de ISO timestamps
+        let visHistorico = []
+        try {
+          const rawVis = proposta.get('visualizacoes_historico')
+          if (rawVis) {
+            if (typeof rawVis === 'string') {
+              visHistorico = JSON.parse(rawVis)
+            } else if (Array.isArray(rawVis)) {
+              visHistorico = rawVis
+            }
+          }
+        } catch (_) {
+          visHistorico = []
+        }
+        if (!Array.isArray(visHistorico)) {
+          visHistorico = []
+        }
+        visHistorico.push(nowIso)
+        if (visHistorico.length > 50) {
+          visHistorico = visHistorico.slice(-50)
+        }
+        proposta.set('visualizacoes_historico', JSON.stringify(visHistorico))
 
         $app.save(proposta)
 
@@ -338,6 +361,7 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
       visualizacoes_count: proposta.getInt('visualizacoes_count') || 0,
       primeira_visualizacao: proposta.getString('primeira_visualizacao'),
       ultima_visualizacao: proposta.getString('ultima_visualizacao'),
+      visualizacoes_historico: proposta.get('visualizacoes_historico'),
       created: proposta.getString('created'),
       kit_marca_painel: proposta.getString('kit_marca_painel') || undefined,
       kit_marca_inversor: proposta.getString('kit_marca_inversor') || undefined,

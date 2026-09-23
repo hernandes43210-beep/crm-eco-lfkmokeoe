@@ -408,6 +408,7 @@ export const ProposalsService = {
           visualizacoes_count: found.visualizacoes_count,
           primeira_visualizacao: found.primeira_visualizacao,
           ultima_visualizacao: found.ultima_visualizacao,
+          visualizacoes_historico: found.visualizacoes_historico,
           created: found.created,
           lead: expandedLead
             ? {

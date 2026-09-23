@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-22T13:52:42.376Z",
+  "generatedAt": "2026-09-23T11:59:10.898Z",
   "collections": [
     {
       "name": "users",
@@ -1047,6 +1047,12 @@
         },
         {
           "name": "fotos_selecionadas",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "visualizacoes_historico",
           "type": "json",
           "required": false,
           "system": false

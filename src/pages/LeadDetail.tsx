@@ -56,6 +56,7 @@ import {
   calcularEconomiaMensal,
   calcularFaturaMensalEstimada,
 } from '@/lib/solarUtils'
+import { extractProposalTracking } from '@/lib/proposalTracking'
 import { calcularMargemReal } from '@/utils/marginUtils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -2028,31 +2029,77 @@ export default function LeadDetail() {
                         </div>
 
                         {/* Rastreamento de visualizações pelo cliente */}
-                        <div className="pt-1">
-                          {prop.visualizacoes_count && prop.visualizacoes_count > 0 ? (
-                            <div className="inline-flex flex-wrap items-center gap-2 px-2.5 py-1 rounded-md bg-amber-50 border border-amber-200/80 text-[11px] text-amber-900 font-medium">
-                              <span className="inline-flex items-center gap-1 font-bold text-amber-950">
-                                <Eye className="w-3.5 h-3.5 text-amber-600" />
-                                {prop.visualizacoes_count === 1
-                                  ? 'Visualizada 1 vez pelo cliente'
-                                  : `Visualizada ${prop.visualizacoes_count} vezes pelo cliente`}
-                              </span>
-                              {prop.ultima_visualizacao && (
-                                <span className="text-amber-800">
-                                  • Última em{' '}
-                                  <strong className="font-semibold text-amber-950">
-                                    {formatDateTimeBR(prop.ultima_visualizacao)}
-                                  </strong>
-                                </span>
+                        {(() => {
+                          const tracking = extractProposalTracking(prop)
+                          return (
+                            <div className="pt-1 space-y-1.5">
+                              {tracking.hasViewed ? (
+                                <div className="space-y-1.5">
+                                  <div className="inline-flex flex-wrap items-center gap-2 px-2.5 py-1 rounded-md bg-amber-50 border border-amber-300 text-[11px] text-amber-950 font-medium shadow-xs">
+                                    <span className="inline-flex items-center gap-1.5 font-bold text-amber-950">
+                                      <span className="relative flex h-2 w-2">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                                      </span>
+                                      <Eye className="w-3.5 h-3.5 text-amber-600" />
+                                      Visualizada {tracking.total}{' '}
+                                      {tracking.total === 1 ? 'vez' : 'vezes'}
+                                    </span>
+                                    {tracking.ultimaFormatada && (
+                                      <span className="text-amber-900">
+                                        • Última{' '}
+                                        {tracking.ultimaRelativa || tracking.ultimaFormatada}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Histórico com os horários em que o cliente visualizou */}
+                                  {tracking.historico.length > 0 && (
+                                    <div className="bg-slate-50/90 rounded-md border border-slate-200/90 p-2 text-[11px] max-w-xl">
+                                      <p className="font-bold text-slate-700 flex items-center gap-1 text-[11px] mb-1">
+                                        <Clock className="w-3 h-3 text-slate-500" />
+                                        <span>Horários de visualização do cliente:</span>
+                                      </p>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {tracking.historico.slice(0, 5).map((vis, vIdx) => (
+                                          <span
+                                            key={`vis-hist-${prop.id}-${vIdx}`}
+                                            className="inline-flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-slate-200 font-mono-numbers text-[10px] text-slate-700 shadow-2xs"
+                                            title={`Visualização #${tracking.historico.length - vIdx} em ${vis.formatado}`}
+                                          >
+                                            <span className="text-amber-600 font-bold">
+                                              #{tracking.historico.length - vIdx}
+                                            </span>
+                                            <span>{vis.relativo || vis.formatado}</span>
+                                          </span>
+                                        ))}
+                                        {tracking.historico.length > 5 && (
+                                          <span
+                                            className="text-[10px] text-slate-500 font-medium px-1.5 py-0.5 bg-slate-100 rounded"
+                                            title={tracking.historico
+                                              .slice(5)
+                                              .map(
+                                                (h, i) =>
+                                                  `#${tracking.historico.length - 5 - i}: ${h.formatado}`,
+                                              )
+                                              .join('\n')}
+                                          >
+                                            +{tracking.historico.length - 5} anteriores
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] text-slate-400 bg-slate-50 border border-slate-200">
+                                  <Eye className="w-3 h-3 text-slate-400" />
+                                  <span>Não visualizada ainda pelo cliente</span>
+                                </div>
                               )}
                             </div>
-                          ) : (
-                            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] text-slate-400 bg-slate-50 border border-slate-200">
-                              <Eye className="w-3 h-3 text-slate-400" />
-                              <span>Ainda não visualizada pelo cliente</span>
-                            </div>
-                          )}
-                        </div>
+                          )
+                        })()}
 
                         {isAceita && (
                           <div className="text-xs text-emerald-800 font-semibold flex items-center gap-1.5 pt-0.5">

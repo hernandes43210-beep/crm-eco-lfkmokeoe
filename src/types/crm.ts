@@ -351,6 +351,7 @@ export interface Proposta extends RecordModel {
   ultimo_ip_visualizacao?: string
   ultimo_user_agent?: string
   historico_acessos?: PropostaAcessoItem[] | string
+  visualizacoes_historico?: string[] | string
   kit_marca_painel?: string
   kit_marca_inversor?: string
   kit_tipo_estrutura?: KitTipoEstrutura | ''
@@ -405,6 +406,7 @@ export interface PublicProposta {
   visualizacoes_count?: number
   primeira_visualizacao?: string
   ultima_visualizacao?: string
+  visualizacoes_historico?: string[] | string
   created: string
   kit_marca_painel?: string
   kit_marca_inversor?: string
