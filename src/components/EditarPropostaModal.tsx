@@ -117,6 +117,7 @@ export function EditarPropostaModal({
   const [valorBruto, setValorBruto] = useState<number | string>('')
   const [descontoPercentualStr, setDescontoPercentualStr] = useState<string>('')
   const [precoVenda, setPrecoVenda] = useState<number | string>('')
+  const [formato, setFormato] = useState<'story' | 'classica'>('story')
   const [validadeDias, setValidadeDias] = useState<number>(15)
   const [status, setStatus] = useState<PropostaStatus>('Enviada')
   const [condicoesPagamento, setCondicoesPagamento] = useState('')
@@ -185,6 +186,7 @@ export function EditarPropostaModal({
           : ''
       setDescontoPercentualStr(pDescPct)
       setPrecoVenda(proposta.preco_venda ?? '')
+      setFormato(proposta.formato || 'story')
       setValidadeDias(proposta.validade_dias || 15)
       setStatus(proposta.status || 'Enviada')
       setCondicoesPagamento(proposta.condicoes_pagamento || '')
@@ -527,6 +529,7 @@ export function EditarPropostaModal({
         validade_dias: validadeDiasNum,
         data_validade: validadeIso,
         status,
+        formato,
         kit_marca_painel: technicalValues.marcaPaineis?.trim() || undefined,
         kit_marca_inversor: technicalValues.marcaInversor?.trim() || undefined,
         kit_tipo_estrutura:
@@ -1040,6 +1043,69 @@ export function EditarPropostaModal({
                 </div>
               )
             })()}
+          </div>
+
+          {/* Formato da Proposta Pública & Validade */}
+          <div className="p-3 rounded-xl border border-amber-200 bg-amber-50/40 space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Formato de Apresentação da Proposta (Link do Cliente)</span>
+              </Label>
+              <Badge className="bg-amber-400 text-slate-950 font-black text-[10px] uppercase">
+                {formato === 'story' ? 'Story (Padrão)' : 'Clássico'}
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setFormato('story')}
+                className={`p-3 rounded-lg border text-left transition-all ${
+                  formato === 'story'
+                    ? 'bg-white border-[#0A192F] shadow-sm ring-2 ring-[#0A192F]/20'
+                    : 'bg-white/60 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-400" />
+                    Apresentação Story (Instagram)
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className="text-[9px] bg-amber-50 text-amber-800 border-amber-300"
+                  >
+                    Recomendado
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                  Sequência interativa de 6 telas com barra de progresso, foco em conversão e botão
+                  direto de assinatura.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFormato('classica')}
+                className={`p-3 rounded-lg border text-left transition-all ${
+                  formato === 'classica'
+                    ? 'bg-white border-[#0A192F] shadow-sm ring-2 ring-[#0A192F]/20'
+                    : 'bg-white/60 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-slate-400" />
+                    Proposta Clássica (Rolável)
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                  Página institucional longa com rolagem contínua, capa fotovoltaica, tabela de
+                  itens e gráficos completos.
+                </p>
+              </button>
+            </div>
           </div>
 
           {/* Validade */}

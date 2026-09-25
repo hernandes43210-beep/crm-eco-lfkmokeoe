@@ -312,6 +312,7 @@ export interface SiteFormLogItem {
 }
 
 export type PropostaStatus = 'Rascunho' | 'Enviada' | 'Aceita' | 'Recusada'
+export type PropostaFormato = 'story' | 'classica'
 
 export interface PropostaAcessoItem {
   data: string
@@ -344,6 +345,7 @@ export interface Proposta extends RecordModel {
   condicoes_pagamento?: string
   observacoes?: string
   status: PropostaStatus
+  formato?: PropostaFormato
   token_publico: string
   data_aceite?: string
   aceito_por_nome?: string
@@ -391,6 +393,7 @@ export interface PublicProposta {
   id: string
   token_publico: string
   status: PropostaStatus
+  formato?: PropostaFormato
   kit_nome: string
   kit_potencia_kw?: number
   kit_fabricante?: string

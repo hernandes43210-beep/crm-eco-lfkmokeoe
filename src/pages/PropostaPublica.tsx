@@ -40,6 +40,7 @@ import { openProposalPDFPrint } from '@/lib/proposalPdf'
 import { parseKitDetailedItems } from '@/lib/kitItemsParser'
 import { InvestmentComparison } from '@/components/InvestmentComparison'
 import { AnimatedInvestmentRace } from '@/components/AnimatedInvestmentRace'
+import { PropostaStoryViewer } from '@/components/PropostaStoryViewer'
 import {
   INSTITUTIONAL_INSTALLATION_PHOTOS,
   type InstitutionalInstallationPhoto,
@@ -64,6 +65,8 @@ export default function PropostaPublica() {
   const [proposta, setProposta] = useState<PublicProposta | null>(null)
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  // Formato ativo na visualização (inicializa a partir da query param ?formato= se presente, ou da proposta)
+  const [visualizacaoFormato, setVisualizacaoFormato] = useState<'story' | 'classica' | null>(null)
 
   // Acceptance state
   const [nomeConfirmacao, setNomeConfirmacao] = useState('')
@@ -125,6 +128,14 @@ export default function PropostaPublica() {
       if (data.status === 'Aceita') {
         setAcceptedSuccess(true)
       }
+
+      // Definir formato inicial
+      const formatQuery = searchParams.get('formato')
+      if (formatQuery === 'classica' || formatQuery === 'story') {
+        setVisualizacaoFormato(formatQuery)
+      } else {
+        setVisualizacaoFormato(data.formato || 'story')
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Proposta não encontrada ou expirada.'
       setErrorMsg(msg)
@@ -133,20 +144,19 @@ export default function PropostaPublica() {
     }
   }
 
-  const handleAcceptProposal = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const executeAcceptProposal = async (nomeDigitado: string) => {
     if (!token || !proposta) return
 
     try {
       setAccepting(true)
-      const res = await ProposalsService.acceptPublicProposta(token, nomeConfirmacao.trim())
+      const res = await ProposalsService.acceptPublicProposta(token, nomeDigitado.trim())
       setProposta((prev) =>
         prev
           ? {
               ...prev,
               status: 'Aceita',
               data_aceite: res.data_aceite || new Date().toISOString(),
-              aceito_por_nome: nomeConfirmacao.trim() || prev.lead?.nome,
+              aceito_por_nome: nomeDigitado.trim() || prev.lead?.nome,
             }
           : null,
       )
@@ -163,8 +173,18 @@ export default function PropostaPublica() {
         description: msg,
         variant: 'destructive',
       })
+      throw err
     } finally {
       setAccepting(false)
+    }
+  }
+
+  const handleAcceptProposal = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      await executeAcceptProposal(nomeConfirmacao)
+    } catch {
+      /* feedback already toasted */
     }
   }
 
@@ -315,6 +335,23 @@ export default function PropostaPublica() {
   const consultorWhatsappLink = `https://wa.me/${CONTATO_ECOSOLAR.whatsappDDI}?text=${encodeURIComponent(
     `Olá! Estou no link da proposta comercial Nº ${proposalNumber} da Ecosolar Energy e gostaria de solicitar uma renovação do prazo de validade das condições.`,
   )}`
+
+  // Se o formato escolhido for "story" (padrão) e a proposta não estiver expirada
+  const isStoryFormat = (visualizacaoFormato || proposta.formato || 'story') === 'story'
+
+  if (!isExpirada && isStoryFormat) {
+    return (
+      <PropostaStoryViewer
+        proposta={proposta}
+        onAccept={executeAcceptProposal}
+        accepting={accepting}
+        acceptedSuccess={acceptedSuccess}
+        onDownloadPDF={handleDownloadPDF}
+        onSwitchToClassic={() => setVisualizacaoFormato('classica')}
+        isInternalViewer={isInternalViewer}
+      />
+    )
+  }
 
   // 3) Se a proposta estiver expirada (e o cliente não tiver aceitado anteriormente):
   // Exibir a tela elegante de Proposta Expirada da marca Ecosolar Energy (Navy/Amarelo)
@@ -485,6 +522,17 @@ export default function PropostaPublica() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setVisualizacaoFormato('story')}
+              className="text-xs font-bold gap-1.5 h-8.5 bg-white/10 hover:bg-white/20 text-amber-300 border-amber-400/40"
+              title="Visualizar no formato Story interativo"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Ver Formato Story</span>
+              <span className="sm:hidden">Story</span>
+            </Button>
             {isInternalViewer && proposta.lead?.id && (
               <Link to={`/leads/${proposta.lead.id}`}>
                 <Button

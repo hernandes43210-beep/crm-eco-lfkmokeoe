@@ -343,6 +343,7 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
       id: proposta.id,
       token_publico: proposta.getString('token_publico'),
       status: proposta.getString('status'),
+      formato: proposta.getString('formato') || 'story',
       kit_nome: proposta.getString('kit_nome'),
       kit_potencia_kw: proposta.getFloat('kit_potencia_kw'),
       kit_fabricante: proposta.getString('kit_fabricante'),

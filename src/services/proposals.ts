@@ -19,6 +19,7 @@ export interface CreatePropostaPayload {
   condicoes_pagamento?: string
   observacoes?: string
   status: 'Rascunho' | 'Enviada' | 'Aceita' | 'Recusada'
+  formato?: 'story' | 'classica'
   token_publico: string
   kit_marca_painel?: string
   kit_marca_inversor?: string
@@ -390,6 +391,7 @@ export const ProposalsService = {
           id: found.id,
           token_publico: found.token_publico,
           status: found.status,
+          formato: (found.formato as any) || 'classica',
           kit_nome: found.kit_nome,
           kit_potencia_kw: found.kit_potencia_kw,
           kit_fabricante: found.kit_fabricante,
