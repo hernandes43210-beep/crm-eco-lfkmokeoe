@@ -329,6 +329,26 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
 
       $app.save(msg)
 
+      // 6. Encaminhar para o agente nativo "Amanda" se for mensagem recebida (direction === 'in')
+      if (!fromMe && leadRecord) {
+        try {
+          const pbUrl = $os.getenv('PB_INSTANCE_URL') || 'http://127.0.0.1:8090'
+          $http.send({
+            url: pbUrl + '/backend/v1/amanda/process-lead',
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              lead_id: leadRecord.id,
+              message: text,
+              first_contact: false,
+            }),
+            timeout: 25,
+          })
+        } catch (amandaErr) {
+          console.warn('[whatsapp_webhook] Falha ao acionar Amanda SDR:', amandaErr)
+        }
+      }
+
       return e.json(200, {
         success: true,
         message_id: msg.id,

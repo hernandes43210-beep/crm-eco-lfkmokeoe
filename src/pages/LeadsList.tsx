@@ -18,6 +18,7 @@ import {
   Clock,
   Inbox,
   AlertTriangle,
+  Bot,
 } from 'lucide-react'
 import {
   Dialog,
@@ -677,6 +678,12 @@ export default function LeadsList() {
                               >
                                 {lead.status}
                               </Badge>
+                              {lead.qualificada_ia && (
+                                <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                  <Bot className="w-2.5 h-2.5" />
+                                  Amanda (IA)
+                                </span>
+                              )}
                               {lead.status === 'Fechado Perdido' && lead.motivo_perda && (
                                 <span
                                   className="text-[11px] text-rose-700 font-medium truncate max-w-[170px]"
@@ -877,6 +884,12 @@ export default function LeadsList() {
                           >
                             {lead.status}
                           </Badge>
+                          {lead.qualificada_ia && (
+                            <span className="inline-flex items-center gap-1 text-[9px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                              <Bot className="w-2.5 h-2.5" />
+                              Amanda (IA)
+                            </span>
+                          )}
                           {lead.status === 'Fechado Perdido' && lead.motivo_perda && (
                             <span
                               className="text-[10px] text-rose-700 font-medium truncate max-w-[160px]"

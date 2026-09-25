@@ -21,6 +21,7 @@ import {
   Clock,
   ArrowUpRight,
   UserCheck,
+  Bot,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -721,29 +722,47 @@ export default function WhatsAppPage() {
                             key={msg.id}
                             className={`flex flex-col ${isOut ? 'items-end' : 'items-start'}`}
                           >
-                            <div
-                              className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-xs shadow-xs relative ${
-                                isOut
-                                  ? 'bg-[#0B7A5B] text-white rounded-br-xs'
-                                  : 'bg-white text-slate-800 border border-slate-200/80 rounded-bl-xs'
-                              }`}
-                            >
-                              {!isOut && msg.sender_name && (
-                                <p className="text-[10px] font-bold text-emerald-700 mb-0.5">
-                                  {msg.sender_name}
-                                </p>
-                              )}
-                              <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                              <div
-                                className={`flex items-center justify-end gap-1 mt-1 text-[9px] ${
-                                  isOut ? 'text-emerald-100' : 'text-slate-400'
-                                }`}
-                              >
-                                <Clock className="w-2.5 h-2.5" />
-                                <span>{formatTime(msg.created)}</span>
-                                {isOut && <Check className="w-2.5 h-2.5 stroke-[2.5]" />}
-                              </div>
-                            </div>
+                            {(() => {
+                              const isAmandaMsg =
+                                isOut &&
+                                (msg.sender_name === 'Amanda (IA)' ||
+                                  msg.sender_name?.toLowerCase().includes('amanda'))
+                              return (
+                                <div
+                                  className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-xs shadow-xs relative ${
+                                    isAmandaMsg
+                                      ? 'bg-emerald-700 text-white rounded-br-xs border border-emerald-600'
+                                      : isOut
+                                        ? 'bg-[#0B7A5B] text-white rounded-br-xs'
+                                        : 'bg-white text-slate-800 border border-slate-200/80 rounded-bl-xs'
+                                  }`}
+                                >
+                                  {isAmandaMsg && (
+                                    <div className="flex items-center gap-1 mb-1 text-[10px] text-emerald-200 font-bold">
+                                      <Bot className="w-3 h-3" />
+                                      <span>Amanda (IA)</span>
+                                    </div>
+                                  )}
+                                  {!isOut && msg.sender_name && (
+                                    <p className="text-[10px] font-bold text-emerald-700 mb-0.5">
+                                      {msg.sender_name}
+                                    </p>
+                                  )}
+                                  <p className="whitespace-pre-wrap leading-relaxed">
+                                    {msg.content}
+                                  </p>
+                                  <div
+                                    className={`flex items-center justify-end gap-1 mt-1 text-[9px] ${
+                                      isOut ? 'text-emerald-100' : 'text-slate-400'
+                                    }`}
+                                  >
+                                    <Clock className="w-2.5 h-2.5" />
+                                    <span>{formatTime(msg.created)}</span>
+                                    {isOut && <Check className="w-2.5 h-2.5 stroke-[2.5]" />}
+                                  </div>
+                                </div>
+                              )
+                            })()}
                           </div>
                         )
                       })

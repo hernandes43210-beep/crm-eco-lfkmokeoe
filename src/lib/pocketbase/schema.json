@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-25T00:07:15.462Z",
+  "generatedAt": "2026-09-25T01:55:59.694Z",
   "collections": [
     {
       "name": "users",
@@ -325,6 +325,18 @@
         {
           "name": "bairro",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "amanda_conversation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "qualificada_ia",
+          "type": "bool",
           "required": false,
           "system": false
         }

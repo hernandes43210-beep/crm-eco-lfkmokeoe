@@ -69,6 +69,40 @@ onRecordCreate((e) => {
   e.next()
 }, 'leads')
 
+// Disparo assíncrono do primeiro contato da Amanda para leads novos criados manualmente ou importados no CRM
+onRecordAfterCreateSuccess((e) => {
+  try {
+    const lead = e.record
+    if (!lead) {
+      e.next()
+      return
+    }
+
+    // Se o lead já tiver qualificada_ia ou já tiver amanda_conversation_id, ignorar
+    if (lead.getBool('qualificada_ia') || lead.getString('amanda_conversation_id')) {
+      e.next()
+      return
+    }
+
+    const pbUrl = $os.getenv('PB_INSTANCE_URL') || 'http://127.0.0.1:8090'
+    $http.send({
+      url: pbUrl + '/backend/v1/amanda/process-lead',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lead_id: lead.id,
+        message: '',
+        first_contact: true,
+      }),
+      timeout: 25,
+    })
+  } catch (amandaErr) {
+    console.warn('[leads_sla] Falha no primeiro contato automático da Amanda:', amandaErr)
+  }
+
+  e.next()
+}, 'leads')
+
 onRecordUpdate((e) => {
   const record = e.record
   try {

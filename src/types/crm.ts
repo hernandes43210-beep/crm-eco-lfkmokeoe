@@ -64,6 +64,7 @@ export interface HistoricoItem {
     | 'descarte'
     | 'contato'
   descricao: string
+  autor?: string
 }
 
 export interface Lead extends RecordModel {
@@ -86,6 +87,8 @@ export interface Lead extends RecordModel {
   status_qualificacao?: LeadQualificacaoStatus
   qualificado_em?: string
   qualificado_por?: string
+  qualificada_ia?: boolean
+  amanda_conversation_id?: string
   motivo_descarte?: string
   motivo_perda?: string
   proximo_contato?: string

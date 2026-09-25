@@ -384,6 +384,24 @@ routerAdd('POST', '/backend/v1/integrations/site-form/submit', (e) => {
     leadId = leadRec.id
     mensagemLog =
       'Lead criado com sucesso via site ecoenergy.net.br na fila "Aguardando Qualificação".'
+
+    // Disparar primeiro contato da Amanda para o lead recém-criado via site
+    try {
+      const pbUrl = $os.getenv('PB_INSTANCE_URL') || 'http://127.0.0.1:8090'
+      $http.send({
+        url: pbUrl + '/backend/v1/amanda/process-lead',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lead_id: leadId,
+          message: '',
+          first_contact: true,
+        }),
+        timeout: 25,
+      })
+    } catch (amandaErr) {
+      console.warn('[site_form_submit] Falha ao acionar Amanda SDR:', amandaErr)
+    }
   } catch (err) {
     statusProcessamento = 'erro'
     mensagemLog = 'Erro ao salvar lead do site: ' + err.message
