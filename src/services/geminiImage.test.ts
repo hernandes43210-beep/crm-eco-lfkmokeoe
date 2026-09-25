@@ -72,4 +72,56 @@ describe('GeminiImageService', () => {
     expect(url).toContain('rec123')
     expect(url).toContain('foto_123.jpg')
   })
+
+  it('retorna dados da imagem gerada com sucesso quando a API responde 200', async () => {
+    pb.authStore.save('mock-token-abc', { id: 'user123', email: 'vendedor@ecosolar.com' } as any)
+
+    const mockResponse = {
+      success: true,
+      model_used: 'gemini-2.5-flash-image',
+      tipo: 'residencial',
+      titulo_sugerido: 'Instalação Solar em Telhado Residencial Brasileiro',
+      legenda_sugerida: 'Telhado residencial com painéis solares de alta performance',
+      prompt_usado: 'Ultra-realistic...',
+      mime_type: 'image/jpeg',
+      image_base64: 'dGVzdGU=',
+      data_url: 'data:image/jpeg;base64,dGVzdGU=',
+    }
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => mockResponse,
+    } as any)
+
+    const result = await GeminiImageService.generateImage({
+      tipo: 'residencial',
+      detalhe: 'vista frontal',
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.model_used).toBe('gemini-2.5-flash-image')
+    expect(result.image_base64).toBe('dGVzdGU=')
+    expect(result.data_url).toContain('data:image/jpeg;base64,dGVzdGU=')
+  })
+
+  it('propaga mensagem de erro amigável quando o modelo não estiver disponível (404)', async () => {
+    pb.authStore.save('mock-token-abc', { id: 'user123', email: 'vendedor@ecosolar.com' } as any)
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({
+        error:
+          'O modelo de geração de imagem (gemini-2.5-flash-image) não está disponível para esta chave de API no Google AI Studio. Verifique se o recurso de geração de imagem está liberado em sua conta do Google AI Studio.',
+        status: 404,
+      }),
+    } as any)
+
+    await expect(
+      GeminiImageService.generateImage({
+        tipo: 'comercial',
+      }),
+    ).rejects.toThrow('não está disponível para esta chave de API')
+  })
 })

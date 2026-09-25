@@ -10,6 +10,7 @@ export interface GenerateGeminiImageParams {
 
 export interface GenerateGeminiImageResponse {
   success: boolean
+  model_used?: string
   tipo: GeminiInstalacaoTipo
   titulo_sugerido: string
   legenda_sugerida: string

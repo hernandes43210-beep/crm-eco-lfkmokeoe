@@ -215,7 +215,7 @@ export function GeminiImageModal({ open, onOpenChange, onSaved }: GeminiImageMod
             <div className="space-y-1">
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-300 text-[11px] font-black uppercase tracking-wider">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Google Gemini • Imagen 3</span>
+                <span>Google Gemini • Flash Image</span>
               </div>
               <DialogTitle className="text-xl font-black text-white tracking-tight flex items-center gap-2">
                 <span>Geração de Imagens Profissionais por IA</span>
