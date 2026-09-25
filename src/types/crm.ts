@@ -389,6 +389,32 @@ export interface LeadPhoto extends RecordModel {
   }
 }
 
+export type FotoInstitucionalTipo =
+  | 'residencial'
+  | 'comercial'
+  | 'carport'
+  | 'rural'
+  | 'fundacao'
+  | 'solo'
+  | 'outro'
+
+export interface FotoInstitucionalRecord extends RecordModel {
+  id: string
+  titulo: string
+  tipo: FotoInstitucionalTipo
+  legenda?: string
+  descricao?: string
+  origem?: string // 'ia_gemini' | 'upload' | 'seed'
+  prompt_usado?: string
+  arquivo?: string
+  criado_por?: string
+  created: string
+  updated: string
+  expand?: {
+    criado_por?: User
+  }
+}
+
 export interface PublicProposta {
   id: string
   token_publico: string

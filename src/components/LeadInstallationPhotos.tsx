@@ -29,6 +29,7 @@ import {
 import { toast } from '@/hooks/use-toast'
 import type { Lead, LeadPhoto, Proposta } from '@/types/crm'
 import { LeadPhotosService } from '@/services/leadPhotos'
+import { GeminiImageModal } from '@/components/GeminiImageModal'
 import {
   generateInstallationMontageCanvas,
   downloadMontageImage,
@@ -70,6 +71,7 @@ export const LeadInstallationPhotos: React.FC<LeadInstallationPhotosProps> = ({
   const [viewingInstPhoto, setViewingInstPhoto] = useState<InstitutionalInstallationPhoto | null>(
     null,
   )
+  const [isGeminiModalOpen, setIsGeminiModalOpen] = useState(false)
 
   // Campos editáveis da arte do Instagram
   const [modulosInput, setModulosInput] = useState('')
@@ -621,10 +623,20 @@ export const LeadInstallationPhotos: React.FC<LeadInstallationPhotosProps> = ({
                 Galeria Institucional de Obras Realizadas (Prova Social da Empresa)
               </h4>
             </div>
-            <span className="text-[11px] text-slate-500 font-medium">
-              Fotos reais integradas automaticamente a todas as propostas comerciais (PDF e Link
-              Público)
-            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setIsGeminiModalOpen(true)}
+                className="bg-[#0A192F] hover:bg-[#163868] text-amber-300 hover:text-amber-200 border border-amber-400/40 text-xs font-bold gap-1.5 h-7.5 px-3 rounded-lg shadow-xs"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>Gerar foto com IA</span>
+              </Button>
+              <span className="text-[11px] text-slate-500 font-medium hidden md:inline">
+                Fotos reais integradas a todas as propostas
+              </span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -820,6 +832,9 @@ export const LeadInstallationPhotos: React.FC<LeadInstallationPhotosProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal IA Gemini para geração e gestão da galeria */}
+      <GeminiImageModal open={isGeminiModalOpen} onOpenChange={setIsGeminiModalOpen} />
 
       {/* Modal Zoom Foto Individual */}
       <Dialog open={!!viewingPhoto} onOpenChange={(open) => !open && setViewingPhoto(null)}>

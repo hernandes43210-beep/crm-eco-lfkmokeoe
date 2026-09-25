@@ -1281,6 +1281,22 @@ export default function PropostaPublica() {
                     tag: inst.tag,
                     local: inst.local,
                   })
+                } else if (sel.id) {
+                  // Registro salvo da galeria institucional (IA Gemini / DB)
+                  const pbHost = window.location.origin
+                  const url = `${pbHost}/api/files/fotos_institucionais/${sel.id}/${sel.id}.jpg`
+                  rawItemsToDisplay.push({
+                    id: sel.id,
+                    url,
+                    titulo: sel.legenda || 'Instalação Solar Homologada',
+                    legenda: sel.legenda || 'Instalação Solar Homologada',
+                    descricao:
+                      'Instalação executada pela equipe Ecosolar com acompanhamento de engenharia.',
+                    tag: 'Galeria Inst.',
+                    local: proposta.lead?.cidade
+                      ? `${proposta.lead.cidade}/${proposta.lead.estado || 'RO'}`
+                      : 'Rondônia / RO',
+                  })
                 }
               }
             })

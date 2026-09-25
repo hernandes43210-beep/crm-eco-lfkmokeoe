@@ -1375,7 +1375,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
             })
           }
         } else {
-          // Institucional
+          // Institucional (estática ou salva no banco de fotos_institucionais)
           const inst = INSTITUTIONAL_INSTALLATION_PHOTOS.find((p) => p.id === sel.id)
           if (inst) {
             fotosParaExibir.push({
@@ -1383,6 +1383,17 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
               legenda: sel.legenda || inst.legenda,
               tag: inst.tag,
               local: inst.local,
+            })
+          } else if (sel.id) {
+            // Pode ser um registro da coleção fotos_institucionais gerado por IA
+            // Se for ID do PocketBase (15 caracteres alfanuméricos)
+            const pbHost = window.location.origin
+            const url = `${pbHost}/api/files/fotos_institucionais/${sel.id}/${sel.id}.jpg`
+            fotosParaExibir.push({
+              url,
+              legenda: sel.legenda || 'Instalação Homologada Ecosolar',
+              tag: 'Instalação IA',
+              local: 'Engenharia Solar Ecosolar',
             })
           }
         }

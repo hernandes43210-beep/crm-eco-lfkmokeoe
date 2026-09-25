@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-25T12:28:51.278Z",
+  "generatedAt": "2026-09-25T13:02:53.806Z",
   "collections": [
     {
       "name": "users",
@@ -1666,6 +1666,96 @@
         "CREATE INDEX idx_notificacoes_lead ON notificacoes (lead)",
         "CREATE INDEX idx_notificacoes_lida ON notificacoes (lida)",
         "CREATE INDEX idx_notificacoes_created ON notificacoes (created DESC)"
+      ]
+    },
+    {
+      "name": "fotos_institucionais",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "residencial",
+            "comercial",
+            "carport",
+            "rural",
+            "fundacao",
+            "solo",
+            "outro"
+          ]
+        },
+        {
+          "name": "legenda",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origem",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prompt_usado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "arquivo",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_fotos_inst_tipo ON fotos_institucionais (tipo)",
+        "CREATE INDEX idx_fotos_inst_origem ON fotos_institucionais (origem)",
+        "CREATE INDEX idx_fotos_inst_created ON fotos_institucionais (created DESC)"
       ]
     }
   ]

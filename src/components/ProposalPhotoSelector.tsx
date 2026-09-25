@@ -7,7 +7,8 @@ import {
   INSTITUTIONAL_INSTALLATION_PHOTOS,
   type InstitutionalInstallationPhoto,
 } from '@/data/socialProofPhotos'
-import type { LeadPhoto, PropostaFotoSelecionada } from '@/types/crm'
+import { GeminiImageService } from '@/services/geminiImage'
+import type { LeadPhoto, PropostaFotoSelecionada, FotoInstitucionalRecord } from '@/types/crm'
 
 export interface ProposalPhotoOption {
   key: string // `lead:${photo.id}` ou `inst:${inst.id}`
@@ -17,6 +18,7 @@ export interface ProposalPhotoOption {
   legendaPadrao: string
   previewUrl: string
   tag: string
+  isAi?: boolean
 }
 
 interface ProposalPhotoSelectorProps {
@@ -28,6 +30,7 @@ interface ProposalPhotoSelectorProps {
 export function ProposalPhotoSelector({ leadId, value, onChange }: ProposalPhotoSelectorProps) {
   const [leadPhotos, setLeadPhotos] = useState<LeadPhoto[]>([])
   const [loadingLeadPhotos, setLoadingLeadPhotos] = useState(false)
+  const [dbInstitucionais, setDbInstitucionais] = useState<FotoInstitucionalRecord[]>([])
   const [editingKey, setEditingKey] = useState<string | null>(null)
 
   useEffect(() => {
@@ -50,6 +53,16 @@ export function ProposalPhotoSelector({ leadId, value, onChange }: ProposalPhoto
     } else {
       setLeadPhotos([])
     }
+
+    // Carregar fotos institucionais salvas no banco (geradas por IA ou cadastradas)
+    GeminiImageService.getFotosInstitucionais()
+      .then((records) => {
+        if (isMounted) setDbInstitucionais(records || [])
+      })
+      .catch((err) => {
+        console.warn('Erro ao carregar fotos institucionais do banco:', err)
+      })
+
     return () => {
       isMounted = false
     }
@@ -75,21 +88,42 @@ export function ProposalPhotoSelector({ leadId, value, onChange }: ProposalPhoto
       })
     }
 
-    // 2. Fotos Institucionais Ecosolar
-    INSTITUTIONAL_INSTALLATION_PHOTOS.forEach((inst: InstitutionalInstallationPhoto) => {
-      list.push({
-        key: `inst:${inst.id}`,
-        origem: 'institucional',
-        id: inst.id,
-        titulo: inst.titulo,
-        legendaPadrao: inst.legenda,
-        previewUrl: inst.src,
-        tag: inst.tag,
+    // 2. Fotos Institucionais salvas no banco (incluindo IA Gemini)
+    if (dbInstitucionais.length > 0) {
+      dbInstitucionais.forEach((dbPhoto) => {
+        const url = GeminiImageService.getFotoUrl(dbPhoto, '400x300') || ''
+        const isAi = dbPhoto.origem === 'ia_gemini'
+        list.push({
+          key: `inst:${dbPhoto.id}`,
+          origem: 'institucional',
+          id: dbPhoto.id,
+          titulo: dbPhoto.titulo,
+          legendaPadrao: dbPhoto.legenda || dbPhoto.titulo,
+          previewUrl: url,
+          tag: isAi ? 'IA • Galeria' : 'Galeria Inst.',
+          isAi,
+        })
       })
+    }
+
+    // 3. Fotos Institucionais Estáticas Ecosolar (acervo base)
+    INSTITUTIONAL_INSTALLATION_PHOTOS.forEach((inst: InstitutionalInstallationPhoto) => {
+      // Evita duplicatas se algum dia tiver mesmo ID
+      if (!list.some((it) => it.id === inst.id)) {
+        list.push({
+          key: `inst:${inst.id}`,
+          origem: 'institucional',
+          id: inst.id,
+          titulo: inst.titulo,
+          legendaPadrao: inst.legenda,
+          previewUrl: inst.src,
+          tag: inst.tag,
+        })
+      }
     })
 
     return list
-  }, [leadPhotos])
+  }, [leadPhotos, dbInstitucionais])
 
   const selectedMap = React.useMemo(() => {
     const map = new Map<string, PropostaFotoSelecionada>()
@@ -254,10 +288,12 @@ export function ProposalPhotoSelector({ leadId, value, onChange }: ProposalPhoto
                     className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shadow-2xs ${
                       opt.origem === 'lead'
                         ? 'bg-blue-600/90 text-white'
-                        : 'bg-slate-900/80 text-amber-300'
+                        : opt.isAi
+                          ? 'bg-purple-600/90 text-white'
+                          : 'bg-slate-900/80 text-amber-300'
                     }`}
                   >
-                    {opt.origem === 'lead' ? 'Lead' : 'Inst.'}
+                    {opt.origem === 'lead' ? 'Lead' : opt.isAi ? 'IA' : 'Inst.'}
                   </span>
                 </div>
               </div>

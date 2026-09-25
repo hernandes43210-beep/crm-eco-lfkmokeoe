@@ -205,6 +205,18 @@ export function PropostaStoryViewer({
               tag: inst.tag,
               local: inst.local,
             })
+          } else if (sel.id) {
+            const pbHost = window.location.origin
+            const url = `${pbHost}/api/files/fotos_institucionais/${sel.id}/${sel.id}.jpg`
+            list.push({
+              id: sel.id,
+              url,
+              titulo: sel.legenda || 'Instalação Solar Homologada',
+              legenda: sel.legenda || 'Instalação Solar Homologada',
+              descricao: 'Acompanhamento de engenharia e ART assinada.',
+              tag: 'Galeria Inst.',
+              local: localCliente,
+            })
           }
         }
       })

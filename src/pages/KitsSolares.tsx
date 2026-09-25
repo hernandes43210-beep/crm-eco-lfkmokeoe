@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { KitMarketingModal } from '@/components/KitMarketingModal'
 import { SaudacaoModal } from '@/components/SaudacaoModal'
+import { GeminiImageModal } from '@/components/GeminiImageModal'
 import { KitsService } from '@/services/kits'
 import type { Kit, KitCategoria, KitTipoEstrutura } from '@/types/crm'
 import useRealtime from '@/hooks/use-realtime'
@@ -90,6 +91,7 @@ export default function KitsSolares() {
   const [marketingKit, setMarketingKit] = useState<Kit | null>(null)
   const [isMarketingModalOpen, setIsMarketingModalOpen] = useState(false)
   const [isSaudacaoModalOpen, setIsSaudacaoModalOpen] = useState(false)
+  const [isGeminiModalOpen, setIsGeminiModalOpen] = useState(false)
 
   // Form Fields
   const [nome, setNome] = useState('')
@@ -564,8 +566,22 @@ export default function KitsSolares() {
           </p>
         </div>
 
-        {/* Ações do Topo: Arte de Saudação com Mascote + Novo Kit */}
+        {/* Ações do Topo: Gerar imagem com IA + Arte de Saudação com Mascote + Novo Kit */}
         <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto shrink-0">
+          <Button
+            type="button"
+            onClick={() => setIsGeminiModalOpen(true)}
+            size="default"
+            className="bg-[#0A192F] hover:bg-[#163868] text-amber-300 hover:text-amber-200 border border-amber-400/40 font-bold gap-2 h-10 px-4 rounded-lg shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+            title="Gerar foto fotorrealista de instalação solar com IA do Gemini"
+          >
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <span>Gerar imagem com IA</span>
+            <Badge className="bg-purple-600 text-white text-[10px] px-1.5 py-0 border-0">
+              Gemini
+            </Badge>
+          </Button>
+
           <Button
             type="button"
             variant="outline"
@@ -893,6 +909,9 @@ export default function KitsSolares() {
 
       {/* Modal de Gerar Arte de Saudação com Mascote Centralizado */}
       <SaudacaoModal open={isSaudacaoModalOpen} onOpenChange={setIsSaudacaoModalOpen} />
+
+      {/* Modal de Gerar Imagem Fotorrealista com IA Google Gemini & Galeria Institucional */}
+      <GeminiImageModal open={isGeminiModalOpen} onOpenChange={setIsGeminiModalOpen} />
 
       {/* Kit Creation / Editing Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
