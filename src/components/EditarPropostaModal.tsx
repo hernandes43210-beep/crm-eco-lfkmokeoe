@@ -139,6 +139,9 @@ export function EditarPropostaModal({
 
   // Modo custom/manual ativo quando 'custom' ou sem kit catalogado vinculado
   const isCustomMode = selectedKitId === 'custom' || !selectedKitId
+  const selectedKit = useMemo(() => {
+    return kits.find((k) => k.id === selectedKitId)
+  }, [kits, selectedKitId])
 
   // Cálculos dinâmicos da montagem manual técnica
   const manualKwpInfo = useMemo(() => {

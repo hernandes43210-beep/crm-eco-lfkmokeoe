@@ -165,6 +165,86 @@ export function PropostaStoryViewer({
   const isInversorHuawei = marcaInversorLower.includes('huawei')
   const isInversorDestaque = isInversorSungrow || isInversorHuawei
 
+  // Determinar foto de abertura / saudação da proposta:
+  // Regra: Foto manual escolhida pelo vendedor SEMPRE tem prioridade (1ª foto de fotos_selecionadas).
+  // Se o vendedor NÃO escolheu foto manual, a imagem IA do kit entra como abertura/saudação.
+  const fotoAbertura = useMemo(() => {
+    // 1. Verificar se há foto manual selecionada
+    if (Array.isArray(proposta.fotos_selecionadas) && proposta.fotos_selecionadas.length > 0) {
+      const primeiro = proposta.fotos_selecionadas[0]
+      if (primeiro.origem === 'lead') {
+        const leadPh = (proposta.fotos_obra || []).find((p) => p.id === primeiro.id)
+        const url = leadPh?.url || leadPh?.foto || ''
+        if (url) {
+          return {
+            url,
+            origem: 'lead' as const,
+            tag: 'Foto da Obra',
+            legenda: primeiro.legenda || leadPh?.legenda || 'Instalação Real do Cliente',
+            isKitIa: false,
+          }
+        }
+      } else {
+        // Foto institucional manual
+        const inst = INSTITUTIONAL_INSTALLATION_PHOTOS.find((p) => p.id === primeiro.id)
+        if (inst) {
+          return {
+            url: inst.src,
+            origem: 'institucional' as const,
+            tag: inst.tag,
+            legenda: primeiro.legenda || inst.legenda,
+            isKitIa: false,
+          }
+        } else if (primeiro.id && primeiro.id.startsWith('kit_')) {
+          // É a própria foto do kit selecionada manualmente
+          const kitUrl =
+            proposta.kit?.imagem_ia_url ||
+            (proposta.kit?.imagem_ia && proposta.kit?.id
+              ? `/api/files/kits/${proposta.kit.id}/${proposta.kit.imagem_ia}`
+              : '')
+          if (kitUrl) {
+            return {
+              url: kitUrl,
+              origem: 'kit_ia' as const,
+              tag: 'IA • Kit',
+              legenda: primeiro.legenda || `Simulação fotorrealista do kit solar homologado`,
+              isKitIa: true,
+            }
+          }
+        } else if (primeiro.id) {
+          const pbHost = window.location.origin
+          const url = `${pbHost}/api/files/fotos_institucionais/${primeiro.id}/${primeiro.id}.jpg`
+          return {
+            url,
+            origem: 'institucional' as const,
+            tag: 'IA • Galeria',
+            legenda: primeiro.legenda || 'Instalação Solar Homologada',
+            isKitIa: false,
+          }
+        }
+      }
+    }
+
+    // 2. Se o vendedor NÃO escolheu foto manual, usa a imagem IA do kit vinculado
+    const kitImgUrl =
+      proposta.kit?.imagem_ia_url ||
+      (proposta.kit?.imagem_ia && proposta.kit?.id
+        ? `/api/files/kits/${proposta.kit.id}/${proposta.kit.imagem_ia}`
+        : '')
+
+    if (kitImgUrl) {
+      return {
+        url: kitImgUrl,
+        origem: 'kit_ia' as const,
+        tag: 'IA • Kit',
+        legenda: `Simulação fotorrealista do ${proposta.kit_nome || 'kit solar'}`,
+        isKitIa: true,
+      }
+    }
+
+    return null
+  }, [proposta])
+
   // Resolver fotos selecionadas para a prova social discreta na tela 4
   const resolvedPhotos = useMemo(() => {
     const list: Array<{
@@ -436,20 +516,70 @@ export function PropostaStoryViewer({
                 </div>
               </div>
 
-              {/* Destaque Principal de Potência */}
-              <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md rounded-2xl p-5 border border-amber-400/40 text-center relative overflow-hidden shadow-xl">
-                <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-amber-400/20 blur-2xl pointer-events-none" />
-                <span className="text-[10px] uppercase tracking-widest text-slate-400 font-extrabold block">
-                  Potência Total Homologada
-                </span>
-                <div className="text-4xl sm:text-5xl font-black text-amber-300 font-mono-numbers my-1.5 tracking-tight flex items-baseline justify-center gap-1.5">
-                  <span>{specs.potenciaTotalFormatada.split(' ')[0]}</span>
-                  <span className="text-lg sm:text-xl text-white font-bold">kWp</span>
+              {/* Card Visual Hero de Abertura com Imagem (IA do Kit ou Foto Manual Escolhida) */}
+              {fotoAbertura ? (
+                <div className="relative rounded-2xl overflow-hidden border border-amber-400/50 shadow-2xl bg-slate-950 group">
+                  <div className="h-44 sm:h-48 w-full relative overflow-hidden bg-slate-900">
+                    <img
+                      src={fotoAbertura.url}
+                      alt={fotoAbertura.legenda}
+                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A192F] via-[#0A192F]/40 to-transparent" />
+
+                    {/* Badge da Imagem */}
+                    <div className="absolute top-2.5 right-2.5">
+                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 shadow-md">
+                        {fotoAbertura.tag}
+                      </span>
+                    </div>
+
+                    {/* Selo no rodapé da imagem */}
+                    <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-[10px] text-slate-200">
+                      <span className="truncate max-w-[70%] font-medium text-white drop-shadow-sm">
+                        {fotoAbertura.legenda}
+                      </span>
+                      <span className="text-amber-300 font-bold shrink-0">
+                        {specs.potenciaTotalFormatada}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Faixa inferior integrada com potência */}
+                  <div className="p-3 bg-gradient-to-r from-[#0A192F] via-[#0E274A] to-[#0A192F] flex items-center justify-between border-t border-white/10">
+                    <div>
+                      <span className="text-[9px] uppercase tracking-widest text-slate-400 font-extrabold block">
+                        Potência Homologada
+                      </span>
+                      <span className="text-xl sm:text-2xl font-black text-amber-300 font-mono-numbers">
+                        {specs.potenciaTotalFormatada}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[9px] uppercase tracking-widest text-slate-400 font-extrabold block">
+                        Modelo do Kit
+                      </span>
+                      <span className="text-xs font-bold text-white truncate max-w-[170px] block">
+                        {proposta.kit_nome || 'Kit Homologado'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="inline-block bg-[#0A192F]/80 px-3 py-1 rounded-lg border border-white/10 text-xs font-semibold text-slate-200">
-                  {proposta.kit_nome}
+              ) : (
+                <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md rounded-2xl p-5 border border-amber-400/40 text-center relative overflow-hidden shadow-xl">
+                  <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-amber-400/20 blur-2xl pointer-events-none" />
+                  <span className="text-[10px] uppercase tracking-widest text-slate-400 font-extrabold block">
+                    Potência Total Homologada
+                  </span>
+                  <div className="text-4xl sm:text-5xl font-black text-amber-300 font-mono-numbers my-1.5 tracking-tight flex items-baseline justify-center gap-1.5">
+                    <span>{specs.potenciaTotalFormatada.split(' ')[0]}</span>
+                    <span className="text-lg sm:text-xl text-white font-bold">kWp</span>
+                  </div>
+                  <div className="inline-block bg-[#0A192F]/80 px-3 py-1 rounded-lg border border-white/10 text-xs font-semibold text-slate-200">
+                    {proposta.kit_nome}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Cards de Métricas Rápidas */}
               <div className="grid grid-cols-2 gap-2.5">

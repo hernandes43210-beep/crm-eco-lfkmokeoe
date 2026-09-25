@@ -92,7 +92,7 @@ export function ProposalPhotoSelector({
         titulo: `Imagem IA do Kit Solar (${kitNome || 'Kit Solar'})`,
         legendaPadrao: `Simulação fotorrealista do kit solar homologado`,
         previewUrl: kitImgUrl,
-        tag: 'Kit • IA',
+        tag: 'IA • Kit',
         isAi: true,
       })
     }
@@ -212,6 +212,31 @@ export function ProposalPhotoSelector({
 
   const selectedCount = value.length
 
+  // Identifica qual imagem será a foto de abertura/saudação da proposta:
+  // Regra: Foto manual selecionada pelo vendedor tem prioridade (1ª foto do array selecionado);
+  // Se nenhuma foto manual foi selecionada, a imagem IA do kit assume a abertura.
+  const infoAbertura = React.useMemo(() => {
+    if (value.length > 0) {
+      const primeiro = value[0]
+      const opt = options.find((o) => o.origem === primeiro.origem && o.id === primeiro.id)
+      return {
+        tipo: 'manual' as const,
+        titulo: opt?.titulo || primeiro.legenda || 'Primeira foto selecionada',
+        previewUrl: opt?.previewUrl || '',
+        origemTexto: opt?.tag || (primeiro.origem === 'lead' ? 'Foto do Lead' : 'Galeria'),
+      }
+    }
+    if (kitId && kitImagemIa) {
+      return {
+        tipo: 'kit_ia' as const,
+        titulo: `Imagem IA do Kit (${kitNome || 'Kit Solar'})`,
+        previewUrl: `/api/files/kits/${kitId}/${kitImagemIa}`,
+        origemTexto: 'IA • Kit',
+      }
+    }
+    return null
+  }, [value, options, kitId, kitImagemIa, kitNome])
+
   return (
     <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50/70 space-y-3">
       {/* Cabeçalho com ações de marcar todas / limpar */}
@@ -219,21 +244,20 @@ export function ProposalPhotoSelector({
         <div>
           <div className="flex items-center gap-1.5">
             <Camera className="w-3.5 h-3.5 text-slate-700" />
-            <span className="text-xs font-bold text-slate-800">
-              Fotos da Proposta (Prova Social)
-            </span>
+            <span className="text-xs font-bold text-slate-800">Fotos da Proposta & Abertura</span>
             <Badge
               variant="outline"
               className="text-[10px] font-semibold px-1.5 py-0 bg-white text-slate-700 border-slate-200"
             >
               {selectedCount === 0
-                ? 'Nenhuma selecionada (exibe padrão)'
+                ? 'Nenhuma selecionada (usa foto IA do kit)'
                 : `${selectedCount} selecionada${selectedCount > 1 ? 's' : ''}`}
             </Badge>
           </div>
           <p className="text-[11px] text-slate-500 mt-0.5">
-            Escolha nenhuma, uma ou várias fotos para exibir na galeria discreta de miniaturas da
-            proposta e do PDF.
+            Selecione fotos para a galeria e capa. A foto manual escolhida tem prioridade como
+            abertura; caso nenhuma seja selecionada, a imagem IA do kit assume a abertura da
+            proposta.
           </p>
         </div>
 
@@ -258,6 +282,30 @@ export function ProposalPhotoSelector({
           )}
         </div>
       </div>
+
+      {/* Banner informativo de qual imagem será a abertura da proposta */}
+      {infoAbertura && (
+        <div className="p-2.5 rounded-lg bg-emerald-50/80 border border-emerald-200 flex items-center gap-3 text-xs">
+          <div className="w-10 h-10 rounded-md overflow-hidden bg-slate-900 shrink-0 border border-emerald-300">
+            <img
+              src={infoAbertura.previewUrl}
+              alt="Abertura da Proposta"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-bold text-emerald-950">Foto de Abertura / Saudação:</span>
+              <Badge className="bg-emerald-700 text-white text-[9px] px-1.5 py-0 font-bold uppercase">
+                {infoAbertura.tipo === 'manual' ? 'Prioridade Manual' : 'IA • Kit (Padrão)'}
+              </Badge>
+            </div>
+            <p className="text-[11px] text-emerald-800 truncate mt-0.5">
+              {infoAbertura.titulo} • Exibida no início do Story e no hero da proposta.
+            </p>
+          </div>
+        </div>
+      )}
 
       {loadingLeadPhotos && (
         <div className="text-[11px] text-slate-500 flex items-center gap-1.5 py-1">
@@ -308,17 +356,24 @@ export function ProposalPhotoSelector({
                 </div>
 
                 {/* Tag discreta no canto superior direito */}
-                <div className="absolute top-1.5 right-1.5">
+                <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
+                  {isSelected && value[0]?.id === opt.id && value[0]?.origem === opt.origem && (
+                    <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-600 text-white shadow-2xs">
+                      Abertura
+                    </span>
+                  )}
                   <span
                     className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shadow-2xs ${
                       opt.origem === 'lead'
                         ? 'bg-blue-600/90 text-white'
-                        : opt.isAi
-                          ? 'bg-purple-600/90 text-white'
-                          : 'bg-slate-900/80 text-amber-300'
+                        : opt.tag === 'IA • Kit'
+                          ? 'bg-emerald-600/95 text-white font-black'
+                          : opt.isAi
+                            ? 'bg-purple-600/90 text-white'
+                            : 'bg-slate-900/80 text-amber-300'
                     }`}
                   >
-                    {opt.origem === 'lead' ? 'Lead' : opt.isAi ? 'IA' : 'Inst.'}
+                    {opt.tag}
                   </span>
                 </div>
               </div>

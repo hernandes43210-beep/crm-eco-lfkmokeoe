@@ -162,6 +162,9 @@ export function GerarPropostaModal({
   }
 
   const isCustomMode = selectedKitId === 'custom'
+  const selectedKit = React.useMemo(() => {
+    return kits.find((k) => k.id === selectedKitId)
+  }, [kits, selectedKitId])
 
   // Cálculo automático de potência pico (kWp) em tempo real da montagem pré-pronta manual
   const manualKwpInfo = React.useMemo(() => {

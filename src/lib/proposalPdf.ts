@@ -1384,6 +1384,20 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
               tag: inst.tag,
               local: inst.local,
             })
+          } else if (sel.id && sel.id.startsWith('kit_')) {
+            const kitId = sel.id.replace('kit_', '')
+            const kitImg = (data as any)?.kit?.imagem_ia
+            const url =
+              (data as any)?.kit?.imagem_ia_url ||
+              (kitImg && kitId ? `/api/files/kits/${kitId}/${kitImg}` : '')
+            if (url) {
+              fotosParaExibir.push({
+                url,
+                legenda: sel.legenda || `Simulação IA do ${data.kit_nome}`,
+                tag: 'IA • Kit',
+                local: 'Kit Homologado Ecosolar',
+              })
+            }
           } else if (sel.id) {
             // Pode ser um registro da coleção fotos_institucionais gerado por IA
             // Se for ID do PocketBase (15 caracteres alfanuméricos)

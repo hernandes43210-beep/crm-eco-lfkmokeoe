@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
 import {
   CheckCircle2,
@@ -81,6 +81,87 @@ export default function PropostaPublica() {
     tag: string
     local: string
   } | null>(null)
+
+  // Determinar foto de abertura / hero da proposta clássica:
+  // Regra: Foto manual escolhida pelo vendedor SEMPRE tem prioridade (1ª de fotos_selecionadas).
+  // Se o vendedor NÃO escolheu foto manual, a imagem IA do kit entra como abertura/hero.
+  // Hook chamado incondicionalmente no topo do componente.
+  const fotoHeroAbertura = useMemo(() => {
+    if (!proposta) return null
+
+    // 1. Foto manual escolhida pelo vendedor
+    if (Array.isArray(proposta.fotos_selecionadas) && proposta.fotos_selecionadas.length > 0) {
+      const primeiro = proposta.fotos_selecionadas[0]
+      if (primeiro.origem === 'lead') {
+        const leadPh = (proposta.fotos_obra || []).find((p) => p.id === primeiro.id)
+        const url = leadPh?.url || leadPh?.foto || ''
+        if (url) {
+          return {
+            url,
+            origem: 'lead' as const,
+            tag: 'Foto da Obra',
+            legenda: primeiro.legenda || leadPh?.legenda || 'Instalação Real do Cliente',
+            isKitIa: false,
+          }
+        }
+      } else {
+        const inst = INSTITUTIONAL_INSTALLATION_PHOTOS.find((p) => p.id === primeiro.id)
+        if (inst) {
+          return {
+            url: inst.src,
+            origem: 'institucional' as const,
+            tag: inst.tag,
+            legenda: primeiro.legenda || inst.legenda,
+            isKitIa: false,
+          }
+        } else if (primeiro.id && primeiro.id.startsWith('kit_')) {
+          const kitUrl =
+            proposta.kit?.imagem_ia_url ||
+            (proposta.kit?.imagem_ia && proposta.kit?.id
+              ? `/api/files/kits/${proposta.kit.id}/${proposta.kit.imagem_ia}`
+              : '')
+          if (kitUrl) {
+            return {
+              url: kitUrl,
+              origem: 'kit_ia' as const,
+              tag: 'IA • Kit',
+              legenda: primeiro.legenda || 'Simulação fotorrealista do kit solar homologado',
+              isKitIa: true,
+            }
+          }
+        } else if (primeiro.id) {
+          const pbHost = window.location.origin
+          const url = `${pbHost}/api/files/fotos_institucionais/${primeiro.id}/${primeiro.id}.jpg`
+          return {
+            url,
+            origem: 'institucional' as const,
+            tag: 'IA • Galeria',
+            legenda: primeiro.legenda || 'Instalação Solar Homologada',
+            isKitIa: false,
+          }
+        }
+      }
+    }
+
+    // 2. Se o vendedor NÃO escolheu foto manual, usa a imagem IA do kit vinculado
+    const kitImgUrl =
+      proposta.kit?.imagem_ia_url ||
+      (proposta.kit?.imagem_ia && proposta.kit?.id
+        ? `/api/files/kits/${proposta.kit.id}/${proposta.kit.imagem_ia}`
+        : '')
+
+    if (kitImgUrl) {
+      return {
+        url: kitImgUrl,
+        origem: 'kit_ia' as const,
+        tag: 'IA • Kit',
+        legenda: `Simulação fotorrealista do ${proposta.kit_nome || 'kit solar'}`,
+        isKitIa: true,
+      }
+    }
+
+    return null
+  }, [proposta])
 
   useEffect(() => {
     if (!token) {
@@ -646,48 +727,92 @@ export default function PropostaPublica() {
           </div>
         </div>
 
-        {/* Centro da Capa */}
-        <div className="relative z-10 max-w-6xl w-full mx-auto py-10 sm:py-16 my-auto space-y-6">
+        {/* Centro da Capa com Hero Visual (Layout 2 Colunas com Foto de Abertura / Kit IA) */}
+        <div className="relative z-10 max-w-6xl w-full mx-auto py-8 sm:py-12 my-auto space-y-6">
           <div className="inline-flex items-center gap-2 bg-amber-400/15 border border-amber-400/40 text-amber-300 text-xs sm:text-sm font-bold uppercase tracking-wider px-3.5 py-1.5 rounded-full">
             <Sparkles className="w-4 h-4 text-amber-400" />
             <span>Engenharia Fotovoltaica & Eficiência Energética</span>
           </div>
 
-          <div className="space-y-3">
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight max-w-4xl">
-              Proposta Comercial de <span className="text-amber-400">Energia Solar</span>
-            </h1>
-            <div className="w-20 h-1.5 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full" />
-            <p className="text-sm sm:text-base text-slate-300 max-w-2xl font-medium pt-1">
-              Dimensionamento executivo sob medida, viabilidade técnica de homologação e retorno
-              financeiro acelerado para geração própria de energia.
-            </p>
-          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            {/* Coluna Esquerda: Título, Descrição e Card do Cliente */}
+            <div className="lg:col-span-7 space-y-5">
+              <div className="space-y-3">
+                <h1 className="text-3xl sm:text-5xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                  Proposta Comercial de <span className="text-amber-400">Energia Solar</span>
+                </h1>
+                <div className="w-20 h-1.5 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full" />
+                <p className="text-sm sm:text-base text-slate-300 max-w-xl font-medium pt-1">
+                  Dimensionamento executivo sob medida, viabilidade técnica de homologação e retorno
+                  financeiro acelerado para geração própria de energia.
+                </p>
+              </div>
 
-          {/* Card em destaque com o nome do cliente */}
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 sm:p-7 border border-amber-400/50 border-l-8 border-l-amber-400 max-w-3xl shadow-2xl">
-            <span className="text-[11px] uppercase tracking-wider font-extrabold text-sky-200 block">
-              Proposta Preparada Especialmente Para
-            </span>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight mt-1.5 break-words">
-              {proposta.lead?.nome || 'Cliente'}
-            </h2>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs sm:text-sm text-slate-200 mt-3 font-semibold">
-              <span className="flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>
-                  Cidade: <strong>{localCliente}</strong>
+              {/* Card em destaque com o nome do cliente */}
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 sm:p-6 border border-amber-400/50 border-l-8 border-l-amber-400 max-w-2xl shadow-2xl">
+                <span className="text-[11px] uppercase tracking-wider font-extrabold text-sky-200 block">
+                  Proposta Preparada Especialmente Para
                 </span>
-              </span>
-              {proposta.lead?.consumo_mensal_kwh ? (
-                <span className="flex items-center gap-1.5">
-                  <Zap className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>
-                    Consumo Médio: <strong>{proposta.lead.consumo_mensal_kwh} kWh/mês</strong>
+                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-1 break-words">
+                  {proposta.lead?.nome || 'Cliente'}
+                </h2>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs sm:text-sm text-slate-200 mt-2.5 font-semibold">
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>
+                      Cidade: <strong>{localCliente}</strong>
+                    </span>
                   </span>
-                </span>
-              ) : null}
+                  {proposta.lead?.consumo_mensal_kwh ? (
+                    <span className="flex items-center gap-1.5">
+                      <Zap className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span>
+                        Consumo Médio: <strong>{proposta.lead.consumo_mensal_kwh} kWh/mês</strong>
+                      </span>
+                    </span>
+                  ) : null}
+                </div>
+              </div>
             </div>
+
+            {/* Coluna Direita: Imagem de Abertura / Hero (Kit IA ou Foto Manual Selecionada) */}
+            {fotoHeroAbertura && (
+              <div className="lg:col-span-5">
+                <div className="relative rounded-2xl overflow-hidden border-2 border-amber-400/60 shadow-2xl bg-slate-950 group">
+                  <div className="aspect-4/3 w-full relative overflow-hidden bg-slate-900">
+                    <img
+                      src={fotoHeroAbertura.url}
+                      alt={fotoHeroAbertura.legenda}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A192F] via-[#0A192F]/25 to-transparent" />
+
+                    <div className="absolute top-3 right-3">
+                      <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-500 text-slate-950 shadow-md">
+                        {fotoHeroAbertura.tag}
+                      </span>
+                    </div>
+
+                    <div className="absolute bottom-3 left-3 right-3 text-left">
+                      <p className="text-xs font-bold text-white drop-shadow-md truncate">
+                        {fotoHeroAbertura.legenda}
+                      </p>
+                      <p className="text-[10px] text-amber-300 font-medium">
+                        Potência Homologada: {specs.potenciaTotalFormatada}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-gradient-to-r from-[#0A192F] via-[#0D2340] to-[#0A192F] flex items-center justify-between border-t border-white/10 text-xs">
+                    <span className="text-slate-300 font-medium truncate">
+                      {proposta.kit_nome || 'Sistema Solar'}
+                    </span>
+                    <span className="text-amber-400 font-black shrink-0 ml-2 font-mono-numbers">
+                      ~{geracaoEstimadaKwh} kWh/mês
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Grid de Metadados da Capa */}
@@ -1281,6 +1406,27 @@ export default function PropostaPublica() {
                     tag: inst.tag,
                     local: inst.local,
                   })
+                } else if (sel.id && sel.id.startsWith('kit_')) {
+                  // Imagem IA do kit vinculada explicitamente
+                  const kitUrl =
+                    proposta.kit?.imagem_ia_url ||
+                    (proposta.kit?.imagem_ia && proposta.kit?.id
+                      ? `/api/files/kits/${proposta.kit.id}/${proposta.kit.imagem_ia}`
+                      : '')
+                  if (kitUrl) {
+                    rawItemsToDisplay.push({
+                      id: sel.id,
+                      url: kitUrl,
+                      titulo: sel.legenda || `Simulação IA do ${proposta.kit_nome || 'Kit Solar'}`,
+                      legenda: sel.legenda || 'Simulação fotorrealista do kit solar homologado',
+                      descricao:
+                        'Simulação fotográfica de alta fidelidade gerada para o kit homologado pela Ecosolar.',
+                      tag: 'IA • Kit',
+                      local: proposta.lead?.cidade
+                        ? `${proposta.lead.cidade}/${proposta.lead.estado || 'RO'}`
+                        : 'Brasil',
+                    })
+                  }
                 } else if (sel.id) {
                   // Registro salvo da galeria institucional (IA Gemini / DB)
                   const pbHost = window.location.origin
