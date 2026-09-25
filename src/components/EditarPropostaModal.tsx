@@ -1148,6 +1148,9 @@ export function EditarPropostaModal({
           {/* Seletor Discreto de Fotos da Proposta (Prova Social) */}
           <ProposalPhotoSelector
             leadId={proposta.lead}
+            kitId={selectedKit?.id}
+            kitImagemIa={selectedKit?.imagem_ia}
+            kitNome={selectedKit?.nome}
             value={fotosSelecionadas}
             onChange={setFotosSelecionadas}
           />

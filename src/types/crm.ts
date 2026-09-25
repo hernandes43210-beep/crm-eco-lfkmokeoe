@@ -204,6 +204,8 @@ export interface Kit extends RecordModel {
   potencia_painel_w?: number
   potencia_inversor_kw?: number
   tipo_estrutura?: KitTipoEstrutura | ''
+  imagem_ia?: string
+  imagem_ia_prompt?: string
   created: string
   updated: string
 }
@@ -472,6 +474,8 @@ export interface PublicProposta {
     potencia_painel_w?: number
     potencia_inversor_kw?: number
     tipo_estrutura?: KitTipoEstrutura | ''
+    imagem_ia?: string
+    imagem_ia_url?: string
   }
   vendedor?: {
     name?: string

@@ -21,13 +21,23 @@ export interface ProposalPhotoOption {
   isAi?: boolean
 }
 
-interface ProposalPhotoSelectorProps {
+export interface ProposalPhotoSelectorProps {
   leadId?: string
+  kitId?: string
+  kitImagemIa?: string
+  kitNome?: string
   value: PropostaFotoSelecionada[]
   onChange: (value: PropostaFotoSelecionada[]) => void
 }
 
-export function ProposalPhotoSelector({ leadId, value, onChange }: ProposalPhotoSelectorProps) {
+export function ProposalPhotoSelector({
+  leadId,
+  kitId,
+  kitImagemIa,
+  kitNome,
+  value,
+  onChange,
+}: ProposalPhotoSelectorProps) {
   const [leadPhotos, setLeadPhotos] = useState<LeadPhoto[]>([])
   const [loadingLeadPhotos, setLoadingLeadPhotos] = useState(false)
   const [dbInstitucionais, setDbInstitucionais] = useState<FotoInstitucionalRecord[]>([])
@@ -71,6 +81,21 @@ export function ProposalPhotoSelector({ leadId, value, onChange }: ProposalPhoto
   // Lista unificada de opções disponíveis
   const options: ProposalPhotoOption[] = React.useMemo(() => {
     const list: ProposalPhotoOption[] = []
+
+    // 0. Imagem Fotorrealista do Kit Solar (se houver gerada por IA)
+    if (kitId && kitImagemIa) {
+      const kitImgUrl = `/api/files/kits/${kitId}/${kitImagemIa}`
+      list.push({
+        key: `kit:${kitId}`,
+        origem: 'institucional',
+        id: `kit_${kitId}`,
+        titulo: `Imagem IA do Kit Solar (${kitNome || 'Kit Solar'})`,
+        legendaPadrao: `Simulação fotorrealista do kit solar homologado`,
+        previewUrl: kitImgUrl,
+        tag: 'Kit • IA',
+        isAi: true,
+      })
+    }
 
     // 1. Fotos do Lead (se houver)
     if (leadPhotos.length > 0) {
@@ -123,7 +148,7 @@ export function ProposalPhotoSelector({ leadId, value, onChange }: ProposalPhoto
     })
 
     return list
-  }, [leadPhotos, dbInstitucionais])
+  }, [leadPhotos, dbInstitucionais, kitId, kitImagemIa, kitNome])
 
   const selectedMap = React.useMemo(() => {
     const map = new Map<string, PropostaFotoSelecionada>()

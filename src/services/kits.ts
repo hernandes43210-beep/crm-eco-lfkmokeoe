@@ -16,11 +16,19 @@ export const KitsService = {
     return await pb.collection('kits').create<Kit>(data)
   },
 
-  async updateKit(id: string, data: Partial<Kit>) {
+  async updateKit(id: string, data: Partial<Kit> | FormData) {
     return await pb.collection('kits').update<Kit>(id, data)
   },
 
   async deleteKit(id: string) {
     return await pb.collection('kits').delete(id)
+  },
+
+  getKitImageUrl(
+    kit: Kit | { id: string; imagem_ia?: string } | null | undefined,
+    thumb?: string,
+  ): string {
+    if (!kit || !kit.id || !kit.imagem_ia) return ''
+    return pb.files.getURL(kit as any, kit.imagem_ia, thumb ? { thumb } : undefined)
   },
 }

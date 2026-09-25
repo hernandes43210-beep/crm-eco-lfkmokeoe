@@ -959,6 +959,9 @@ export function GerarPropostaModal({
           {/* Seletor Discreto de Fotos da Proposta (Prova Social) */}
           <ProposalPhotoSelector
             leadId={lead.id}
+            kitId={selectedKit?.id}
+            kitImagemIa={selectedKit?.imagem_ia}
+            kitNome={selectedKit?.nome}
             value={fotosSelecionadas}
             onChange={setFotosSelecionadas}
           />

@@ -332,6 +332,7 @@ export const ProposalsService = {
               potencia_kw?: number
               categoria?: string
               descricao?: string
+              imagem_ia?: string
             }
           | undefined
 
@@ -434,6 +435,11 @@ export const ProposalsService = {
                 categoria: expandedKit.categoria,
                 descricao: expandedKit.descricao,
                 string_box: (expandedKit as any).string_box || undefined,
+                imagem_ia: expandedKit.imagem_ia,
+                imagem_ia_url:
+                  expandedKit.id && expandedKit.imagem_ia
+                    ? pb.files.getURL(expandedKit as any, expandedKit.imagem_ia)
+                    : undefined,
               }
             : null,
           vendedor: expandedVendedor

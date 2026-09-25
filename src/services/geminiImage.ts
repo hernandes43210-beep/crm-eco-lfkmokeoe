@@ -6,6 +6,7 @@ export type GeminiInstalacaoTipo = 'residencial' | 'comercial' | 'carport' | 'ru
 export interface GenerateGeminiImageParams {
   tipo: GeminiInstalacaoTipo
   detalhe?: string
+  prompt?: string
 }
 
 export interface GenerateGeminiImageResponse {
@@ -155,5 +156,19 @@ export const GeminiImageService = {
   getFotoUrl(record: FotoInstitucionalRecord, thumb?: string): string {
     if (!record || !record.arquivo) return ''
     return pb.files.getURL(record, record.arquivo, thumb ? { thumb } : undefined)
+  },
+
+  /**
+   * Salva uma imagem gerada diretamente no kit solar (imagem_ia)
+   */
+  async saveImageToKit(kitId: string, imageBase64OrDataUrl: string, promptUsado?: string) {
+    const filename = `kit_ia_${kitId}_${Date.now()}.jpg`
+    const file = base64ToFile(imageBase64OrDataUrl, filename, 'image/jpeg')
+    const formData = new FormData()
+    formData.append('imagem_ia', file)
+    if (promptUsado) {
+      formData.append('imagem_ia_prompt', promptUsado)
+    }
+    return await pb.collection('kits').update(kitId, formData)
   },
 }

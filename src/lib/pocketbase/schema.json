@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-25T17:03:43.288Z",
+  "generatedAt": "2026-09-25T18:44:33.218Z",
   "collections": [
     {
       "name": "users",
@@ -460,6 +460,18 @@
         {
           "name": "potencia_inversor_kw",
           "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "imagem_ia",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "imagem_ia_prompt",
+          "type": "text",
           "required": false,
           "system": false
         }

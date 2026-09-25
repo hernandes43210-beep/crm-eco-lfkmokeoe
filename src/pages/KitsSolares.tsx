@@ -23,6 +23,7 @@ import {
   Image as ImageIcon,
 } from 'lucide-react'
 import { KitMarketingModal } from '@/components/KitMarketingModal'
+import { KitIaImageModal } from '@/components/KitIaImageModal'
 import { SaudacaoModal } from '@/components/SaudacaoModal'
 import { GeminiImageModal } from '@/components/GeminiImageModal'
 import { KitsService } from '@/services/kits'
@@ -90,6 +91,8 @@ export default function KitsSolares() {
   // Marketing modal state
   const [marketingKit, setMarketingKit] = useState<Kit | null>(null)
   const [isMarketingModalOpen, setIsMarketingModalOpen] = useState(false)
+  const [iaImageKit, setIaImageKit] = useState<Kit | null>(null)
+  const [isIaImageModalOpen, setIsIaImageModalOpen] = useState(false)
   const [isSaudacaoModalOpen, setIsSaudacaoModalOpen] = useState(false)
   const [isGeminiModalOpen, setIsGeminiModalOpen] = useState(false)
 
@@ -722,12 +725,22 @@ export default function KitsSolares() {
                       <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem
                           onClick={() => {
+                            setIaImageKit(kit)
+                            setIsIaImageModalOpen(true)
+                          }}
+                          className="font-medium text-slate-800"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 mr-2 text-amber-500" />
+                          <span>Gerar imagem do kit (IA)</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
                             setMarketingKit(kit)
                             setIsMarketingModalOpen(true)
                           }}
                           className="font-medium text-slate-800"
                         >
-                          <Sparkles className="w-3.5 h-3.5 mr-2 text-amber-500" />
+                          <ImageIcon className="w-3.5 h-3.5 mr-2 text-emerald-600" />
                           <span>Foto de marketing</span>
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleCloneKit(kit)}>
@@ -876,8 +889,55 @@ export default function KitsSolares() {
                   </span>
                 </div>
 
-                {/* Botão dedicado em destaque: Gerar Foto de Marketing */}
-                <div className="pt-2">
+                {/* Imagem salva no kit (se houver) com preview direto no card */}
+                {kit.imagem_ia && (
+                  <div className="pt-2">
+                    <div
+                      onClick={() => {
+                        setIaImageKit(kit)
+                        setIsIaImageModalOpen(true)
+                      }}
+                      className="relative h-28 rounded-lg overflow-hidden border border-slate-200 cursor-pointer group bg-slate-100"
+                    >
+                      <img
+                        src={KitsService.getKitImageUrl(kit, '400x200')}
+                        alt={`Kit ${kit.nome}`}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent opacity-80 group-hover:opacity-90 transition-opacity flex items-end justify-between p-2">
+                        <span className="text-[10px] font-semibold text-white flex items-center gap-1">
+                          <Sparkles className="w-3 h-3 text-amber-300" />
+                          Imagem IA salva
+                        </span>
+                        <span className="text-[10px] text-slate-200 bg-black/40 px-1.5 py-0.5 rounded backdrop-blur-xs">
+                          Ver / Baixar
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Botões de Ação: Gerar Imagem do Kit (IA) + Foto de Marketing */}
+                <div className="pt-2 grid grid-cols-2 gap-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIaImageKit(kit)
+                      setIsIaImageModalOpen(true)
+                    }}
+                    className={`w-full h-8 text-xs font-semibold gap-1.5 transition-all ${
+                      kit.imagem_ia
+                        ? 'bg-emerald-50/70 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                        : 'bg-amber-50/80 text-amber-900 border-amber-300 hover:bg-amber-100'
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    <span className="truncate">
+                      {kit.imagem_ia ? 'Ver imagem IA' : 'Gerar imagem kit'}
+                    </span>
+                  </Button>
+
                   <Button
                     type="button"
                     variant="outline"
@@ -885,10 +945,10 @@ export default function KitsSolares() {
                       setMarketingKit(kit)
                       setIsMarketingModalOpen(true)
                     }}
-                    className="w-full h-8 text-xs font-semibold text-slate-700 hover:text-amber-900 bg-slate-50 hover:bg-amber-50/80 border-slate-200 hover:border-amber-300 gap-1.5 transition-all"
+                    className="w-full h-8 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border-slate-200 gap-1.5 transition-all"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Gerar foto de marketing</span>
+                    <ImageIcon className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="truncate">Arte marketing</span>
                   </Button>
                 </div>
               </div>
@@ -896,6 +956,20 @@ export default function KitsSolares() {
           ))}
         </div>
       )}
+
+      {/* Modal de Gerar Imagem Fotorrealista por IA do Kit Solar */}
+      <KitIaImageModal
+        kit={iaImageKit}
+        open={isIaImageModalOpen}
+        onOpenChange={(open) => {
+          setIsIaImageModalOpen(open)
+          if (!open) setIaImageKit(null)
+        }}
+        onKitUpdated={(updated) => {
+          setKits((prev) => prev.map((k) => (k.id === updated.id ? { ...k, ...updated } : k)))
+          setIaImageKit((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev))
+        }}
+      />
 
       {/* Modal de Gerar Foto de Marketing */}
       <KitMarketingModal

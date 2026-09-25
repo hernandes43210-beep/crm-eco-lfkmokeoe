@@ -54,6 +54,7 @@ routerAdd(
     const body = e.requestInfo().body || {}
     const tipo = (body.tipo || 'residencial').trim().toLowerCase()
     const detalheOpcional = (body.detalhe || '').trim()
+    const promptPersonalizado = (body.prompt || '').trim()
 
     // Validação do tipo de instalação
     const tiposPermitidos = ['residencial', 'comercial', 'carport', 'rural']
@@ -87,9 +88,14 @@ routerAdd(
         'Breathtaking professional wide-angle landscape photograph of a ground-mounted solar farm on a Brazilian rural farm estate. Long symmetrical rows of glossy black solar panels on galvanized steel ground structures, green pasture and Brazilian cerrado horizon, clear sunny sky with golden sunlight, agricultural solar energy generation, ultra sharp 8k detail, professional commercial photography, no text, no prices, no numbers, photorealistic.'
     }
 
-    // Se o usuário forneceu detalhe opcional, adiciona ao prompt preservando a regra de sem valores/preços
+    // Se o usuário forneceu prompt personalizado (ex: prompt específico do kit solar) ou detalhe opcional
     let promptFinal = promptBase
-    if (detalheOpcional) {
+    if (promptPersonalizado) {
+      const promptLimpo = promptPersonalizado.replace(/R\$\s*[\d.,]+/gi, '').trim()
+      promptFinal =
+        promptLimpo +
+        '. Brazilian sunlight, realistic architectural photo, clean sharp composition, no text, no numbers, no watermark, 8k professional solar energy photography, photorealistic.'
+    } else if (detalheOpcional) {
       // Remove menções acidentais a preços ou moedas
       const detalheLimpo = detalheOpcional.replace(/R\$\s*[\d.,]+/gi, '').trim()
       if (detalheLimpo) {

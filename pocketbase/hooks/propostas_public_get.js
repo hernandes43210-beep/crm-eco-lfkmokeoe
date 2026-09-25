@@ -259,6 +259,7 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
     if (kitId) {
       try {
         const kit = $app.findFirstRecordByData('kits', 'id', kitId)
+        const kitImgIa = kit.getString('imagem_ia') || ''
         kitData = {
           id: kit.id,
           nome: kit.getString('nome'),
@@ -267,6 +268,10 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
           categoria: kit.getString('categoria'),
           descricao: kit.getString('descricao'),
           string_box: kit.getString('string_box') || '',
+          imagem_ia: kitImgIa,
+          imagem_ia_url: kitImgIa
+            ? '/api/files/' + kit.collection().id + '/' + kit.id + '/' + kitImgIa
+            : '',
         }
       } catch (_) {}
     }
