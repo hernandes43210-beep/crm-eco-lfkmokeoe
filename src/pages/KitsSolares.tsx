@@ -98,6 +98,7 @@ export default function KitsSolares() {
   const [categoria, setCategoria] = useState<KitCategoria>('Residencial')
   const [custo, setCusto] = useState<number | string>(15000)
   const [margem, setMargem] = useState<number | string>(30)
+  const [precoVenda, setPrecoVenda] = useState<number | string>('')
   const [descricao, setDescricao] = useState('')
   const [stringBox, setStringBox] = useState<string>('')
   const [tipoEstrutura, setTipoEstrutura] = useState<string>('solo_monoposte')
@@ -183,8 +184,8 @@ export default function KitsSolares() {
     return sugerirFabricanteKit(marcaPaineis, marcaInversor)
   }, [marcaPaineis, marcaInversor])
 
-  // Live formula calculation: preco_venda = custo / (1 - (margem/100))
-  const livePriceCalculated = React.useMemo(() => {
+  // Handlers bidirecionais e cálculo em tempo real entre custo, margem e preço de venda
+  const liveCalculatedPriceFromMargin = React.useMemo(() => {
     const numCusto = Number(custo) || 0
     const numMargem = Number(margem) || 0
 
@@ -194,6 +195,48 @@ export default function KitsSolares() {
     const calculated = numCusto / (1 - numMargem / 100)
     return Math.round(calculated * 100) / 100
   }, [custo, margem])
+
+  // Preço de venda efetivo: valor digitado no campo precoVenda se presente, senão calculado via markup
+  const livePriceCalculated = React.useMemo(() => {
+    const numVenda = parseFloat(String(precoVenda))
+    if (!isNaN(numVenda) && numVenda > 0) {
+      return Math.round(numVenda * 100) / 100
+    }
+    return liveCalculatedPriceFromMargin
+  }, [precoVenda, liveCalculatedPriceFromMargin])
+
+  const handleCustoChange = (val: string) => {
+    setCusto(val)
+    const numC = parseFloat(val) || 0
+    const numM = parseFloat(String(margem)) || 0
+    if (numC > 0 && numM >= 0 && numM < 100) {
+      const calcVenda = Math.round((numC / (1 - numM / 100)) * 100) / 100
+      setPrecoVenda(calcVenda)
+    }
+  }
+
+  const handleMargemChange = (val: string) => {
+    setMargem(val)
+    const numM = parseFloat(val) || 0
+    const numC = parseFloat(String(custo)) || 0
+    if (numC > 0 && numM >= 0 && numM < 100) {
+      const calcVenda = Math.round((numC / (1 - numM / 100)) * 100) / 100
+      setPrecoVenda(calcVenda)
+    }
+  }
+
+  const handlePrecoVendaChange = (val: string) => {
+    setPrecoVenda(val)
+    const numV = parseFloat(val) || 0
+    const numC = parseFloat(String(custo)) || 0
+    if (numV > 0 && numC > 0 && numV > numC) {
+      // margem = (1 - custo / preco_venda) * 100
+      const novaMargem = Math.round(((numV - numC) / numV) * 1000) / 10
+      if (novaMargem >= 0 && novaMargem < 100) {
+        setMargem(novaMargem)
+      }
+    }
+  }
 
   // Sincroniza campos do kit quando estiver no modo pré-pronto (criação nova padrão, não clonagem)
   useEffect(() => {
@@ -261,6 +304,8 @@ export default function KitsSolares() {
     setCategoria('Residencial')
     setCusto(14000)
     setMargem(30)
+    const initialVenda = Math.round((14000 / (1 - 0.3)) * 100) / 100
+    setPrecoVenda(initialVenda)
     setDescricao(
       sugerirDescricaoTecnica({
         qtdPaineis: 10,
@@ -281,48 +326,59 @@ export default function KitsSolares() {
   const openEditModal = (kit: Kit) => {
     setEditingKit(kit)
     setIsCloning(false)
-    setIsQuickMode(false)
+    // Na edição, ativa montagem técnica completa por padrão para permitir editar todos os componentes
+    setIsQuickMode(true)
     setNome(kit.nome)
     setFabricante(kit.fabricante || '')
     setPotenciaKw(kit.potencia_kw)
     setCategoria(kit.categoria)
     setCusto(kit.custo)
     setMargem(kit.margem)
+    const vendaInicial =
+      kit.preco_venda ||
+      (kit.custo && kit.margem < 100
+        ? Math.round((kit.custo / (1 - kit.margem / 100)) * 100) / 100
+        : '')
+    setPrecoVenda(vendaInicial)
     setDescricao(kit.descricao || '')
     setStringBox(kit.string_box || '')
     setTipoEstrutura(kit.tipo_estrutura || '')
 
-    // Extrair para pré-preenchimento
+    // Extrair componentes para pré-preenchimento
     const componentes = extrairComponentesKit(kit)
-    setQtdPaineis(componentes.qtdPaineis)
-    setPotenciaPainelW(componentes.potenciaPainelW)
-    setMarcaPaineis(kit.marca_painel || componentes.marcaPaineis || 'TSUN POWER')
-    setIsCustomMarcaPainel(
-      !(MARCAS_PAINEIS_SUGERIDAS as readonly string[]).includes(
-        kit.marca_painel || componentes.marcaPaineis,
-      ),
-    )
-    setQtdInversores(componentes.qtdInversores)
-    setMarcaInversor(kit.marca_inversor || componentes.marcaInversor || 'Sungrow')
-    setIsCustomMarcaInversor(
-      !(MARCAS_INVERSORES_SUGERIDAS as readonly string[]).includes(
-        kit.marca_inversor || componentes.marcaInversor,
-      ),
-    )
+    const qPaineis = componentes.qtdPaineis || 10
+    const potP = kit.potencia_painel_w || componentes.potenciaPainelW || 630
+    setQtdPaineis(qPaineis)
+    setPotenciaPainelW(potP)
+    setIsCustomPotenciaW(!(POTENCIAS_COMUNS_PAINEIS as readonly number[]).includes(Number(potP)))
+
+    const mPainel = kit.marca_painel || componentes.marcaPaineis || 'TSUN POWER'
+    setMarcaPaineis(mPainel)
+    setIsCustomMarcaPainel(!(MARCAS_PAINEIS_SUGERIDAS as readonly string[]).includes(mPainel))
+
+    const qInv = componentes.qtdInversores || 1
+    setQtdInversores(qInv)
+
+    const mInv = kit.marca_inversor || componentes.marcaInversor || 'Sungrow'
+    setMarcaInversor(mInv)
+    setIsCustomMarcaInversor(!(MARCAS_INVERSORES_SUGERIDAS as readonly string[]).includes(mInv))
+
     const potInvKwVal =
       kit.potencia_inversor_kw ?? componentes.potenciaInversorKw ?? (kit.potencia_kw || 7.5)
     setPotenciaInversorKw(potInvKwVal)
     setIsCustomPotenciaInversorKw(
       !(POTENCIAS_COMUNS_INVERSORES as readonly number[]).includes(Number(potInvKwVal)),
     )
-    if (!kit.tipo_estrutura && componentes.tipoEstrutura) {
-      setTipoEstrutura(componentes.tipoEstrutura)
-    }
+
+    const estrFinal = kit.tipo_estrutura || componentes.tipoEstrutura || 'solo_monoposte'
+    setTipoEstrutura(estrFinal)
+
+    const sbFinal = kit.string_box || componentes.stringBox || ''
+    setStringBox(sbFinal)
 
     setErrorBanner('')
     setIsModalOpen(true)
   }
-
   /**
    * Abre o formulário clonando todos os dados do kit informado.
    * Não altera o kit original ao salvar; abre o formulário pronto para edição.
@@ -370,6 +426,12 @@ export default function KitsSolares() {
     setCategoria(kit.categoria)
     setCusto(kit.custo)
     setMargem(kit.margem)
+    const clonVenda =
+      kit.preco_venda ||
+      (kit.custo && kit.margem < 100
+        ? Math.round((kit.custo / (1 - kit.margem / 100)) * 100) / 100
+        : '')
+    setPrecoVenda(clonVenda)
     setDescricao(kit.descricao || '')
     setErrorBanner('')
     setIsModalOpen(true)
@@ -394,6 +456,12 @@ export default function KitsSolares() {
       return
     }
 
+    const precoVendaFinal = Number(livePriceCalculated) || Number(precoVenda) || 0
+    if (precoVendaFinal <= 0) {
+      setErrorBanner('O preço de venda do kit deve ser maior que zero.')
+      return
+    }
+
     try {
       setSubmitting(true)
 
@@ -404,7 +472,7 @@ export default function KitsSolares() {
         categoria,
         custo: Number(custo),
         margem: Number(margem),
-        preco_venda: livePriceCalculated,
+        preco_venda: precoVendaFinal,
         descricao: descricao.trim(),
         string_box: (stringBox as any) || '',
         marca_painel: marcaPaineis.trim(),
@@ -1449,7 +1517,8 @@ export default function KitsSolares() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              {/* Valores Comerciais: Potência, Custo, Margem e Preço de Venda Totalmente Editáveis */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div className="space-y-1">
                   <Label
                     htmlFor="potencia"
@@ -1475,7 +1544,7 @@ export default function KitsSolares() {
 
                 <div className="space-y-1">
                   <Label htmlFor="custo" className="text-xs font-semibold text-slate-700">
-                    Custo (R$) *
+                    Preço de Custo (R$) *
                   </Label>
                   <Input
                     id="custo"
@@ -1484,9 +1553,9 @@ export default function KitsSolares() {
                     min="0"
                     required
                     value={custo}
-                    onChange={(e) => setCusto(e.target.value)}
+                    onChange={(e) => handleCustoChange(e.target.value)}
                     placeholder="15000"
-                    className="h-9.5 text-sm font-semibold border-slate-200"
+                    className="h-9.5 text-sm font-semibold border-slate-200 font-mono-numbers"
                   />
                 </div>
 
@@ -1497,39 +1566,60 @@ export default function KitsSolares() {
                   <Input
                     id="margem"
                     type="number"
-                    step="0.5"
+                    step="0.1"
                     min="0"
                     max="99"
                     required
                     value={margem}
-                    onChange={(e) => setMargem(e.target.value)}
+                    onChange={(e) => handleMargemChange(e.target.value)}
                     placeholder="30"
-                    className="h-9.5 text-sm font-semibold border-slate-200"
+                    className="h-9.5 text-sm font-semibold border-slate-200 font-mono-numbers"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="precoVendaInput"
+                    className="text-xs font-semibold text-slate-700 flex items-center justify-between"
+                  >
+                    <span>Preço de Venda (R$) *</span>
+                    <span className="text-[10px] text-[#0B7A5B] font-semibold">Editável</span>
+                  </Label>
+                  <Input
+                    id="precoVendaInput"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    value={precoVenda}
+                    onChange={(e) => handlePrecoVendaChange(e.target.value)}
+                    placeholder="21428.57"
+                    className="h-9.5 text-sm font-bold border-emerald-300 text-[#0B7A5B] focus-visible:ring-[#0B7A5B] font-mono-numbers"
                   />
                 </div>
               </div>
 
-              {/* Interactive Live Price Preview Box & Painel de Margem Real */}
+              {/* Interactive Live Price Preview Box & Painel de Margem Real do Negócio */}
               {(() => {
                 const margemInfo = calcularMargemReal(livePriceCalculated, custo)
                 return (
-                  <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-3">
+                  <div className="p-3.5 rounded-xl bg-gradient-to-br from-emerald-50/80 via-white to-slate-50 border border-emerald-200 space-y-3 shadow-2xs">
                     <div className="flex items-center justify-between flex-wrap gap-2">
-                      <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
                         <Sun className="w-4 h-4 text-emerald-700" />
-                        Preço de Venda Sugerido (Ao Vivo):
+                        Preço de Venda Atual do Kit:
                       </span>
-                      <span className="text-xl font-extrabold text-[#0B7A5B] font-mono-numbers">
+                      <span className="text-2xl font-extrabold text-[#0B7A5B] font-mono-numbers">
                         {formatBRL(livePriceCalculated)}
                       </span>
                     </div>
 
-                    {/* Painel de Margem Real do Negócio */}
-                    <div className="p-2.5 rounded-lg bg-white/90 border border-emerald-200/90 shadow-2xs">
-                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                    {/* Painel de Margem Real do Negócio (v0.0.72) com semáforo oficial */}
+                    <div className="p-3 rounded-lg bg-white border border-emerald-200/90 shadow-2xs space-y-2">
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                           <Calculator className="w-3.5 h-3.5 text-[#0B7A5B]" />
-                          Margem Real do Negócio
+                          Margem Real do Negócio (Semáforo de Saúde)
                         </span>
                         <Badge
                           className={`text-[10px] px-2 py-0.5 font-bold border ${margemInfo.status.badgeClass}`}
@@ -1541,7 +1631,7 @@ export default function KitsSolares() {
                       <div className="grid grid-cols-3 gap-2 text-center sm:text-left">
                         <div>
                           <span className="text-[10px] text-slate-500 block uppercase font-medium">
-                            Custo Total
+                            Custo Base
                           </span>
                           <span className="text-xs sm:text-sm font-bold text-slate-800 font-mono-numbers">
                             {formatBRL(Number(custo) || 0)}
@@ -1557,7 +1647,7 @@ export default function KitsSolares() {
                         </div>
                         <div className="sm:text-right">
                           <span className="text-[10px] text-slate-500 block uppercase font-medium">
-                            Margem Bruta (R$ e %)
+                            Lucro Bruto (R$ e %)
                           </span>
                           <span
                             className={`text-xs sm:text-sm font-extrabold font-mono-numbers block ${
@@ -1574,12 +1664,15 @@ export default function KitsSolares() {
                       </div>
                     </div>
 
-                    <p className="text-[11px] text-emerald-800 font-medium">
-                      Fórmula de Precificação Solar:{' '}
-                      <code className="bg-emerald-100/90 px-1 py-0.5 rounded font-mono text-[10px]">
-                        Preço de venda = custo ÷ (1 − margem)
-                      </code>
-                    </p>
+                    <div className="flex items-center justify-between text-[11px] text-slate-500">
+                      <span>
+                        Custo e preço de venda são 100% editáveis com recálculo automático da
+                        margem.
+                      </span>
+                      <span className="hidden sm:inline font-mono text-[10px] text-emerald-800 bg-emerald-100/70 px-1.5 py-0.5 rounded">
+                        Margem = (Venda − Custo) ÷ Venda
+                      </span>
+                    </div>
                   </div>
                 )
               })()}
