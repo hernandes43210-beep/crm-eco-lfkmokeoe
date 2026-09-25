@@ -651,14 +651,22 @@ export default function FunilVendas() {
                             </div>
                           )}
 
-                          {/* Consumption & Price */}
+                          {/* Consumption & Price (Preço oculto para Engenheiro) */}
                           <div className="flex items-center justify-between text-xs pt-2 mt-2 border-t border-slate-100">
                             <span className="font-semibold text-slate-700 font-mono-numbers">
-                              {lead.consumo_mensal_kwh} kWh
+                              {lead.consumo_mensal_kwh
+                                ? `${lead.consumo_mensal_kwh} kWh`
+                                : 'Consumo n/d'}
                             </span>
-                            <span className="font-bold text-[#0B7A5B] font-mono-numbers">
-                              {formatBRL(lead.preco_venda)}
-                            </span>
+                            {!isEngenheiro ? (
+                              <span className="font-bold text-[#0B7A5B] font-mono-numbers">
+                                {formatBRL(lead.preco_venda)}
+                              </span>
+                            ) : (
+                              <span className="text-[11px] text-slate-400 italic">
+                                {lead.cidade || 'Solar'}
+                              </span>
+                            )}
                           </div>
 
                           {/* Card Footer: SLA Chip & Owner Avatar */}

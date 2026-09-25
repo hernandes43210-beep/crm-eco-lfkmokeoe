@@ -44,6 +44,7 @@ import { EditarPropostaModal } from '@/components/EditarPropostaModal'
 import { MotivoPerdaModal } from '@/components/MotivoPerdaModal'
 import { LeadInstallationPhotos } from '@/components/LeadInstallationPhotos'
 import { LeadFormalizacaoSection } from '@/components/LeadFormalizacaoSection'
+import { LeadDocumentosSection } from '@/components/LeadDocumentosSection'
 import { openProposalPDFPrint } from '@/lib/proposalPdf'
 import useRealtime from '@/hooks/use-realtime'
 import { useAuth } from '@/context/AuthContext'
@@ -86,7 +87,7 @@ const PIPELINE_ORDER: LeadStatus[] = [
 export default function LeadDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, isEngenheiro } = useAuth()
 
   const [lead, setLead] = useState<Lead | null>(null)
   const [loading, setLoading] = useState(true)
@@ -1857,6 +1858,17 @@ export default function LeadDetail() {
         </div>
       </div>
 
+      {/* Nova Seção: Documentos do Lead para Engenharia (Documentos Pessoais, Conta, Datasheet, Procuração) */}
+      <LeadDocumentosSection
+        lead={lead}
+        isAdmin={isAdmin}
+        currentUserId={user?.id}
+        isEngenheiro={isEngenheiro}
+        onDocumentosChanged={() => {
+          fetchLead()
+        }}
+      />
+
       {/* Etapa de Formalização Contratual & Energisa (Visível em Fechado Ganho com aviso explicativo quando em outras etapas) */}
       {lead.status === 'Fechado Ganho' ? (
         <LeadFormalizacaoSection
@@ -1920,329 +1932,333 @@ export default function LeadDetail() {
         />
       )}
 
-      {/* Nova Seção: Propostas Comerciais Geradas com Link Público */}
-      <Card className="border-slate-200/80 shadow-xs bg-white">
-        <CardHeader className="pb-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <CardTitle className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-[#0B7A5B]" />
-              <span>Propostas Geradas & Link Público do Cliente</span>
-            </CardTitle>
-            <p className="text-xs text-slate-500">
-              Propostas com link exclusivo para envio no WhatsApp, aceite digital automático e
-              download em PDF
-            </p>
-          </div>
-
-          <Button
-            onClick={() => setShowGerarPropostaModal(true)}
-            size="sm"
-            className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold gap-1.5 h-8.5 shadow-xs shrink-0"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>+ Gerar Nova Proposta</span>
-          </Button>
-        </CardHeader>
-
-        <CardContent className="p-4 sm:p-6 space-y-4">
-          {loadingPropostas ? (
-            <div className="py-8 text-center text-slate-400">
-              <Loader2 className="w-6 h-6 animate-spin text-[#0B7A5B] mx-auto mb-2" />
-              <p className="text-xs">Carregando propostas vinculadas...</p>
+      {/* Nova Seção: Propostas Comerciais Geradas com Link Público (Oculta para Engenheiro) */}
+      {!isEngenheiro && (
+        <Card className="border-slate-200/80 shadow-xs bg-white">
+          <CardHeader className="pb-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-[#0B7A5B]" />
+                <span>Propostas Geradas & Link Público do Cliente</span>
+              </CardTitle>
+              <p className="text-xs text-slate-500">
+                Propostas com link exclusivo para envio no WhatsApp, aceite digital automático e
+                download em PDF
+              </p>
             </div>
-          ) : propostas.length === 0 ? (
-            <div className="p-6 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 text-center space-y-3">
-              <div className="w-12 h-12 rounded-full bg-emerald-100 text-[#0B7A5B] flex items-center justify-center mx-auto">
-                <FileText className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-800">Nenhuma proposta gerada ainda</p>
-                <p className="text-xs text-slate-500 max-w-md mx-auto mt-0.5">
-                  Clique em &quot;Gerar Proposta&quot; para selecionar um kit solar, calcular a
-                  margem e ativar o link público exclusivo para o cliente.
-                </p>
-              </div>
-              <Button
-                onClick={() => setShowGerarPropostaModal(true)}
-                size="sm"
-                className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold gap-1.5"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                <span>Gerar Proposta Solar</span>
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {propostas.map((prop, idx) => {
-                const publicUrl = ProposalsService.getPublicUrl(prop.token_publico)
-                const isAceita = prop.status === 'Aceita'
-                const isRecusada = prop.status === 'Recusada'
-                const propKey = `prop-${prop.id ?? 'sem-id'}-${idx}`
 
-                return (
-                  <div
-                    key={propKey}
-                    className={`p-4 rounded-xl border transition-all ${
-                      isAceita
-                        ? 'border-emerald-300 bg-emerald-50/30'
-                        : isRecusada
-                          ? 'border-rose-200 bg-rose-50/20'
-                          : 'border-slate-200 bg-white hover:border-slate-300 shadow-xs'
-                    }`}
-                  >
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                      {/* Dados Básicos */}
-                      <div className="space-y-1.5 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h4 className="text-sm font-extrabold text-slate-900 tracking-tight">
-                            {prop.kit_nome}
-                          </h4>
-                          <Badge
-                            variant="outline"
-                            className={`text-xs px-2 py-0.5 font-bold ${
-                              isAceita
-                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                : prop.status === 'Enviada'
-                                  ? 'bg-blue-100 text-blue-800 border-blue-300'
-                                  : isRecusada
-                                    ? 'bg-rose-100 text-rose-800 border-rose-300'
-                                    : 'bg-slate-100 text-slate-700 border-slate-300'
-                            }`}
-                          >
-                            {prop.status}
-                          </Badge>
-                          {prop.kit_potencia_kw ? (
-                            <span className="text-xs text-slate-500 font-mono-numbers">
-                              {prop.kit_potencia_kw} kWp
-                            </span>
-                          ) : null}
-                          {prop.kit_fabricante ? (
-                            <span className="text-xs text-slate-400">• {prop.kit_fabricante}</span>
-                          ) : null}
-                        </div>
+            <Button
+              onClick={() => setShowGerarPropostaModal(true)}
+              size="sm"
+              className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold gap-1.5 h-8.5 shadow-xs shrink-0"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>+ Gerar Nova Proposta</span>
+            </Button>
+          </CardHeader>
 
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-600">
-                          <div className="inline-flex items-center gap-1.5 flex-wrap">
-                            <span className="text-slate-500">Valor da Proposta:</span>
-                            {prop.desconto_percentual && prop.desconto_percentual > 0 ? (
-                              <>
-                                <span className="line-through text-slate-400 font-mono-numbers text-xs">
-                                  {formatBRL(prop.valor_bruto || prop.preco_venda)}
-                                </span>
-                                <Badge className="bg-emerald-100 hover:bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] px-1.5 py-0 font-bold">
-                                  -{prop.desconto_percentual}% OFF
-                                </Badge>
-                                <strong className="text-slate-900 font-extrabold font-mono-numbers text-base text-[#0B7A5B]">
+          <CardContent className="p-4 sm:p-6 space-y-4">
+            {loadingPropostas ? (
+              <div className="py-8 text-center text-slate-400">
+                <Loader2 className="w-6 h-6 animate-spin text-[#0B7A5B] mx-auto mb-2" />
+                <p className="text-xs">Carregando propostas vinculadas...</p>
+              </div>
+            ) : propostas.length === 0 ? (
+              <div className="p-6 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 text-center space-y-3">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 text-[#0B7A5B] flex items-center justify-center mx-auto">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-800">Nenhuma proposta gerada ainda</p>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto mt-0.5">
+                    Clique em &quot;Gerar Proposta&quot; para selecionar um kit solar, calcular a
+                    margem e ativar o link público exclusivo para o cliente.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setShowGerarPropostaModal(true)}
+                  size="sm"
+                  className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Gerar Proposta Solar</span>
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {propostas.map((prop, idx) => {
+                  const publicUrl = ProposalsService.getPublicUrl(prop.token_publico)
+                  const isAceita = prop.status === 'Aceita'
+                  const isRecusada = prop.status === 'Recusada'
+                  const propKey = `prop-${prop.id ?? 'sem-id'}-${idx}`
+
+                  return (
+                    <div
+                      key={propKey}
+                      className={`p-4 rounded-xl border transition-all ${
+                        isAceita
+                          ? 'border-emerald-300 bg-emerald-50/30'
+                          : isRecusada
+                            ? 'border-rose-200 bg-rose-50/20'
+                            : 'border-slate-200 bg-white hover:border-slate-300 shadow-xs'
+                      }`}
+                    >
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        {/* Dados Básicos */}
+                        <div className="space-y-1.5 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h4 className="text-sm font-extrabold text-slate-900 tracking-tight">
+                              {prop.kit_nome}
+                            </h4>
+                            <Badge
+                              variant="outline"
+                              className={`text-xs px-2 py-0.5 font-bold ${
+                                isAceita
+                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                  : prop.status === 'Enviada'
+                                    ? 'bg-blue-100 text-blue-800 border-blue-300'
+                                    : isRecusada
+                                      ? 'bg-rose-100 text-rose-800 border-rose-300'
+                                      : 'bg-slate-100 text-slate-700 border-slate-300'
+                              }`}
+                            >
+                              {prop.status}
+                            </Badge>
+                            {prop.kit_potencia_kw ? (
+                              <span className="text-xs text-slate-500 font-mono-numbers">
+                                {prop.kit_potencia_kw} kWp
+                              </span>
+                            ) : null}
+                            {prop.kit_fabricante ? (
+                              <span className="text-xs text-slate-400">
+                                • {prop.kit_fabricante}
+                              </span>
+                            ) : null}
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-600">
+                            <div className="inline-flex items-center gap-1.5 flex-wrap">
+                              <span className="text-slate-500">Valor da Proposta:</span>
+                              {prop.desconto_percentual && prop.desconto_percentual > 0 ? (
+                                <>
+                                  <span className="line-through text-slate-400 font-mono-numbers text-xs">
+                                    {formatBRL(prop.valor_bruto || prop.preco_venda)}
+                                  </span>
+                                  <Badge className="bg-emerald-100 hover:bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] px-1.5 py-0 font-bold">
+                                    -{prop.desconto_percentual}% OFF
+                                  </Badge>
+                                  <strong className="text-slate-900 font-extrabold font-mono-numbers text-base text-[#0B7A5B]">
+                                    {formatBRL(prop.preco_venda)}
+                                  </strong>
+                                </>
+                              ) : (
+                                <strong className="text-slate-900 font-bold font-mono-numbers text-sm text-[#0B7A5B]">
                                   {formatBRL(prop.preco_venda)}
                                 </strong>
-                              </>
-                            ) : (
-                              <strong className="text-slate-900 font-bold font-mono-numbers text-sm text-[#0B7A5B]">
-                                {formatBRL(prop.preco_venda)}
-                              </strong>
-                            )}
-                          </div>
-                          <span>
-                            Custo:{' '}
-                            <span className="font-mono-numbers">{formatBRL(prop.custo)}</span>
-                          </span>
-                          {(() => {
-                            const precoFinalNegociado = prop.preco_venda || prop.valor_bruto || 0
-                            const margemReal = calcularMargemReal(precoFinalNegociado, prop.custo)
-                            return (
-                              <span className="inline-flex items-center gap-1.5 flex-wrap">
-                                <span>Margem real:</span>
-                                <Badge
-                                  className={`text-[10px] px-1.5 py-0 font-bold border font-mono-numbers ${margemReal.status.badgeClass}`}
-                                  title={`${margemReal.status.label}: ${margemReal.status.descricao}`}
-                                >
-                                  {margemReal.formatado}
-                                </Badge>
-                              </span>
-                            )
-                          })()}
-                          <span>
-                            Validade até:{' '}
-                            <strong className="text-slate-800 font-mono-numbers">
-                              {formatDateBR(prop.data_validade)}
-                            </strong>
-                          </span>
-                        </div>
-
-                        {/* Rastreamento de visualizações pelo cliente */}
-                        {(() => {
-                          const tracking = extractProposalTracking(prop)
-                          return (
-                            <div className="pt-1 space-y-1.5">
-                              {tracking.hasViewed ? (
-                                <div className="space-y-1.5">
-                                  <div className="inline-flex flex-wrap items-center gap-2 px-2.5 py-1 rounded-md bg-amber-50 border border-amber-300 text-[11px] text-amber-950 font-medium shadow-xs">
-                                    <span className="inline-flex items-center gap-1.5 font-bold text-amber-950">
-                                      <span className="relative flex h-2 w-2">
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                                      </span>
-                                      <Eye className="w-3.5 h-3.5 text-amber-600" />
-                                      Visualizada {tracking.total}{' '}
-                                      {tracking.total === 1 ? 'vez' : 'vezes'}
-                                    </span>
-                                    {tracking.ultimaFormatada && (
-                                      <span className="text-amber-900">
-                                        • Última{' '}
-                                        {tracking.ultimaRelativa || tracking.ultimaFormatada}
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  {/* Histórico com os horários em que o cliente visualizou */}
-                                  {tracking.historico.length > 0 && (
-                                    <div className="bg-slate-50/90 rounded-md border border-slate-200/90 p-2 text-[11px] max-w-xl">
-                                      <p className="font-bold text-slate-700 flex items-center gap-1 text-[11px] mb-1">
-                                        <Clock className="w-3 h-3 text-slate-500" />
-                                        <span>Horários de visualização do cliente:</span>
-                                      </p>
-                                      <div className="flex flex-wrap gap-1.5">
-                                        {tracking.historico.slice(0, 5).map((vis, vIdx) => (
-                                          <span
-                                            key={`vis-hist-${prop.id}-${vIdx}`}
-                                            className="inline-flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-slate-200 font-mono-numbers text-[10px] text-slate-700 shadow-2xs"
-                                            title={`Visualização #${tracking.historico.length - vIdx} em ${vis.formatado}`}
-                                          >
-                                            <span className="text-amber-600 font-bold">
-                                              #{tracking.historico.length - vIdx}
-                                            </span>
-                                            <span>{vis.relativo || vis.formatado}</span>
-                                          </span>
-                                        ))}
-                                        {tracking.historico.length > 5 && (
-                                          <span
-                                            className="text-[10px] text-slate-500 font-medium px-1.5 py-0.5 bg-slate-100 rounded"
-                                            title={tracking.historico
-                                              .slice(5)
-                                              .map(
-                                                (h, i) =>
-                                                  `#${tracking.historico.length - 5 - i}: ${h.formatado}`,
-                                              )
-                                              .join('\n')}
-                                          >
-                                            +{tracking.historico.length - 5} anteriores
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] text-slate-400 bg-slate-50 border border-slate-200">
-                                  <Eye className="w-3 h-3 text-slate-400" />
-                                  <span>Não visualizada ainda pelo cliente</span>
-                                </div>
                               )}
                             </div>
-                          )
-                        })()}
-
-                        {isAceita && (
-                          <div className="text-xs text-emerald-800 font-semibold flex items-center gap-1.5 pt-0.5">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                             <span>
-                              Aceita digitalmente em{' '}
-                              {formatDateTimeBR(prop.data_aceite || prop.updated)}
-                              {prop.aceito_por_nome ? ` por ${prop.aceito_por_nome}` : ''}
+                              Custo:{' '}
+                              <span className="font-mono-numbers">{formatBRL(prop.custo)}</span>
+                            </span>
+                            {(() => {
+                              const precoFinalNegociado = prop.preco_venda || prop.valor_bruto || 0
+                              const margemReal = calcularMargemReal(precoFinalNegociado, prop.custo)
+                              return (
+                                <span className="inline-flex items-center gap-1.5 flex-wrap">
+                                  <span>Margem real:</span>
+                                  <Badge
+                                    className={`text-[10px] px-1.5 py-0 font-bold border font-mono-numbers ${margemReal.status.badgeClass}`}
+                                    title={`${margemReal.status.label}: ${margemReal.status.descricao}`}
+                                  >
+                                    {margemReal.formatado}
+                                  </Badge>
+                                </span>
+                              )
+                            })()}
+                            <span>
+                              Validade até:{' '}
+                              <strong className="text-slate-800 font-mono-numbers">
+                                {formatDateBR(prop.data_validade)}
+                              </strong>
                             </span>
                           </div>
-                        )}
-                      </div>
 
-                      {/* Ações: Copiar Link, Enviar WhatsApp, Baixar PDF, Abrir Link */}
-                      <div className="flex flex-wrap items-center gap-2 self-start lg:self-center">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleCopyLink(prop.token_publico)}
-                          className="h-8 text-xs font-semibold border-slate-200 text-slate-700 hover:text-[#0B7A5B] gap-1.5"
-                          title="Copiar link exclusivo da proposta"
-                        >
-                          {copiedToken === prop.token_publico ? (
-                            <>
-                              <Check className="w-3.5 h-3.5 text-emerald-600" />
-                              <span className="text-emerald-700">Copiado!</span>
-                            </>
-                          ) : (
-                            <>
-                              <FileText className="w-3.5 h-3.5" />
-                              <span>Copiar Link</span>
-                            </>
+                          {/* Rastreamento de visualizações pelo cliente */}
+                          {(() => {
+                            const tracking = extractProposalTracking(prop)
+                            return (
+                              <div className="pt-1 space-y-1.5">
+                                {tracking.hasViewed ? (
+                                  <div className="space-y-1.5">
+                                    <div className="inline-flex flex-wrap items-center gap-2 px-2.5 py-1 rounded-md bg-amber-50 border border-amber-300 text-[11px] text-amber-950 font-medium shadow-xs">
+                                      <span className="inline-flex items-center gap-1.5 font-bold text-amber-950">
+                                        <span className="relative flex h-2 w-2">
+                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                                        </span>
+                                        <Eye className="w-3.5 h-3.5 text-amber-600" />
+                                        Visualizada {tracking.total}{' '}
+                                        {tracking.total === 1 ? 'vez' : 'vezes'}
+                                      </span>
+                                      {tracking.ultimaFormatada && (
+                                        <span className="text-amber-900">
+                                          • Última{' '}
+                                          {tracking.ultimaRelativa || tracking.ultimaFormatada}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Histórico com os horários em que o cliente visualizou */}
+                                    {tracking.historico.length > 0 && (
+                                      <div className="bg-slate-50/90 rounded-md border border-slate-200/90 p-2 text-[11px] max-w-xl">
+                                        <p className="font-bold text-slate-700 flex items-center gap-1 text-[11px] mb-1">
+                                          <Clock className="w-3 h-3 text-slate-500" />
+                                          <span>Horários de visualização do cliente:</span>
+                                        </p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {tracking.historico.slice(0, 5).map((vis, vIdx) => (
+                                            <span
+                                              key={`vis-hist-${prop.id}-${vIdx}`}
+                                              className="inline-flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-slate-200 font-mono-numbers text-[10px] text-slate-700 shadow-2xs"
+                                              title={`Visualização #${tracking.historico.length - vIdx} em ${vis.formatado}`}
+                                            >
+                                              <span className="text-amber-600 font-bold">
+                                                #{tracking.historico.length - vIdx}
+                                              </span>
+                                              <span>{vis.relativo || vis.formatado}</span>
+                                            </span>
+                                          ))}
+                                          {tracking.historico.length > 5 && (
+                                            <span
+                                              className="text-[10px] text-slate-500 font-medium px-1.5 py-0.5 bg-slate-100 rounded"
+                                              title={tracking.historico
+                                                .slice(5)
+                                                .map(
+                                                  (h, i) =>
+                                                    `#${tracking.historico.length - 5 - i}: ${h.formatado}`,
+                                                )
+                                                .join('\n')}
+                                            >
+                                              +{tracking.historico.length - 5} anteriores
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] text-slate-400 bg-slate-50 border border-slate-200">
+                                    <Eye className="w-3 h-3 text-slate-400" />
+                                    <span>Não visualizada ainda pelo cliente</span>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })()}
+
+                          {isAceita && (
+                            <div className="text-xs text-emerald-800 font-semibold flex items-center gap-1.5 pt-0.5">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>
+                                Aceita digitalmente em{' '}
+                                {formatDateTimeBR(prop.data_aceite || prop.updated)}
+                                {prop.aceito_por_nome ? ` por ${prop.aceito_por_nome}` : ''}
+                              </span>
+                            </div>
                           )}
-                        </Button>
+                        </div>
 
-                        <Button
-                          size="sm"
-                          onClick={() => handleSendProposalWhatsApp(prop)}
-                          className="h-8 text-xs font-semibold bg-[#25D366] hover:bg-[#20bd5a] text-white gap-1.5 shadow-xs"
-                          title="Abrir WhatsApp com mensagem pronta"
-                        >
-                          <Send className="w-3.5 h-3.5" />
-                          <span>WhatsApp</span>
-                        </Button>
+                        {/* Ações: Copiar Link, Enviar WhatsApp, Baixar PDF, Abrir Link */}
+                        <div className="flex flex-wrap items-center gap-2 self-start lg:self-center">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleCopyLink(prop.token_publico)}
+                            className="h-8 text-xs font-semibold border-slate-200 text-slate-700 hover:text-[#0B7A5B] gap-1.5"
+                            title="Copiar link exclusivo da proposta"
+                          >
+                            {copiedToken === prop.token_publico ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                <span className="text-emerald-700">Copiado!</span>
+                              </>
+                            ) : (
+                              <>
+                                <FileText className="w-3.5 h-3.5" />
+                                <span>Copiar Link</span>
+                              </>
+                            )}
+                          </Button>
 
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDownloadPDF(prop)}
-                          className="h-8 text-xs font-semibold border-slate-200 text-slate-700 hover:text-blue-600 gap-1.5"
-                          title="Gerar e imprimir documento PDF"
-                        >
-                          <FileDown className="w-3.5 h-3.5" />
-                          <span>Baixar PDF</span>
-                        </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleSendProposalWhatsApp(prop)}
+                            className="h-8 text-xs font-semibold bg-[#25D366] hover:bg-[#20bd5a] text-white gap-1.5 shadow-xs"
+                            title="Abrir WhatsApp com mensagem pronta"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            <span>WhatsApp</span>
+                          </Button>
 
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            const previewUrl = ProposalsService.getPublicUrl(prop.token_publico, {
-                              preview: true,
-                            })
-                            window.open(previewUrl, '_blank')
-                          }}
-                          className="h-8 text-xs text-slate-600 hover:text-slate-900 gap-1"
-                          title="Pré-visualizar proposta como consultor (não conta visualização do cliente)"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          <span>Abrir</span>
-                        </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDownloadPDF(prop)}
+                            className="h-8 text-xs font-semibold border-slate-200 text-slate-700 hover:text-blue-600 gap-1.5"
+                            title="Gerar e imprimir documento PDF"
+                          >
+                            <FileDown className="w-3.5 h-3.5" />
+                            <span>Baixar PDF</span>
+                          </Button>
 
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setPropostaToEdit(prop)}
-                          className="h-8 text-xs font-semibold border-slate-200 text-slate-700 hover:text-[#0B7A5B] gap-1.5"
-                          title="Editar dados e valores da proposta"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                          <span>Editar</span>
-                        </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              const previewUrl = ProposalsService.getPublicUrl(prop.token_publico, {
+                                preview: true,
+                              })
+                              window.open(previewUrl, '_blank')
+                            }}
+                            className="h-8 text-xs text-slate-600 hover:text-slate-900 gap-1"
+                            title="Pré-visualizar proposta como consultor (não conta visualização do cliente)"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>Abrir</span>
+                          </Button>
 
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setPropostaToDelete(prop)}
-                          className="h-8 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1"
-                          title="Excluir proposta permanentemente"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Excluir</span>
-                        </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setPropostaToEdit(prop)}
+                            className="h-8 text-xs font-semibold border-slate-200 text-slate-700 hover:text-[#0B7A5B] gap-1.5"
+                            title="Editar dados e valores da proposta"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span>Editar</span>
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setPropostaToDelete(prop)}
+                            className="h-8 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1"
+                            title="Excluir proposta permanentemente"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Excluir</span>
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Modal de Confirmação de Exclusão de Proposta */}
       <DeletePropostaDialog
@@ -2255,18 +2271,21 @@ export default function LeadDetail() {
         onConfirm={handleDeleteProposta}
       />
 
-      {/* Comparativo de Investimento em 30 Anos: Solar vs Poupança vs CDB */}
-      {(propostas.length > 0 ||
-        Number(precoVenda) > 0 ||
-        (lead.preco_venda && lead.preco_venda > 0)) && (
-        <InvestmentComparison
-          valorInvestido={propostas[0]?.preco_venda || Number(precoVenda) || lead.preco_venda || 0}
-          economiaMensal={estimatedSavings}
-          anos={30}
-          titulo="Comparativo de Investimento em 30 Anos (Argumento de Venda)"
-          subtitulo="Apresente ao cliente por que instalar energia solar rende muito mais do que deixar o dinheiro na Poupança ou no CDB"
-        />
-      )}
+      {/* Comparativo de Investimento em 30 Anos: Solar vs Poupança vs CDB (Oculto para Engenheiro) */}
+      {!isEngenheiro &&
+        (propostas.length > 0 ||
+          Number(precoVenda) > 0 ||
+          (lead.preco_venda && lead.preco_venda > 0)) && (
+          <InvestmentComparison
+            valorInvestido={
+              propostas[0]?.preco_venda || Number(precoVenda) || lead.preco_venda || 0
+            }
+            economiaMensal={estimatedSavings}
+            anos={30}
+            titulo="Comparativo de Investimento em 30 Anos (Argumento de Venda)"
+            subtitulo="Apresente ao cliente por que instalar energia solar rende muito mais do que deixar o dinheiro na Poupança ou no CDB"
+          />
+        )}
 
       {/* Proposta Section (Ações do Funil) */}
       <Card className="border-slate-200/80 shadow-xs bg-white">

@@ -17,6 +17,8 @@ import {
   Webhook,
   KeyRound,
   Inbox,
+  HardHat,
+  FolderOpen,
 } from 'lucide-react'
 import officialLogoPng from '@/assets/a-613c6.png'
 import EcosolarLogo from '@/components/EcosolarLogo'
@@ -30,7 +32,7 @@ import { ChangePasswordModal } from '@/components/ChangePasswordModal'
 import { cn } from '@/lib/utils'
 
 export default function Layout() {
-  const { user, logout, isAdmin } = useAuth()
+  const { user, logout, isAdmin, isEngenheiro } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
@@ -55,26 +57,42 @@ export default function Layout() {
   })
 
   // Navigation Items
-  const navItems = [
-    { label: 'Painel', path: '/', icon: LayoutDashboard },
-    {
-      label: 'Leads',
-      path: '/leads',
-      icon: Users,
-      badge: countAguardando > 0 ? countAguardando : undefined,
-    },
-    { label: 'Importar Leads', path: '/leads/importar', icon: FileSpreadsheet },
-    { label: 'Funil de Vendas', path: '/funil', icon: GitBranch },
-    { label: 'Propostas', path: '/propostas', icon: FileText },
-    { label: 'Kits Solares', path: '/kits', icon: Boxes },
-    { label: 'WhatsApp', path: '/whatsapp', icon: MessageSquare },
-    ...(isAdmin
-      ? [
-          { label: 'Integrações', path: '/integracoes', icon: Webhook },
-          { label: 'Equipe', path: '/equipe', icon: ShieldCheck },
-        ]
-      : []),
-  ]
+  // Se for Engenheiro, mostra apenas:
+  // - Meus Documentos Recebidos (área exclusiva técnica)
+  // - Leads e Funil (para consulta dos dados cadastrais/técnicos das instalações)
+  // - Oculta estritamente: Kits Solares, Propostas, Precificação, Integrações e Equipe
+  const navItems = isEngenheiro
+    ? [
+        { label: 'Meus Documentos', path: '/engenharia', icon: FolderOpen },
+        { label: 'Painel', path: '/', icon: LayoutDashboard },
+        {
+          label: 'Leads',
+          path: '/leads',
+          icon: Users,
+          badge: countAguardando > 0 ? countAguardando : undefined,
+        },
+        { label: 'Funil de Vendas', path: '/funil', icon: GitBranch },
+      ]
+    : [
+        { label: 'Painel', path: '/', icon: LayoutDashboard },
+        {
+          label: 'Leads',
+          path: '/leads',
+          icon: Users,
+          badge: countAguardando > 0 ? countAguardando : undefined,
+        },
+        { label: 'Importar Leads', path: '/leads/importar', icon: FileSpreadsheet },
+        { label: 'Funil de Vendas', path: '/funil', icon: GitBranch },
+        { label: 'Propostas', path: '/propostas', icon: FileText },
+        { label: 'Kits Solares', path: '/kits', icon: Boxes },
+        { label: 'WhatsApp', path: '/whatsapp', icon: MessageSquare },
+        ...(isAdmin
+          ? [
+              { label: 'Integrações', path: '/integracoes', icon: Webhook },
+              { label: 'Equipe', path: '/equipe', icon: ShieldCheck },
+            ]
+          : []),
+      ]
 
   // Page title mapping based on current pathname
   const getPageTitle = () => {
@@ -89,6 +107,7 @@ export default function Layout() {
     if (path === '/propostas') return 'Gestão de Propostas Comerciais'
     if (path === '/kits') return 'Catálogo de Kits Solares'
     if (path === '/whatsapp') return 'WhatsApp & Atendimento Solar'
+    if (path === '/engenharia') return 'Meus Documentos Recebidos'
     if (path === '/integracoes') return 'Integrações & Configurações de APIs'
     if (path === '/equipe') return 'Membros da Equipe'
     return 'Ecosolar Energy'
@@ -262,14 +281,24 @@ export default function Layout() {
               <NotificationBell side="bottom" align="end" />
             </div>
 
-            <Button
-              onClick={() => navigate('/leads/novo')}
-              className="bg-[#0B7A5B] hover:bg-[#095C44] text-white font-medium shadow-sm shadow-[#0B7A5B]/30 flex items-center gap-1.5 h-9.5 px-4 rounded-lg"
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span className="hidden sm:inline">Novo Lead</span>
-              <span className="sm:hidden">Novo</span>
-            </Button>
+            {!isEngenheiro ? (
+              <Button
+                onClick={() => navigate('/leads/novo')}
+                className="bg-[#0B7A5B] hover:bg-[#095C44] text-white font-medium shadow-sm shadow-[#0B7A5B]/30 flex items-center gap-1.5 h-9.5 px-4 rounded-lg"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span className="hidden sm:inline">Novo Lead</span>
+                <span className="sm:hidden">Novo</span>
+              </Button>
+            ) : (
+              <Button
+                onClick={() => navigate('/engenharia')}
+                className="bg-[#0B7A5B] hover:bg-[#095C44] text-white font-medium shadow-sm shadow-[#0B7A5B]/30 flex items-center gap-1.5 h-9.5 px-4 rounded-lg text-xs"
+              >
+                <FolderOpen className="w-4 h-4" />
+                <span>Meus Documentos</span>
+              </Button>
+            )}
           </div>
         </header>
 

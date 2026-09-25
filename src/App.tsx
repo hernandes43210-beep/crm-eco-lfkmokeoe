@@ -22,6 +22,7 @@ import WhatsAppPage from '@/pages/WhatsApp'
 import IntegracoesPage from '@/pages/Integracoes'
 import PropostasList from '@/pages/PropostasList'
 import PropostaPublica from '@/pages/PropostaPublica'
+import MeusDocumentosEngenharia from '@/pages/MeusDocumentosEngenharia'
 import NotFound from '@/pages/NotFound'
 
 const App = () => (
@@ -53,19 +54,40 @@ const App = () => (
             <Route path="/leads/:id/editar" element={<LeadForm />} />
             <Route path="/leads/:id" element={<LeadDetail />} />
             <Route path="/funil" element={<FunilVendas />} />
-            <Route path="/propostas" element={<PropostasList />} />
-            <Route path="/kits" element={<KitsSolares />} />
-            <Route path="/whatsapp" element={<WhatsAppPage />} />
-
-            {/* Admin-only Routes */}
             <Route
-              path="/integracoes"
+              path="/propostas"
               element={
-                <ProtectedRoute adminOnly>
-                  <IntegracoesPage />
+                <ProtectedRoute blockEngenheiro>
+                  <PropostasList />
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/kits"
+              element={
+                <ProtectedRoute blockEngenheiro>
+                  <KitsSolares />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/whatsapp"
+              element={
+                <ProtectedRoute blockEngenheiro>
+                  <WhatsAppPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/engenharia" element={<MeusDocumentosEngenharia />} />
+            {/* Admin-only Routes */}
+            <Route
+              path="/equipe"
+              element={
+                <ProtectedRoute adminOnly>
+                  <Equipe />
+                </ProtectedRoute>
+              }
+            />{' '}
             <Route
               path="/equipe"
               element={

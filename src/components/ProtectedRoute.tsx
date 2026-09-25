@@ -6,10 +6,15 @@ import { Loader2 } from 'lucide-react'
 interface ProtectedRouteProps {
   children: React.ReactNode
   adminOnly?: boolean
+  blockEngenheiro?: boolean
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, adminOnly = false }) => {
-  const { isAuthenticated, isLoading, isAdmin } = useAuth()
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
+  adminOnly = false,
+  blockEngenheiro = false,
+}) => {
+  const { isAuthenticated, isLoading, isAdmin, isEngenheiro } = useAuth()
   const location = useLocation()
 
   if (isLoading) {
@@ -25,8 +30,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, adminO
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
+  if (blockEngenheiro && isEngenheiro) {
+    return <Navigate to="/engenharia" replace />
+  }
+
   if (adminOnly && !isAdmin) {
-    return <Navigate to="/" replace />
+    return <Navigate to={isEngenheiro ? '/engenharia' : '/'} replace />
   }
 
   return <>{children}</>

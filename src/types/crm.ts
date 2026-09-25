@@ -1,4 +1,4 @@
-export type UserRole = 'Admin' | 'Vendedor'
+export type UserRole = 'Admin' | 'Vendedor' | 'Engenheiro'
 
 import type { RecordModel } from 'pocketbase'
 
@@ -14,7 +14,37 @@ export interface User extends RecordModel {
   updated: string
 }
 
-export type NotificacaoTipo = 'lead_cidade' | 'geral' | 'sla' | 'contato'
+export type NotificacaoTipo = 'lead_cidade' | 'geral' | 'sla' | 'contato' | 'documentos_engenharia'
+
+export type DocumentoLeadCategoria =
+  | 'documentos_pessoais'
+  | 'conta_energia'
+  | 'datasheet_equipamentos'
+  | 'procuracao'
+
+export type DocumentoLeadStatusEnvio = 'pendente' | 'enviado' | 'reenviado'
+
+export interface DocumentoLead extends RecordModel {
+  id: string
+  lead: string
+  categoria: DocumentoLeadCategoria
+  arquivo: string
+  nome_original?: string
+  tamanho_bytes?: number
+  enviado_por?: string
+  engenheiro_destino?: string
+  status_envio?: DocumentoLeadStatusEnvio
+  enviado_em?: string
+  visualizado_em?: string
+  observacoes?: string
+  created: string
+  updated: string
+  expand?: {
+    lead?: Lead
+    enviado_por?: User
+    engenheiro_destino?: User
+  }
+}
 
 export interface NotificacaoCRM extends RecordModel {
   id: string
@@ -63,8 +93,11 @@ export interface HistoricoItem {
     | 'qualificacao'
     | 'descarte'
     | 'contato'
+    | 'documentos_enviados'
+    | 'documentos_reenviados'
   descricao: string
   autor?: string
+  autor_nome?: string
 }
 
 export interface Lead extends RecordModel {

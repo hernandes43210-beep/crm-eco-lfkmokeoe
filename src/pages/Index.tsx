@@ -33,6 +33,7 @@ const STAGES: { key: LeadStatus; label: string; color: string; bg: string }[] = 
 
 export default function Index() {
   const navigate = useNavigate()
+  const { isEngenheiro } = useAuth()
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -307,25 +308,39 @@ export default function Index() {
           </CardContent>
         </Card>
 
-        {/* Receita em Jogo */}
+        {/* Receita em Jogo / Oculta se for Engenheiro */}
         <Card className="card-lift border-slate-200/80 shadow-xs bg-white">
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Receita em Jogo
+                {isEngenheiro ? 'Projetos Concluídos' : 'Receita em Jogo'}
               </span>
               <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
-                <CircleDollarSign className="w-5 h-5" />
+                {isEngenheiro ? (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                ) : (
+                  <CircleDollarSign className="w-5 h-5" />
+                )}
               </div>
             </div>
             <div className="mt-3 flex items-baseline gap-1">
-              <span className="text-2xl font-extrabold text-slate-900 font-mono-numbers truncate">
-                {formatBRL(stats.receitaEmJogo)}
-              </span>
+              {isEngenheiro ? (
+                <span className="text-3xl font-extrabold text-emerald-700 font-mono-numbers">
+                  {stats.ganhos}
+                </span>
+              ) : (
+                <span className="text-2xl font-extrabold text-slate-900 font-mono-numbers truncate">
+                  {formatBRL(stats.receitaEmJogo)}
+                </span>
+              )}
             </div>
             <div className="mt-2.5 flex items-center gap-1.5 text-xs text-slate-500 font-medium">
               <SunMedium className="w-3.5 h-3.5 text-amber-500" />
-              <span>Pipeline ativo (exceto perdas)</span>
+              <span>
+                {isEngenheiro
+                  ? 'Sistemas formalizados para homologação'
+                  : 'Pipeline ativo (exceto perdas)'}
+              </span>
             </div>
           </CardContent>
         </Card>

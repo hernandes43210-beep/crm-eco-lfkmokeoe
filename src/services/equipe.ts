@@ -17,7 +17,7 @@ export const EquipeService = {
   async createInvite(data: {
     nome?: string
     email: string
-    role: 'Admin' | 'Vendedor'
+    role: UserRole
     codigo_convite: string
     forcar_reenvio?: boolean
   }): Promise<{
@@ -94,7 +94,7 @@ export const EquipeService = {
     return await pb.collection('convidados').delete(id)
   },
 
-  async updateUserRole(userId: string, role: 'Admin' | 'Vendedor') {
+  async updateUserRole(userId: string, role: UserRole) {
     return await pb.collection('users').update<User>(userId, { role })
   },
 

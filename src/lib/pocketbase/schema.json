@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-25T18:44:33.218Z",
+  "generatedAt": "2026-09-25T20:20:59.135Z",
   "collections": [
     {
       "name": "users",
@@ -39,13 +39,6 @@
           "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
-          "name": "role",
-          "type": "select",
-          "required": false,
-          "system": false,
-          "selectValues": ["Admin", "Vendedor"]
-        },
-        {
           "name": "cidade_atuacao",
           "type": "text",
           "required": false,
@@ -56,6 +49,13 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "role",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Admin", "Vendedor", "Engenheiro"]
         }
       ],
       "indexes": [
@@ -505,13 +505,6 @@
           "system": false
         },
         {
-          "name": "role",
-          "type": "select",
-          "required": true,
-          "system": false,
-          "selectValues": ["Admin", "Vendedor"]
-        },
-        {
           "name": "codigo_convite",
           "type": "text",
           "required": true,
@@ -560,6 +553,13 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "role",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Admin", "Vendedor", "Engenheiro"]
         }
       ],
       "indexes": [
@@ -1616,13 +1616,6 @@
           "system": false
         },
         {
-          "name": "tipo",
-          "type": "select",
-          "required": true,
-          "system": false,
-          "selectValues": ["lead_cidade", "geral", "sla", "contato"]
-        },
-        {
           "name": "lida",
           "type": "bool",
           "required": false,
@@ -1671,6 +1664,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["lead_cidade", "geral", "sla", "contato", "documentos_engenharia"]
         }
       ],
       "indexes": [
@@ -1845,6 +1845,116 @@
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_integracoes_config_chave ON integracoes_config (chave)"]
+    },
+    {
+      "name": "documentos_lead",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.role = 'Admin' || @request.auth.role = 'Vendedor' || engenheiro_destino = @request.auth.id || enviado_por = @request.auth.id)",
+        "view": "@request.auth.id != '' && (@request.auth.role = 'Admin' || @request.auth.role = 'Vendedor' || engenheiro_destino = @request.auth.id || enviado_por = @request.auth.id)",
+        "create": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "update": "@request.auth.id != '' && (@request.auth.role = 'Admin' || enviado_por = @request.auth.id || engenheiro_destino = @request.auth.id)",
+        "delete": "@request.auth.id != '' && (@request.auth.role = 'Admin' || enviado_por = @request.auth.id)"
+      },
+      "fields": [
+        {
+          "name": "lead",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "leads"
+        },
+        {
+          "name": "categoria",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "documentos_pessoais",
+            "conta_energia",
+            "datasheet_equipamentos",
+            "procuracao"
+          ]
+        },
+        {
+          "name": "arquivo",
+          "type": "file",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nome_original",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tamanho_bytes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "enviado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "engenheiro_destino",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "status_envio",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["pendente", "enviado", "reenviado"]
+        },
+        {
+          "name": "enviado_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "visualizado_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_docs_lead_lead ON documentos_lead (lead)",
+        "CREATE INDEX idx_docs_lead_categoria ON documentos_lead (categoria)",
+        "CREATE INDEX idx_docs_lead_engenheiro ON documentos_lead (engenheiro_destino)",
+        "CREATE INDEX idx_docs_lead_status ON documentos_lead (status_envio)",
+        "CREATE INDEX idx_docs_lead_created ON documentos_lead (created DESC)"
+      ]
     }
   ]
 }

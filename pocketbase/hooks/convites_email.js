@@ -34,7 +34,8 @@ routerAdd(
     const rawNome = typeof body.nome === 'string' ? body.nome.trim() : ''
     let rawEmail = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
     const rawRole =
-      typeof body.role === 'string' && (body.role === 'Admin' || body.role === 'Vendedor')
+      typeof body.role === 'string' &&
+      (body.role === 'Admin' || body.role === 'Vendedor' || body.role === 'Engenheiro')
         ? body.role
         : 'Vendedor'
     let rawCodigo =

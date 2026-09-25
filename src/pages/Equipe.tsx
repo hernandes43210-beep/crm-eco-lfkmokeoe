@@ -19,6 +19,8 @@ import {
   EyeOff,
   MapPin,
   Pencil,
+  HardHat,
+  UserCog,
 } from 'lucide-react'
 import { EquipeService } from '@/services/equipe'
 import { useAuth } from '@/context/AuthContext'
@@ -74,6 +76,11 @@ export default function Equipe() {
   const [cidadeAtuacaoInput, setCidadeAtuacaoInput] = useState('')
   const [telefoneInput, setTelefoneInput] = useState('')
   const [isSavingCidade, setIsSavingCidade] = useState(false)
+
+  // State for editing Role
+  const [roleTargetUser, setRoleTargetUser] = useState<User | null>(null)
+  const [selectedRoleInput, setSelectedRoleInput] = useState<UserRole>('Vendedor')
+  const [isSavingRole, setIsSavingRole] = useState(false)
 
   const fetchData = async () => {
     try {
@@ -266,6 +273,39 @@ export default function Equipe() {
     setTelefoneInput(user.telefone || '')
   }
 
+  const openEditRoleModal = (user: User) => {
+    setRoleTargetUser(user)
+    setSelectedRoleInput(user.role || 'Vendedor')
+  }
+
+  const handleSaveRole = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!roleTargetUser) return
+
+    try {
+      setIsSavingRole(true)
+      await EquipeService.updateUserRole(roleTargetUser.id, selectedRoleInput)
+
+      toast({
+        title: 'Papel do usuário atualizado!',
+        description: `O cargo de ${roleTargetUser.name || roleTargetUser.email} agora é ${selectedRoleInput}.`,
+      })
+
+      setRoleTargetUser(null)
+      fetchData()
+    } catch (err: unknown) {
+      console.error('Error updating user role:', err)
+      const msg = err instanceof Error ? err.message : 'Falha ao alterar papel do usuário.'
+      toast({
+        title: 'Erro ao alterar papel',
+        description: msg,
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSavingRole(false)
+    }
+  }
+
   const handleSaveCidadeAtuacao = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!cidadeTargetUser) return
@@ -414,21 +454,39 @@ export default function Equipe() {
                         <td className="py-3 px-4 text-xs text-slate-600 truncate">{usr.email}</td>
 
                         <td className="py-3 px-4">
-                          <Badge
-                            variant="outline"
-                            className={`text-xs font-semibold gap-1 ${
-                              usr.role === 'Admin'
-                                ? 'bg-purple-50 text-purple-700 border-purple-200'
-                                : 'bg-blue-50 text-blue-700 border-blue-200'
-                            }`}
-                          >
-                            {usr.role === 'Admin' ? (
-                              <Shield className="w-3 h-3" />
-                            ) : (
-                              <Briefcase className="w-3 h-3" />
+                          <div className="flex items-center gap-1.5">
+                            <Badge
+                              variant="outline"
+                              className={`text-xs font-semibold gap-1 ${
+                                usr.role === 'Admin'
+                                  ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                  : usr.role === 'Engenheiro'
+                                    ? 'bg-emerald-50 text-[#0B7A5B] border-emerald-300 font-bold'
+                                    : 'bg-blue-50 text-blue-700 border-blue-200'
+                              }`}
+                            >
+                              {usr.role === 'Admin' ? (
+                                <Shield className="w-3 h-3" />
+                              ) : usr.role === 'Engenheiro' ? (
+                                <HardHat className="w-3 h-3 text-[#0B7A5B]" />
+                              ) : (
+                                <Briefcase className="w-3 h-3" />
+                              )}
+                              <span>{usr.role || 'Vendedor'}</span>
+                            </Badge>
+
+                            {isAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEditRoleModal(usr)}
+                                className="h-6 w-6 text-slate-400 hover:text-[#0B7A5B] hover:bg-emerald-50"
+                                title="Alterar papel (Admin, Vendedor, Engenheiro)"
+                              >
+                                <UserCog className="w-3 h-3" />
+                              </Button>
                             )}
-                            <span>{usr.role || 'Vendedor'}</span>
-                          </Badge>
+                          </div>
                         </td>
 
                         <td className="py-3 px-4">
@@ -569,7 +627,9 @@ export default function Equipe() {
                               className={`text-xs font-medium ${
                                 inv.role === 'Admin'
                                   ? 'bg-purple-50 text-purple-700 border-purple-200'
-                                  : 'bg-blue-50 text-blue-700 border-blue-200'
+                                  : inv.role === 'Engenheiro'
+                                    ? 'bg-emerald-50 text-[#0B7A5B] border-emerald-300 font-bold'
+                                    : 'bg-blue-50 text-blue-700 border-blue-200'
                               }`}
                             >
                               {inv.role}
@@ -799,8 +859,13 @@ export default function Equipe() {
                   onChange={(e) => setInviteRole(e.target.value as UserRole)}
                   className="w-full h-9.5 px-3 text-sm bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
                 >
-                  <option value="Vendedor">Vendedor (Acesso a leads e funil)</option>
-                  <option value="Admin">Admin (Acesso total, gestão e kits)</option>
+                  <option value="Vendedor">
+                    Vendedor (Acesso a leads, propostas e funil comercial)
+                  </option>
+                  <option value="Engenheiro">
+                    Engenheiro (Acesso restrito aos documentos técnicos para análise e homologação)
+                  </option>
+                  <option value="Admin">Admin (Acesso total, gestão da equipe e kits)</option>
                 </select>
               </div>
 
@@ -1092,6 +1157,94 @@ export default function Equipe() {
                   <>
                     <Check className="w-3.5 h-3.5" />
                     <span>Salvar Cidade</span>
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Alteração de Papel / Role do Usuário */}
+      <Dialog
+        open={!!roleTargetUser}
+        onOpenChange={(open) => {
+          if (!open && !isSavingRole) setRoleTargetUser(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-md bg-white border-slate-200 text-slate-900 shadow-xl">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-1 text-[#0B7A5B]">
+              <UserCog className="w-5 h-5 text-[#0B7A5B]" />
+              <DialogTitle className="text-lg font-bold text-slate-900">
+                Alterar Papel no Sistema
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-slate-500">
+              Atualize as permissões de acesso de{' '}
+              <strong className="text-slate-700 font-semibold">
+                {roleTargetUser?.name || roleTargetUser?.email}
+              </strong>{' '}
+              ({roleTargetUser?.email}).
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveRole} className="space-y-4 pt-1">
+            <div className="space-y-1.5">
+              <Label htmlFor="userRoleSelect" className="text-xs font-semibold text-slate-700">
+                Selecione a Nova Função *
+              </Label>
+              <select
+                id="userRoleSelect"
+                value={selectedRoleInput}
+                onChange={(e) => setSelectedRoleInput(e.target.value as UserRole)}
+                className="w-full h-10 px-3 text-sm bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+              >
+                <option value="Vendedor">
+                  Vendedor (Acesso comercial: leads, propostas, funil)
+                </option>
+                <option value="Engenheiro">
+                  Engenheiro (Área técnica: vê apenas documentos recebidos; sem acesso a preços,
+                  margens ou kits)
+                </option>
+                <option value="Admin">Admin (Acesso total administrativo e comercial)</option>
+              </select>
+            </div>
+
+            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-1">
+              <p className="font-semibold text-slate-800">Sobre o Papel "Engenheiro":</p>
+              <p className="text-[11px] leading-relaxed">
+                Ao selecionar <strong>Engenheiro</strong>, o usuário terá acesso restrito
+                exclusivamente à área de <em>Meus Documentos Recebidos</em> para baixar os arquivos
+                enviados pela equipe comercial. Não terá acesso ao catálogo de kits, propostas nem a
+                nenhum dado de precificação, margem, custo ou faturamento.
+              </p>
+            </div>
+
+            <DialogFooter className="pt-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSavingRole}
+                onClick={() => setRoleTargetUser(null)}
+                className="text-xs"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSavingRole}
+                className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold gap-1.5"
+              >
+                {isSavingRole ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Salvando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Salvar Papel</span>
                   </>
                 )}
               </Button>
