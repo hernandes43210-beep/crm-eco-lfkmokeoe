@@ -1,5 +1,5 @@
 import pb from '@/lib/pocketbase/client'
-import type { Convidado, User } from '@/types/crm'
+import type { Convidado, User, UserRole } from '@/types/crm'
 
 export const EquipeService = {
   async getTeamMembers() {

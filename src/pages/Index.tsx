@@ -12,7 +12,9 @@ import {
   ChevronRight,
   TrendingUp,
   SunMedium,
+  CheckCircle2,
 } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
 import { LeadsService } from '@/services/leads'
 import type { Lead, LeadStatus } from '@/types/crm'
 import useRealtime from '@/hooks/use-realtime'

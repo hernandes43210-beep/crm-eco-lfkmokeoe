@@ -75,7 +75,7 @@ const KANBAN_COLUMNS: ColumnDef[] = [
 
 export default function FunilVendas() {
   const navigate = useNavigate()
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, isEngenheiro } = useAuth()
   const [leads, setLeads] = useState<Lead[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
