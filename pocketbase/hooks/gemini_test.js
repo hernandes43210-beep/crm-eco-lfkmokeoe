@@ -51,8 +51,8 @@ routerAdd(
     }
 
     // Chamada leve à API oficial do Google AI: listar modelos v1beta
-    const testUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1&key=' + testKey
+    // Autenticação via header 'x-goog-api-key' (compatível tanto com chaves clássicas AIza quanto novas AQ.)
+    const testUrl = 'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1'
 
     const startTime = new Date().getTime()
     let httpRes = null
@@ -62,6 +62,7 @@ routerAdd(
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'x-goog-api-key': testKey,
         },
         timeout: 15,
       })
@@ -106,26 +107,47 @@ routerAdd(
       })
     }
 
-    // Tratamento de erros comuns da API do Google
+    // Tratamento de erros comuns da API do Google (401 / 403 / 429) em português claro sem expor a chave
     const errData = httpRes.json || {}
     let detail = ''
     if (errData.error && errData.error.message) {
       detail = errData.error.message
     }
 
-    let friendlyMsg = 'Chave inválida — confira no Google AI Studio.'
-    if (
-      detail.indexOf('API key not valid') !== -1 ||
-      detail.indexOf('API_KEY_INVALID') !== -1 ||
-      statusCode === 400 ||
-      statusCode === 403
-    ) {
-      friendlyMsg = 'Chave inválida — confira no Google AI Studio (aistudio.google.com).'
+    let friendlyMsg =
+      'Falha na autenticação da chave do Gemini. Verifique se a chave está correta no Google AI Studio (aistudio.google.com), se possui restrições de API ou se a Generative Language API está ativada.'
+
+    if (statusCode === 401 || statusCode === 403) {
+      if (
+        detail.indexOf('API_KEY_INVALID') !== -1 ||
+        detail.indexOf('API key not valid') !== -1 ||
+        detail.indexOf('not valid') !== -1
+      ) {
+        friendlyMsg =
+          'Chave do Gemini inválida ou expirada. Gere uma nova chave no Google AI Studio (aistudio.google.com) e salve em Integrações.'
+      } else if (
+        detail.indexOf('PERMISSION_DENIED') !== -1 ||
+        detail.indexOf('restricted') !== -1 ||
+        detail.indexOf('not enabled') !== -1 ||
+        detail.indexOf('SERVICE_DISABLED') !== -1
+      ) {
+        friendlyMsg =
+          'Permissão negada (403): verifique se a Generative Language API está ativada no projeto Google Cloud e se não há restrições de IP/referrer bloqueando a chamada.'
+      } else {
+        friendlyMsg =
+          'Falha de autenticação (' +
+          statusCode +
+          '): a chave pode estar inválida, com restrições ativadas ou sem permissão na Generative Language API. Confira no Google AI Studio.'
+      }
     } else if (statusCode === 429) {
       friendlyMsg =
-        'Limite de requisições temporariamente atingido na sua cota do Google AI Studio.'
+        'Limite de requisições temporariamente atingido na sua cota do Google AI Studio. Aguarde alguns instantes e tente novamente.'
     } else if (detail) {
-      friendlyMsg = 'Erro retornado pelo Google (' + statusCode + '): ' + detail
+      // Sanitiza qualquer fragmento de chave que porventura venha na mensagem do Google
+      const sanitizedDetail = detail
+        .replace(/AQ\.[A-Za-z0-9_-]+/g, '[CHAVE_PROTEGIDA]')
+        .replace(/AIza[A-Za-z0-9_-]+/g, '[CHAVE_PROTEGIDA]')
+      friendlyMsg = 'Erro retornado pelo Google (' + statusCode + '): ' + sanitizedDetail
     }
 
     if (settingsRec) {

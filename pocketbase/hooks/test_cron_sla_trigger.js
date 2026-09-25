@@ -1,12 +1,17 @@
-// Hourly cron job to append "Prazo estourado" to overdue non-closed leads
-cronAdd('cron_overdue_sla', '0 * * * *', () => {
-  const now = new Date()
-  const nowIso = now.toISOString().replace('T', ' ').substring(0, 19) + 'Z'
-  const todayStr = now.toISOString().substring(0, 10)
+// Endpoint de teste administrativo para validar a execução do cron SLA sob demanda
+routerAdd(
+  'POST',
+  '/backend/v1/admin/test-cron-sla',
+  (e) => {
+    const auth = e.auth
+    if (!auth || auth.getString('role') !== 'Admin') {
+      return e.json(403, { error: 'Apenas administradores' })
+    }
 
-  try {
-    // 1. Busca apenas os campos estritamente necessários para o SLA: id e historico
-    // Evita carregar campos grandes ou registros desnecessários
+    const now = new Date()
+    const nowIso = now.toISOString().replace('T', ' ').substring(0, 19) + 'Z'
+    const todayStr = now.toISOString().substring(0, 10)
+
     const rows = arrayOf(
       new DynamicModel({
         id: '',
@@ -28,7 +33,8 @@ cronAdd('cron_overdue_sla', '0 * * * *', () => {
       .limit(100)
       .all(rows)
 
-    console.log('[cron_overdue_sla] Leads em atraso encontrados:', rows.length)
+    let updatedCount = 0
+    let alreadyLoggedCount = 0
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]
@@ -62,7 +68,6 @@ cronAdd('cron_overdue_sla', '0 * * * *', () => {
         }
       }
 
-      // Check if we already logged overdue today to prevent duplicates
       let alreadyLoggedToday = false
       for (let j = 0; j < hist.length; j++) {
         if (hist[j] && hist[j].tipo === 'alerta_sla' && (hist[j].data || '').startsWith(todayStr)) {
@@ -71,15 +76,15 @@ cronAdd('cron_overdue_sla', '0 * * * *', () => {
         }
       }
 
-      if (!alreadyLoggedToday) {
+      if (alreadyLoggedToday) {
+        alreadyLoggedCount++
+      } else {
         hist.push({
           data: now.toISOString(),
           tipo: 'alerta_sla',
           descricao: 'Prazo SLA estourado. Lead requer ação imediata da equipe comercial.',
         })
 
-        // Se o histórico acumulado estiver muito extenso (> 50 itens), mantém apenas os últimos 50 eventos
-        // garantindo que nunca atinja o limite de 1MB do PocketBase
         if (hist.length > 50) {
           hist = hist.slice(-50)
         }
@@ -94,9 +99,17 @@ cronAdd('cron_overdue_sla', '0 * * * *', () => {
             id: leadId,
           })
           .execute()
+
+        updatedCount++
       }
     }
-  } catch (err) {
-    console.error('Erro no cron_overdue_sla:', err)
-  }
-})
+
+    return e.json(200, {
+      success: true,
+      found: rows.length,
+      updated: updatedCount,
+      already_logged: alreadyLoggedCount,
+    })
+  },
+  $apis.requireAuth(),
+)

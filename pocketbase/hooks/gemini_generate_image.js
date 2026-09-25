@@ -98,9 +98,9 @@ routerAdd(
     }
 
     // 5. Chamada à API Google Gemini Imagen (imagen-3.0-generate-002:predict)
+    // Autenticação via header 'x-goog-api-key' (compatível tanto com chaves clássicas AIza quanto novas AQ.)
     const apiUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=' +
-      geminiApiKey
+      'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict'
 
     const payload = {
       instances: [{ prompt: promptFinal }],
@@ -118,6 +118,7 @@ routerAdd(
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-goog-api-key': geminiApiKey,
         },
         body: JSON.stringify(payload),
         timeout: 90,
@@ -140,21 +141,45 @@ routerAdd(
         msg = errData.message
       }
 
-      // Trata erros comuns de chave inválida ou cota
-      if (httpRes.statusCode === 400 || httpRes.statusCode === 403) {
-        if (msg.indexOf('API key not valid') !== -1 || msg.indexOf('API_KEY_INVALID') !== -1) {
+      // Sanitiza para nunca expor a chave nos erros retornados
+      msg = (msg || '')
+        .replace(/AQ\.[A-Za-z0-9_-]+/g, '[CHAVE_PROTEGIDA]')
+        .replace(/AIza[A-Za-z0-9_-]+/g, '[CHAVE_PROTEGIDA]')
+
+      // Tratamento de erros de autenticação e autorização (401, 403, 400) e cota (429)
+      if (httpRes.statusCode === 401 || httpRes.statusCode === 403) {
+        if (
+          msg.indexOf('API key not valid') !== -1 ||
+          msg.indexOf('API_KEY_INVALID') !== -1 ||
+          msg.indexOf('not valid') !== -1
+        ) {
           msg =
-            'Chave da API do Gemini inválida — confira no Google AI Studio e atualize em Integrações.'
+            'Chave do Google Gemini inválida ou expirada. Acesse Configurações > Integrações e salve uma chave válida do Google AI Studio.'
+        } else if (
+          msg.indexOf('PERMISSION_DENIED') !== -1 ||
+          msg.indexOf('restricted') !== -1 ||
+          msg.indexOf('not enabled') !== -1 ||
+          msg.indexOf('SERVICE_DISABLED') !== -1
+        ) {
+          msg =
+            'Permissão negada pela API do Google (403): certifique-se de que a Generative Language API está ativada no seu projeto Google Cloud e que a chave não possui restrições que impeçam a chamada.'
+        } else {
+          msg =
+            'Falha de autenticação (' +
+            httpRes.statusCode +
+            ') com o Google Gemini. A chave pode estar inválida, com restrições ou sem permissão na Generative Language API. Verifique em Configurações > Integrações.'
         }
+      } else if (httpRes.statusCode === 400 && msg.indexOf('API key not valid') !== -1) {
+        msg =
+          'Chave da API do Gemini inválida — confira no Google AI Studio e atualize em Configurações > Integrações.'
       } else if (httpRes.statusCode === 429) {
         msg =
-          'Limite de requisições do Gemini atingido temporariamente. Tente novamente em instantes.'
+          'Limite de requisições do Gemini atingido temporariamente. Aguarde alguns instantes e tente novamente.'
       }
 
       return e.json(httpRes.statusCode, {
         error: msg,
         status: httpRes.statusCode,
-        raw_error: errData,
       })
     }
 
