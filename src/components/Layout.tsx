@@ -89,7 +89,7 @@ export default function Layout() {
     if (path === '/propostas') return 'Gestão de Propostas Comerciais'
     if (path === '/kits') return 'Catálogo de Kits Solares'
     if (path === '/whatsapp') return 'WhatsApp & Atendimento Solar'
-    if (path === '/integracoes') return 'Integrações & Webhooks (Luvik)'
+    if (path === '/integracoes') return 'Integrações & Configurações de APIs'
     if (path === '/equipe') return 'Membros da Equipe'
     return 'Ecosolar Energy'
   }

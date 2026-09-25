@@ -1,8 +1,10 @@
 // POST /backend/v1/gemini/generate-image
 // Gera uma imagem fotorrealista profissional de instalação solar usando a API Google Gemini (Imagen).
 // Autenticação obrigatória (e.auth). A chave GEMINI_API_KEY NUNCA é exposta ao frontend.
-// Enquanto a chave não estiver configurada, devolve erro 400 claro em português:
-// "Geração de imagens indisponível: a chave GEMINI_API_KEY não está configurada. Configure-a no painel Skip Cloud para ativar."
+// Prioridade da chave:
+// 1. Coleção 'integracoes_config' (registro com chave = 'gemini')
+// 2. Fallback: variável de ambiente $os.getenv('GEMINI_API_KEY')
+// Enquanto a chave não estiver configurada, devolve erro 400 claro em português.
 
 routerAdd(
   'POST',
@@ -16,16 +18,34 @@ routerAdd(
       })
     }
 
-    // 2. Leitura da chave secreta exclusivamente no backend
+    // 2. Leitura da chave: 1º banco de dados, 2º variável de ambiente
     let geminiApiKey = ''
     try {
-      geminiApiKey = ($os.getenv('GEMINI_API_KEY') || '').trim()
+      const records = $app.findRecordsByFilter(
+        'integracoes_config',
+        "chave = 'gemini' && ativo = true",
+        '-created',
+        1,
+        0,
+      )
+      if (records && records.length > 0) {
+        const dbKey = (records[0].getString('api_key') || '').trim()
+        if (dbKey) {
+          geminiApiKey = dbKey
+        }
+      }
     } catch (_) {}
+
+    if (!geminiApiKey) {
+      try {
+        geminiApiKey = ($os.getenv('GEMINI_API_KEY') || '').trim()
+      } catch (_) {}
+    }
 
     if (!geminiApiKey) {
       return e.json(400, {
         error:
-          'Geração de imagens indisponível: a chave GEMINI_API_KEY não está configurada. Configure-a no painel Skip Cloud para ativar.',
+          'Geração de imagens indisponível: a chave da API do Gemini não está configurada. Acesse o menu Integrações do CRM para configurá-la.',
         code: 'GEMINI_API_KEY_NOT_CONFIGURED',
       })
     }
@@ -123,7 +143,8 @@ routerAdd(
       // Trata erros comuns de chave inválida ou cota
       if (httpRes.statusCode === 400 || httpRes.statusCode === 403) {
         if (msg.indexOf('API key not valid') !== -1 || msg.indexOf('API_KEY_INVALID') !== -1) {
-          msg = 'Chave GEMINI_API_KEY inválida. Verifique o valor configurado no painel Skip Cloud.'
+          msg =
+            'Chave da API do Gemini inválida — confira no Google AI Studio e atualize em Integrações.'
         }
       } else if (httpRes.statusCode === 429) {
         msg =

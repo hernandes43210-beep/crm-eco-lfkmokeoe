@@ -265,11 +265,15 @@ export function GeminiImageModal({ open, onOpenChange, onSaved }: GeminiImageMod
                 Configuração necessária no backend
               </strong>
               <p className="text-slate-700">{errorMessage}</p>
-              <div className="pt-1 text-[11px] text-slate-500">
-                Variável de ambiente esperada:{' '}
-                <code className="bg-white px-1.5 py-0.5 rounded border border-slate-300 font-mono font-bold text-slate-800">
-                  GEMINI_API_KEY
-                </code>
+              <div className="pt-1 text-[11px] text-slate-500 flex items-center gap-2">
+                <span>Configure a chave no menu</span>
+                <a
+                  href="/integracoes"
+                  className="inline-flex items-center gap-1 font-bold text-[#0B7A5B] hover:underline"
+                >
+                  <span>Integrações do CRM</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
               </div>
             </div>
           </div>

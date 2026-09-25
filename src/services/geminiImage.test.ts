@@ -32,12 +32,12 @@ describe('GeminiImageService', () => {
     pb.authStore.save('mock-token-abc', { id: 'user123', email: 'vendedor@ecosolar.com' } as any)
 
     // Mock fetch respondendo status 400 com erro específico da falta de chave
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 400,
       json: async () => ({
         error:
-          'Geração de imagens indisponível: a chave GEMINI_API_KEY não está configurada. Configure-a no painel Skip Cloud para ativar.',
+          'Geração de imagens indisponível: a chave da API do Gemini não está configurada. Acesse o menu Integrações do CRM para configurá-la.',
         code: 'GEMINI_API_KEY_NOT_CONFIGURED',
       }),
     } as any)
@@ -47,7 +47,7 @@ describe('GeminiImageService', () => {
         tipo: 'residencial',
       }),
     ).rejects.toThrow(
-      'Geração de imagens indisponível: a chave GEMINI_API_KEY não está configurada. Configure-a no painel Skip Cloud para ativar.',
+      'Geração de imagens indisponível: a chave da API do Gemini não está configurada. Acesse o menu Integrações do CRM para configurá-la.',
     )
   })
 

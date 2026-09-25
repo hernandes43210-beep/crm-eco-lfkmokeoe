@@ -42,9 +42,11 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from '@/hooks/use-toast'
 import { useAuth } from '@/context/AuthContext'
+import { Sparkles } from 'lucide-react'
 import { LuvikService, type WebhookUrls } from '@/services/luvik'
 import { SiteFormService } from '@/services/siteForm'
 import { ClicksignService, type ClicksignStatusResponse } from '@/services/clicksign'
+import { GeminiIntegrationService, type GeminiStatusResponse } from '@/services/geminiIntegration'
 import { toPortugueseErrorMessage } from '@/lib/errors'
 import type { LuvikSettings, LuvikLogItem, SiteFormSettings, SiteFormLogItem } from '@/types/crm'
 
@@ -52,7 +54,21 @@ export default function IntegracoesPage() {
   const { isAdmin } = useAuth()
 
   // Tab ativa
-  const [activeTab, setActiveTab] = useState<'site' | 'luvik' | 'clicksign'>('clicksign')
+  const [activeTab, setActiveTab] = useState<'gemini' | 'clicksign' | 'site' | 'luvik'>('gemini')
+
+  // Estado da integração Gemini (Google AI)
+  const [geminiStatus, setGeminiStatus] = useState<GeminiStatusResponse | null>(null)
+  const [loadingGemini, setLoadingGemini] = useState(false)
+  const [savingGeminiKey, setSavingGeminiKey] = useState(false)
+  const [testingGemini, setTestingGemini] = useState(false)
+  const [geminiInputKey, setGeminiInputKey] = useState('')
+  const [showGeminiInputKey, setShowGeminiInputKey] = useState(false)
+  const [geminiTestResult, setGeminiTestResult] = useState<{
+    success: boolean
+    message: string
+    http_status?: number
+    duration_ms?: number
+  } | null>(null)
 
   // Estado da Clicksign
   const [clicksignStatus, setClicksignStatus] = useState<ClicksignStatusResponse | null>(null)
@@ -135,6 +151,18 @@ export default function IntegracoesPage() {
     }
   }, [])
 
+  const loadGeminiData = useCallback(async () => {
+    try {
+      setLoadingGemini(true)
+      const data = await GeminiIntegrationService.getStatus()
+      setGeminiStatus(data)
+    } catch (err: unknown) {
+      console.error('Erro ao carregar status do Gemini:', err)
+    } finally {
+      setLoadingGemini(false)
+    }
+  }, [])
+
   const loadClicksignData = useCallback(async () => {
     try {
       setLoadingClicksign(true)
@@ -149,6 +177,90 @@ export default function IntegracoesPage() {
       setLoadingClicksign(false)
     }
   }, [])
+
+  const handleSaveGeminiKey = async () => {
+    if (!geminiInputKey.trim()) {
+      toast({
+        title: 'Chave não informada',
+        description: 'Cole a chave da API do Gemini (AIza...) para salvar.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      setSavingGeminiKey(true)
+      setGeminiTestResult(null)
+      await GeminiIntegrationService.saveSettings({
+        api_key: geminiInputKey.trim(),
+      })
+
+      toast({
+        title: 'Chave do Gemini salva com sucesso!',
+        description:
+          'A chave foi persistida de forma protegida e já está disponível para geração de fotos.',
+      })
+
+      setGeminiInputKey('')
+      setShowGeminiInputKey(false)
+      await loadGeminiData()
+    } catch (err: unknown) {
+      const msg = toPortugueseErrorMessage(err, 'Falha ao salvar chave da API do Gemini.')
+      toast({
+        title: 'Erro ao salvar chave',
+        description: msg,
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingGeminiKey(false)
+    }
+  }
+
+  const handleTestGeminiConnection = async () => {
+    try {
+      setTestingGemini(true)
+      setGeminiTestResult(null)
+
+      // Se o usuário digitou uma chave no input mas não salvou ainda, testa a chave digitada
+      const keyToTest = geminiInputKey.trim() || undefined
+      const res = await GeminiIntegrationService.testConnection(keyToTest)
+
+      setGeminiTestResult({
+        success: res.success,
+        message: res.message,
+        http_status: res.http_status,
+        duration_ms: res.duration_ms,
+      })
+
+      if (res.success) {
+        toast({
+          title: 'Conexão validada!',
+          description: res.message,
+        })
+      } else {
+        toast({
+          title: 'Falha no teste de conexão',
+          description: res.message,
+          variant: 'destructive',
+        })
+      }
+
+      await loadGeminiData()
+    } catch (err: unknown) {
+      const msg = toPortugueseErrorMessage(err, 'Erro ao testar conexão com o Gemini.')
+      setGeminiTestResult({
+        success: false,
+        message: msg,
+      })
+      toast({
+        title: 'Erro ao testar conexão',
+        description: msg,
+        variant: 'destructive',
+      })
+    } finally {
+      setTestingGemini(false)
+    }
+  }
 
   const handleSaveClicksignToken = async () => {
     if (!clicksignInputToken.trim()) {
@@ -234,10 +346,11 @@ export default function IntegracoesPage() {
   }
 
   const loadAllData = useCallback(() => {
+    loadGeminiData()
     loadSiteData()
     loadLuvikData()
     loadClicksignData()
-  }, [loadSiteData, loadLuvikData, loadClicksignData])
+  }, [loadGeminiData, loadSiteData, loadLuvikData, loadClicksignData])
 
   useEffect(() => {
     loadAllData()
@@ -432,16 +545,17 @@ export default function IntegracoesPage() {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-                Integrações & Entradas de Leads
+                Integrações & Configurações da API
               </h2>
               <Badge className="bg-emerald-500/10 text-emerald-700 border-emerald-300 gap-1 font-semibold text-xs py-0.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                Site & Luvik Ativos
+                {geminiStatus?.configured ? 'Gemini Ativo' : 'Gemini Disponível'} • Clicksign, Site
+                & Luvik
               </Badge>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Receba leads automáticos do seu site público (Hostinger Horizons) e sincronize
-              negócios com o Luvik.
+              Configure a chave da API do Google Gemini (IA), Clicksign (Assinatura), formulário do
+              site e webhooks do Luvik.
             </p>
           </div>
         </div>
@@ -455,19 +569,35 @@ export default function IntegracoesPage() {
             className="h-9 w-9 text-slate-600"
           >
             <RefreshCw
-              className={`w-4 h-4 ${loadingSite || loadingLuvik || loadingClicksign ? 'animate-spin' : ''}`}
+              className={`w-4 h-4 ${loadingSite || loadingLuvik || loadingClicksign || loadingGemini ? 'animate-spin' : ''}`}
             />
           </Button>
         </div>
       </div>
 
-      {/* Tabs para alternar entre Clicksign, Site Form e Luvik */}
+      {/* Tabs para alternar entre Gemini, Clicksign, Site Form e Luvik */}
       <Tabs
         value={activeTab}
-        onValueChange={(val) => setActiveTab(val as 'site' | 'luvik' | 'clicksign')}
+        onValueChange={(val) => setActiveTab(val as 'gemini' | 'clicksign' | 'site' | 'luvik')}
         className="space-y-6"
       >
-        <TabsList className="bg-slate-100 p-1 rounded-xl border border-slate-200">
+        <TabsList className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex flex-wrap h-auto gap-1">
+          <TabsTrigger
+            value="gemini"
+            className="data-[state=active]:bg-white data-[state=active]:text-[#0B7A5B] data-[state=active]:shadow-xs font-semibold text-xs py-2 px-4 gap-2"
+          >
+            <Sparkles className="w-4 h-4 text-amber-500" />
+            <span>Google Gemini (Imagens IA)</span>
+            {geminiStatus?.configured ? (
+              <Badge className="bg-emerald-100 text-emerald-800 text-[10px] py-0 px-1.5 ml-1">
+                Conectada
+              </Badge>
+            ) : (
+              <Badge className="bg-amber-100 text-amber-800 text-[10px] py-0 px-1.5 ml-1">
+                Pendente
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger
             value="clicksign"
             className="data-[state=active]:bg-white data-[state=active]:text-[#0B7A5B] data-[state=active]:shadow-xs font-semibold text-xs py-2 px-4 gap-2"
@@ -493,6 +623,332 @@ export default function IntegracoesPage() {
             <span>Integração Luvik Solar</span>
           </TabsTrigger>
         </TabsList>
+
+        {/* TAB GEMINI (NOVA - GERAÇÃO DE IMAGENS POR IA) */}
+        <TabsContent value="gemini" className="space-y-6 mt-0">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-7 space-y-5">
+              <Card className="border-slate-200/80 shadow-xs bg-white">
+                <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-amber-500" />
+                      <span>Gemini — Geração de Imagens com IA</span>
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-500">
+                      Geração de fotos fotorrealistas de instalações solares (Google Imagen 3) para
+                      propostas comerciais e marketing de kits.
+                    </CardDescription>
+                  </div>
+
+                  {geminiStatus?.configured ? (
+                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 text-xs gap-1.5 py-1 px-2.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Conectada</span>
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="bg-amber-50 text-amber-700 border-amber-300 text-xs gap-1 py-1 px-2.5"
+                    >
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Não Configurada</span>
+                    </Badge>
+                  )}
+                </CardHeader>
+
+                <CardContent className="p-6 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase block">
+                        Modelo de Imagem
+                      </span>
+                      <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-amber-500" />
+                        Imagen 3.0 (imagen-3.0-generate-002)
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase block">
+                        Origem da Chave
+                      </span>
+                      <span className="font-semibold text-slate-800 text-[11px] truncate block">
+                        {geminiStatus?.source === 'database'
+                          ? 'Banco de Dados (CRM)'
+                          : geminiStatus?.source === 'env'
+                            ? 'Variável de Ambiente ($os.getenv)'
+                            : 'Nenhuma chave configurada'}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1 sm:col-span-2">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase block">
+                        Chave da API do Gemini (Armazenamento Seguro)
+                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-slate-800 text-xs font-semibold">
+                          {geminiStatus?.masked_key || 'Nenhuma chave configurada'}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-white text-emerald-700 border-emerald-300"
+                          >
+                            Protegido no Servidor
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px] bg-white text-slate-500">
+                            Apenas Admin
+                          </Badge>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-slate-400 pt-0.5">
+                        A chave da API fica armazenada com restrição de acesso e nunca é transmitida
+                        por completo ao navegador de nenhum usuário.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Formulário de Configuração da Chave */}
+                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-3.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <KeyRound className="w-4 h-4 text-emerald-600" />
+                        <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                          Configurar / Atualizar Chave da API
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        Apenas Administradores
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Cole abaixo a chave de API gerada no{' '}
+                      <strong className="text-slate-800">Google AI Studio</strong> (geralmente
+                      começa com <code className="bg-white px-1 rounded border">AIza...</code>). Ao
+                      salvar, o CRM passa a utilizá-la imediatamente para gerar fotos de instalações
+                      em marketing e propostas.
+                    </p>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                          Chave da API do Google Gemini (GEMINI_API_KEY)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showGeminiInputKey ? 'text' : 'password'}
+                            value={geminiInputKey}
+                            onChange={(e) => setGeminiInputKey(e.target.value)}
+                            placeholder={
+                              geminiStatus?.configured
+                                ? 'Cole uma nova chave para substituir a atual...'
+                                : 'Cole aqui sua chave (ex: AIzaSy...)'
+                            }
+                            className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-xs font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#0B7A5B] pr-9"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowGeminiInputKey(!showGeminiInputKey)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            title={showGeminiInputKey ? 'Ocultar chave' : 'Exibir chave digitada'}
+                          >
+                            {showGeminiInputKey ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={savingGeminiKey || !geminiInputKey.trim()}
+                          onClick={handleSaveGeminiKey}
+                          className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold h-8.5 px-3.5 gap-1.5 shadow-xs"
+                        >
+                          <Save className="w-3.5 h-3.5" />
+                          <span>{savingGeminiKey ? 'Salvando...' : 'Salvar Chave'}</span>
+                        </Button>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={
+                            testingGemini || (!geminiStatus?.configured && !geminiInputKey.trim())
+                          }
+                          onClick={handleTestGeminiConnection}
+                          className="h-8.5 px-3.5 text-xs font-semibold border-slate-300 text-slate-700 hover:text-emerald-700 hover:bg-emerald-50 gap-1.5"
+                          title="Faz uma chamada leve ao Google AI Studio para verificar se a chave é válida"
+                        >
+                          <Activity
+                            className={`w-3.5 h-3.5 ${testingGemini ? 'animate-spin' : ''}`}
+                          />
+                          <span>{testingGemini ? 'Testando...' : 'Testar Conexão'}</span>
+                        </Button>
+
+                        <a
+                          href="https://aistudio.google.com/app/apikey"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs text-[#0B7A5B] hover:text-[#095C44] font-medium hover:underline ml-auto"
+                        >
+                          <span>Obter chave no Google AI Studio</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+
+                      {/* Feedback do Teste de Conexão */}
+                      {geminiTestResult && (
+                        <div
+                          className={`p-3 rounded-lg border text-xs flex items-start gap-2.5 ${
+                            geminiTestResult.success
+                              ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                              : 'bg-rose-50 border-rose-200 text-rose-900'
+                          }`}
+                        >
+                          {geminiTestResult.success ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                          )}
+                          <div className="space-y-0.5">
+                            <p className="font-semibold">{geminiTestResult.message}</p>
+                            {geminiTestResult.duration_ms && (
+                              <p className="text-[11px] opacity-80">
+                                Latência da API do Google: {geminiTestResult.duration_ms} ms
+                                {geminiTestResult.http_status
+                                  ? ` • HTTP ${geminiTestResult.http_status}`
+                                  : ''}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-amber-50/60 border border-amber-200/80 text-xs text-amber-950 space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-amber-900">
+                      <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>Onde essa integração é usada no CRM?</span>
+                    </div>
+                    <ul className="list-disc list-inside space-y-1 text-amber-900/90 text-[11px]">
+                      <li>
+                        <strong>Kits Solares:</strong> no botão &quot;Gerar Imagem com IA&quot; para
+                        criar posts promocionais e cards de marketing.
+                      </li>
+                      <li>
+                        <strong>Ficha do Lead:</strong> na seção de Fotos de Instalações, para gerar
+                        fotos realistas de telhados residenciais, galpões comerciais, garagens
+                        solares e usinas em solo.
+                      </li>
+                      <li>
+                        <strong>Galeria Institucional:</strong> fotos geradas ficam salvas na
+                        galeria da Ecosolar e podem ser reutilizadas em qualquer proposta comercial
+                        e PDF.
+                      </li>
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="lg:col-span-5 space-y-5">
+              <Card className="border-slate-200/80 shadow-xs bg-white">
+                <CardHeader className="pb-3 border-b border-slate-100">
+                  <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <HelpCircle className="w-5 h-5 text-amber-500" />
+                    <span>Como obter a chave no Google AI Studio</span>
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    Passo a passo rápido e gratuito (plano free tier)
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent className="p-6 space-y-3.5 text-xs text-slate-600">
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-900 font-bold text-xs flex items-center justify-center shrink-0">
+                      1
+                    </span>
+                    <div>
+                      <strong className="text-slate-800">Acesse o Google AI Studio</strong>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Entre em{' '}
+                        <a
+                          href="https://aistudio.google.com/app/apikey"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-mono text-emerald-700 hover:underline"
+                        >
+                          aistudio.google.com/app/apikey
+                        </a>{' '}
+                        com sua conta Google.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-900 font-bold text-xs flex items-center justify-center shrink-0">
+                      2
+                    </span>
+                    <div>
+                      <strong className="text-slate-800">
+                        Clique em &quot;Create API key&quot;
+                      </strong>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Selecione seu projeto do Google Cloud ou crie um novo projeto com um clique.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-900 font-bold text-xs flex items-center justify-center shrink-0">
+                      3
+                    </span>
+                    <div>
+                      <strong className="text-slate-800">Copie a chave gerada</strong>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        A chave começa com{' '}
+                        <code className="bg-slate-100 px-1 rounded">AIza...</code>. Copie para a
+                        área de transferência.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-900 font-bold text-xs flex items-center justify-center shrink-0">
+                      4
+                    </span>
+                    <div>
+                      <strong className="text-slate-800">
+                        Cole no campo ao lado e clique em Salvar
+                      </strong>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Depois clique em <em>&quot;Testar Conexão&quot;</em> para certificar-se de
+                        que a API está respondendo.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                    <strong className="text-slate-800 block">Dica de custos:</strong>
+                    <p>
+                      O Google oferece cota gratuita mensal para testes e uso no Google AI Studio.
+                      Nenhuma cobrança é realizada sem ativação explícita de faturamento no Google
+                      Cloud.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
 
         {/* TAB CLICKSIGN */}
         <TabsContent value="clicksign" className="space-y-6 mt-0">

@@ -88,7 +88,7 @@ export const GeminiImageService = {
         data.error ||
         data.message ||
         (response.status === 400
-          ? 'Geração de imagens indisponível: a chave GEMINI_API_KEY não está configurada. Configure-a no painel Skip Cloud para ativar.'
+          ? 'Geração de imagens indisponível: a chave da API do Gemini não está configurada. Acesse o menu Integrações do CRM para configurá-la.'
           : 'Não foi possível gerar a imagem via IA. Tente novamente.')
       throw new Error(msg)
     }
