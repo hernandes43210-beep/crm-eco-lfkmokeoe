@@ -575,6 +575,8 @@ routerAdd(
     const body = e.requestInfo().body || {}
     const homologacaoId = typeof body.homologacaoId === 'string' ? body.homologacaoId.trim() : ''
     const novoStatus = typeof body.status === 'string' ? body.status.trim() : ''
+    const observacao = typeof body.observacao === 'string' ? body.observacao.trim() : ''
+    const dadosEtapa = body.dadosEtapa && typeof body.dadosEtapa === 'object' ? body.dadosEtapa : {}
 
     const STATUS_VALIDOS = [
       'novo_cliente',
@@ -585,6 +587,16 @@ routerAdd(
       'vistoria_solicitada',
       'entregue',
     ]
+
+    const labelsMap = {
+      novo_cliente: 'Novo Cliente',
+      em_projeto: 'Em Projeto',
+      homologacao: 'Homologação',
+      resposta_energisa: 'Resposta da Energisa',
+      liberado_vistoria: 'Liberado para Vistoria',
+      vistoria_solicitada: 'Vistoria Solicitada',
+      entregue: 'Entregue',
+    }
 
     if (!homologacaoId || !novoStatus) {
       return e.json(400, {
@@ -616,12 +628,20 @@ routerAdd(
     }
 
     const statusAntigo = homRecord.getString('status')
-    if (statusAntigo === novoStatus) {
-      return e.json(200, { success: true, status: novoStatus, message: 'Sem alteração de status.' })
-    }
-
     const now = new Date()
     const nowIso = now.toISOString()
+    const pad = (n) => (n < 10 ? '0' + n : String(n))
+    const dataFormatadaPt =
+      pad(now.getDate()) +
+      '/' +
+      pad(now.getMonth() + 1) +
+      '/' +
+      now.getFullYear() +
+      ' às ' +
+      pad(now.getHours()) +
+      ':' +
+      pad(now.getMinutes())
+    const dataSimples = pad(now.getDate()) + '/' + pad(now.getMonth() + 1)
     const autorNome = auth.getString('name') || auth.getString('email') || 'Engenheiro'
 
     homRecord.set('status', novoStatus)
@@ -631,6 +651,49 @@ routerAdd(
       homRecord.set('visualizado_em', nowIso)
     }
 
+    // Persistir dados específicos por etapa
+    if (dadosEtapa.energisa_resposta) {
+      homRecord.set('energisa_resposta', String(dadosEtapa.energisa_resposta).trim())
+    }
+    if (dadosEtapa.energisa_resposta_data) {
+      homRecord.set('energisa_resposta_data', String(dadosEtapa.energisa_resposta_data).trim())
+    }
+    if (dadosEtapa.vistoria_data) {
+      homRecord.set('vistoria_data', String(dadosEtapa.vistoria_data).trim())
+    }
+    if (dadosEtapa.vistoria_observacao) {
+      homRecord.set('vistoria_observacao', String(dadosEtapa.vistoria_observacao).trim())
+    }
+
+    // Estrutura de observações por etapa
+    let obsEtapas = []
+    const rawObsEtapas = homRecord.get('observacoes_etapas')
+    if (Array.isArray(rawObsEtapas)) {
+      obsEtapas = rawObsEtapas.slice(0)
+    } else if (typeof rawObsEtapas === 'string') {
+      try {
+        const parsed = JSON.parse(rawObsEtapas)
+        if (Array.isArray(parsed)) obsEtapas = parsed
+      } catch (_) {}
+    }
+
+    if (observacao || Object.keys(dadosEtapa).length > 0) {
+      obsEtapas.push({
+        etapa: novoStatus,
+        etapa_nome: labelsMap[novoStatus] || novoStatus,
+        observacao: observacao || '',
+        data: nowIso,
+        autor_id: auth.id,
+        autor_nome: autorNome,
+        dados_extras: dadosEtapa,
+      })
+      if (obsEtapas.length > 50) {
+        obsEtapas = obsEtapas.slice(obsEtapas.length - 50)
+      }
+      homRecord.set('observacoes_etapas', obsEtapas)
+    }
+
+    // Histórico geral da homologação
     let homHist = []
     const rawHomHist = homRecord.get('historico')
     if (Array.isArray(rawHomHist)) {
@@ -642,14 +705,29 @@ routerAdd(
       } catch (_) {}
     }
 
+    const descHist =
+      statusAntigo === novoStatus
+        ? 'Etapa "' +
+          (labelsMap[novoStatus] || novoStatus) +
+          '" atualizada por ' +
+          autorNome +
+          (observacao ? ' — Obs: ' + observacao : '')
+        : 'Status alterado de ' +
+          (labelsMap[statusAntigo] || statusAntigo) +
+          ' para ' +
+          (labelsMap[novoStatus] || novoStatus) +
+          (observacao ? ' — Obs: ' + observacao : '')
+
     homHist.push({
       data: nowIso,
       tipo: 'movimentacao_kanban',
-      descricao: 'Status alterado de ' + statusAntigo + ' para ' + novoStatus,
+      descricao: descHist,
       de: statusAntigo,
       para: novoStatus,
+      observacao: observacao || '',
       autor_id: auth.id,
       autor_nome: autorNome,
+      dados_etapa: dadosEtapa,
     })
 
     if (homHist.length > 50) {
@@ -660,6 +738,9 @@ routerAdd(
 
     // Atualizar no histórico do lead caso exista
     const leadId = homRecord.getString('lead')
+    const clienteNome = homRecord.getString('cliente_nome') || 'Cliente'
+    const vendedorId = homRecord.getString('vendedor')
+
     if (leadId) {
       try {
         const leadRecord = $app.findFirstRecordByData('leads', 'id', leadId)
@@ -674,16 +755,6 @@ routerAdd(
           } catch (_) {}
         }
 
-        const labelsMap = {
-          novo_cliente: 'Novo Cliente',
-          em_projeto: 'Em Projeto',
-          homologacao: 'Homologação',
-          resposta_energisa: 'Resposta da Energisa',
-          liberado_vistoria: 'Liberado para Vistoria',
-          vistoria_solicitada: 'Vistoria Solicitada',
-          entregue: 'Entregue',
-        }
-
         leadHist.push({
           data: nowIso,
           tipo: 'status',
@@ -691,7 +762,8 @@ routerAdd(
             'Engenharia: Homologação avançou para "' +
             (labelsMap[novoStatus] || novoStatus) +
             '" por ' +
-            autorNome,
+            autorNome +
+            (observacao ? ' (Obs: ' + observacao + ')' : ''),
           autor: auth.id,
           autor_nome: autorNome,
         })
@@ -706,11 +778,341 @@ routerAdd(
       }
     }
 
+    // Notificações relevantes para o Vendedor e Admins:
+    // Disparar se:
+    // 1. novoStatus === 'resposta_energisa' (Parecer da concessionária registrado)
+    // 2. novoStatus === 'entregue' (Entrega e homologação concluída)
+    // 3. novoStatus === 'liberado_vistoria' ou 'vistoria_solicitada'
+    const etapasNotificaveis = [
+      'resposta_energisa',
+      'liberado_vistoria',
+      'vistoria_solicitada',
+      'entregue',
+    ]
+
+    if (etapasNotificaveis.indexOf(novoStatus) !== -1) {
+      const destinatarios = []
+      if (vendedorId && vendedorId !== auth.id) {
+        destinatarios.push(vendedorId)
+      }
+
+      try {
+        const admins = $app.findRecordsByFilter('_pb_users_auth_', "role = 'Admin'", 'name', 50, 0)
+        for (let a = 0; a < admins.length; a++) {
+          const aid = admins[a].id
+          if (aid !== auth.id && destinatarios.indexOf(aid) === -1) {
+            destinatarios.push(aid)
+          }
+        }
+      } catch (_) {}
+
+      const titulosEtapa = {
+        resposta_energisa: 'Resposta da Energisa registrada — ' + clienteNome,
+        liberado_vistoria: 'Obra liberada para vistoria — ' + clienteNome,
+        vistoria_solicitada: 'Vistoria solicitada à Energisa — ' + clienteNome,
+        entregue: 'Homologação concluída e entregue! — ' + clienteNome,
+      }
+
+      const tituloNotif =
+        titulosEtapa[novoStatus] ||
+        'Avanço de homologação: ' + (labelsMap[novoStatus] || novoStatus) + ' — ' + clienteNome
+
+      const msgNotif =
+        autorNome +
+        ' avançou o processo de homologação do cliente ' +
+        clienteNome +
+        ' para "' +
+        (labelsMap[novoStatus] || novoStatus) +
+        '".' +
+        (observacao ? ' Observação registrada: ' + observacao : '')
+
+      // Salvar sino
+      try {
+        const notifCol = $app.findCollectionByNameOrId('notificacoes')
+        for (let d = 0; d < destinatarios.length; d++) {
+          try {
+            const nRec = new Record(notifCol)
+            nRec.set('usuario', destinatarios[d])
+            if (leadId) nRec.set('lead', leadId)
+            nRec.set('titulo', tituloNotif)
+            nRec.set('mensagem', msgNotif)
+            nRec.set('tipo', 'geral')
+            nRec.set('lida', false)
+            nRec.set('lead_nome', clienteNome)
+            nRec.set('lead_cidade', homRecord.getString('cliente_cidade') || '')
+            nRec.set('lead_telefone', homRecord.getString('cliente_telefone') || '')
+            nRec.set(
+              'metadados',
+              JSON.stringify({
+                acao: 'avanco_etapa_engenharia',
+                homologacao_id: homRecord.id,
+                lead_id: leadId,
+                status: novoStatus,
+                observacao: observacao || '',
+                atualizado_em: nowIso,
+              }),
+            )
+            $app.save(nRec)
+          } catch (nErr) {
+            console.warn('[mover_status] Erro ao criar notificação de sino:', nErr)
+          }
+        }
+      } catch (colErr) {
+        console.warn('[mover_status] Erro geral ao acessar notificacoes:', colErr)
+      }
+
+      // Enviar e-mail quando for 'resposta_energisa' ou 'entregue'
+      if (novoStatus === 'resposta_energisa' || novoStatus === 'entregue') {
+        try {
+          const metaSettings = $app.settings().meta || {}
+          const senderAddr = metaSettings.senderAddress || 'no-reply@goskip.dev'
+          const senderName = metaSettings.senderName || 'Ecosolar Energy CRM'
+          const mailClient = $app.newMailClient()
+
+          const leadDetailUrl = leadId
+            ? 'https://crm-de-vendas-solar-dce30.goskip.app/leads/' + leadId
+            : 'https://crm-de-vendas-solar-dce30.goskip.app/leads'
+
+          const emailHtml =
+            '<div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px 16px; background-color: #f8fafc;">' +
+            '  <div style="background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">' +
+            '    <div style="background: linear-gradient(135deg, #0B7A5B 0%, #095C44 100%); padding: 24px; text-align: center; color: #ffffff;">' +
+            '      <h1 style="margin: 0; font-size: 20px; font-weight: 800;">Ecosolar Energy — Engenharia</h1>' +
+            '      <p style="margin: 6px 0 0 0; font-size: 13px; opacity: 0.95;">' +
+            tituloNotif +
+            '</p>' +
+            '    </div>' +
+            '    <div style="padding: 24px; color: #1e293b; line-height: 1.6;">' +
+            '      <p style="margin-top: 0; font-size: 15px;">Olá!</p>' +
+            '      <p style="font-size: 14px; color: #475569;">' +
+            '        O engenheiro <strong>' +
+            autorNome +
+            '</strong> atualizou a etapa de homologação do cliente <strong>' +
+            clienteNome +
+            '</strong> para <strong>"' +
+            (labelsMap[novoStatus] || novoStatus) +
+            '"</strong>.' +
+            '      </p>' +
+            '      <div style="margin: 18px 0; padding: 16px; background-color: ' +
+            (novoStatus === 'entregue' ? '#f0fdf4' : '#fefce8') +
+            '; border: 1px solid ' +
+            (novoStatus === 'entregue' ? '#bbf7d0' : '#fef08a') +
+            '; border-radius: 8px;">' +
+            '        <table style="width: 100%; font-size: 13px; color: #1e293b; line-height: 1.6;">' +
+            '          <tr><td style="width: 140px; font-weight: 700;">Cliente:</td><td><strong>' +
+            clienteNome +
+            '</strong></td></tr>' +
+            '          <tr><td style="font-weight: 700;">Nova Etapa:</td><td><strong style="color: #0B7A5B;">' +
+            (labelsMap[novoStatus] || novoStatus) +
+            '</strong></td></tr>' +
+            '          <tr><td style="font-weight: 700;">Data do Registro:</td><td>' +
+            dataFormatadaPt +
+            '</td></tr>' +
+            (dadosEtapa.energisa_resposta_data
+              ? '          <tr><td style="font-weight: 700;">Data Resposta Energisa:</td><td>' +
+                dadosEtapa.energisa_resposta_data +
+                '</td></tr>'
+              : '') +
+            (dadosEtapa.vistoria_data
+              ? '          <tr><td style="font-weight: 700;">Data da Vistoria:</td><td>' +
+                dadosEtapa.vistoria_data +
+                '</td></tr>'
+              : '') +
+            '        </table>' +
+            (observacao
+              ? '        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1; font-size: 12px;"><strong>Observação:</strong> ' +
+                observacao +
+                '</div>'
+              : '') +
+            '      </div>' +
+            '      <div style="margin: 24px 0 16px 0; text-align: center;">' +
+            '        <a href="' +
+            leadDetailUrl +
+            '" target="_blank" style="background-color: #0B7A5B; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 13px; display: inline-block;">' +
+            '          Ver Cliente no CRM &rarr;' +
+            '        </a>' +
+            '      </div>' +
+            '    </div>' +
+            '  </div>' +
+            '</div>'
+
+          // Coletar emails
+          const emailsList = []
+          for (let u = 0; u < destinatarios.length; u++) {
+            try {
+              const userRec = $app.findFirstRecordByData('_pb_users_auth_', 'id', destinatarios[u])
+              const em = userRec.getString('email')
+              if (em && emailsList.indexOf(em) === -1) {
+                emailsList.push(em)
+              }
+            } catch (_) {}
+          }
+
+          for (let m = 0; m < emailsList.length; m++) {
+            try {
+              const msg = new MailerMessage({
+                from: { address: senderAddr, name: senderName },
+                to: [{ address: emailsList[m] }],
+                subject: tituloNotif,
+                html: emailHtml,
+              })
+              mailClient.send(msg)
+            } catch (mErr) {
+              console.warn('[mover_status] Erro ao enviar email para ' + emailsList[m], mErr)
+            }
+          }
+        } catch (mailErr) {
+          console.warn('[mover_status] Erro geral ao enviar email:', mailErr)
+        }
+      }
+    }
+
     return e.json(200, {
       success: true,
       message: 'Status atualizado com sucesso!',
       homologacao_id: homRecord.id,
       status: novoStatus,
+      observacoes_etapas: obsEtapas,
+    })
+  },
+  $apis.requireAuth(),
+)
+
+// Endpoint 4: Upload de Arquivo do Processo de Engenharia
+// (Projeto elétrico, plantas, processo Energisa, parecer, etc.)
+routerAdd(
+  'POST',
+  '/backend/v1/homologacao/anexar-arquivo',
+  (e) => {
+    const auth = e.auth
+    if (!auth) {
+      return e.json(401, { success: false, message: 'Usuário não autenticado.' })
+    }
+
+    const authRole = auth.getString('role')
+    if (authRole !== 'Engenheiro' && authRole !== 'Admin' && authRole !== 'Vendedor') {
+      return e.json(403, {
+        success: false,
+        message: 'Apenas engenheiros e administradores podem anexar arquivos ao processo.',
+      })
+    }
+
+    const homologacaoId = e.requestInfo().body?.homologacaoId || ''
+    const categoria = e.requestInfo().body?.categoria || 'outros'
+    const titulo = e.requestInfo().body?.titulo || ''
+    const descricao = e.requestInfo().body?.descricao || ''
+    const etapaOrigem = e.requestInfo().body?.etapa_origem || ''
+
+    if (!homologacaoId) {
+      return e.json(400, { success: false, message: 'ID da homologação é obrigatório.' })
+    }
+
+    let homRecord = null
+    try {
+      homRecord = $app.findFirstRecordByData('homologacoes', 'id', homologacaoId)
+    } catch (_) {
+      return e.json(404, { success: false, message: 'Homologação não encontrada.' })
+    }
+
+    if (authRole === 'Engenheiro' && homRecord.getString('engenheiro') !== auth.id) {
+      return e.json(403, {
+        success: false,
+        message: 'Você não tem permissão para anexar arquivos nesta homologação.',
+      })
+    }
+
+    let files = []
+    try {
+      files = e.findUploadedFiles('arquivo')
+    } catch (_) {}
+
+    if (!files || files.length === 0) {
+      return e.json(400, {
+        success: false,
+        message: 'Nenhum arquivo enviado. Selecione um arquivo válido (até 30MB).',
+      })
+    }
+
+    const uploadedFile = files[0]
+    const leadId = homRecord.getString('lead') || ''
+    const autorNome = auth.getString('name') || auth.getString('email') || 'Engenheiro'
+    const now = new Date()
+    const nowIso = now.toISOString()
+
+    const arqCol = $app.findCollectionByNameOrId('arquivos_engenharia')
+    const arqRec = new Record(arqCol)
+
+    arqRec.set('homologacao', homRecord.id)
+    if (leadId) arqRec.set('lead', leadId)
+    arqRec.set('categoria', categoria)
+    arqRec.set('titulo', titulo || uploadedFile.originalName || 'Documento Técnico')
+    arqRec.set('arquivo', uploadedFile)
+    arqRec.set('nome_original', uploadedFile.originalName || '')
+    arqRec.set('tamanho_bytes', uploadedFile.size || 0)
+    if (etapaOrigem) arqRec.set('etapa_origem', etapaOrigem)
+    if (descricao) arqRec.set('descricao', descricao)
+    arqRec.set('criado_por', auth.id)
+
+    $app.save(arqRec)
+
+    // Registrar no histórico da homologação
+    let homHist = []
+    const rawHomHist = homRecord.get('historico')
+    if (Array.isArray(rawHomHist)) {
+      homHist = rawHomHist.slice(0)
+    } else if (typeof rawHomHist === 'string') {
+      try {
+        const p = JSON.parse(rawHomHist)
+        if (Array.isArray(p)) homHist = p
+      } catch (_) {}
+    }
+
+    const catLabels = {
+      projeto_eletrico: 'Projeto Elétrico',
+      plantas: 'Plantas Técnicas',
+      processo_energisa: 'Processo da Energisa',
+      art_documento: 'ART',
+      memorial_descritivo: 'Memorial Descritivo',
+      parecer_acesso: 'Parecer de Acesso',
+      relatorio_vistoria: 'Relatório de Vistoria',
+      outros: 'Arquivo Geral',
+    }
+
+    homHist.push({
+      data: nowIso,
+      tipo: 'anexo_arquivo',
+      descricao:
+        'Arquivo "' +
+        (titulo || uploadedFile.originalName) +
+        '" (' +
+        (catLabels[categoria] || categoria) +
+        ') anexado por ' +
+        autorNome,
+      arquivo_id: arqRec.id,
+      arquivo_nome: uploadedFile.originalName || '',
+      categoria: categoria,
+      autor_id: auth.id,
+      autor_nome: autorNome,
+    })
+
+    if (homHist.length > 50) {
+      homHist = homHist.slice(homHist.length - 50)
+    }
+    homRecord.set('historico', homHist)
+    $app.save(homRecord)
+
+    return e.json(200, {
+      success: true,
+      message: 'Arquivo anexado com sucesso ao processo!',
+      arquivo: {
+        id: arqRec.id,
+        titulo: arqRec.getString('titulo'),
+        categoria: arqRec.getString('categoria'),
+        nome_original: arqRec.getString('nome_original'),
+        arquivo: arqRec.getString('arquivo'),
+        tamanho_bytes: arqRec.get('tamanho_bytes'),
+        created: arqRec.getString('created'),
+      },
     })
   },
   $apis.requireAuth(),

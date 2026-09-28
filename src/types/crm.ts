@@ -45,6 +45,58 @@ export interface HomologacaoHistoricoItem {
   autor_nome?: string
   de?: string
   para?: string
+  observacao?: string
+  dados_etapa?: Record<string, unknown>
+  arquivo_id?: string
+  arquivo_nome?: string
+  categoria?: string
+}
+
+export interface HomologacaoObservacaoEtapa {
+  etapa: HomologacaoStatus
+  etapa_nome?: string
+  observacao: string
+  data: string
+  autor_id?: string
+  autor_nome?: string
+  dados_extras?: {
+    energisa_resposta?: string
+    energisa_resposta_data?: string
+    vistoria_data?: string
+    vistoria_observacao?: string
+    [key: string]: unknown
+  }
+}
+
+export type ArquivoEngenhariaCategoria =
+  | 'projeto_eletrico'
+  | 'plantas'
+  | 'processo_energisa'
+  | 'art_documento'
+  | 'memorial_descritivo'
+  | 'parecer_acesso'
+  | 'relatorio_vistoria'
+  | 'outros'
+
+export interface ArquivoEngenharia extends RecordModel {
+  id: string
+  homologacao: string
+  lead?: string
+  categoria: ArquivoEngenhariaCategoria
+  titulo: string
+  arquivo: string
+  nome_original?: string
+  tamanho_bytes?: number
+  etapa_origem?: HomologacaoStatus
+  descricao?: string
+  criado_por?: string
+  created: string
+  updated: string
+  expand?: {
+    homologacao?: HomologacaoLead
+    lead?: Lead
+    criado_por?: User
+  }
 }
 
 export interface HomologacaoLead extends RecordModel {
@@ -69,6 +121,11 @@ export interface HomologacaoLead extends RecordModel {
   kit_resumo?: string
   versao_dossie?: number
   visualizado_em?: string
+  observacoes_etapas?: HomologacaoObservacaoEtapa[]
+  energisa_resposta?: string
+  energisa_resposta_data?: string
+  vistoria_data?: string
+  vistoria_observacao?: string
   historico?: HomologacaoHistoricoItem[]
   created: string
   updated: string

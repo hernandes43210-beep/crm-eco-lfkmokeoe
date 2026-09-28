@@ -28,6 +28,7 @@ import { CATEGORIAS_DOCUMENTOS, LeadDocumentosService } from '@/services/leadDoc
 import { HomologacaoService } from '@/services/homologacao'
 import { KanbanHomologacao } from '@/components/KanbanHomologacao'
 import { EnviarArtModal } from '@/components/EnviarArtModal'
+import { FichaTrabalhoEngenheiroModal } from '@/components/FichaTrabalhoEngenheiroModal'
 import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -50,6 +51,11 @@ export default function MeusDocumentosEngenharia() {
   // Modal Enviar ART
   const [artModalOpen, setArtModalOpen] = useState(false)
   const [selectedHomologacaoForArt, setSelectedHomologacaoForArt] =
+    useState<HomologacaoLead | null>(null)
+
+  // Ficha de Trabalho do Engenheiro
+  const [fichaModalOpen, setFichaModalOpen] = useState(false)
+  const [selectedHomologacaoForFicha, setSelectedHomologacaoForFicha] =
     useState<HomologacaoLead | null>(null)
 
   const fetchDocumentos = async () => {
@@ -282,11 +288,14 @@ export default function MeusDocumentosEngenharia() {
   }
 
   const handleSelectCard = (hom: HomologacaoLead) => {
-    // Muda para aba documentos com o lead aberto ou expandido
-    setActiveTab('documentos')
-    if (hom.lead) {
-      setExpandedLeads((prev) => ({ ...prev, [hom.lead]: true }))
-    }
+    // Ao clicar no card, abre a Ficha de Trabalho completa do cliente para o engenheiro
+    setSelectedHomologacaoForFicha(hom)
+    setFichaModalOpen(true)
+  }
+
+  const handleHomologacaoUpdatedFromFicha = (updatedHom: HomologacaoLead) => {
+    setHomologacoes((prev) => prev.map((h) => (h.id === updatedHom.id ? updatedHom : h)))
+    setSelectedHomologacaoForFicha(updatedHom)
   }
 
   // Filtragem no Kanban
@@ -943,8 +952,46 @@ export default function MeusDocumentosEngenharia() {
                 : h,
             ),
           )
+          if (selectedHomologacaoForFicha?.id === homologacaoId) {
+            setSelectedHomologacaoForFicha((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    art_status: 'enviada',
+                    art_arquivo: artArquivo || prev.art_arquivo,
+                    art_enviada_em: new Date().toISOString(),
+                  }
+                : null,
+            )
+          }
         }}
       />
+
+      {/* Ficha de Trabalho do Engenheiro */}
+      {selectedHomologacaoForFicha && (
+        <FichaTrabalhoEngenheiroModal
+          open={fichaModalOpen}
+          onOpenChange={setFichaModalOpen}
+          homologacao={selectedHomologacaoForFicha}
+          dossie={
+            (selectedHomologacaoForFicha.lead
+              ? dossiePorLead[selectedHomologacaoForFicha.lead]
+              : null) ||
+            selectedHomologacaoForFicha.expand?.dossie ||
+            null
+          }
+          documentosCliente={
+            selectedHomologacaoForFicha.lead
+              ? documentos.filter((d) => d.lead === selectedHomologacaoForFicha.lead)
+              : []
+          }
+          onHomologacaoUpdated={handleHomologacaoUpdatedFromFicha}
+          onOpenEnviarArt={(hom) => {
+            setSelectedHomologacaoForArt(hom)
+            setArtModalOpen(true)
+          }}
+        />
+      )}
     </div>
   )
 }

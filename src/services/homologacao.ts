@@ -24,7 +24,130 @@ export interface MoverStatusResponse {
   message: string
   homologacao_id: string
   status: HomologacaoStatus
+  observacoes_etapas?: any[]
 }
+
+export interface AnexarArquivoEngenhariaPayload {
+  homologacaoId: string
+  categoria: string
+  file: File
+  titulo?: string
+  descricao?: string
+  etapaOrigem?: HomologacaoStatus
+}
+
+export interface AnexarArquivoEngenhariaResponse {
+  success: boolean
+  message: string
+  arquivo: {
+    id: string
+    titulo: string
+    categoria: string
+    nome_original: string
+    arquivo: string
+    tamanho_bytes: number
+    created: string
+  }
+}
+
+export const CATEGORIAS_ARQUIVOS_ENGENHARIA: Array<{
+  key: string
+  label: string
+  descricao: string
+}> = [
+  {
+    key: 'projeto_eletrico',
+    label: 'Projeto Elétrico & Diagramas',
+    descricao: 'Diagrama unifilar, trifilar, memorial técnico descritivo',
+  },
+  {
+    key: 'plantas',
+    label: 'Plantas Técnicas',
+    descricao: 'Planta de locação, cobertura, estrutura e civil',
+  },
+  {
+    key: 'processo_energisa',
+    label: 'Processo da Energisa',
+    descricao: 'Formulários de solicitação de acesso, protocolos e comprovantes',
+  },
+  {
+    key: 'parecer_acesso',
+    label: 'Parecer de Acesso / Resposta',
+    descricao: 'Documento oficial emitido pela Energisa com aprovação/ressalvas',
+  },
+  {
+    key: 'relatorio_vistoria',
+    label: 'Relatório & Solicitação de Vistoria',
+    descricao: 'Protocolo de solicitação ou laudo fotográfico pós-obra',
+  },
+  {
+    key: 'art_documento',
+    label: 'ART Registrada / Comprovantes',
+    descricao: 'Anotação de Responsabilidade Técnica e certidões do CREA/CFT',
+  },
+  {
+    key: 'outros',
+    label: 'Outros Documentos de Engenharia',
+    descricao: 'Demais arquivos relevantes do processo',
+  },
+]
+
+export const SEQUENCIA_ETAPAS_HOMOLOGACAO: Array<{
+  id: HomologacaoStatus
+  nome: string
+  acaoBotao: string
+  descricaoAcao: string
+  proximaEtapa?: HomologacaoStatus
+}> = [
+  {
+    id: 'novo_cliente',
+    nome: 'Novo Cliente',
+    acaoBotao: 'Iniciar Projeto',
+    descricaoAcao: 'Assumir a elaboração do projeto técnico do sistema solar',
+    proximaEtapa: 'em_projeto',
+  },
+  {
+    id: 'em_projeto',
+    nome: 'Em Projeto',
+    acaoBotao: 'Enviar para Homologação',
+    descricaoAcao: 'Submeter protocolo de solicitação de acesso junto à Energisa',
+    proximaEtapa: 'homologacao',
+  },
+  {
+    id: 'homologacao',
+    nome: 'Homologação',
+    acaoBotao: 'Registrar Resposta da Energisa',
+    descricaoAcao: 'Inserir parecer emitido pela concessionária (aprovação ou pendências)',
+    proximaEtapa: 'resposta_energisa',
+  },
+  {
+    id: 'resposta_energisa',
+    nome: 'Resposta da Energisa',
+    acaoBotao: 'Liberar para Vistoria',
+    descricaoAcao: 'Validar obra concluída e autorizar solicitação de vistoria',
+    proximaEtapa: 'liberado_vistoria',
+  },
+  {
+    id: 'liberado_vistoria',
+    nome: 'Liberado para Vistoria',
+    acaoBotao: 'Solicitar Vistoria',
+    descricaoAcao: 'Registrar protocolo de agendamento de vistoria técnica',
+    proximaEtapa: 'vistoria_solicitada',
+  },
+  {
+    id: 'vistoria_solicitada',
+    nome: 'Vistoria Solicitada',
+    acaoBotao: 'Marcar como Entregue',
+    descricaoAcao: 'Confirmar troca de medidor, ligação e homologação final concluída',
+    proximaEtapa: 'entregue',
+  },
+  {
+    id: 'entregue',
+    nome: 'Entregue',
+    acaoBotao: 'Processo Concluído',
+    descricaoAcao: 'Sistema homologado, medidor bidirecional ativo e cliente gerando energia',
+  },
+]
 
 export const COLUNAS_HOMOLOGACAO: Array<{
   id: HomologacaoStatus
@@ -163,19 +286,81 @@ export const HomologacaoService = {
   },
 
   /**
-   * Movimenta o card entre as 7 colunas do Kanban
+   * Movimenta o card entre as 7 colunas do Kanban e opcionalmente registra observação e dados da etapa
    */
   async moverStatus(
     homologacaoId: string,
     status: HomologacaoStatus,
+    observacao?: string,
+    dadosEtapa?: {
+      energisa_resposta?: string
+      energisa_resposta_data?: string
+      vistoria_data?: string
+      vistoria_observacao?: string
+      [key: string]: unknown
+    },
   ): Promise<MoverStatusResponse> {
     return await pb.send<MoverStatusResponse>('/backend/v1/homologacao/mover-status', {
       method: 'POST',
       body: {
         homologacaoId,
         status,
+        observacao,
+        dadosEtapa,
       },
     })
+  },
+
+  /**
+   * Anexa arquivos do processo de engenharia (projetos, plantas, processo Energisa, pareceres)
+   */
+  async anexarArquivoProcesso(
+    payload: AnexarArquivoEngenhariaPayload,
+  ): Promise<AnexarArquivoEngenhariaResponse> {
+    const formData = new FormData()
+    formData.append('homologacaoId', payload.homologacaoId)
+    formData.append('categoria', payload.categoria)
+    formData.append('arquivo', payload.file)
+    if (payload.titulo) formData.append('titulo', payload.titulo)
+    if (payload.descricao) formData.append('descricao', payload.descricao)
+    if (payload.etapaOrigem) formData.append('etapa_origem', payload.etapaOrigem)
+
+    return await pb.send<AnexarArquivoEngenhariaResponse>(
+      '/backend/v1/homologacao/anexar-arquivo',
+      {
+        method: 'POST',
+        body: formData,
+      },
+    )
+  },
+
+  /**
+   * Busca arquivos de engenharia de uma homologação
+   */
+  async getArquivosByHomologacao(homologacaoId: string): Promise<any[]> {
+    try {
+      return await pb.collection('arquivos_engenharia').getFullList({
+        filter: `homologacao = "${homologacaoId}"`,
+        sort: '-created',
+        expand: 'criado_por',
+        requestKey: null,
+      })
+    } catch (err) {
+      console.warn('Erro ao buscar arquivos de engenharia:', err)
+      return []
+    }
+  },
+
+  /**
+   * Exclui um arquivo do processo de engenharia
+   */
+  async deleteArquivoProcesso(arquivoId: string): Promise<boolean> {
+    try {
+      return await pb.collection('arquivos_engenharia').delete(arquivoId)
+    } catch (err) {
+      console.error('Erro ao excluir arquivo de engenharia:', err)
+      return false
+    }
   },
 
   /**
@@ -193,5 +378,13 @@ export const HomologacaoService = {
   getArtDownloadUrl(homologacao: HomologacaoLead): string {
     if (!homologacao || !homologacao.art_arquivo) return ''
     return pb.files.getURL(homologacao, homologacao.art_arquivo)
+  },
+
+  /**
+   * Obtém a URL de download de um arquivo de engenharia
+   */
+  getArquivoEngenhariaUrl(record: any): string {
+    if (!record || !record.arquivo) return ''
+    return pb.files.getURL(record, record.arquivo)
   },
 }

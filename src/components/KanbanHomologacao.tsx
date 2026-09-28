@@ -1,6 +1,10 @@
 import React, { useState } from 'react'
 import type { HomologacaoLead, HomologacaoStatus } from '@/types/crm'
-import { COLUNAS_HOMOLOGACAO, HomologacaoService } from '@/services/homologacao'
+import {
+  COLUNAS_HOMOLOGACAO,
+  SEQUENCIA_ETAPAS_HOMOLOGACAO,
+  HomologacaoService,
+} from '@/services/homologacao'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,6 +18,8 @@ import {
   FolderOpen,
   ArrowRight,
   ArrowLeft,
+  FileText,
+  UserCheck,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
@@ -218,20 +224,31 @@ export function KanbanHomologacao({
                             ) : null}
                           </div>
 
-                          {/* Nome do Cliente */}
+                          {/* Nome do Cliente e Ação de Abrir Ficha */}
                           <div>
-                            <h4
-                              className="font-bold text-slate-900 text-xs leading-snug truncate group-hover:text-[#0B7A5B] transition-colors"
-                              title={hom.cliente_nome}
-                            >
-                              {hom.cliente_nome || 'Cliente sem nome'}
-                            </h4>
+                            <div className="flex items-center justify-between gap-1">
+                              <h4
+                                className="font-extrabold text-slate-900 text-xs leading-snug truncate group-hover:text-[#0B7A5B] transition-colors"
+                                title={hom.cliente_nome}
+                              >
+                                {hom.cliente_nome || 'Cliente sem nome'}
+                              </h4>
+                              <span className="text-[10px] font-bold text-[#0B7A5B] opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0">
+                                <span>Ficha</span>
+                                <ArrowRight className="w-2.5 h-2.5" />
+                              </span>
+                            </div>
                             {(hom.cliente_cidade || hom.endereco_instalacao) && (
                               <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 truncate">
                                 <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
                                 <span className="truncate">
                                   {hom.cliente_cidade || hom.endereco_instalacao}
                                 </span>
+                              </p>
+                            )}
+                            {hom.unidade_consumidora && (
+                              <p className="text-[10.5px] font-mono text-emerald-700 mt-0.5 truncate">
+                                UC: {hom.unidade_consumidora}
                               </p>
                             )}
                           </div>
@@ -244,6 +261,19 @@ export function KanbanHomologacao({
                             >
                               {hom.kit_resumo}
                             </p>
+                          )}
+
+                          {/* Indicador de Resposta da Energisa ou Vistoria */}
+                          {hom.energisa_resposta && (
+                            <div className="p-1.5 rounded bg-amber-50/70 border border-amber-200/70 text-[10px] text-amber-900 truncate">
+                              <strong>Energisa:</strong> {hom.energisa_resposta}
+                            </div>
+                          )}
+
+                          {hom.vistoria_data && (
+                            <div className="p-1.5 rounded bg-blue-50/70 border border-blue-200/70 text-[10px] text-blue-900 truncate">
+                              <strong>Vistoria:</strong> {hom.vistoria_data}
+                            </div>
                           )}
 
                           {/* Status da ART: Alertas Âmbar / Verde Conforme Especificação */}
@@ -286,63 +316,79 @@ export function KanbanHomologacao({
                           )}
 
                           {/* Ações Rápidas no Card */}
-                          <div className="pt-1 border-t border-slate-100 flex items-center justify-between gap-1.5">
-                            {/* Ação: Enviar ART para Pagamento */}
+                          <div className="pt-1.5 border-t border-slate-100 flex flex-col gap-1.5">
+                            {/* Botão de Abrir Ficha do Cliente */}
                             <Button
                               type="button"
                               size="sm"
-                              variant="outline"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                onOpenEnviarArt(hom)
+                                onSelectCard(hom)
                               }}
-                              className={`h-7 px-2 text-[10.5px] font-bold gap-1 ${
-                                isArtEnviada
-                                  ? 'border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100'
-                                  : isArtPaga
-                                    ? 'border-emerald-300 text-emerald-900 bg-emerald-50 hover:bg-emerald-100'
-                                    : 'border-slate-200 text-slate-700 hover:text-[#0B7A5B] hover:border-emerald-300'
-                              }`}
-                              title="Anexar PDF da ART e enviar para pagamento do cliente/comercial"
+                              className="w-full h-7 text-[11px] font-bold bg-slate-900 hover:bg-slate-800 text-white gap-1 shadow-2xs"
                             >
-                              <FileUp className="w-3 h-3" />
-                              <span>
-                                {isArtPaga
-                                  ? 'Reenviar ART'
-                                  : isArtEnviada
-                                    ? 'Reenviar ART'
-                                    : 'Enviar ART'}
-                              </span>
+                              <FileText className="w-3 h-3 text-emerald-400" />
+                              <span>Abrir Ficha de Trabalho</span>
                             </Button>
 
-                            {/* Navegação entre colunas anterior / próxima (mobile ou atalho) */}
-                            <div className="flex items-center gap-1">
-                              {colIdx > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleMoverStatus(hom.id, COLUNAS_HOMOLOGACAO[colIdx - 1].id)
-                                  }}
-                                  className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-                                  title={`Mover para: ${COLUNAS_HOMOLOGACAO[colIdx - 1].titulo}`}
-                                >
-                                  <ArrowLeft className="w-3 h-3" />
-                                </button>
-                              )}
-                              {colIdx < COLUNAS_HOMOLOGACAO.length - 1 && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleMoverStatus(hom.id, COLUNAS_HOMOLOGACAO[colIdx + 1].id)
-                                  }}
-                                  className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-[#0B7A5B] hover:bg-emerald-50"
-                                  title={`Avançar para: ${COLUNAS_HOMOLOGACAO[colIdx + 1].titulo}`}
-                                >
-                                  <ArrowRight className="w-3 h-3" />
-                                </button>
-                              )}
+                            <div className="flex items-center justify-between gap-1.5">
+                              {/* Ação: Enviar ART para Pagamento */}
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onOpenEnviarArt(hom)
+                                }}
+                                className={`h-6 px-2 text-[10px] font-bold gap-1 ${
+                                  isArtEnviada
+                                    ? 'border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100'
+                                    : isArtPaga
+                                      ? 'border-emerald-300 text-emerald-900 bg-emerald-50 hover:bg-emerald-100'
+                                      : 'border-slate-200 text-slate-700 hover:text-[#0B7A5B] hover:border-emerald-300'
+                                }`}
+                                title="Anexar PDF da ART e enviar para pagamento do cliente/comercial"
+                              >
+                                <FileUp className="w-3 h-3" />
+                                <span>
+                                  {isArtPaga
+                                    ? 'Reenviar ART'
+                                    : isArtEnviada
+                                      ? 'Reenviar ART'
+                                      : 'Enviar ART'}
+                                </span>
+                              </Button>
+
+                              {/* Navegação entre colunas anterior / próxima (mobile ou atalho) */}
+                              <div className="flex items-center gap-1">
+                                {colIdx > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleMoverStatus(hom.id, COLUNAS_HOMOLOGACAO[colIdx - 1].id)
+                                    }}
+                                    className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                                    title={`Mover para: ${COLUNAS_HOMOLOGACAO[colIdx - 1].titulo}`}
+                                  >
+                                    <ArrowLeft className="w-3 h-3" />
+                                  </button>
+                                )}
+                                {colIdx < COLUNAS_HOMOLOGACAO.length - 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleMoverStatus(hom.id, COLUNAS_HOMOLOGACAO[colIdx + 1].id)
+                                    }}
+                                    className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-[#0B7A5B] hover:bg-emerald-50"
+                                    title={`Avançar para: ${COLUNAS_HOMOLOGACAO[colIdx + 1].titulo}`}
+                                  >
+                                    <ArrowRight className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </CardContent>

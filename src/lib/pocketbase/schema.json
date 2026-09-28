@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-28T13:55:48.149Z",
+  "generatedAt": "2026-09-28T14:32:53.166Z",
   "collections": [
     {
       "name": "users",
@@ -2325,6 +2325,36 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "observacoes_etapas",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "energisa_resposta",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "energisa_resposta_data",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vistoria_data",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vistoria_observacao",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -2334,6 +2364,121 @@
         "CREATE INDEX idx_homologacoes_status ON homologacoes (status)",
         "CREATE INDEX idx_homologacoes_art_status ON homologacoes (art_status)",
         "CREATE INDEX idx_homologacoes_created ON homologacoes (created DESC)"
+      ]
+    },
+    {
+      "name": "arquivos_engenharia",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.role = 'Admin' || @request.auth.role = 'Vendedor' || homologacao.engenheiro = @request.auth.id || criado_por = @request.auth.id)",
+        "view": "@request.auth.id != '' && (@request.auth.role = 'Admin' || @request.auth.role = 'Vendedor' || homologacao.engenheiro = @request.auth.id || criado_por = @request.auth.id)",
+        "create": "@request.auth.id != '' && (@request.auth.role = 'Admin' || @request.auth.role = 'Engenheiro' || @request.auth.role = 'Vendedor')",
+        "update": "@request.auth.id != '' && (@request.auth.role = 'Admin' || criado_por = @request.auth.id || homologacao.engenheiro = @request.auth.id)",
+        "delete": "@request.auth.id != '' && (@request.auth.role = 'Admin' || criado_por = @request.auth.id)"
+      },
+      "fields": [
+        {
+          "name": "homologacao",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "homologacoes"
+        },
+        {
+          "name": "lead",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "leads"
+        },
+        {
+          "name": "categoria",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "projeto_eletrico",
+            "plantas",
+            "processo_energisa",
+            "art_documento",
+            "memorial_descritivo",
+            "parecer_acesso",
+            "relatorio_vistoria",
+            "outros"
+          ]
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "arquivo",
+          "type": "file",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nome_original",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tamanho_bytes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "etapa_origem",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "novo_cliente",
+            "em_projeto",
+            "homologacao",
+            "resposta_energisa",
+            "liberado_vistoria",
+            "vistoria_solicitada",
+            "entregue"
+          ]
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_arq_eng_homologacao ON arquivos_engenharia (homologacao)",
+        "CREATE INDEX idx_arq_eng_lead ON arquivos_engenharia (lead)",
+        "CREATE INDEX idx_arq_eng_categoria ON arquivos_engenharia (categoria)",
+        "CREATE INDEX idx_arq_eng_created ON arquivos_engenharia (created DESC)"
       ]
     }
   ]
