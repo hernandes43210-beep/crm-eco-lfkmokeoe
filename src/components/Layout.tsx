@@ -40,39 +40,33 @@ export default function Layout() {
   const [countAguardando, setCountAguardando] = useState(0)
 
   const refreshCountAguardando = useCallback(async () => {
+    if (isEngenheiro) return
     try {
       const c = await LeadsService.countAguardandoQualificacao()
       setCountAguardando(c)
     } catch {
       // noop
     }
-  }, [])
+  }, [isEngenheiro])
 
   useEffect(() => {
-    refreshCountAguardando()
-  }, [refreshCountAguardando])
+    if (!isEngenheiro) {
+      refreshCountAguardando()
+    }
+  }, [refreshCountAguardando, isEngenheiro])
 
   useRealtime('leads', () => {
-    refreshCountAguardando()
+    if (!isEngenheiro) {
+      refreshCountAguardando()
+    }
   })
 
   // Navigation Items
-  // Se for Engenheiro, mostra apenas:
-  // - Meus Documentos Recebidos (área exclusiva técnica)
-  // - Leads e Funil (para consulta dos dados cadastrais/técnicos das instalações)
-  // - Oculta estritamente: Kits Solares, Propostas, Precificação, Integrações e Equipe
+  // Se for Engenheiro, o menu deve conter APENAS:
+  // - Meus Documentos (/engenharia)
+  // Painel, Leads, Funil, Kits, Propostas, WhatsApp, Integrações, Equipe etc. são TOTALMENTE ocultos.
   const navItems = isEngenheiro
-    ? [
-        { label: 'Meus Documentos', path: '/engenharia', icon: FolderOpen },
-        { label: 'Painel', path: '/', icon: LayoutDashboard },
-        {
-          label: 'Leads',
-          path: '/leads',
-          icon: Users,
-          badge: countAguardando > 0 ? countAguardando : undefined,
-        },
-        { label: 'Funil de Vendas', path: '/funil', icon: GitBranch },
-      ]
+    ? [{ label: 'Meus Documentos', path: '/engenharia', icon: FolderOpen }]
     : [
         { label: 'Painel', path: '/', icon: LayoutDashboard },
         {

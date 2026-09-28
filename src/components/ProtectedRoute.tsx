@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { Loader2 } from 'lucide-react'
+import { toast } from '@/hooks/use-toast'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -16,6 +17,20 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
   const { isAuthenticated, isLoading, isAdmin, isEngenheiro } = useAuth()
   const location = useLocation()
+  const notifiedPathRef = useRef<string | null>(null)
+
+  const isAccessBlocked = isEngenheiro && (blockEngenheiro || adminOnly)
+
+  useEffect(() => {
+    if (isAccessBlocked && notifiedPathRef.current !== location.pathname) {
+      notifiedPathRef.current = location.pathname
+      toast({
+        title: 'Acesso restrito',
+        description: 'Engenheiros acessam apenas Meus Documentos.',
+        variant: 'destructive',
+      })
+    }
+  }, [isAccessBlocked, location.pathname])
 
   if (isLoading) {
     return (
@@ -30,7 +45,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
-  if (blockEngenheiro && isEngenheiro) {
+  if (isEngenheiro && (blockEngenheiro || (adminOnly && !isAdmin))) {
     return <Navigate to="/engenharia" replace />
   }
 

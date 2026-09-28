@@ -47,13 +47,62 @@ const App = () => (
               </ProtectedRoute>
             }
           >
-            <Route path="/" element={<Index />} />
-            <Route path="/leads" element={<LeadsList />} />
-            <Route path="/leads/novo" element={<LeadForm />} />
-            <Route path="/leads/importar" element={<LeadImport />} />
-            <Route path="/leads/:id/editar" element={<LeadForm />} />
-            <Route path="/leads/:id" element={<LeadDetail />} />
-            <Route path="/funil" element={<FunilVendas />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute blockEngenheiro>
+                  <Index />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/leads"
+              element={
+                <ProtectedRoute blockEngenheiro>
+                  <LeadsList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/leads/novo"
+              element={
+                <ProtectedRoute blockEngenheiro>
+                  <LeadForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/leads/importar"
+              element={
+                <ProtectedRoute blockEngenheiro>
+                  <LeadImport />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/leads/:id/editar"
+              element={
+                <ProtectedRoute blockEngenheiro>
+                  <LeadForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/leads/:id"
+              element={
+                <ProtectedRoute blockEngenheiro>
+                  <LeadDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/funil"
+              element={
+                <ProtectedRoute blockEngenheiro>
+                  <FunilVendas />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/propostas"
               element={
@@ -81,13 +130,13 @@ const App = () => (
             <Route path="/engenharia" element={<MeusDocumentosEngenharia />} />
             {/* Admin-only Routes */}
             <Route
-              path="/equipe"
+              path="/integracoes"
               element={
                 <ProtectedRoute adminOnly>
-                  <Equipe />
+                  <IntegracoesPage />
                 </ProtectedRoute>
               }
-            />{' '}
+            />
             <Route
               path="/equipe"
               element={

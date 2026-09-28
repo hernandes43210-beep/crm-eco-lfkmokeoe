@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-25T20:54:14.600Z",
+  "generatedAt": "2026-09-28T02:02:23.287Z",
   "collections": [
     {
       "name": "users",
@@ -67,11 +67,11 @@
       "name": "leads",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != '' && (proprietario = @request.auth.id || @request.auth.role = 'Admin')",
-        "delete": "@request.auth.id != '' && (proprietario = @request.auth.id || @request.auth.role = 'Admin')"
+        "list": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "view": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "create": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "update": "@request.auth.id != '' && @request.auth.role != 'Engenheiro' && (proprietario = @request.auth.id || @request.auth.role = 'Admin')",
+        "delete": "@request.auth.id != '' && @request.auth.role != 'Engenheiro' && (proprietario = @request.auth.id || @request.auth.role = 'Admin')"
       },
       "fields": [
         {
@@ -355,8 +355,8 @@
       "name": "kits",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "list": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "view": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
         "create": "@request.auth.id != '' && @request.auth.role = 'Admin'",
         "update": "@request.auth.id != '' && @request.auth.role = 'Admin'",
         "delete": "@request.auth.id != '' && @request.auth.role = 'Admin'"
@@ -638,10 +638,10 @@
       "name": "whatsapp_messages",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
+        "list": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "view": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "create": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "update": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
         "delete": "@request.auth.id != '' && @request.auth.role = 'Admin'"
       },
       "fields": [
@@ -838,11 +838,11 @@
       "name": "propostas",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != '' && (criado_por = @request.auth.id || lead.proprietario = @request.auth.id || @request.auth.role = 'Admin')",
-        "delete": "@request.auth.id != '' && (criado_por = @request.auth.id || lead.proprietario = @request.auth.id || @request.auth.role = 'Admin')"
+        "list": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "view": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "create": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "update": "@request.auth.id != '' && @request.auth.role != 'Engenheiro' && (criado_por = @request.auth.id || lead.proprietario = @request.auth.id || @request.auth.role = 'Admin')",
+        "delete": "@request.auth.id != '' && @request.auth.role != 'Engenheiro' && (criado_por = @request.auth.id || lead.proprietario = @request.auth.id || @request.auth.role = 'Admin')"
       },
       "fields": [
         {
@@ -1101,11 +1101,11 @@
       "name": "lead_photos",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != '' && (criado_por = @request.auth.id || @request.auth.role = 'Admin')",
-        "delete": "@request.auth.id != '' && (criado_por = @request.auth.id || @request.auth.role = 'Admin')"
+        "list": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "view": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "create": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "update": "@request.auth.id != '' && @request.auth.role != 'Engenheiro' && (criado_por = @request.auth.id || @request.auth.role = 'Admin')",
+        "delete": "@request.auth.id != '' && @request.auth.role != 'Engenheiro' && (criado_por = @request.auth.id || @request.auth.role = 'Admin')"
       },
       "fields": [
         {
@@ -1281,11 +1281,11 @@
       "name": "formalizacao_documentos",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != '' && (criado_por = @request.auth.id || @request.auth.role = 'Admin')",
-        "delete": "@request.auth.id != '' && (criado_por = @request.auth.id || @request.auth.role = 'Admin')"
+        "list": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "view": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "create": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "update": "@request.auth.id != '' && @request.auth.role != 'Engenheiro' && (criado_por = @request.auth.id || @request.auth.role = 'Admin')",
+        "delete": "@request.auth.id != '' && @request.auth.role != 'Engenheiro' && (criado_por = @request.auth.id || @request.auth.role = 'Admin')"
       },
       "fields": [
         {
