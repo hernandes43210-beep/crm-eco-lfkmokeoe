@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-28T12:54:51.565Z",
+  "generatedAt": "2026-09-28T13:55:48.149Z",
   "collections": [
     {
       "name": "users",
@@ -1670,7 +1670,14 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["lead_cidade", "geral", "sla", "contato", "documentos_engenharia"]
+          "selectValues": [
+            "lead_cidade",
+            "geral",
+            "sla",
+            "contato",
+            "documentos_engenharia",
+            "homologacao_art"
+          ]
         }
       ],
       "indexes": [
@@ -2152,6 +2159,181 @@
         "CREATE INDEX idx_dossies_lead ON dossies_engenharia (lead)",
         "CREATE INDEX idx_dossies_engenheiro ON dossies_engenharia (engenheiro_destino)",
         "CREATE INDEX idx_dossies_created ON dossies_engenharia (created DESC)"
+      ]
+    },
+    {
+      "name": "homologacoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.role = 'Admin' || @request.auth.role = 'Vendedor' || engenheiro = @request.auth.id || vendedor = @request.auth.id)",
+        "view": "@request.auth.id != '' && (@request.auth.role = 'Admin' || @request.auth.role = 'Vendedor' || engenheiro = @request.auth.id || vendedor = @request.auth.id)",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != '' && (@request.auth.role = 'Admin' || engenheiro = @request.auth.id || vendedor = @request.auth.id || @request.auth.role = 'Vendedor')",
+        "delete": "@request.auth.id != '' && @request.auth.role = 'Admin'"
+      },
+      "fields": [
+        {
+          "name": "lead",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "leads"
+        },
+        {
+          "name": "dossie",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "dossies_engenharia"
+        },
+        {
+          "name": "engenheiro",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "vendedor",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "novo_cliente",
+            "em_projeto",
+            "homologacao",
+            "resposta_energisa",
+            "liberado_vistoria",
+            "vistoria_solicitada",
+            "entregue"
+          ]
+        },
+        {
+          "name": "art_arquivo",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "art_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["nenhuma", "enviada", "paga"]
+        },
+        {
+          "name": "art_enviada_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "art_paga_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "art_observacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliente_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliente_telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliente_cidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliente_estado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "endereco_instalacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "unidade_consumidora",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "potencia_total_kwp",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "kit_resumo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "versao_dossie",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "visualizado_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "historico",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_homologacoes_lead ON homologacoes (lead)",
+        "CREATE INDEX idx_homologacoes_engenheiro ON homologacoes (engenheiro)",
+        "CREATE INDEX idx_homologacoes_vendedor ON homologacoes (vendedor)",
+        "CREATE INDEX idx_homologacoes_status ON homologacoes (status)",
+        "CREATE INDEX idx_homologacoes_art_status ON homologacoes (art_status)",
+        "CREATE INDEX idx_homologacoes_created ON homologacoes (created DESC)"
       ]
     }
   ]

@@ -103,7 +103,9 @@ export function NotificationBell({ side = 'right', align = 'end' }: Notification
       await handleMarcarComoLida(item)
     }
     setIsOpen(false)
-    if (item.lead) {
+    if (user?.role === 'Engenheiro' || item.tipo === 'documentos_engenharia') {
+      navigate('/engenharia')
+    } else if (item.lead) {
       navigate(`/leads/${item.lead}`)
     } else {
       navigate('/leads')

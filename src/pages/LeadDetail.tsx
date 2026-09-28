@@ -45,6 +45,9 @@ import { MotivoPerdaModal } from '@/components/MotivoPerdaModal'
 import { LeadInstallationPhotos } from '@/components/LeadInstallationPhotos'
 import { LeadFormalizacaoSection } from '@/components/LeadFormalizacaoSection'
 import { LeadDocumentosSection } from '@/components/LeadDocumentosSection'
+import { LeadHomologacaoSection } from '@/components/LeadHomologacaoSection'
+import { HomologacaoService } from '@/services/homologacao'
+import type { HomologacaoLead } from '@/types/crm'
 import { openProposalPDFPrint } from '@/lib/proposalPdf'
 import useRealtime from '@/hooks/use-realtime'
 import { useAuth } from '@/context/AuthContext'
@@ -125,6 +128,10 @@ export default function LeadDetail() {
   const [savingProximoContato, setSavingProximoContato] = useState(false)
   const [proximoContatoSaved, setProximoContatoSaved] = useState(false)
 
+  // Homologação na Engenharia & ART
+  const [homologacao, setHomologacao] = useState<HomologacaoLead | null>(null)
+  const [loadingHomologacao, setLoadingHomologacao] = useState(false)
+
   // WhatsApp integration in LeadDetail
   const [waMessages, setWaMessages] = useState<WhatsAppMessage[]>([])
   const [loadingWa, setLoadingWa] = useState(false)
@@ -148,6 +155,18 @@ export default function LeadDetail() {
       console.error('Erro ao carregar propostas:', err)
     } finally {
       setLoadingPropostas(false)
+    }
+  }
+
+  const fetchHomologacao = async (leadId: string) => {
+    try {
+      setLoadingHomologacao(true)
+      const hom = await HomologacaoService.getHomologacaoByLead(leadId)
+      setHomologacao(hom)
+    } catch (err) {
+      console.warn('Erro ao carregar homologação:', err)
+    } finally {
+      setLoadingHomologacao(false)
     }
   }
 
@@ -179,6 +198,7 @@ export default function LeadDetail() {
       }
       fetchWaMessages(data)
       fetchPropostas(data.id)
+      fetchHomologacao(data.id)
     } catch (err) {
       console.error('Error loading lead detail:', err)
       toast({
@@ -317,6 +337,17 @@ export default function LeadDetail() {
         setPropostas((prev) => prev.map((p) => (p.id === e.record.id ? e.record : p)))
       } else if (e.action === 'delete') {
         setPropostas((prev) => prev.filter((p) => p.id !== e.record.id))
+      }
+    }
+  })
+
+  // Real-time subscription for homologações of this lead
+  useRealtime<HomologacaoLead>('homologacoes', (e) => {
+    if (id && e.record.lead === id) {
+      if (e.action === 'create' || e.action === 'update') {
+        setHomologacao(e.record)
+      } else if (e.action === 'delete') {
+        setHomologacao(null)
       }
     }
   })
@@ -1858,6 +1889,20 @@ export default function LeadDetail() {
         </div>
       </div>
 
+      {/* Seção Homologação na Engenharia & Status da ART */}
+      {!isEngenheiro && (
+        <LeadHomologacaoSection
+          homologacao={homologacao}
+          loading={loadingHomologacao}
+          isAdmin={isAdmin}
+          isVendedor={!isEngenheiro}
+          onHomologacaoUpdated={(updatedHom) => {
+            setHomologacao(updatedHom)
+            fetchLead()
+          }}
+        />
+      )}
+
       {/* Nova Seção: Documentos do Lead para Engenharia (Documentos Pessoais, Conta, Datasheet, Procuração) */}
       <LeadDocumentosSection
         lead={lead}
@@ -1867,6 +1912,7 @@ export default function LeadDetail() {
         isEngenheiro={isEngenheiro}
         onDocumentosChanged={() => {
           fetchLead()
+          if (lead?.id) fetchHomologacao(lead.id)
         }}
       />
 

@@ -253,6 +253,119 @@ routerAdd(
       console.error('[enviar_engenheiro] Erro ao salvar dossie tecnico:', dossieErr)
     }
 
+    // 5.1 Criar ou atualizar card na coleção 'homologacoes' (Kanban de Homologação)
+    let homologacaoIdSalva = ''
+    try {
+      const homologacoesCol = $app.findCollectionByNameOrId('homologacoes')
+      let recHomologacao = null
+      let isNovaHomologacao = false
+
+      try {
+        recHomologacao = $app.findFirstRecordByData('homologacoes', 'lead', leadId)
+      } catch (_) {
+        recHomologacao = new Record(homologacoesCol)
+        isNovaHomologacao = true
+      }
+
+      // Vendedor responsável: proprietário do lead ou o próprio autor do envio
+      const vendedorResponsavelId = leadRecord.getString('proprietario') || auth.id
+
+      recHomologacao.set('lead', leadId)
+      if (dossieIdSalvo) {
+        recHomologacao.set('dossie', dossieIdSalvo)
+      }
+      recHomologacao.set('engenheiro', engenheiroId)
+      recHomologacao.set('vendedor', vendedorResponsavelId)
+
+      // Se for novo, inicia com 'novo_cliente'; se já existir, preserva status atual
+      if (isNovaHomologacao || !recHomologacao.getString('status')) {
+        recHomologacao.set('status', 'novo_cliente')
+      }
+
+      // Se for reenvio e não tiver visualizado_em limpo, marca como pendente de visualização da nova versão
+      if (isReenvio) {
+        recHomologacao.set('visualizado_em', null)
+      }
+
+      // Dados denormalizados do cliente para isolamento comercial
+      recHomologacao.set('cliente_nome', dossiePayload?.cliente_nome || leadNome)
+      recHomologacao.set(
+        'cliente_telefone',
+        dossiePayload?.cliente_telefone || leadRecord.getString('telefone') || '',
+      )
+      recHomologacao.set(
+        'cliente_cidade',
+        dossiePayload?.cliente_cidade || leadRecord.getString('cidade') || '',
+      )
+      recHomologacao.set(
+        'cliente_estado',
+        dossiePayload?.cliente_estado || leadRecord.getString('estado') || '',
+      )
+      recHomologacao.set(
+        'endereco_instalacao',
+        dossiePayload?.endereco_instalacao || leadRecord.getString('endereco') || '',
+      )
+      recHomologacao.set('unidade_consumidora', dossiePayload?.unidade_consumidora || '')
+
+      if (dossiePayload && typeof dossiePayload.potencia_total_kwp === 'number') {
+        recHomologacao.set('potencia_total_kwp', dossiePayload.potencia_total_kwp)
+      }
+
+      // Kit resumo
+      const pSummary =
+        dossiePayload && dossiePayload.paineis_quantidade && dossiePayload.paineis_potencia_w
+          ? dossiePayload.paineis_quantidade + 'x ' + dossiePayload.paineis_potencia_w + 'W'
+          : ''
+      const invSummary =
+        dossiePayload && dossiePayload.inversor_marca
+          ? dossiePayload.inversor_marca +
+            (dossiePayload.inversor_potencia_kw
+              ? ' ' + dossiePayload.inversor_potencia_kw + 'kW'
+              : '')
+          : ''
+      const kitSummary = [pSummary, invSummary].filter(Boolean).join(' • ')
+      recHomologacao.set('kit_resumo', kitSummary)
+      recHomologacao.set('versao_dossie', dossieVersaoSalva)
+
+      // Histórico do card de homologação
+      let homHist = []
+      const rawHomHist = recHomologacao.get('historico')
+      if (Array.isArray(rawHomHist)) {
+        homHist = rawHomHist.slice(0)
+      } else if (typeof rawHomHist === 'string') {
+        try {
+          const p = JSON.parse(rawHomHist)
+          if (Array.isArray(p)) homHist = p
+        } catch (_) {}
+      }
+
+      homHist.push({
+        data: nowIso,
+        tipo: isNovaHomologacao ? 'criacao' : 'atualizacao_dossie',
+        descricao: isNovaHomologacao
+          ? 'Card de homologação criado no status Novo Cliente'
+          : 'Dossiê atualizado para v' + dossieVersaoSalva,
+        autor_id: auth.id,
+        autor_nome: remetenteNome,
+      })
+
+      if (homHist.length > 50) {
+        homHist = homHist.slice(homHist.length - 50)
+      }
+      recHomologacao.set('historico', homHist)
+
+      $app.save(recHomologacao)
+      homologacaoIdSalva = recHomologacao.id
+      console.log(
+        '[enviar_engenheiro] Registro de homologação atualizado/criado id=' +
+          homologacaoIdSalva +
+          ' status=' +
+          recHomologacao.getString('status'),
+      )
+    } catch (homErr) {
+      console.error('[enviar_engenheiro] Erro ao salvar homologacao:', homErr)
+    }
+
     // 6. Registrar no historico do lead (truncado a 50 eventos)
     try {
       let hist = []

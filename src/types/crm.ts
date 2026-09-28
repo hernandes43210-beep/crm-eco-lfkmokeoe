@@ -26,6 +26,60 @@ export type DocumentoLeadStatusEnvio = 'pendente' | 'enviado' | 'reenviado'
 
 export type TipoInstalacaoDossie = 'telhado' | 'solo' | 'outro'
 
+export type HomologacaoStatus =
+  | 'novo_cliente'
+  | 'em_projeto'
+  | 'homologacao'
+  | 'resposta_energisa'
+  | 'liberado_vistoria'
+  | 'vistoria_solicitada'
+  | 'entregue'
+
+export type ArtStatus = 'nenhuma' | 'enviada' | 'paga'
+
+export interface HomologacaoHistoricoItem {
+  data: string
+  tipo: string
+  descricao: string
+  autor_id?: string
+  autor_nome?: string
+  de?: string
+  para?: string
+}
+
+export interface HomologacaoLead extends RecordModel {
+  id: string
+  lead: string
+  dossie?: string
+  engenheiro: string
+  vendedor?: string
+  status: HomologacaoStatus
+  art_arquivo?: string
+  art_status?: ArtStatus
+  art_enviada_em?: string
+  art_paga_em?: string
+  art_observacao?: string
+  cliente_nome?: string
+  cliente_telefone?: string
+  cliente_cidade?: string
+  cliente_estado?: string
+  endereco_instalacao?: string
+  unidade_consumidora?: string
+  potencia_total_kwp?: number
+  kit_resumo?: string
+  versao_dossie?: number
+  visualizado_em?: string
+  historico?: HomologacaoHistoricoItem[]
+  created: string
+  updated: string
+  expand?: {
+    lead?: Lead
+    engenheiro?: User
+    vendedor?: User
+    dossie?: DossieTecnicoEngenharia
+  }
+}
+
 export interface DossieTecnicoEngenharia extends RecordModel {
   id: string
   lead: string
