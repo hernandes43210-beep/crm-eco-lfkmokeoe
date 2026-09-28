@@ -4,10 +4,11 @@
 // Regras e garantias:
 // 1. Apenas usuários autenticados (Admin ou Vendedor) podem disparar o envio.
 // 2. Cria notificação (sino) na coleção 'notificacoes' para o engenheiro com link para os documentos.
-// 3. Envia e-mail transacional ao engenheiro com resumo dos documentos anexados.
-// 4. Registra evento no historico do lead: "Documentos enviados ao engenheiro X em dd/mm" (ou reenvio).
+// 3. Envia e-mail transacional ao engenheiro com resumo dos documentos anexados E dados do dossiê técnico negociado.
+// 4. Registra evento no historico do lead: "Documentos e Dossiê enviados ao engenheiro X em dd/mm".
 // 5. Atualiza os registros em documentos_lead com engenheiro_destino, status_envio ('enviado' ou 'reenviado') e enviado_em.
-// 6. Todas as declarações de variáveis e código inline dentro do handler para evitar scoping traps do Goja.
+// 6. Persiste o registro de dossiê técnico na coleção 'dossies_engenharia' com histórico simples de versões.
+// 7. Todas as declarações de variáveis e código inline dentro do handler para evitar scoping traps do Goja.
 
 routerAdd(
   'POST',
@@ -31,6 +32,7 @@ routerAdd(
     const engenheiroId = typeof body.engenheiroId === 'string' ? body.engenheiroId.trim() : ''
     const observacao = typeof body.observacao === 'string' ? body.observacao.trim() : ''
     const isReenvio = !!body.isReenvio
+    const dossiePayload = body.dossie && typeof body.dossie === 'object' ? body.dossie : null
 
     if (!leadId) {
       return e.json(400, { success: false, message: 'ID do lead é obrigatório.' })
@@ -124,7 +126,134 @@ routerAdd(
       }
     }
 
-    // 5. Registrar no historico do lead (truncado a 50 eventos)
+    // 5. Persistir Dossiê Técnico de Engenharia na coleção 'dossies_engenharia'
+    let dossieIdSalvo = ''
+    let dossieVersaoSalva = 1
+
+    try {
+      const dossiesCol = $app.findCollectionByNameOrId('dossies_engenharia')
+
+      // Verificar versão anterior para incrementar
+      let versaoAnterior = 0
+      try {
+        const registrosAntigos = $app.findRecordsByFilter(
+          'dossies_engenharia',
+          "lead = '" + leadId + "'",
+          '-versao',
+          1,
+          0,
+        )
+        if (registrosAntigos && registrosAntigos.length > 0) {
+          versaoAnterior = Number(registrosAntigos[0].get('versao')) || 0
+        }
+      } catch (_) {}
+
+      dossieVersaoSalva = versaoAnterior + 1
+
+      const novoDossie = new Record(dossiesCol)
+      novoDossie.set('lead', leadId)
+      novoDossie.set('engenheiro_destino', engenheiroId)
+      novoDossie.set('enviado_por', auth.id)
+      novoDossie.set('enviado_em', nowIso)
+      novoDossie.set('versao', dossieVersaoSalva)
+
+      if (dossiePayload) {
+        if (dossiePayload.cliente_nome)
+          novoDossie.set('cliente_nome', String(dossiePayload.cliente_nome).trim())
+        else novoDossie.set('cliente_nome', leadNome)
+
+        if (dossiePayload.cliente_telefone)
+          novoDossie.set('cliente_telefone', String(dossiePayload.cliente_telefone).trim())
+        else novoDossie.set('cliente_telefone', leadRecord.getString('telefone') || '')
+
+        if (dossiePayload.cliente_email)
+          novoDossie.set('cliente_email', String(dossiePayload.cliente_email).trim())
+        else novoDossie.set('cliente_email', leadRecord.getString('email') || '')
+
+        if (dossiePayload.cliente_cidade)
+          novoDossie.set('cliente_cidade', String(dossiePayload.cliente_cidade).trim())
+        else novoDossie.set('cliente_cidade', leadRecord.getString('cidade') || '')
+
+        if (dossiePayload.cliente_estado)
+          novoDossie.set('cliente_estado', String(dossiePayload.cliente_estado).trim())
+        else novoDossie.set('cliente_estado', leadRecord.getString('estado') || '')
+
+        if (dossiePayload.endereco_instalacao)
+          novoDossie.set('endereco_instalacao', String(dossiePayload.endereco_instalacao).trim())
+        else novoDossie.set('endereco_instalacao', leadRecord.getString('endereco') || '')
+
+        if (dossiePayload.unidade_consumidora)
+          novoDossie.set('unidade_consumidora', String(dossiePayload.unidade_consumidora).trim())
+        else novoDossie.set('unidade_consumidora', '')
+
+        if (typeof dossiePayload.consumo_medio_kwh === 'number')
+          novoDossie.set('consumo_medio_kwh', dossiePayload.consumo_medio_kwh)
+        else if (leadRecord.get('consumo_mensal_kwh'))
+          novoDossie.set('consumo_medio_kwh', Number(leadRecord.get('consumo_mensal_kwh')))
+
+        if (dossiePayload.kit_nome)
+          novoDossie.set('kit_nome', String(dossiePayload.kit_nome).trim())
+        if (typeof dossiePayload.potencia_total_kwp === 'number')
+          novoDossie.set('potencia_total_kwp', dossiePayload.potencia_total_kwp)
+
+        if (typeof dossiePayload.paineis_quantidade === 'number')
+          novoDossie.set('paineis_quantidade', dossiePayload.paineis_quantidade)
+        if (dossiePayload.paineis_modelo)
+          novoDossie.set('paineis_modelo', String(dossiePayload.paineis_modelo).trim())
+        if (typeof dossiePayload.paineis_potencia_w === 'number')
+          novoDossie.set('paineis_potencia_w', dossiePayload.paineis_potencia_w)
+
+        if (dossiePayload.inversor_marca)
+          novoDossie.set('inversor_marca', String(dossiePayload.inversor_marca).trim())
+        if (dossiePayload.inversor_modelo)
+          novoDossie.set('inversor_modelo', String(dossiePayload.inversor_modelo).trim())
+        if (typeof dossiePayload.inversor_potencia_kw === 'number')
+          novoDossie.set('inversor_potencia_kw', dossiePayload.inversor_potencia_kw)
+        if (typeof dossiePayload.inversor_quantidade === 'number')
+          novoDossie.set('inversor_quantidade', dossiePayload.inversor_quantidade)
+
+        const tipoInst = dossiePayload.tipo_instalacao
+        if (tipoInst === 'telhado' || tipoInst === 'solo' || tipoInst === 'outro') {
+          novoDossie.set('tipo_instalacao', tipoInst)
+        } else {
+          novoDossie.set('tipo_instalacao', 'telhado')
+        }
+
+        if (dossiePayload.tipo_estrutura_detalhe)
+          novoDossie.set(
+            'tipo_estrutura_detalhe',
+            String(dossiePayload.tipo_estrutura_detalhe).trim(),
+          )
+        if (dossiePayload.observacoes)
+          novoDossie.set('observacoes', String(dossiePayload.observacoes).trim())
+        else if (observacao) novoDossie.set('observacoes', observacao)
+      } else {
+        // Fallback populando com o que tiver no lead
+        novoDossie.set('cliente_nome', leadNome)
+        novoDossie.set('cliente_telefone', leadRecord.getString('telefone') || '')
+        novoDossie.set('cliente_email', leadRecord.getString('email') || '')
+        novoDossie.set('cliente_cidade', leadRecord.getString('cidade') || '')
+        novoDossie.set('cliente_estado', leadRecord.getString('estado') || '')
+        novoDossie.set('endereco_instalacao', leadRecord.getString('endereco') || '')
+        if (leadRecord.get('consumo_mensal_kwh'))
+          novoDossie.set('consumo_medio_kwh', Number(leadRecord.get('consumo_mensal_kwh')))
+        novoDossie.set('tipo_instalacao', 'telhado')
+        if (observacao) novoDossie.set('observacoes', observacao)
+      }
+
+      $app.save(novoDossie)
+      dossieIdSalvo = novoDossie.id
+      console.log(
+        '[enviar_engenheiro] Dossiê técnico salvo com sucesso id=' +
+          dossieIdSalvo +
+          ' v' +
+          dossieVersaoSalva,
+      )
+    } catch (dossieErr) {
+      console.error('[enviar_engenheiro] Erro ao salvar dossie tecnico:', dossieErr)
+    }
+
+    // 6. Registrar no historico do lead (truncado a 50 eventos)
     try {
       let hist = []
       const rawHist = leadRecord.get('historico')
@@ -137,23 +266,43 @@ routerAdd(
         } catch (_) {}
       }
 
-      const tipoEvento = isReenvio ? 'documentos_reenviados' : 'documentos_enviados'
+      const paineisResumo =
+        dossiePayload && dossiePayload.paineis_quantidade && dossiePayload.paineis_potencia_w
+          ? dossiePayload.paineis_quantidade +
+            ' painéis de ' +
+            dossiePayload.paineis_potencia_w +
+            'W'
+          : ''
+      const invResumo =
+        dossiePayload && dossiePayload.inversor_marca
+          ? 'Inversor ' +
+            dossiePayload.inversor_marca +
+            (dossiePayload.inversor_potencia_kw
+              ? ' ' + dossiePayload.inversor_potencia_kw + ' kW'
+              : '')
+          : ''
+      const kitResumo = [paineisResumo, invResumo].filter(Boolean).join(', ')
+
       const descEvento = isReenvio
-        ? 'Documentos atualizados/reenviados ao engenheiro ' +
+        ? 'Dossiê técnico e documentos atualizados/reenviados ao engenheiro ' +
           engNome +
           ' em ' +
           dataSimples +
           ' (' +
           docsAtualizadosCount +
-          ' arquivos)' +
+          ' arquivos' +
+          (kitResumo ? ' • Kit: ' + kitResumo : '') +
+          ')' +
           (observacao ? ' — Obs: ' + observacao : '')
-        : 'Documentos enviados ao engenheiro ' +
+        : 'Dossiê técnico e documentos enviados ao engenheiro ' +
           engNome +
           ' em ' +
           dataSimples +
           ' (' +
           docsAtualizadosCount +
-          ' arquivos)' +
+          ' arquivos' +
+          (kitResumo ? ' • Kit: ' + kitResumo : '') +
+          ')' +
           (observacao ? ' — Obs: ' + observacao : '')
 
       hist.push({
@@ -175,7 +324,7 @@ routerAdd(
       console.error('[enviar_engenheiro] Erro ao atualizar historico do lead:', histErr)
     }
 
-    // 6. Criar notificação (sino) para o engenheiro
+    // 7. Criar notificação (sino) para o engenheiro
     try {
       const notifCol = $app.findCollectionByNameOrId('notificacoes')
       const notif = new Record(notifCol)
@@ -183,16 +332,33 @@ routerAdd(
       notif.set('lead', leadId)
       notif.set(
         'titulo',
-        isReenvio ? 'Reenvio de Documentos: ' + leadNome : 'Novos Documentos Técnicos: ' + leadNome,
+        isReenvio ? 'Reenvio de Dossiê Técnico: ' + leadNome : 'Novo Dossiê Técnico: ' + leadNome,
       )
+
+      let kitNotifInfo = ''
+      if (dossiePayload) {
+        const pQtd = dossiePayload.paineis_quantidade
+        const pPot = dossiePayload.paineis_potencia_w
+        const iMarca = dossiePayload.inversor_marca
+        const iPot = dossiePayload.inversor_potencia_kw
+        const tInst = dossiePayload.tipo_instalacao === 'solo' ? 'Solo' : 'Telhado'
+
+        const parts = []
+        if (pQtd && pPot) parts.push(pQtd + ' painéis de ' + pPot + 'W')
+        if (iMarca) parts.push('Inversor ' + iMarca + (iPot ? ' ' + iPot + 'kW' : ''))
+        parts.push('Instalação em ' + tInst)
+        kitNotifInfo = ' [Kit: ' + parts.join(', ') + ']'
+      }
+
       notif.set(
         'mensagem',
         remetenteNome +
-          ' enviou ' +
+          ' enviou o dossiê técnico com ' +
           docsAtualizadosCount +
           ' documento(s) do cliente ' +
           leadNome +
-          ' para análise técnica e homologação.' +
+          ' para projeto e homologação.' +
+          kitNotifInfo +
           (observacao ? ' Nota: ' + observacao : ''),
       )
       notif.set('tipo', 'documentos_engenharia')
@@ -208,6 +374,8 @@ routerAdd(
           remetente_id: auth.id,
           remetente_nome: remetenteNome,
           enviado_em: nowIso,
+          dossie_id: dossieIdSalvo,
+          versao: dossieVersaoSalva,
         }),
       )
       $app.save(notif)
@@ -216,7 +384,7 @@ routerAdd(
       console.error('[enviar_engenheiro] Erro ao criar notificacao sino:', notifErr)
     }
 
-    // 7. Disparar e-mail transacional para o engenheiro
+    // 8. Disparar e-mail transacional para o engenheiro
     let emailEnviado = false
     let emailErroMsg = ''
     try {
@@ -239,6 +407,75 @@ routerAdd(
         else if (cat === 'procuracao') countProc++
       }
 
+      // Bloco HTML do Dossiê Técnico para Projeto
+      let dossieHtmlBlock = ''
+      if (dossiePayload) {
+        const clienteNome = dossiePayload.cliente_nome || leadNome
+        const clienteTel =
+          dossiePayload.cliente_telefone || leadRecord.getString('telefone') || 'Não informado'
+        const clienteEnd =
+          dossiePayload.endereco_instalacao ||
+          leadRecord.getString('endereco') ||
+          leadRecord.getString('cidade') + '/' + leadRecord.getString('estado') ||
+          'Não informado'
+        const uc = dossiePayload.unidade_consumidora || 'Não informada'
+        const consMed = dossiePayload.consumo_medio_kwh
+          ? dossiePayload.consumo_medio_kwh + ' kWh/mês'
+          : 'Não informado'
+
+        const pDesc =
+          (dossiePayload.paineis_quantidade ? dossiePayload.paineis_quantidade + 'x ' : '') +
+          (dossiePayload.paineis_modelo ? dossiePayload.paineis_modelo + ' ' : 'Painéis ') +
+          (dossiePayload.paineis_potencia_w ? dossiePayload.paineis_potencia_w + 'W' : '')
+
+        const iDesc =
+          (dossiePayload.inversor_quantidade ? dossiePayload.inversor_quantidade + 'x ' : '1x ') +
+          (dossiePayload.inversor_marca ? dossiePayload.inversor_marca + ' ' : 'Inversor ') +
+          (dossiePayload.inversor_modelo ? dossiePayload.inversor_modelo + ' ' : '') +
+          (dossiePayload.inversor_potencia_kw
+            ? '(' + dossiePayload.inversor_potencia_kw + ' kW)'
+            : '')
+
+        const tInstalacao = dossiePayload.tipo_instalacao === 'solo' ? 'Solo' : 'Telhado'
+        const tEstrutura = dossiePayload.tipo_estrutura_detalhe
+          ? ' (' + dossiePayload.tipo_estrutura_detalhe + ')'
+          : ''
+
+        dossieHtmlBlock =
+          '      <div style="margin: 18px 0; padding: 16px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px;">' +
+          '        <div style="font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">' +
+          '          ⚡ Dossiê Técnico para Projeto (Somente o Negociado)' +
+          '        </div>' +
+          '        <table style="width: 100%; font-size: 13px; color: #334155; line-height: 1.6;">' +
+          '          <tr><td style="width: 140px; font-weight: 700; color: #475569;">Cliente:</td><td><strong>' +
+          clienteNome +
+          '</strong></td></tr>' +
+          '          <tr><td style="font-weight: 700; color: #475569;">Contato:</td><td>' +
+          clienteTel +
+          '</td></tr>' +
+          '          <tr><td style="font-weight: 700; color: #475569;">Endereço/Local:</td><td>' +
+          clienteEnd +
+          '</td></tr>' +
+          '          <tr><td style="font-weight: 700; color: #475569;">Unidade Consumidora:</td><td><strong style="color: #0B7A5B;">' +
+          uc +
+          '</strong></td></tr>' +
+          '          <tr><td style="font-weight: 700; color: #475569;">Consumo Médio:</td><td>' +
+          consMed +
+          '</td></tr>' +
+          '          <tr><td style="font-weight: 700; color: #475569; padding-top: 6px; border-top: 1px dashed #e2e8f0;">Painéis:</td><td style="padding-top: 6px; border-top: 1px dashed #e2e8f0;"><strong>' +
+          pDesc +
+          '</strong></td></tr>' +
+          '          <tr><td style="font-weight: 700; color: #475569;">Inversor:</td><td><strong>' +
+          iDesc +
+          '</strong></td></tr>' +
+          '          <tr><td style="font-weight: 700; color: #475569;">Instalação:</td><td><span style="background: #e2e8f0; padding: 2px 8px; border-radius: 4px; font-weight: 700;">' +
+          tInstalacao +
+          tEstrutura +
+          '</span></td></tr>' +
+          '        </table>' +
+          '      </div>'
+      }
+
       const htmlBody =
         '<div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px 16px; background-color: #f8fafc;">' +
         '  <div style="background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">' +
@@ -246,8 +483,8 @@ routerAdd(
         '      <h1 style="margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">Ecosolar Energy — Engenharia</h1>' +
         '      <p style="margin: 6px 0 0 0; font-size: 13px; opacity: 0.92; font-weight: 500;">' +
         (isReenvio
-          ? 'Atualização de Documentos do Cliente'
-          : 'Novos Documentos Recebidos para Análise') +
+          ? 'Atualização de Dossiê e Documentos do Cliente'
+          : 'Novo Dossiê e Documentos para Elaboração de Projeto') +
         '</p>' +
         '    </div>' +
         '    <div style="padding: 24px; color: #1e293b; line-height: 1.6;">' +
@@ -257,14 +494,15 @@ routerAdd(
         '      <p style="font-size: 14px; color: #475569;">' +
         remetenteNome +
         (isReenvio
-          ? ' atualizou e reenviou os documentos técnicos do lead '
-          : ' acabou de enviar os documentos técnicos do lead ') +
+          ? ' atualizou e reenviou as informações negociadas e os documentos do lead '
+          : ' acabou de enviar o dossiê técnico e os documentos do lead ') +
         '<strong>' +
         leadNome +
-        '</strong> para sua conferência e homologação junto à concessionária.' +
+        '</strong> para você elaborar o projeto e solicitar a homologação junto à concessionária.' +
         '      </p>' +
+        dossieHtmlBlock +
         '      <div style="margin: 18px 0; padding: 16px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px;">' +
-        '        <div style="font-size: 12px; font-weight: 800; color: #166534; text-transform: uppercase; margin-bottom: 8px;">Resumo dos Arquivos Anexados (' +
+        '        <div style="font-size: 12px; font-weight: 800; color: #166534; text-transform: uppercase; margin-bottom: 8px;">Arquivos Anexados (' +
         docsAtualizadosCount +
         ' total)</div>' +
         '        <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #064e3b; line-height: 1.7;">' +
@@ -295,7 +533,7 @@ routerAdd(
         '        </a>' +
         '      </div>' +
         '      <p style="font-size: 11px; color: #64748b; text-align: center; margin-top: 14px;">' +
-        '        Você tem permissão exclusiva para visualizar e baixar todos os documentos anexados.' +
+        '        Você tem permissão exclusiva para visualizar o dossiê técnico e baixar todos os documentos anexados.' +
         '      </p>' +
         '    </div>' +
         '    <div style="padding: 14px 20px; background-color: #f1f5f9; border-top: 1px solid #e2e8f0; font-size: 11px; color: #64748b; text-align: center;">' +
@@ -315,9 +553,9 @@ routerAdd(
           to: [{ address: engEmail }],
           subject:
             (isReenvio ? '[REENVIO] ' : '') +
-            'Documentos do Lead ' +
+            'Dossiê Técnico & Documentos: ' +
             leadNome +
-            ' enviados para Engenharia',
+            ' para Engenharia',
           html: htmlBody,
         })
         mailClient.send(message)
@@ -333,9 +571,11 @@ routerAdd(
     return e.json(200, {
       success: true,
       message: isReenvio
-        ? 'Documentos reenviados ao engenheiro ' + engNome + ' com sucesso!'
-        : 'Documentos enviados ao engenheiro ' + engNome + ' com sucesso!',
+        ? 'Dossiê técnico e documentos reenviados ao engenheiro ' + engNome + ' com sucesso!'
+        : 'Dossiê técnico e documentos enviados ao engenheiro ' + engNome + ' com sucesso!',
       total_documentos: docsAtualizadosCount,
+      dossie_id: dossieIdSalvo,
+      dossie_versao: dossieVersaoSalva,
       engenheiro: {
         id: engenheiroId,
         nome: engNome,

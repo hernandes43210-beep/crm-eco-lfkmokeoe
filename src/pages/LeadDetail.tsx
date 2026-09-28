@@ -1861,6 +1861,7 @@ export default function LeadDetail() {
       {/* Nova Seção: Documentos do Lead para Engenharia (Documentos Pessoais, Conta, Datasheet, Procuração) */}
       <LeadDocumentosSection
         lead={lead}
+        propostas={propostas}
         isAdmin={isAdmin}
         currentUserId={user?.id}
         isEngenheiro={isEngenheiro}

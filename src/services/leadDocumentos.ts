@@ -3,6 +3,8 @@ import type {
   DocumentoLead,
   DocumentoLeadCategoria,
   DocumentoLeadStatusEnvio,
+  DossieTecnicoEngenharia,
+  TipoInstalacaoDossie,
   User,
 } from '@/types/crm'
 
@@ -11,6 +13,29 @@ export interface UploadDocumentoPayload {
   categoria: DocumentoLeadCategoria
   file: File
   userId?: string
+}
+
+export interface DossieTecnicoPayload {
+  cliente_nome?: string
+  cliente_telefone?: string
+  cliente_email?: string
+  cliente_cidade?: string
+  cliente_estado?: string
+  endereco_instalacao?: string
+  unidade_consumidora?: string
+  consumo_medio_kwh?: number
+  kit_nome?: string
+  potencia_total_kwp?: number
+  paineis_quantidade?: number
+  paineis_modelo?: string
+  paineis_potencia_w?: number
+  inversor_marca?: string
+  inversor_modelo?: string
+  inversor_potencia_kw?: number
+  inversor_quantidade?: number
+  tipo_instalacao?: TipoInstalacaoDossie
+  tipo_estrutura_detalhe?: string
+  observacoes?: string
 }
 
 export interface EnviarEngenheiroResponse {
@@ -25,6 +50,8 @@ export interface EnviarEngenheiroResponse {
   email_enviado: boolean
   email_erro?: string
   data_envio: string
+  dossie_id?: string
+  dossie_versao?: number
 }
 
 export const CATEGORIAS_DOCUMENTOS: Array<{
@@ -152,11 +179,53 @@ export const LeadDocumentosService = {
     engenheiroId: string
     observacao?: string
     isReenvio?: boolean
+    dossie?: DossieTecnicoPayload
   }): Promise<EnviarEngenheiroResponse> {
     return await pb.send<EnviarEngenheiroResponse>('/backend/v1/documentos/enviar-engenheiro', {
       method: 'POST',
       body: params,
     })
+  },
+
+  /**
+   * Busca o último dossiê técnico de engenharia registrado para um lead
+   */
+  async getLatestDossieByLead(leadId: string): Promise<DossieTecnicoEngenharia | null> {
+    try {
+      const records = await pb
+        .collection('dossies_engenharia')
+        .getList<DossieTecnicoEngenharia>(1, 1, {
+          filter: `lead = "${leadId}"`,
+          sort: '-created',
+          requestKey: null,
+        })
+      return records.items[0] || null
+    } catch (err) {
+      console.warn('Nenhum dossiê anterior encontrado para o lead:', err)
+      return null
+    }
+  },
+
+  /**
+   * Busca todos os dossiês direcionados ao engenheiro logado (ou todos para Admin)
+   */
+  async getDossiesByEngenheiro(
+    engenheiroId: string,
+    isAdmin = false,
+  ): Promise<DossieTecnicoEngenharia[]> {
+    try {
+      const options: { sort: string; requestKey: null; filter?: string } = {
+        sort: '-created',
+        requestKey: null,
+      }
+      if (!isAdmin) {
+        options.filter = `engenheiro_destino = "${engenheiroId}"`
+      }
+      return await pb.collection('dossies_engenharia').getFullList<DossieTecnicoEngenharia>(options)
+    } catch (err) {
+      console.error('Erro ao buscar dossiês do engenheiro:', err)
+      return []
+    }
   },
 
   /**

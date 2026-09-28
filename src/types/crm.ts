@@ -24,6 +24,47 @@ export type DocumentoLeadCategoria =
 
 export type DocumentoLeadStatusEnvio = 'pendente' | 'enviado' | 'reenviado'
 
+export type TipoInstalacaoDossie = 'telhado' | 'solo' | 'outro'
+
+export interface DossieTecnicoEngenharia extends RecordModel {
+  id: string
+  lead: string
+  engenheiro_destino?: string
+  enviado_por?: string
+  // Dados do Lead / Cliente
+  cliente_nome?: string
+  cliente_telefone?: string
+  cliente_email?: string
+  cliente_cidade?: string
+  cliente_estado?: string
+  endereco_instalacao?: string
+  unidade_consumidora?: string
+  consumo_medio_kwh?: number
+  // Equipamentos e Kit Negociado
+  kit_nome?: string
+  potencia_total_kwp?: number
+  paineis_quantidade?: number
+  paineis_modelo?: string
+  paineis_potencia_w?: number
+  inversor_marca?: string
+  inversor_modelo?: string
+  inversor_potencia_kw?: number
+  inversor_quantidade?: number
+  tipo_instalacao?: TipoInstalacaoDossie
+  tipo_estrutura_detalhe?: string
+  observacoes?: string
+  versao?: number
+  dados_extras?: Record<string, unknown>
+  enviado_em?: string
+  created: string
+  updated: string
+  expand?: {
+    lead?: Lead
+    engenheiro_destino?: User
+    enviado_por?: User
+  }
+}
+
 export interface DocumentoLead extends RecordModel {
   id: string
   lead: string

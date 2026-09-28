@@ -2,22 +2,26 @@ import React, { useState, useEffect } from 'react'
 import {
   FolderOpen,
   Download,
-  Calendar,
   CheckCircle2,
   Clock,
   User as UserIcon,
   Search,
-  ExternalLink,
-  ShieldAlert,
   FileCheck,
   FileText,
-  BadgeAlert,
   MapPin,
   Phone,
   RefreshCw,
+  SunMedium,
+  Zap,
+  Cpu,
+  Layers,
+  ChevronDown,
+  ChevronUp,
+  FileSpreadsheet,
+  AlertCircle,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-import type { DocumentoLead } from '@/types/crm'
+import type { DocumentoLead, DossieTecnicoEngenharia } from '@/types/crm'
 import { CATEGORIAS_DOCUMENTOS, LeadDocumentosService } from '@/services/leadDocumentos'
 import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -29,22 +33,40 @@ import { formatDateBR, formatDateTimeBR } from '@/lib/solarUtils'
 export default function MeusDocumentosEngenharia() {
   const { user, isEngenheiro, isAdmin } = useAuth()
   const [documentos, setDocumentos] = useState<DocumentoLead[]>([])
+  const [dossies, setDossies] = useState<DossieTecnicoEngenharia[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [categoriaFilter, setCategoriaFilter] = useState<string>('todas')
   const [statusFilter, setStatusFilter] = useState<string>('todos')
+  const [expandedLeads, setExpandedLeads] = useState<Record<string, boolean>>({})
 
   const fetchDocumentos = async () => {
     if (!user?.id) return
     try {
       setLoading(true)
-      const docs = await LeadDocumentosService.getDocumentosByEngenheiro(user.id)
+      const [docs, dossiesData] = await Promise.all([
+        LeadDocumentosService.getDocumentosByEngenheiro(user.id),
+        LeadDocumentosService.getDossiesByEngenheiro(user.id, isAdmin),
+      ])
       setDocumentos(docs)
+      setDossies(dossiesData)
+
+      // Por padrão expande todos os cards
+      const expMap: Record<string, boolean> = {}
+      docs.forEach((d) => {
+        const lid = d.lead || 'sem_lead'
+        expMap[lid] = true
+      })
+      dossiesData.forEach((ds) => {
+        const lid = ds.lead || 'sem_lead'
+        expMap[lid] = true
+      })
+      setExpandedLeads(expMap)
     } catch (err) {
-      console.error('Erro ao buscar documentos da engenharia:', err)
+      console.error('Erro ao buscar documentos e dossiês da engenharia:', err)
       toast({
         title: 'Erro ao carregar documentos',
-        description: 'Não foi possível carregar os documentos direcionados a você.',
+        description: 'Não foi possível carregar os dados direcionados a você.',
         variant: 'destructive',
       })
     } finally {
@@ -55,6 +77,13 @@ export default function MeusDocumentosEngenharia() {
   useEffect(() => {
     fetchDocumentos()
   }, [user?.id])
+
+  const toggleLeadExpanded = (leadId: string) => {
+    setExpandedLeads((prev) => ({
+      ...prev,
+      [leadId]: !prev[leadId],
+    }))
+  }
 
   const handleDownload = async (doc: DocumentoLead) => {
     const url = LeadDocumentosService.getFileUrl(doc)
@@ -84,15 +113,34 @@ export default function MeusDocumentosEngenharia() {
     window.open(url, '_blank')
   }
 
+  // Mapa de dossiês mais recentes por lead
+  const dossiePorLead = dossies.reduce<Record<string, DossieTecnicoEngenharia>>((acc, ds) => {
+    const lid = ds.lead || 'sem_lead'
+    if (!acc[lid]) {
+      acc[lid] = ds
+    }
+    return acc
+  }, {})
+
   // Filtragem
   const filteredDocs = documentos.filter((doc) => {
     const leadNome = doc.expand?.lead?.nome?.toLowerCase() || ''
     const leadCidade = doc.expand?.lead?.cidade?.toLowerCase() || ''
     const docNome = (doc.nome_original || doc.arquivo || '').toLowerCase()
+    const ds = dossiePorLead[doc.lead]
+    const dsCliente = ds?.cliente_nome?.toLowerCase() || ''
+    const dsCidade = ds?.cliente_cidade?.toLowerCase() || ''
+    const dsUc = ds?.unidade_consumidora?.toLowerCase() || ''
     const query = search.toLowerCase().trim()
 
     const matchesSearch =
-      !query || leadNome.includes(query) || leadCidade.includes(query) || docNome.includes(query)
+      !query ||
+      leadNome.includes(query) ||
+      leadCidade.includes(query) ||
+      docNome.includes(query) ||
+      dsCliente.includes(query) ||
+      dsCidade.includes(query) ||
+      dsUc.includes(query)
 
     const matchesCategoria = categoriaFilter === 'todas' || doc.categoria === categoriaFilter
 
@@ -104,25 +152,58 @@ export default function MeusDocumentosEngenharia() {
     return matchesSearch && matchesCategoria && matchesStatus
   })
 
-  // Agrupamento por lead para visualização mais limpa
-  const groupedByLead = filteredDocs.reduce<Record<string, { lead: any; docs: DocumentoLead[] }>>(
-    (acc, doc) => {
-      const leadId = doc.lead || 'sem_lead'
-      if (!acc[leadId]) {
-        acc[leadId] = {
-          lead: doc.expand?.lead || {
-            nome: 'Lead não identificado',
-            cidade: '',
-            telefone: '',
+  // Agrupamento por lead combinando documentos e dossiê técnico
+  const groupedByLead = filteredDocs.reduce<
+    Record<
+      string,
+      {
+        lead: any
+        dossie?: DossieTecnicoEngenharia
+        docs: DocumentoLead[]
+      }
+    >
+  >((acc, doc) => {
+    const leadId = doc.lead || 'sem_lead'
+    const ds = dossiePorLead[leadId]
+    if (!acc[leadId]) {
+      acc[leadId] = {
+        lead: doc.expand?.lead || {
+          nome: ds?.cliente_nome || 'Lead sem nome',
+          cidade: ds?.cliente_cidade || '',
+          telefone: ds?.cliente_telefone || '',
+        },
+        dossie: ds,
+        docs: [],
+      }
+    }
+    acc[leadId].docs.push(doc)
+    return acc
+  }, {})
+
+  // Inclui também leads que tenham dossiê mesmo que os filtros de categoria/status não correspondam a documentos
+  if (categoriaFilter === 'todas' && statusFilter === 'todos') {
+    dossies.forEach((ds) => {
+      const leadId = ds.lead || 'sem_lead'
+      const query = search.toLowerCase().trim()
+      const matchesSearch =
+        !query ||
+        (ds.cliente_nome && ds.cliente_nome.toLowerCase().includes(query)) ||
+        (ds.cliente_cidade && ds.cliente_cidade.toLowerCase().includes(query)) ||
+        (ds.unidade_consumidora && ds.unidade_consumidora.toLowerCase().includes(query))
+
+      if (matchesSearch && !groupedByLead[leadId]) {
+        groupedByLead[leadId] = {
+          lead: {
+            nome: ds.cliente_nome || 'Cliente',
+            cidade: ds.cliente_cidade || '',
+            telefone: ds.cliente_telefone || '',
           },
-          docs: [],
+          dossie: ds,
+          docs: documentos.filter((d) => d.lead === leadId),
         }
       }
-      acc[leadId].docs.push(doc)
-      return acc
-    },
-    {},
-  )
+    })
+  }
 
   const getCategoryMeta = (categoria: string) => {
     return (
@@ -297,27 +378,45 @@ export default function MeusDocumentosEngenharia() {
               key={lead.id || Math.random().toString()}
               className="border-slate-200/90 shadow-2xs bg-white overflow-hidden"
             >
-              {/* Header do Lead */}
-              <CardHeader className="py-3 px-4 bg-slate-50/70 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              {/* Header do Lead com botão de expandir/recolher */}
+              <CardHeader
+                className="py-3 px-4 bg-gradient-to-r from-slate-50/90 via-white to-slate-50/50 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 cursor-pointer select-none"
+                onClick={() => toggleLeadExpanded(lead.id || 'sem_lead')}
+              >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-[#0B7A5B] font-bold text-xs flex items-center justify-center border border-emerald-200 shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-100 text-[#0B7A5B] font-bold text-xs flex items-center justify-center border border-emerald-200 shrink-0">
                     {(lead.nome || 'L').slice(0, 2).toUpperCase()}
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900 leading-tight">
-                      {lead.nome || 'Cliente sem nome'}
-                    </h3>
-                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 mt-0.5">
-                      {lead.cidade && (
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                        {lead.nome || 'Cliente sem nome'}
+                      </h3>
+                      {dossie?.versao && (
+                        <Badge
+                          variant="outline"
+                          className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px] font-semibold"
+                        >
+                          v{dossie.versao}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 mt-0.5">
+                      {(lead.cidade || dossie?.cliente_cidade) && (
                         <span className="flex items-center gap-1">
                           <MapPin className="w-3 h-3 text-[#0B7A5B]" />
-                          <span>{lead.cidade}</span>
+                          <span>{dossie?.cliente_cidade || lead.cidade}</span>
                         </span>
                       )}
-                      {lead.telefone && (
+                      {(lead.telefone || dossie?.cliente_telefone) && (
                         <span className="flex items-center gap-1">
                           <Phone className="w-3 h-3 text-slate-400" />
-                          <span>{lead.telefone}</span>
+                          <span>{dossie?.cliente_telefone || lead.telefone}</span>
+                        </span>
+                      )}
+                      {dossie?.unidade_consumidora && (
+                        <span className="flex items-center gap-1 font-semibold text-emerald-800">
+                          <span>UC: {dossie.unidade_consumidora}</span>
                         </span>
                       )}
                     </div>
@@ -329,117 +428,281 @@ export default function MeusDocumentosEngenharia() {
                     variant="outline"
                     className="bg-emerald-50 text-emerald-800 border-emerald-200 text-xs font-semibold"
                   >
-                    {docs.length} {docs.length === 1 ? 'arquivo anexado' : 'arquivos anexados'}
+                    {docs.length} {docs.length === 1 ? 'arquivo' : 'arquivos'}
                   </Badge>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-slate-400 hover:text-slate-700"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toggleLeadExpanded(lead.id || 'sem_lead')
+                    }}
+                  >
+                    {expandedLeads[lead.id || 'sem_lead'] ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </Button>
                 </div>
               </CardHeader>
 
-              {/* Tabela de Arquivos do Lead */}
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-slate-100 bg-white text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                        <th className="py-2.5 px-4">Documento</th>
-                        <th className="py-2.5 px-4">Categoria Técnica</th>
-                        <th className="py-2.5 px-4">Enviado por</th>
-                        <th className="py-2.5 px-4">Data Envio</th>
-                        <th className="py-2.5 px-4">Status</th>
-                        <th className="py-2.5 px-4 text-right">Ação</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {docs.map((doc) => {
-                        const meta = getCategoryMeta(doc.categoria)
-                        const isVisualizado = !!doc.visualizado_em
-                        const remetente =
-                          doc.expand?.enviado_por?.name ||
-                          doc.expand?.enviado_por?.email ||
-                          'Equipe Comercial'
+              {/* SEÇÃO: Dados para Projeto (Dossiê Técnico Negociado) */}
+              {dossie && (
+                <div className="p-4 bg-slate-50/40 border-b border-slate-200/80 space-y-3">
+                  <div className="flex items-center justify-between pb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-md bg-emerald-100 text-[#0B7A5B] flex items-center justify-center">
+                        <Cpu className="w-3.5 h-3.5" />
+                      </div>
+                      <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
+                        Dados para Projeto (Somente o Negociado)
+                      </h4>
+                    </div>
+                    {dossie.enviado_em && (
+                      <span className="text-[11px] text-slate-400">
+                        Enviado em {formatDateTimeBR(dossie.enviado_em)}
+                      </span>
+                    )}
+                  </div>
 
-                        return (
-                          <tr
-                            key={doc.id}
-                            className={`hover:bg-slate-50/60 transition-colors ${
-                              !isVisualizado ? 'bg-amber-50/30 font-medium' : ''
-                            }`}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* Card 1: Cliente & Contato */}
+                    <div className="bg-white p-3 rounded-lg border border-slate-200/90 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                        Cliente & Contato
+                      </span>
+                      <p className="text-xs font-bold text-slate-900 truncate">
+                        {dossie.cliente_nome || lead.nome}
+                      </p>
+                      <p className="text-xs text-slate-600 flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-slate-400 shrink-0" />
+                        <span>{dossie.cliente_telefone || lead.telefone || 'Não informado'}</span>
+                      </p>
+                      {dossie.cliente_email && (
+                        <p
+                          className="text-[11px] text-slate-500 truncate"
+                          title={dossie.cliente_email}
+                        >
+                          {dossie.cliente_email}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Card 2: Local & Unidade Consumidora */}
+                    <div className="bg-white p-3 rounded-lg border border-slate-200/90 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                        Local & Unidade Consumidora
+                      </span>
+                      <p
+                        className="text-xs text-slate-700 leading-snug line-clamp-2"
+                        title={dossie.endereco_instalacao}
+                      >
+                        <MapPin className="w-3 h-3 text-[#0B7A5B] inline mr-1" />
+                        {dossie.endereco_instalacao || lead.cidade || 'Não informado'}
+                      </p>
+                      <div className="pt-0.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+                        <span className="text-slate-500">UC:</span>
+                        <strong className="text-[#0B7A5B] font-mono-numbers">
+                          {dossie.unidade_consumidora || 'Não informada'}
+                        </strong>
+                      </div>
+                      {dossie.consumo_medio_kwh !== undefined && (
+                        <p className="text-[11px] text-slate-500">
+                          Consumo:{' '}
+                          <strong className="text-slate-800">
+                            {dossie.consumo_medio_kwh} kWh/mês
+                          </strong>
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Card 3: Kit Negociado - Painéis */}
+                    <div className="bg-white p-3 rounded-lg border border-amber-200/90 shadow-2xs space-y-1 bg-amber-50/20">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1">
+                          <SunMedium className="w-3 h-3 text-amber-600" />
+                          Painéis Negociados
+                        </span>
+                        {dossie.paineis_quantidade && dossie.paineis_potencia_w ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] px-1 py-0 bg-amber-100 text-amber-900 border-amber-300 font-bold font-mono-numbers"
                           >
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2.5 max-w-sm">
-                                {getFileBadge(doc.nome_original || doc.arquivo)}
-                                <div className="truncate">
-                                  <span
-                                    className="text-slate-800 font-semibold hover:text-[#0B7A5B] cursor-pointer truncate block"
-                                    onClick={() => handleDownload(doc)}
-                                    title={doc.nome_original || doc.arquivo}
-                                  >
-                                    {doc.nome_original || doc.arquivo}
-                                  </span>
-                                  <span className="text-[10px] text-slate-400">
-                                    {LeadDocumentosService.formatFileSize(doc.tamanho_bytes)}
-                                  </span>
-                                </div>
-                              </div>
-                            </td>
+                            {Math.round(
+                              (dossie.paineis_quantidade * dossie.paineis_potencia_w) / 10,
+                            ) / 100}{' '}
+                            kWp
+                          </Badge>
+                        ) : null}
+                      </div>
 
-                            <td className="py-3 px-4">
-                              <span className="inline-flex items-center gap-1 text-slate-700 font-medium">
-                                {meta.label}
-                              </span>
-                            </td>
+                      <p className="text-xs font-bold text-slate-900">
+                        {dossie.paineis_quantidade
+                          ? `${dossie.paineis_quantidade}x painéis de ${dossie.paineis_potencia_w || 630}W`
+                          : 'Painéis fotovoltaicos'}
+                      </p>
+                      <p className="text-[11px] text-slate-600 truncate">
+                        Modelo: <strong>{dossie.paineis_modelo || 'Padrão fornecido'}</strong>
+                      </p>
+                    </div>
 
-                            <td className="py-3 px-4 text-slate-600">
-                              <div className="flex items-center gap-1.5">
-                                <UserIcon className="w-3 h-3 text-slate-400 shrink-0" />
-                                <span className="truncate max-w-[130px]">{remetente}</span>
-                              </div>
-                            </td>
+                    {/* Card 4: Inversor & Estrutura */}
+                    <div className="bg-white p-3 rounded-lg border border-blue-200/90 shadow-2xs space-y-1 bg-blue-50/20">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-800 flex items-center gap-1">
+                        <Zap className="w-3 h-3 text-blue-600" />
+                        Inversor & Estrutura
+                      </span>
 
-                            <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
-                              {doc.enviado_em
-                                ? formatDateTimeBR(doc.enviado_em)
-                                : formatDateBR(doc.created)}
-                            </td>
+                      <p className="text-xs font-bold text-slate-900">
+                        {dossie.inversor_quantidade ? `${dossie.inversor_quantidade}x ` : ''}
+                        Inversor {dossie.inversor_marca || 'Sungrow'}
+                        {dossie.inversor_potencia_kw ? ` ${dossie.inversor_potencia_kw} kW` : ''}
+                      </p>
 
-                            <td className="py-3 px-4">
-                              {isVisualizado ? (
-                                <Badge
-                                  variant="outline"
-                                  className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold gap-1"
-                                >
-                                  <CheckCircle2 className="w-3 h-3" />
-                                  <span>Visualizado</span>
-                                </Badge>
-                              ) : (
-                                <Badge
-                                  variant="outline"
-                                  className="bg-amber-50 text-amber-800 border-amber-300 text-[10px] font-bold gap-1 animate-pulse"
-                                >
-                                  <Clock className="w-3 h-3 text-amber-600" />
-                                  <span>Novo</span>
-                                </Badge>
-                              )}
-                            </td>
+                      <div className="pt-0.5 flex flex-wrap items-center gap-1 text-[11px]">
+                        <span className="text-slate-500">Instalação:</span>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] px-1.5 py-0 font-bold ${
+                            dossie.tipo_instalacao === 'solo'
+                              ? 'bg-amber-100 text-amber-900 border-amber-300'
+                              : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                          }`}
+                        >
+                          {dossie.tipo_instalacao === 'solo' ? 'Solo' : 'Telhado'}
+                        </Badge>
+                        {dossie.tipo_estrutura_detalhe && (
+                          <span className="text-[10px] text-slate-500 truncate">
+                            ({dossie.tipo_estrutura_detalhe})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
-                            <td className="py-3 px-4 text-right">
-                              <Button
-                                type="button"
-                                size="sm"
-                                onClick={() => handleDownload(doc)}
-                                className="h-7.5 px-3 text-xs bg-[#0B7A5B] hover:bg-[#095C44] text-white font-semibold gap-1.5 shadow-2xs"
-                                title="Baixar / Visualizar arquivo"
-                              >
-                                <Download className="w-3.5 h-3.5" />
-                                <span>Baixar</span>
-                              </Button>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
+                  {dossie.observacoes && (
+                    <div className="p-2.5 rounded-lg bg-white border border-slate-200 text-xs text-slate-700 flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-slate-900">Observações da equipe comercial:</strong>{' '}
+                        <span>{dossie.observacoes}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </CardContent>
+              )}
+
+              {/* Tabela de Arquivos do Lead */}
+              {expandedLeads[lead.id || 'sem_lead'] && (
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-100 bg-white text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          <th className="py-2.5 px-4">Documento</th>
+                          <th className="py-2.5 px-4">Categoria Técnica</th>
+                          <th className="py-2.5 px-4">Enviado por</th>
+                          <th className="py-2.5 px-4">Data Envio</th>
+                          <th className="py-2.5 px-4">Status</th>
+                          <th className="py-2.5 px-4 text-right">Ação</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {docs.map((doc) => {
+                          const meta = getCategoryMeta(doc.categoria)
+                          const isVisualizado = !!doc.visualizado_em
+                          const remetente =
+                            doc.expand?.enviado_por?.name ||
+                            doc.expand?.enviado_por?.email ||
+                            'Equipe Comercial'
+
+                          return (
+                            <tr
+                              key={doc.id}
+                              className={`hover:bg-slate-50/60 transition-colors ${
+                                !isVisualizado ? 'bg-amber-50/30 font-medium' : ''
+                              }`}
+                            >
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-2.5 max-w-sm">
+                                  {getFileBadge(doc.nome_original || doc.arquivo)}
+                                  <div className="truncate">
+                                    <span
+                                      className="text-slate-800 font-semibold hover:text-[#0B7A5B] cursor-pointer truncate block"
+                                      onClick={() => handleDownload(doc)}
+                                      title={doc.nome_original || doc.arquivo}
+                                    >
+                                      {doc.nome_original || doc.arquivo}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400">
+                                      {LeadDocumentosService.formatFileSize(doc.tamanho_bytes)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-4">
+                                <span className="inline-flex items-center gap-1 text-slate-700 font-medium">
+                                  {meta.label}
+                                </span>
+                              </td>
+
+                              <td className="py-3 px-4 text-slate-600">
+                                <div className="flex items-center gap-1.5">
+                                  <UserIcon className="w-3 h-3 text-slate-400 shrink-0" />
+                                  <span className="truncate max-w-[130px]">{remetente}</span>
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
+                                {doc.enviado_em
+                                  ? formatDateTimeBR(doc.enviado_em)
+                                  : formatDateBR(doc.created)}
+                              </td>
+
+                              <td className="py-3 px-4">
+                                {isVisualizado ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold gap-1"
+                                  >
+                                    <CheckCircle2 className="w-3 h-3" />
+                                    <span>Visualizado</span>
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-amber-50 text-amber-800 border-amber-300 text-[10px] font-bold gap-1 animate-pulse"
+                                  >
+                                    <Clock className="w-3 h-3 text-amber-600" />
+                                    <span>Novo</span>
+                                  </Badge>
+                                )}
+                              </td>
+
+                              <td className="py-3 px-4 text-right">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => handleDownload(doc)}
+                                  className="h-7.5 px-3 text-xs bg-[#0B7A5B] hover:bg-[#095C44] text-white font-semibold gap-1.5 shadow-2xs"
+                                  title="Baixar / Visualizar arquivo"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                  <span>Baixar</span>
+                                </Button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              )}
             </Card>
           ))}
         </div>
