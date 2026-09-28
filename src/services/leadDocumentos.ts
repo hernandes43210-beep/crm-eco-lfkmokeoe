@@ -238,6 +238,15 @@ export const LeadDocumentosService = {
   },
 
   /**
+   * Marca um dossiê técnico como visualizado pelo engenheiro
+   */
+  async marcarDossieComoVisualizado(dossieId: string): Promise<DossieTecnicoEngenharia> {
+    return await pb.collection('dossies_engenharia').update<DossieTecnicoEngenharia>(dossieId, {
+      visualizado_em: new Date().toISOString(),
+    })
+  },
+
+  /**
    * Obtém a URL de download/visualização do arquivo no PocketBase
    */
   getFileUrl(doc: DocumentoLead): string {

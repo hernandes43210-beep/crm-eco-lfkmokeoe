@@ -56,6 +56,7 @@ export interface DossieTecnicoEngenharia extends RecordModel {
   versao?: number
   dados_extras?: Record<string, unknown>
   enviado_em?: string
+  visualizado_em?: string
   created: string
   updated: string
   expand?: {

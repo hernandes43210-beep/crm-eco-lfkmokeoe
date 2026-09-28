@@ -13,6 +13,7 @@ import {
   UserCheck,
   Zap,
   Cpu,
+  SunMedium,
   FileSignature,
   FileSpreadsheet,
   Image as ImageIcon,
@@ -163,7 +164,117 @@ export function LeadDocumentosSection({
     (d) => !d.status_envio || d.status_envio === 'pendente',
   )
   const jaEnviadoAnteriormente = documentosEnviados.length > 0
-  const temDocsNovosParaReenviar = jaEnviadoAnteriormente && documentosPendentes.length > 0
+
+  // 1. Prioriza proposta aceita, ou a mais recente gerada para o lead
+  const propAceita = propostas.find((p) => p.status === 'Aceita')
+  const propMaisRecente = propAceita || (propostas.length > 0 ? propostas[0] : null)
+
+  // 2. Extrai componentes do kit se houver proposta
+  let componentesKitAtual: ReturnType<typeof extrairComponentesKit> | null = null
+  if (propMaisRecente) {
+    componentesKitAtual = extrairComponentesKit({
+      nome: propMaisRecente.kit_nome,
+      fabricante: propMaisRecente.kit_fabricante,
+      potencia_kw: propMaisRecente.kit_potencia_kw,
+      descricao: propMaisRecente.kit_descricao,
+    })
+  }
+
+  // 3. Inferir tipo de instalação atual
+  let tipoInstalacaoAtual: TipoInstalacaoDossie = 'telhado'
+  let detalheEstruturaAtual = ''
+  if (componentesKitAtual?.tipoEstrutura) {
+    detalheEstruturaAtual = componentesKitAtual.tipoEstrutura
+    if (/solo/i.test(componentesKitAtual.tipoEstrutura)) {
+      tipoInstalacaoAtual = 'solo'
+    } else {
+      tipoInstalacaoAtual = 'telhado'
+    }
+  } else if (propMaisRecente?.kit_nome && /solo/i.test(propMaisRecente.kit_nome)) {
+    tipoInstalacaoAtual = 'solo'
+    detalheEstruturaAtual = 'Solo monoposte'
+  }
+
+  // Detecta atualizações na negociação / dossiê em relação ao último envio
+  const alteracoesNegociacao: string[] = []
+  if (ultimoDossie && jaEnviadoAnteriormente) {
+    // Verificar se kit mudou
+    const kitAtualNome =
+      propMaisRecente?.kit_nome ||
+      (componentesKitAtual
+        ? `${componentesKitAtual.qtdPaineis}x ${componentesKitAtual.potenciaPainelW}W + Inversor ${componentesKitAtual.marcaInversor}`
+        : '')
+    if (
+      kitAtualNome &&
+      ultimoDossie.kit_nome &&
+      kitAtualNome.trim() !== ultimoDossie.kit_nome.trim()
+    ) {
+      alteracoesNegociacao.push('Kit solar alterado')
+    }
+
+    // Verificar se potência mudou
+    if (
+      propMaisRecente?.kit_potencia_kw &&
+      ultimoDossie.potencia_total_kwp &&
+      Math.abs(propMaisRecente.kit_potencia_kw - ultimoDossie.potencia_total_kwp) > 0.05
+    ) {
+      alteracoesNegociacao.push('Potência do sistema alterada')
+    }
+
+    // Verificar tipo de instalação
+    if (
+      tipoInstalacaoAtual &&
+      ultimoDossie.tipo_instalacao &&
+      tipoInstalacaoAtual !== ultimoDossie.tipo_instalacao
+    ) {
+      alteracoesNegociacao.push('Tipo de instalação modificado')
+    }
+
+    // Verificar endereço de instalação
+    const enderecoAtual = [lead.endereco, lead.bairro, lead.cidade, lead.estado]
+      .filter(Boolean)
+      .join(', ')
+    if (
+      enderecoAtual &&
+      ultimoDossie.endereco_instalacao &&
+      enderecoAtual.trim() !== ultimoDossie.endereco_instalacao.trim()
+    ) {
+      alteracoesNegociacao.push('Endereço do lead atualizado')
+    }
+
+    // Verificar consumo médio
+    if (
+      lead.consumo_mensal_kwh &&
+      ultimoDossie.consumo_medio_kwh &&
+      lead.consumo_mensal_kwh !== ultimoDossie.consumo_medio_kwh
+    ) {
+      alteracoesNegociacao.push('Consumo médio editado')
+    }
+
+    // Verificar se a ficha do lead ou proposta foi atualizada após o último envio do dossiê
+    const ultimoEnvioTimestamp = ultimoDossie.enviado_em
+      ? new Date(ultimoDossie.enviado_em).getTime()
+      : 0
+    if (ultimoEnvioTimestamp > 0) {
+      const leadUpdatedTimestamp = lead.updated ? new Date(lead.updated).getTime() : 0
+      const propUpdatedTimestamp = propMaisRecente?.updated
+        ? new Date(propMaisRecente.updated).getTime()
+        : 0
+      // Tolerância de 5 segundos para ignorar o próprio update gerado pelo envio
+      if (leadUpdatedTimestamp - ultimoEnvioTimestamp > 5000 && alteracoesNegociacao.length === 0) {
+        alteracoesNegociacao.push('Dados do lead atualizados')
+      } else if (
+        propUpdatedTimestamp - ultimoEnvioTimestamp > 5000 &&
+        alteracoesNegociacao.length === 0
+      ) {
+        alteracoesNegociacao.push('Negociação da proposta atualizada')
+      }
+    }
+  }
+
+  const pendenciasCount = documentosPendentes.length + alteracoesNegociacao.length
+  const temPendenciasParaReenviar = jaEnviadoAnteriormente && pendenciasCount > 0
+  const temDocsNovosParaReenviar = temPendenciasParaReenviar
 
   // Último engenheiro de destino registrado
   const ultimoEngenheiroDestino = documentos.find((d) => d.engenheiro_destino)?.expand
@@ -301,61 +412,74 @@ export function LeadDocumentosSection({
       detalheEstruturaDeduzido = 'Solo monoposte'
     }
 
-    // 4. Se já existia um dossiê anterior salvo para este lead, usar como base ou complementar
+    // 4. Se já existia um dossiê anterior salvo para este lead, usar os dados mais atualizados da proposta/lead
+    // para que qualquer edição recente na negociação seja refletida no formulário de reenvio
     if (ultimoDossie) {
+      const enderecoAtualizado = [lead.endereco, lead.bairro, lead.cidade, lead.estado]
+        .filter(Boolean)
+        .join(', ')
+
       return {
-        cliente_nome: ultimoDossie.cliente_nome || lead.nome,
-        cliente_telefone: ultimoDossie.cliente_telefone || lead.telefone || '',
-        cliente_email: ultimoDossie.cliente_email || lead.email || '',
-        cliente_cidade: ultimoDossie.cliente_cidade || lead.cidade || '',
-        cliente_estado: ultimoDossie.cliente_estado || lead.estado || '',
+        cliente_nome: lead.nome || ultimoDossie.cliente_nome,
+        cliente_telefone: lead.telefone || ultimoDossie.cliente_telefone || '',
+        cliente_email: lead.email || ultimoDossie.cliente_email || '',
+        cliente_cidade: lead.cidade || ultimoDossie.cliente_cidade || '',
+        cliente_estado: lead.estado || ultimoDossie.cliente_estado || '',
         endereco_instalacao:
-          ultimoDossie.endereco_instalacao ||
-          lead.endereco ||
-          (lead.bairro ? `${lead.bairro}, ${lead.cidade || ''}` : lead.cidade || ''),
+          enderecoAtualizado || ultimoDossie.endereco_instalacao || lead.cidade || '',
         unidade_consumidora: ultimoDossie.unidade_consumidora || '',
         consumo_medio_kwh:
-          ultimoDossie.consumo_medio_kwh !== undefined
-            ? ultimoDossie.consumo_medio_kwh
-            : lead.consumo_mensal_kwh || undefined,
+          lead.consumo_mensal_kwh !== undefined && lead.consumo_mensal_kwh !== null
+            ? lead.consumo_mensal_kwh
+            : ultimoDossie.consumo_medio_kwh,
         kit_nome:
-          ultimoDossie.kit_nome ||
           propMaisRecente?.kit_nome ||
           (componentesKit
-            ? `${componentesKit.qtdPaineis} painéis de ${componentesKit.potenciaPainelW}W + Inversor ${componentesKit.marcaInversor}`
-            : ''),
+            ? `${componentesKit.qtdPaineis}x ${componentesKit.potenciaPainelW}W + Inversor ${componentesKit.marcaInversor}`
+            : ultimoDossie.kit_nome || ''),
         potencia_total_kwp:
-          ultimoDossie.potencia_total_kwp ||
-          propMaisRecente?.kit_potencia_kw ||
-          (componentesKit && componentesKit.qtdPaineis && componentesKit.potenciaPainelW
-            ? Math.round((componentesKit.qtdPaineis * componentesKit.potenciaPainelW) / 10) / 100
-            : undefined),
+          propMaisRecente?.kit_potencia_kw !== undefined &&
+          propMaisRecente?.kit_potencia_kw !== null
+            ? propMaisRecente.kit_potencia_kw
+            : componentesKit && componentesKit.qtdPaineis && componentesKit.potenciaPainelW
+              ? Math.round((componentesKit.qtdPaineis * componentesKit.potenciaPainelW) / 10) / 100
+              : ultimoDossie.potencia_total_kwp,
         paineis_quantidade:
-          ultimoDossie.paineis_quantidade !== undefined
-            ? ultimoDossie.paineis_quantidade
-            : componentesKit?.qtdPaineis || 10,
-        paineis_modelo:
-          ultimoDossie.paineis_modelo ||
-          (componentesKit
-            ? `${componentesKit.marcaPaineis || 'Módulo'} ${componentesKit.potenciaPainelW}W`
-            : 'Painel Solar'),
+          componentesKit?.qtdPaineis !== undefined
+            ? componentesKit.qtdPaineis
+            : ultimoDossie.paineis_quantidade !== undefined
+              ? ultimoDossie.paineis_quantidade
+              : 10,
+        paineis_modelo: componentesKit
+          ? `${componentesKit.marcaPaineis || 'Módulo'} ${componentesKit.potenciaPainelW}W`
+          : ultimoDossie.paineis_modelo || 'Painel Solar',
         paineis_potencia_w:
-          ultimoDossie.paineis_potencia_w !== undefined
-            ? ultimoDossie.paineis_potencia_w
-            : componentesKit?.potenciaPainelW || 630,
-        inversor_marca: ultimoDossie.inversor_marca || componentesKit?.marcaInversor || 'Sungrow',
-        inversor_modelo:
-          ultimoDossie.inversor_modelo ||
-          (componentesKit?.potenciaInversorKw
-            ? `Inversor ${componentesKit.potenciaInversorKw} kW`
-            : 'Inversor 5 kW'),
+          componentesKit?.potenciaPainelW !== undefined
+            ? componentesKit.potenciaPainelW
+            : ultimoDossie.paineis_potencia_w !== undefined
+              ? ultimoDossie.paineis_potencia_w
+              : 630,
+        inversor_marca: componentesKit?.marcaInversor || ultimoDossie.inversor_marca || 'Sungrow',
+        inversor_modelo: componentesKit?.potenciaInversorKw
+          ? `Inversor ${componentesKit.marcaInversor || 'Sungrow'} ${componentesKit.potenciaInversorKw} kW`
+          : ultimoDossie.inversor_modelo || 'Inversor 5 kW',
         inversor_potencia_kw:
-          ultimoDossie.inversor_potencia_kw !== undefined
-            ? ultimoDossie.inversor_potencia_kw
-            : componentesKit?.potenciaInversorKw || 5,
-        inversor_quantidade: ultimoDossie.inversor_quantidade || 1,
-        tipo_instalacao: ultimoDossie.tipo_instalacao || tipoInstalacaoDeduzido,
-        tipo_estrutura_detalhe: ultimoDossie.tipo_estrutura_detalhe || detalheEstruturaDeduzido,
+          componentesKit?.potenciaInversorKw !== undefined
+            ? componentesKit.potenciaInversorKw
+            : ultimoDossie.inversor_potencia_kw !== undefined
+              ? ultimoDossie.inversor_potencia_kw
+              : 5,
+        inversor_quantidade:
+          componentesKit?.qtdInversores !== undefined
+            ? componentesKit.qtdInversores
+            : ultimoDossie.inversor_quantidade || 1,
+        tipo_instalacao: tipoInstalacaoDeduzido || ultimoDossie.tipo_instalacao || 'telhado',
+        tipo_estrutura_detalhe:
+          detalheEstruturaDeduzido ||
+          ultimoDossie.tipo_estrutura_detalhe ||
+          (tipoInstalacaoDeduzido === 'solo'
+            ? 'Solo monoposte'
+            : 'Telhado (Fibrocimento/Metálico)'),
         observacoes: ultimoDossie.observacoes || '',
       }
     }
@@ -588,7 +712,7 @@ export function LeadDocumentosSection({
               {temDocsNovosParaReenviar ? (
                 <>
                   <RefreshCw className="w-3.5 h-3.5 stroke-[2.5]" />
-                  <span>Reenviar ao Engenheiro (+{documentosPendentes.length} novos)</span>
+                  <span>Reenviar ao Engenheiro (+{pendenciasCount} novos)</span>
                 </>
               ) : jaEnviadoAnteriormente ? (
                 <>
@@ -626,7 +750,7 @@ export function LeadDocumentosSection({
                 <div className="font-bold flex items-center gap-1.5">
                   <span>
                     {temDocsNovosParaReenviar
-                      ? 'Há novos documentos pendentes de reenvio!'
+                      ? 'Há atualizações e/ou novos documentos pendentes de reenvio!'
                       : 'Documentação já enviada ao Engenheiro Responsável'}
                   </span>
                   <Badge
@@ -655,9 +779,25 @@ export function LeadDocumentosSection({
                     'Documentos notificados por e-mail e sino no sistema.'
                   )}
                   {temDocsNovosParaReenviar && (
-                    <span className="block mt-0.5 font-semibold text-amber-800">
-                      Você adicionou {documentosPendentes.length} arquivo(s) recente(s). Clique no
-                      botão acima para disparar a notificação de reenvio com as novas peças.
+                    <span className="block mt-1 font-semibold text-amber-800">
+                      {alteracoesNegociacao.length > 0 && documentosPendentes.length > 0 ? (
+                        <>
+                          Pendências detectadas: {documentosPendentes.length} novo(s) documento(s) e{' '}
+                          {alteracoesNegociacao.join(', ')}. Clique no botão acima para gravar uma
+                          nova versão do dossiê e notificar a Engenharia.
+                        </>
+                      ) : alteracoesNegociacao.length > 0 ? (
+                        <>
+                          Negociação alterada após o último envio: {alteracoesNegociacao.join(', ')}
+                          . Clique no botão acima para gravar uma nova versão do dossiê (v
+                          {(ultimoDossie?.versao || 1) + 1}) e notificar a Engenharia.
+                        </>
+                      ) : (
+                        <>
+                          Você adicionou {documentosPendentes.length} arquivo(s) recente(s). Clique
+                          no botão acima para disparar a notificação de reenvio com as novas peças.
+                        </>
+                      )}
                     </span>
                   )}
                 </p>
