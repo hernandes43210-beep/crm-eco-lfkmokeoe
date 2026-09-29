@@ -119,4 +119,25 @@ describe('EquipeService - Envio de Convites', () => {
     expect(result.success).toBe(true)
     expect(result.email_status).toBe('sucesso')
   })
+
+  it('deve atualizar permissao pode_supervisionar_engenharia do usuario', async () => {
+    const mockUpdate = vi.fn().mockResolvedValueOnce({
+      id: 'usr_eng_1',
+      email: 'eng@ecosolar.com.br',
+      role: 'Engenheiro',
+      pode_supervisionar_engenharia: true,
+    })
+
+    vi.mocked(pb.collection).mockReturnValue({
+      update: mockUpdate,
+    } as any)
+
+    const updated = await EquipeService.updateUserSupervisaoEngenharia('usr_eng_1', true)
+
+    expect(pb.collection).toHaveBeenCalledWith('users')
+    expect(mockUpdate).toHaveBeenCalledWith('usr_eng_1', {
+      pode_supervisionar_engenharia: true,
+    })
+    expect(updated.pode_supervisionar_engenharia).toBe(true)
+  })
 })

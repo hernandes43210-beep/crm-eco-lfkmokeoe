@@ -110,6 +110,12 @@ export const EquipeService = {
     })
   },
 
+  async updateUserSupervisaoEngenharia(userId: string, podeSupervisionar: boolean) {
+    return await pb.collection('users').update<User>(userId, {
+      pode_supervisionar_engenharia: podeSupervisionar,
+    })
+  },
+
   async adminResetPassword(userId: string, newPassword: string) {
     return await pb.collection('users').update<User>(userId, {
       password: newPassword,

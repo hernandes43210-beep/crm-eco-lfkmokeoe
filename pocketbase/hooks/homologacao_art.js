@@ -38,8 +38,13 @@ routerAdd(
       return e.json(404, { success: false, message: 'Registro de homologação não encontrado.' })
     }
 
-    // Se for engenheiro comum, validar se é o responsável
-    if (authRole === 'Engenheiro' && homRecord.getString('engenheiro') !== auth.id) {
+    // Se for engenheiro comum, validar se é o responsável ou tem permissão de supervisão
+    const podeSupervisionarArt = auth.getBool('pode_supervisionar_engenharia')
+    if (
+      authRole === 'Engenheiro' &&
+      homRecord.getString('engenheiro') !== auth.id &&
+      !podeSupervisionarArt
+    ) {
       return e.json(403, {
         success: false,
         message: 'Você não tem permissão para alterar esta homologação.',
@@ -620,7 +625,12 @@ routerAdd(
     }
 
     const authRole = auth.getString('role')
-    if (authRole === 'Engenheiro' && homRecord.getString('engenheiro') !== auth.id) {
+    const podeSupervisionarMover = auth.getBool('pode_supervisionar_engenharia')
+    if (
+      authRole === 'Engenheiro' &&
+      homRecord.getString('engenheiro') !== auth.id &&
+      !podeSupervisionarMover
+    ) {
       return e.json(403, {
         success: false,
         message: 'Você não tem permissão para movimentar esta homologação.',
@@ -1014,7 +1024,12 @@ routerAdd(
       return e.json(404, { success: false, message: 'Homologação não encontrada.' })
     }
 
-    if (authRole === 'Engenheiro' && homRecord.getString('engenheiro') !== auth.id) {
+    const podeSupervisionarAnexar = auth.getBool('pode_supervisionar_engenharia')
+    if (
+      authRole === 'Engenheiro' &&
+      homRecord.getString('engenheiro') !== auth.id &&
+      !podeSupervisionarAnexar
+    ) {
       return e.json(403, {
         success: false,
         message: 'Você não tem permissão para anexar arquivos nesta homologação.',

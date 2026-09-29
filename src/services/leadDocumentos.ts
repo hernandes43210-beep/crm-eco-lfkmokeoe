@@ -116,6 +116,7 @@ export const LeadDocumentosService = {
   async getDocumentosByEngenheiro(
     engenheiroId?: string,
     isAdmin = false,
+    podeSupervisionar = false,
   ): Promise<DocumentoLead[]> {
     try {
       const options: { sort: string; requestKey: null; expand: string; filter?: string } = {
@@ -123,11 +124,11 @@ export const LeadDocumentosService = {
         expand: 'lead,enviado_por,engenheiro_destino',
         requestKey: null,
       }
-      if (isAdmin && !engenheiroId) {
-        // Admin sem filtro de engenheiro vê todos
+      if ((isAdmin || podeSupervisionar) && !engenheiroId) {
+        // Admin ou Supervisor sem filtro de engenheiro vê todos
       } else if (engenheiroId) {
         options.filter = `engenheiro_destino = "${engenheiroId}"`
-      } else if (pb.authStore.model?.id && !isAdmin) {
+      } else if (pb.authStore.model?.id && !isAdmin && !podeSupervisionar) {
         options.filter = `engenheiro_destino = "${pb.authStore.model.id}"`
       }
 
@@ -224,6 +225,7 @@ export const LeadDocumentosService = {
   async getDossiesByEngenheiro(
     engenheiroId: string,
     isAdmin = false,
+    podeSupervisionar = false,
   ): Promise<DossieTecnicoEngenharia[]> {
     try {
       const options: { sort: string; requestKey: null; filter?: string; expand?: string } = {
@@ -231,7 +233,7 @@ export const LeadDocumentosService = {
         requestKey: null,
         expand: 'lead,engenheiro_destino,enviado_por',
       }
-      if (!isAdmin) {
+      if (!isAdmin && !podeSupervisionar) {
         options.filter = `engenheiro_destino = "${engenheiroId}"`
       }
       return await pb.collection('dossies_engenharia').getFullList<DossieTecnicoEngenharia>(options)

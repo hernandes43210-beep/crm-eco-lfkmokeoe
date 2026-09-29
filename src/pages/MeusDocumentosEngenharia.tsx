@@ -38,7 +38,7 @@ import { Input } from '@/components/ui/input'
 import { formatDateBR, formatDateTimeBR } from '@/lib/solarUtils'
 
 export default function MeusDocumentosEngenharia() {
-  const { user, isEngenheiro, isAdmin } = useAuth()
+  const { user, isEngenheiro, isAdmin, podeSupervisionarEngenharia } = useAuth()
   const [activeTab, setActiveTab] = useState<'kanban' | 'documentos'>('kanban')
   const [documentos, setDocumentos] = useState<DocumentoLead[]>([])
   const [dossies, setDossies] = useState<DossieTecnicoEngenharia[]>([])
@@ -46,6 +46,7 @@ export default function MeusDocumentosEngenharia() {
   const [engenheirosList, setEngenheirosList] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [filtroEscopo, setFiltroEscopo] = useState<'todos' | 'meus'>('todos')
   const [categoriaFilter, setCategoriaFilter] = useState<string>('todas')
   const [statusFilter, setStatusFilter] = useState<string>('todos')
   const [expandedLeads, setExpandedLeads] = useState<Record<string, boolean>>({})
@@ -64,13 +65,21 @@ export default function MeusDocumentosEngenharia() {
     if (!user?.id) return
     try {
       setLoading(true)
-      // Se for Admin, traz todas as homologações e dossiês de todos os engenheiros.
-      // Se for Engenheiro, traz estritamente os seus registros vinculados a user.id.
+      // Se for Admin ou Engenheiro Supervisor com podeSupervisionarEngenharia:
+      // Traz todos os registros da área técnica permitidos pelo backend RLS.
+      // Se não tiver permissão de supervisão, traz estritamente os seus registros vinculados a user.id.
+      const podeVerTodos = isAdmin || podeSupervisionarEngenharia
       const [docs, dossiesData, homData, engs] = await Promise.all([
-        LeadDocumentosService.getDocumentosByEngenheiro(isAdmin ? undefined : user.id, isAdmin),
-        LeadDocumentosService.getDossiesByEngenheiro(user.id, isAdmin),
+        LeadDocumentosService.getDocumentosByEngenheiro(
+          podeVerTodos ? undefined : user.id,
+          isAdmin,
+          podeSupervisionarEngenharia,
+        ),
+        LeadDocumentosService.getDossiesByEngenheiro(user.id, isAdmin, podeSupervisionarEngenharia),
         HomologacaoService.getHomologacoes(
-          isAdmin ? { isAdmin: true } : { engenheiroId: user.id, isAdmin: false },
+          podeVerTodos
+            ? { isAdmin, podeSupervisionar: podeSupervisionarEngenharia }
+            : { engenheiroId: user.id, isAdmin: false },
         ),
         LeadDocumentosService.getEngenheiros(),
       ])
@@ -104,7 +113,7 @@ export default function MeusDocumentosEngenharia() {
 
   useEffect(() => {
     fetchDocumentos()
-  }, [user?.id])
+  }, [user?.id, podeSupervisionarEngenharia])
 
   // Mapa de id do engenheiro -> nome legível
   const engenheirosMap = useMemo(() => {
@@ -337,6 +346,11 @@ export default function MeusDocumentosEngenharia() {
 
   // Filtragem no Kanban
   const filteredHomologacoes = homologacoes.filter((hom) => {
+    // Filtro de escopo: Meus vs Todos (quando aplicável para supervisor/admin)
+    if (filtroEscopo === 'meus' && user?.id && hom.engenheiro !== user.id) {
+      return false
+    }
+
     const query = search.toLowerCase().trim()
     if (!query) return true
     const cliente = (hom.cliente_nome || '').toLowerCase()
@@ -364,6 +378,10 @@ export default function MeusDocumentosEngenharia() {
                   <Badge className="bg-amber-100 text-amber-900 border-amber-300 font-semibold hover:bg-amber-100">
                     Visão Geral Admin / CEO
                   </Badge>
+                ) : podeSupervisionarEngenharia ? (
+                  <Badge className="bg-emerald-100 text-[#0B7A5B] border-emerald-300 font-semibold hover:bg-emerald-100">
+                    Engenheiro Supervisor (Todos os Projetos)
+                  </Badge>
                 ) : (
                   <Badge className="bg-emerald-100 text-[#0B7A5B] border-emerald-300 font-semibold hover:bg-emerald-100">
                     Meus Documentos
@@ -373,7 +391,9 @@ export default function MeusDocumentosEngenharia() {
               <p className="text-xs text-slate-500 mt-0.5">
                 {isAdmin
                   ? 'Visão consolidada de todas as homologações de todos os engenheiros, fluxo de ART e projetos'
-                  : 'Kanban de homologação Energisa, fluxo de ART para pagamento e dossiês técnicos atribuídos a você'}
+                  : podeSupervisionarEngenharia
+                    ? 'Supervisão ativa: acompanhamento e atuação plena nas homologações de toda a equipe de engenharia'
+                    : 'Kanban de homologação Energisa, fluxo de ART para pagamento e dossiês técnicos atribuídos a você'}
               </p>
             </div>
           </div>
@@ -491,10 +511,38 @@ export default function MeusDocumentosEngenharia() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar cliente, cidade, unidade consumidora ou kit solar..."
+            placeholder="Buscar cliente, cidade, unidade consumidora, engenheiro ou kit..."
             className="pl-9 h-9 text-xs border-slate-200"
           />
         </div>
+
+        {/* Interruptor de Visão Meus vs Todos para Engenheiros com Supervisão ou Admins */}
+        {(isAdmin || podeSupervisionarEngenharia) && (
+          <div className="inline-flex items-center p-0.5 rounded-lg bg-slate-100 border border-slate-200 shrink-0">
+            <button
+              type="button"
+              onClick={() => setFiltroEscopo('todos')}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                filtroEscopo === 'todos'
+                  ? 'bg-white text-slate-900 shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Todos os Projetos ({homologacoes.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFiltroEscopo('meus')}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                filtroEscopo === 'meus'
+                  ? 'bg-white text-[#0B7A5B] shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Apenas Meus ({homologacoes.filter((h) => h.engenheiro === user?.id).length})
+            </button>
+          </div>
+        )}
 
         {activeTab === 'documentos' && (
           <div className="flex flex-wrap items-center gap-2">

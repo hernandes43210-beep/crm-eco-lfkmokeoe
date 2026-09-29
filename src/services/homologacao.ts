@@ -215,6 +215,7 @@ export const HomologacaoService = {
   async getHomologacoes(params?: {
     engenheiroId?: string
     isAdmin?: boolean
+    podeSupervisionar?: boolean
   }): Promise<HomologacaoLead[]> {
     try {
       const options: { sort: string; requestKey: null; filter?: string; expand?: string } = {
@@ -223,10 +224,10 @@ export const HomologacaoService = {
         expand: 'engenheiro,vendedor,dossie',
       }
 
-      // Se for Admin/CEO, pode listar todas as homologações de todos os engenheiros,
-      // ou filtrar por um engenheiro específico caso o filtro seja informado.
-      // Se NÃO for Admin (ex: papel Engenheiro), restringe OBRIGATORIAMENTE ao próprio engenheiro logado.
-      if (params?.isAdmin) {
+      // Se for Admin/CEO ou Engenheiro Supervisor com visão de todos (sem engenheiroId específico),
+      // lista todas as homologações liberadas pelo backend RLS.
+      // Caso contrário, filtra pelo ID do engenheiro responsável.
+      if (params?.isAdmin || params?.podeSupervisionar) {
         if (params.engenheiroId) {
           options.filter = `engenheiro = "${params.engenheiroId}"`
         }

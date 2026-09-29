@@ -26,6 +26,7 @@ import { EquipeService } from '@/services/equipe'
 import { useAuth } from '@/context/AuthContext'
 import type { Convidado, User, UserRole } from '@/types/crm'
 import { formatDateBR } from '@/lib/solarUtils'
+import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -80,7 +81,9 @@ export default function Equipe() {
   // State for editing Role
   const [roleTargetUser, setRoleTargetUser] = useState<User | null>(null)
   const [selectedRoleInput, setSelectedRoleInput] = useState<UserRole>('Vendedor')
+  const [supervisaoInput, setSupervisaoInput] = useState(false)
   const [isSavingRole, setIsSavingRole] = useState(false)
+  const [togglingSupervisaoId, setTogglingSupervisaoId] = useState<string | null>(null)
 
   const fetchData = async () => {
     try {
@@ -276,6 +279,37 @@ export default function Equipe() {
   const openEditRoleModal = (user: User) => {
     setRoleTargetUser(user)
     setSelectedRoleInput(user.role || 'Vendedor')
+    setSupervisaoInput(!!user.pode_supervisionar_engenharia)
+  }
+
+  const handleToggleSupervisao = async (targetUser: User, novoValor: boolean) => {
+    try {
+      setTogglingSupervisaoId(targetUser.id)
+      await EquipeService.updateUserSupervisaoEngenharia(targetUser.id, novoValor)
+      toast({
+        title: novoValor ? 'Supervisão ativada' : 'Supervisão revogada',
+        description: novoValor
+          ? `${targetUser.name || targetUser.email} agora pode acompanhar e atuar nos projetos de outros engenheiros.`
+          : `${targetUser.name || targetUser.email} voltou a ver somente as próprias homologações.`,
+      })
+      // Atualizar localmente
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === targetUser.id ? { ...u, pode_supervisionar_engenharia: novoValor } : u,
+        ),
+      )
+    } catch (err: unknown) {
+      console.error('Error toggling supervisao engenharia:', err)
+      const msg =
+        err instanceof Error ? err.message : 'Não foi possível alterar a permissão de supervisão.'
+      toast({
+        title: 'Erro ao atualizar permissão',
+        description: msg,
+        variant: 'destructive',
+      })
+    } finally {
+      setTogglingSupervisaoId(null)
+    }
   }
 
   const handleSaveRole = async (e: React.FormEvent) => {
@@ -284,7 +318,13 @@ export default function Equipe() {
 
     try {
       setIsSavingRole(true)
-      await EquipeService.updateUserRole(roleTargetUser.id, selectedRoleInput)
+      const isRoleEng = selectedRoleInput === 'Engenheiro'
+      const valorSupervisao = isRoleEng ? supervisaoInput : false
+
+      await Promise.all([
+        EquipeService.updateUserRole(roleTargetUser.id, selectedRoleInput),
+        EquipeService.updateUserSupervisaoEngenharia(roleTargetUser.id, valorSupervisao),
+      ])
 
       toast({
         title: 'Papel do usuário atualizado!',
@@ -432,6 +472,7 @@ export default function Equipe() {
                       <th className="py-3 px-4">Membro</th>
                       <th className="py-3 px-4">E-mail</th>
                       <th className="py-3 px-4">Função / Cargo</th>
+                      <th className="py-3 px-4">Supervisão Engenharia</th>
                       <th className="py-3 px-4">Cidade de Atuação</th>
                       <th className="py-3 px-4">WhatsApp</th>
                       <th className="py-3 px-4">Membro desde</th>{' '}
@@ -487,6 +528,60 @@ export default function Equipe() {
                               </Button>
                             )}
                           </div>
+                        </td>
+
+                        <td className="py-3 px-4">
+                          {usr.role === 'Engenheiro' ? (
+                            <div className="flex items-center gap-2">
+                              {isAdmin ? (
+                                <div className="flex items-center gap-2">
+                                  <Switch
+                                    checked={!!usr.pode_supervisionar_engenharia}
+                                    disabled={togglingSupervisaoId === usr.id}
+                                    onCheckedChange={(checked) =>
+                                      handleToggleSupervisao(usr, checked)
+                                    }
+                                    id={`supervisao-${usr.id}`}
+                                    className="data-[state=checked]:bg-[#0B7A5B]"
+                                  />
+                                  <label
+                                    htmlFor={`supervisao-${usr.id}`}
+                                    className="text-xs text-slate-700 cursor-pointer font-medium select-none"
+                                  >
+                                    {usr.pode_supervisionar_engenharia ? (
+                                      <span className="text-[#0B7A5B] font-semibold">
+                                        Pode acompanhar todos
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-400">Apenas próprios</span>
+                                    )}
+                                  </label>
+                                  {togglingSupervisaoId === usr.id && (
+                                    <Loader2 className="w-3 h-3 animate-spin text-[#0B7A5B]" />
+                                  )}
+                                </div>
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    usr.pode_supervisionar_engenharia
+                                      ? 'bg-emerald-50 text-[#0B7A5B] border-emerald-200 text-[11px]'
+                                      : 'bg-slate-50 text-slate-400 border-slate-200 text-[11px]'
+                                  }
+                                >
+                                  {usr.pode_supervisionar_engenharia
+                                    ? 'Supervisor (Todos)'
+                                    : 'Apenas próprios'}
+                                </Badge>
+                              )}
+                            </div>
+                          ) : usr.role === 'Admin' ? (
+                            <span className="text-xs text-purple-700 font-medium">
+                              Acesso total (Admin)
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-300">-</span>
+                          )}
                         </td>
 
                         <td className="py-3 px-4">
@@ -1211,13 +1306,42 @@ export default function Equipe() {
               </select>
             </div>
 
+            {selectedRoleInput === 'Engenheiro' && (
+              <div className="p-3 rounded-lg bg-emerald-50/70 border border-emerald-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5 pr-2">
+                    <Label
+                      htmlFor="modalSupervisaoSwitch"
+                      className="text-xs font-bold text-slate-900 cursor-pointer"
+                    >
+                      Pode acompanhar projetos de outros engenheiros
+                    </Label>
+                    <p className="text-[11px] text-slate-600 leading-tight">
+                      Quando ativado, vê no Kanban de homologação também os projetos dos outros
+                      engenheiros e pode atuar neles (avançar etapas, observações, anexos e enviar
+                      ART).
+                    </p>
+                  </div>
+                  <Switch
+                    id="modalSupervisaoSwitch"
+                    checked={supervisaoInput}
+                    onCheckedChange={setSupervisaoInput}
+                    className="data-[state=checked]:bg-[#0B7A5B]"
+                  />
+                </div>
+                <div className="text-[10px] text-slate-500 italic">
+                  Desativado por padrão. Configurável pelo Admin/CEO e revogável a qualquer momento.
+                </div>
+              </div>
+            )}
+
             <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-1">
               <p className="font-semibold text-slate-800">Sobre o Papel "Engenheiro":</p>
               <p className="text-[11px] leading-relaxed">
                 Ao selecionar <strong>Engenheiro</strong>, o usuário terá acesso restrito
-                exclusivamente à área de <em>Meus Documentos Recebidos</em> para baixar os arquivos
-                enviados pela equipe comercial. Não terá acesso ao catálogo de kits, propostas nem a
-                nenhum dado de precificação, margem, custo ou faturamento.
+                exclusivamente à área de <em>Engenharia & Homologações</em> (/engenharia). Não terá
+                acesso a leads, funil de vendas, catálogo de kits, propostas nem a nenhum dado de
+                precificação, margem ou faturamento.
               </p>
             </div>
 

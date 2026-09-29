@@ -10,6 +10,7 @@ export interface User extends RecordModel {
   avatar?: string
   cidade_atuacao?: string
   telefone?: string
+  pode_supervisionar_engenharia?: boolean
   created: string
   updated: string
 }
