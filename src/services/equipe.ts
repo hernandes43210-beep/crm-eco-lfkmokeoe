@@ -122,4 +122,39 @@ export const EquipeService = {
       passwordConfirm: newPassword,
     })
   },
+
+  async toggleMemberStatus(
+    userId: string,
+    novoAtivo: boolean,
+  ): Promise<{
+    success: boolean
+    message: string
+    user?: Partial<User>
+  }> {
+    return await pb.send<{
+      success: boolean
+      message: string
+      user?: Partial<User>
+    }>('/backend/v1/equipe/toggle-status', {
+      method: 'POST',
+      body: { userId, ativo: novoAtivo },
+    })
+  },
+
+  async deleteMember(
+    userId: string,
+    confirmacaoNome?: string,
+  ): Promise<{
+    success: boolean
+    message: string
+  }> {
+    return await pb.send<{
+      success: boolean
+      message: string
+      hasLinks?: boolean
+    }>('/backend/v1/equipe/excluir', {
+      method: 'POST',
+      body: { userId, confirmacaoNome },
+    })
+  },
 }

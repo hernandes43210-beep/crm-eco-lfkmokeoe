@@ -20,6 +20,7 @@ import {
   ArrowLeft,
   FileText,
   UserCheck,
+  Trash2,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
@@ -29,6 +30,8 @@ interface KanbanHomologacaoProps {
   onOpenEnviarArt: (hom: HomologacaoLead) => void
   onSelectCard: (hom: HomologacaoLead) => void
   engenheirosMap?: Record<string, string>
+  isAdmin?: boolean
+  onRequestDelete?: (hom: HomologacaoLead) => void
 }
 
 export function KanbanHomologacao({
@@ -37,6 +40,8 @@ export function KanbanHomologacao({
   onOpenEnviarArt,
   onSelectCard,
   engenheirosMap,
+  isAdmin = false,
+  onRequestDelete,
 }: KanbanHomologacaoProps) {
   const [draggedCardId, setDraggedCardId] = useState<string | null>(null)
   const [dragOverCol, setDragOverCol] = useState<HomologacaoStatus | null>(null)
@@ -218,12 +223,29 @@ export function KanbanHomologacao({
                               )}
                             </div>
 
-                            {hom.potencia_total_kwp ? (
-                              <span className="text-[11px] font-black text-[#0B7A5B] font-mono flex items-center gap-0.5">
-                                <Zap className="w-3 h-3 text-amber-500 shrink-0" />
-                                <span>{hom.potencia_total_kwp} kWp</span>
-                              </span>
-                            ) : null}
+                            <div className="flex items-center gap-1.5">
+                              {hom.potencia_total_kwp ? (
+                                <span className="text-[11px] font-black text-[#0B7A5B] font-mono flex items-center gap-0.5">
+                                  <Zap className="w-3 h-3 text-amber-500 shrink-0" />
+                                  <span>{hom.potencia_total_kwp} kWp</span>
+                                </span>
+                              ) : null}
+
+                              {/* Botão de Lixeira discreto: visível apenas para Admin/CEO */}
+                              {isAdmin && onRequestDelete && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onRequestDelete(hom)
+                                  }}
+                                  className="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                  title="Excluir homologação (Apenas Administrador)"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
                           </div>
 
                           {/* Engenheiro Responsável e Nome do Cliente */}

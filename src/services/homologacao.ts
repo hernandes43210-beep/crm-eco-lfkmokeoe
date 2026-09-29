@@ -363,15 +363,66 @@ export const HomologacaoService = {
   },
 
   /**
-   * Exclui um arquivo do processo de engenharia
+   * Exclui um arquivo do processo de engenharia (via endpoint seguro Admin)
    */
   async deleteArquivoProcesso(arquivoId: string): Promise<boolean> {
     try {
-      return await pb.collection('arquivos_engenharia').delete(arquivoId)
+      const resp = await pb.send<{ success: boolean }>('/backend/v1/engenharia/excluir-arquivo', {
+        method: 'POST',
+        body: { arquivoId },
+      })
+      return !!resp?.success
     } catch (err) {
-      console.error('Erro ao excluir arquivo de engenharia:', err)
-      return false
+      console.warn('Endpoint seguro falhou, tentando delete padrão:', err)
+      try {
+        return await pb.collection('arquivos_engenharia').delete(arquivoId)
+      } catch (errFallback) {
+        console.error('Erro ao excluir arquivo de engenharia:', errFallback)
+        return false
+      }
     }
+  },
+
+  /**
+   * Exclui uma homologação inteira da engenharia (exclusivo Admin/CEO) com remoção em cascata
+   */
+  async deleteHomologacao(
+    homologacaoId: string,
+    removerDossies?: boolean,
+    removerDocumentos?: boolean,
+  ): Promise<{
+    success: boolean
+    message: string
+  }> {
+    return await pb.send<{
+      success: boolean
+      message: string
+      detalhes?: {
+        arquivosRemovidos: number
+        docsRemovidos: number
+        dossiesRemovidos: number
+      }
+    }>('/backend/v1/engenharia/excluir-homologacao', {
+      method: 'POST',
+      body: {
+        homologacaoId,
+        removerDossiesLead: !!removerDossies,
+        removerDocumentosLead: !!removerDocumentos,
+      },
+    })
+  },
+
+  /**
+   * Exclui um dossiê técnico de engenharia (exclusivo Admin/CEO)
+   */
+  async deleteDossie(dossieId: string): Promise<{ success: boolean; message: string }> {
+    return await pb.send<{ success: boolean; message: string }>(
+      '/backend/v1/engenharia/excluir-dossie',
+      {
+        method: 'POST',
+        body: { dossieId },
+      },
+    )
   },
 
   /**

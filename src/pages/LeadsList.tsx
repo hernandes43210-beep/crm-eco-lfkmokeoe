@@ -104,11 +104,11 @@ export default function LeadsList() {
     return () => clearTimeout(timer)
   }, [search])
 
-  // Load team members for owner filter
+  // Load team members for owner filter (apenas ativos para novos filtros)
   useEffect(() => {
     if (isAdmin) {
       EquipeService.getTeamMembers()
-        .then((members) => setTeamMembers(members))
+        .then((members) => setTeamMembers(members.filter((m) => m.ativo !== false)))
         .catch(() => {})
     }
   }, [isAdmin])

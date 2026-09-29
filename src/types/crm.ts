@@ -11,6 +11,7 @@ export interface User extends RecordModel {
   cidade_atuacao?: string
   telefone?: string
   pode_supervisionar_engenharia?: boolean
+  ativo?: boolean
   created: string
   updated: string
 }

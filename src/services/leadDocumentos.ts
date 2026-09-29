@@ -145,7 +145,7 @@ export const LeadDocumentosService = {
   async getEngenheiros(): Promise<User[]> {
     try {
       return await pb.collection('users').getFullList<User>({
-        filter: "role = 'Engenheiro' || role = 'Admin'",
+        filter: "(role = 'Engenheiro' || role = 'Admin') && (ativo = true || ativo = null)",
         sort: 'name,email',
         requestKey: null,
       })
@@ -178,10 +178,19 @@ export const LeadDocumentosService = {
   },
 
   /**
-   * Exclui um documento
+   * Exclui um documento (utiliza endpoint seguro Admin com fallback)
    */
   async deleteDocumento(documentoId: string): Promise<boolean> {
-    return await pb.collection('documentos_lead').delete(documentoId)
+    try {
+      const resp = await pb.send<{ success: boolean }>('/backend/v1/engenharia/excluir-documento', {
+        method: 'POST',
+        body: { documentoId },
+      })
+      return !!resp?.success
+    } catch (err) {
+      console.warn('Endpoint seguro falhou, tentando delete padrão:', err)
+      return await pb.collection('documentos_lead').delete(documentoId)
+    }
   },
 
   /**

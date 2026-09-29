@@ -42,10 +42,20 @@ import {
 import { toast } from '@/hooks/use-toast'
 
 export default function Equipe() {
-  const { isAdmin } = useAuth()
+  const { user: currentUser, isAdmin } = useAuth()
   const [users, setUsers] = useState<User[]>([])
   const [invites, setInvites] = useState<Convidado[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Desativar / Reativar Member State
+  const [statusTargetUser, setStatusTargetUser] = useState<User | null>(null)
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+
+  // Excluir Member State
+  const [deleteTargetUser, setDeleteTargetUser] = useState<User | null>(null)
+  const [deleteConfirmNameInput, setDeleteConfirmNameInput] = useState('')
+  const [isDeletingUser, setIsDeletingUser] = useState(false)
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null)
 
   // Invite Modal State
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
@@ -280,6 +290,85 @@ export default function Equipe() {
     setRoleTargetUser(user)
     setSelectedRoleInput(user.role || 'Vendedor')
     setSupervisaoInput(!!user.pode_supervisionar_engenharia)
+  }
+
+  const openStatusModal = (user: User) => {
+    setStatusTargetUser(user)
+  }
+
+  const handleToggleUserStatus = async () => {
+    if (!statusTargetUser) return
+    const novoStatus = !(statusTargetUser.ativo !== false)
+
+    try {
+      setIsUpdatingStatus(true)
+      const res = await EquipeService.toggleMemberStatus(statusTargetUser.id, novoStatus)
+      toast({
+        title: novoStatus ? 'Membro reativado' : 'Membro desativado',
+        description:
+          res.message ||
+          (novoStatus
+            ? `${statusTargetUser.name || statusTargetUser.email} voltou a ter acesso ao CRM.`
+            : `${statusTargetUser.name || statusTargetUser.email} foi desativado e não poderá mais logar.`),
+      })
+      setStatusTargetUser(null)
+      fetchData()
+    } catch (err: unknown) {
+      console.error('Error toggling member status:', err)
+      const msg = err instanceof Error ? err.message : 'Falha ao alterar status do membro.'
+      toast({
+        title: 'Não foi possível alterar status',
+        description: msg,
+        variant: 'destructive',
+      })
+    } finally {
+      setIsUpdatingStatus(false)
+    }
+  }
+
+  const openDeleteUserModal = (user: User) => {
+    setDeleteTargetUser(user)
+    setDeleteConfirmNameInput('')
+    setDeleteErrorMessage(null)
+  }
+
+  const handleDeleteUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!deleteTargetUser) return
+
+    try {
+      setIsDeletingUser(true)
+      setDeleteErrorMessage(null)
+      const res = await EquipeService.deleteMember(
+        deleteTargetUser.id,
+        deleteConfirmNameInput.trim(),
+      )
+
+      toast({
+        title: 'Membro excluído!',
+        description:
+          res.message ||
+          `${deleteTargetUser.name || deleteTargetUser.email} foi removido do sistema.`,
+      })
+      setDeleteTargetUser(null)
+      fetchData()
+    } catch (err: any) {
+      console.error('Error deleting team member:', err)
+      let msg = 'Não foi possível excluir este membro.'
+      if (err?.data?.message) {
+        msg = err.data.message
+      } else if (err?.message) {
+        msg = err.message
+      }
+      setDeleteErrorMessage(msg)
+      toast({
+        title: 'Exclusão bloqueada',
+        description: msg,
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeletingUser(false)
+    }
   }
 
   const handleToggleSupervisao = async (targetUser: User, novoValor: boolean) => {
@@ -622,9 +711,15 @@ export default function Equipe() {
                           {formatDateBR(usr.created)}
                         </td>
                         <td className="py-3 px-4">
-                          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-xs font-semibold hover:bg-emerald-100">
-                            Ativo
-                          </Badge>
+                          {usr.ativo !== false ? (
+                            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-xs font-semibold hover:bg-emerald-100">
+                              Ativo
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-slate-200 text-slate-700 border-slate-300 text-xs font-semibold hover:bg-slate-200">
+                              Inativo
+                            </Badge>
+                          )}
                         </td>
 
                         {isAdmin && (
@@ -651,6 +746,50 @@ export default function Equipe() {
                                 <KeyRound className="w-3.5 h-3.5 text-amber-500" />
                                 <span>Senha</span>
                               </Button>
+
+                              {/* Ações Desativar/Reativar e Excluir: nunca no próprio usuário logado */}
+                              {currentUser?.id !== usr.id && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => openStatusModal(usr)}
+                                    className={`h-8 text-xs gap-1 font-medium ${
+                                      usr.ativo !== false
+                                        ? 'text-amber-700 hover:text-amber-900 hover:bg-amber-50'
+                                        : 'text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50'
+                                    }`}
+                                    title={
+                                      usr.ativo !== false
+                                        ? `Desativar acesso de ${usr.name || usr.email}`
+                                        : `Reativar acesso de ${usr.name || usr.email}`
+                                    }
+                                  >
+                                    {usr.ativo !== false ? (
+                                      <>
+                                        <ToggleLeft className="w-3.5 h-3.5 text-amber-600" />
+                                        <span>Desativar</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <ToggleRight className="w-3.5 h-3.5 text-emerald-600" />
+                                        <span>Reativar</span>
+                                      </>
+                                    )}
+                                  </Button>
+
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => openDeleteUserModal(usr)}
+                                    className="h-8 text-xs text-rose-600 hover:text-rose-800 hover:bg-rose-50 gap-1 font-medium"
+                                    title={`Excluir definitivamente ${usr.name || usr.email}`}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                    <span>Excluir</span>
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </td>
                         )}
@@ -1369,6 +1508,224 @@ export default function Equipe() {
                   <>
                     <Check className="w-3.5 h-3.5" />
                     <span>Salvar Papel</span>
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Desativação / Reativação de Membro */}
+      <Dialog
+        open={!!statusTargetUser}
+        onOpenChange={(open) => {
+          if (!open && !isUpdatingStatus) setStatusTargetUser(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-md bg-white border-slate-200 text-slate-900 shadow-xl">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-1">
+              {statusTargetUser?.ativo !== false ? (
+                <ToggleLeft className="w-5 h-5 text-amber-600" />
+              ) : (
+                <ToggleRight className="w-5 h-5 text-emerald-600" />
+              )}
+              <DialogTitle className="text-lg font-bold text-slate-900">
+                {statusTargetUser?.ativo !== false ? 'Desativar Membro' : 'Reativar Membro'}
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-slate-500">
+              {statusTargetUser?.ativo !== false ? (
+                <>
+                  Você está prestes a desativar o acesso de{' '}
+                  <strong className="text-slate-800 font-semibold">
+                    {statusTargetUser?.name || statusTargetUser?.email}
+                  </strong>{' '}
+                  ({statusTargetUser?.email}).
+                </>
+              ) : (
+                <>
+                  Você está prestes a reativar o acesso de{' '}
+                  <strong className="text-slate-800 font-semibold">
+                    {statusTargetUser?.name || statusTargetUser?.email}
+                  </strong>{' '}
+                  ({statusTargetUser?.email}).
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            {statusTargetUser?.ativo !== false ? (
+              <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
+                <div className="font-semibold flex items-center gap-1.5 text-amber-900">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>O que acontece ao desativar:</span>
+                </div>
+                <ul className="list-disc pl-5 space-y-1 text-[11px] text-amber-800">
+                  <li>O membro não conseguirá mais efetuar login ou renovar a sessão.</li>
+                  <li>
+                    O usuário deixará de aparecer em seleções ativas (como envio ao engenheiro ou
+                    novos leads).
+                  </li>
+                  <li>
+                    <strong>Histórico e vínculos preservados:</strong> leads, homologações,
+                    documentos e arquivos já atribuídos continuam intactos.
+                  </li>
+                  <li>
+                    Ação totalmente <strong>reversível</strong> a qualquer momento pelo botão
+                    "Reativar".
+                  </li>
+                </ul>
+              </div>
+            ) : (
+              <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs space-y-1.5">
+                <div className="font-semibold flex items-center gap-1.5 text-emerald-900">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Ao reativar o membro:</span>
+                </div>
+                <p className="text-[11px] text-emerald-800">
+                  O colaborador voltará a ter login permitido normalmente no CRM e voltará a figurar
+                  nas listas de seleção comercial e de engenharia.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="pt-2 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isUpdatingStatus}
+              onClick={() => setStatusTargetUser(null)}
+              className="text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              disabled={isUpdatingStatus}
+              onClick={handleToggleUserStatus}
+              className={`text-xs font-semibold gap-1.5 text-white ${
+                statusTargetUser?.ativo !== false
+                  ? 'bg-amber-600 hover:bg-amber-700'
+                  : 'bg-[#0B7A5B] hover:bg-[#095C44]'
+              }`}
+            >
+              {isUpdatingStatus ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Salvando...</span>
+                </>
+              ) : statusTargetUser?.ativo !== false ? (
+                <>
+                  <ToggleLeft className="w-3.5 h-3.5" />
+                  <span>Confirmar Desativação</span>
+                </>
+              ) : (
+                <>
+                  <ToggleRight className="w-3.5 h-3.5" />
+                  <span>Confirmar Reativação</span>
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Exclusão Definitiva de Membro (com confirmação digitada) */}
+      <Dialog
+        open={!!deleteTargetUser}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingUser) setDeleteTargetUser(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-md bg-white border-slate-200 text-slate-900 shadow-xl">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-1 text-rose-600">
+              <Trash2 className="w-5 h-5 text-rose-600" />
+              <DialogTitle className="text-lg font-bold text-slate-900">
+                Excluir Membro da Equipe
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-slate-500">
+              Esta ação removerá permanentemente o usuário{' '}
+              <strong className="text-slate-800 font-semibold">
+                {deleteTargetUser?.name || deleteTargetUser?.email}
+              </strong>{' '}
+              ({deleteTargetUser?.email}) da base de dados.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleDeleteUser} className="space-y-4 pt-1">
+            {deleteErrorMessage && (
+              <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs space-y-1">
+                <div className="font-semibold flex items-center gap-1.5 text-rose-900">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>Exclusão não permitida</span>
+                </div>
+                <p className="text-[11px] leading-relaxed">{deleteErrorMessage}</p>
+              </div>
+            )}
+
+            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-1.5">
+              <p className="font-semibold text-slate-800">Atenção sobre integridade de dados:</p>
+              <p className="text-[11px] leading-relaxed">
+                A exclusão é permitida apenas se o usuário{' '}
+                <strong>não possuir nenhum vínculo</strong> no sistema (como leads em seu nome,
+                homologações em andamento, arquivos de engenharia ou documentos enviados). Caso
+                possua vínculos, o sistema bloqueará a remoção e orientará pela opção{' '}
+                <strong>Desativar</strong>.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="confirmDeleteName" className="text-xs font-semibold text-slate-700">
+                Para confirmar, digite exatamente o nome ou e-mail:{' '}
+                <span className="font-mono text-rose-700 select-all font-bold">
+                  {deleteTargetUser?.name || deleteTargetUser?.email}
+                </span>
+              </Label>
+              <Input
+                id="confirmDeleteName"
+                value={deleteConfirmNameInput}
+                onChange={(e) => setDeleteConfirmNameInput(e.target.value)}
+                placeholder="Digite para habilitar a exclusão"
+                className="h-9.5 text-sm border-slate-200 focus-visible:ring-rose-500"
+                autoFocus
+                required
+              />
+            </div>
+
+            <DialogFooter className="pt-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isDeletingUser}
+                onClick={() => setDeleteTargetUser(null)}
+                className="text-xs"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={
+                  isDeletingUser ||
+                  deleteConfirmNameInput.trim().toLowerCase() !==
+                    (deleteTargetUser?.name || deleteTargetUser?.email || '').trim().toLowerCase()
+                }
+                className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold gap-1.5 disabled:opacity-50"
+              >
+                {isDeletingUser ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Verificando vínculos...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Excluir Definitivamente</span>
                   </>
                 )}
               </Button>

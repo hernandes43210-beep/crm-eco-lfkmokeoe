@@ -44,6 +44,19 @@ export default function MeusDocumentosEngenharia() {
   const [dossies, setDossies] = useState<DossieTecnicoEngenharia[]>([])
   const [homologacoes, setHomologacoes] = useState<HomologacaoLead[]>([])
   const [engenheirosList, setEngenheirosList] = useState<User[]>([])
+
+  // Estados para exclusão Admin/CEO na engenharia
+  const [homologacaoToDelete, setHomologacaoToDelete] = useState<HomologacaoLead | null>(null)
+  const [deleteHomologCascadeDocs, setDeleteHomologCascadeDocs] = useState(true)
+  const [isDeletingHomolog, setIsDeletingHomolog] = useState(false)
+
+  const [dossieToDelete, setDossieToDelete] = useState<{ id: string; clienteNome: string } | null>(
+    null,
+  )
+  const [isDeletingDossie, setIsDeletingDossie] = useState(false)
+
+  const [documentoToDelete, setDocumentoToDelete] = useState<DocumentoLead | null>(null)
+  const [isDeletingDoc, setIsDeletingDoc] = useState(false)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filtroEscopo, setFiltroEscopo] = useState<'todos' | 'meus'>('todos')
@@ -339,6 +352,89 @@ export default function MeusDocumentosEngenharia() {
     setFichaModalOpen(true)
   }
 
+  // Ações de exclusão exclusiva para Admin/CEO
+  const handleConfirmDeleteHomologacao = async () => {
+    if (!homologacaoToDelete) return
+    try {
+      setIsDeletingHomolog(true)
+      const res = await HomologacaoService.deleteHomologacao(
+        homologacaoToDelete.id,
+        deleteHomologCascadeDocs,
+        deleteHomologCascadeDocs,
+      )
+      toast({
+        title: 'Homologação excluída',
+        description:
+          res.message ||
+          `O processo de homologação de ${homologacaoToDelete.cliente_nome || 'cliente'} foi removido com sucesso.`,
+      })
+      setHomologacaoToDelete(null)
+      fetchData()
+    } catch (err: any) {
+      console.error('Erro ao excluir homologação:', err)
+      const msg = err?.data?.message || err?.message || 'Falha ao excluir homologação.'
+      toast({
+        title: 'Erro ao excluir homologação',
+        description: msg,
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeletingHomolog(false)
+    }
+  }
+
+  const handleConfirmDeleteDossie = async () => {
+    if (!dossieToDelete) return
+    try {
+      setIsDeletingDossie(true)
+      const res = await HomologacaoService.deleteDossie(dossieToDelete.id)
+      toast({
+        title: 'Dossiê excluído',
+        description: res.message || 'Dossiê técnico removido com sucesso.',
+      })
+      setDossieToDelete(null)
+      fetchData()
+    } catch (err: any) {
+      console.error('Erro ao excluir dossie:', err)
+      const msg = err?.data?.message || err?.message || 'Falha ao excluir dossiê.'
+      toast({
+        title: 'Erro ao excluir dossiê',
+        description: msg,
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeletingDossie(false)
+    }
+  }
+
+  const handleConfirmDeleteDocumento = async () => {
+    if (!documentoToDelete) return
+    try {
+      setIsDeletingDoc(true)
+      const ok = await LeadDocumentosService.deleteDocumento(documentoToDelete.id)
+      if (ok) {
+        toast({
+          title: 'Documento excluído',
+          description: `O arquivo "${documentoToDelete.nome_original || documentoToDelete.arquivo}" foi removido com sucesso.`,
+        })
+        setDocumentoToDelete(null)
+        fetchData()
+      } else {
+        throw new Error('Não foi possível excluir o documento.')
+      }
+    } catch (err: any) {
+      console.error('Erro ao excluir documento:', err)
+      const msg = err?.data?.message || err?.message || 'Falha ao excluir documento.'
+      toast({
+        title: 'Erro ao excluir documento',
+        description: msg,
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeletingDoc(false)
+    }
+  }
+
   const handleHomologacaoUpdatedFromFicha = (updatedHom: HomologacaoLead) => {
     setHomologacoes((prev) => prev.map((h) => (h.id === updatedHom.id ? updatedHom : h)))
     setSelectedHomologacaoForFicha(updatedHom)
@@ -603,6 +699,8 @@ export default function MeusDocumentosEngenharia() {
               onOpenEnviarArt={handleOpenEnviarArt}
               onSelectCard={handleSelectCard}
               engenheirosMap={engenheirosMap}
+              isAdmin={isAdmin}
+              onRequestDelete={(hom) => setHomologacaoToDelete(hom)}
             />
           )}
         </div>
@@ -760,6 +858,27 @@ export default function MeusDocumentosEngenharia() {
                         >
                           {docs.length} {docs.length === 1 ? 'arquivo' : 'arquivos'}
                         </Badge>
+
+                        {/* Botão para Admin/CEO excluir o dossiê / pacote de cliente enviado */}
+                        {isAdmin && dossie && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setDossieToDelete({
+                                id: dossie.id,
+                                clienteNome: lead.nome || dossie.cliente_nome || 'Cliente',
+                              })
+                            }}
+                            title="Excluir dossiê técnico deste cliente (Apenas Admin)"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+
                         <Button
                           type="button"
                           variant="ghost"
@@ -1035,16 +1154,32 @@ export default function MeusDocumentosEngenharia() {
                                     </td>
 
                                     <td className="py-3 px-4 text-right">
-                                      <Button
-                                        type="button"
-                                        size="sm"
-                                        onClick={() => handleDownload(doc)}
-                                        className="h-7.5 px-3 text-xs bg-[#0B7A5B] hover:bg-[#095C44] text-white font-semibold gap-1.5 shadow-2xs"
-                                        title="Baixar / Visualizar arquivo"
-                                      >
-                                        <Download className="w-3.5 h-3.5" />
-                                        <span>Baixar</span>
-                                      </Button>
+                                      <div className="flex items-center justify-end gap-1.5">
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          onClick={() => handleDownload(doc)}
+                                          className="h-7.5 px-3 text-xs bg-[#0B7A5B] hover:bg-[#095C44] text-white font-semibold gap-1.5 shadow-2xs"
+                                          title="Baixar / Visualizar arquivo"
+                                        >
+                                          <Download className="w-3.5 h-3.5" />
+                                          <span>Baixar</span>
+                                        </Button>
+
+                                        {/* Botão de lixeira discreto para Admin excluir documento individual */}
+                                        {isAdmin && (
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => setDocumentoToDelete(doc)}
+                                            className="h-7.5 w-7.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                                            title="Excluir este documento (Apenas Admin)"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </Button>
+                                        )}
+                                      </div>
                                     </td>
                                   </tr>
                                 )
