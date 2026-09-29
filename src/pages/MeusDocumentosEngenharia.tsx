@@ -62,13 +62,14 @@ export default function MeusDocumentosEngenharia() {
     if (!user?.id) return
     try {
       setLoading(true)
+      // Se for Admin, traz todas as homologações e dossiês de todos os engenheiros.
+      // Se for Engenheiro, traz estritamente os seus registros vinculados a user.id.
       const [docs, dossiesData, homData] = await Promise.all([
-        LeadDocumentosService.getDocumentosByEngenheiro(user.id),
+        LeadDocumentosService.getDocumentosByEngenheiro(isAdmin ? undefined : user.id, isAdmin),
         LeadDocumentosService.getDossiesByEngenheiro(user.id, isAdmin),
-        HomologacaoService.getHomologacoes({
-          engenheiroId: user.id,
-          isAdmin,
-        }),
+        HomologacaoService.getHomologacoes(
+          isAdmin ? { isAdmin: true } : { engenheiroId: user.id, isAdmin: false },
+        ),
       ])
       setDocumentos(docs)
       setDossies(dossiesData)
@@ -323,12 +324,20 @@ export default function MeusDocumentosEngenharia() {
             <div>
               <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
                 <span>Engenharia & Homologação Solar</span>
-                <Badge className="bg-emerald-100 text-[#0B7A5B] border-emerald-300 font-semibold hover:bg-emerald-100">
-                  Área do Engenheiro
-                </Badge>
+                {isAdmin ? (
+                  <Badge className="bg-amber-100 text-amber-900 border-amber-300 font-semibold hover:bg-amber-100">
+                    Visão Geral Admin / CEO
+                  </Badge>
+                ) : (
+                  <Badge className="bg-emerald-100 text-[#0B7A5B] border-emerald-300 font-semibold hover:bg-emerald-100">
+                    Meus Documentos
+                  </Badge>
+                )}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Kanban de homologação Energisa, fluxo de ART para pagamento e dossiês técnicos
+                {isAdmin
+                  ? 'Visão consolidada de todas as homologações de todos os engenheiros, fluxo de ART e projetos'
+                  : 'Kanban de homologação Energisa, fluxo de ART para pagamento e dossiês técnicos atribuídos a você'}
               </p>
             </div>
           </div>

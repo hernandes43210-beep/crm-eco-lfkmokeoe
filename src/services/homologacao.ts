@@ -210,6 +210,7 @@ export const COLUNAS_HOMOLOGACAO: Array<{
 export const HomologacaoService = {
   /**
    * Busca todas as homologações visíveis para o usuário autenticado
+   * Para engenheiro (não admin), aplica filtro estrito por engenheiro = @request.auth.id
    */
   async getHomologacoes(params?: {
     engenheiroId?: string
@@ -222,8 +223,17 @@ export const HomologacaoService = {
         expand: 'engenheiro,vendedor,dossie',
       }
 
-      if (params?.engenheiroId && !params?.isAdmin) {
+      // Se for Admin/CEO, pode listar todas as homologações de todos os engenheiros,
+      // ou filtrar por um engenheiro específico caso o filtro seja informado.
+      // Se NÃO for Admin (ex: papel Engenheiro), restringe OBRIGATORIAMENTE ao próprio engenheiro logado.
+      if (params?.isAdmin) {
+        if (params.engenheiroId) {
+          options.filter = `engenheiro = "${params.engenheiroId}"`
+        }
+      } else if (params?.engenheiroId) {
         options.filter = `engenheiro = "${params.engenheiroId}"`
+      } else if (pb.authStore.model?.id) {
+        options.filter = `engenheiro = "${pb.authStore.model.id}"`
       }
 
       return await pb.collection('homologacoes').getFullList<HomologacaoLead>(options)

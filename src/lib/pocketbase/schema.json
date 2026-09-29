@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-29T00:43:33.502Z",
+  "generatedAt": "2026-09-29T11:40:50.876Z",
   "collections": [
     {
       "name": "users",
@@ -2165,10 +2165,10 @@
       "name": "homologacoes",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && (@request.auth.role = 'Admin' || @request.auth.role = 'Vendedor' || engenheiro = @request.auth.id || vendedor = @request.auth.id)",
-        "view": "@request.auth.id != '' && (@request.auth.role = 'Admin' || @request.auth.role = 'Vendedor' || engenheiro = @request.auth.id || vendedor = @request.auth.id)",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != '' && (@request.auth.role = 'Admin' || engenheiro = @request.auth.id || vendedor = @request.auth.id || @request.auth.role = 'Vendedor')",
+        "list": "@request.auth.id != '' && (@request.auth.role = 'Admin' || (@request.auth.role = 'Engenheiro' && engenheiro = @request.auth.id) || (@request.auth.role = 'Vendedor' && (vendedor = @request.auth.id || lead.proprietario = @request.auth.id)))",
+        "view": "@request.auth.id != '' && (@request.auth.role = 'Admin' || (@request.auth.role = 'Engenheiro' && engenheiro = @request.auth.id) || (@request.auth.role = 'Vendedor' && (vendedor = @request.auth.id || lead.proprietario = @request.auth.id)))",
+        "create": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "update": "@request.auth.id != '' && (@request.auth.role = 'Admin' || (@request.auth.role = 'Engenheiro' && engenheiro = @request.auth.id) || (@request.auth.role = 'Vendedor' && (vendedor = @request.auth.id || lead.proprietario = @request.auth.id)))",
         "delete": "@request.auth.id != '' && @request.auth.role = 'Admin'"
       },
       "fields": [
@@ -2370,10 +2370,10 @@
       "name": "arquivos_engenharia",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && (@request.auth.role = 'Admin' || @request.auth.role = 'Vendedor' || homologacao.engenheiro = @request.auth.id || criado_por = @request.auth.id)",
-        "view": "@request.auth.id != '' && (@request.auth.role = 'Admin' || @request.auth.role = 'Vendedor' || homologacao.engenheiro = @request.auth.id || criado_por = @request.auth.id)",
-        "create": "@request.auth.id != '' && (@request.auth.role = 'Admin' || @request.auth.role = 'Engenheiro' || @request.auth.role = 'Vendedor')",
-        "update": "@request.auth.id != '' && (@request.auth.role = 'Admin' || criado_por = @request.auth.id || homologacao.engenheiro = @request.auth.id)",
+        "list": "@request.auth.id != '' && (@request.auth.role = 'Admin' || (@request.auth.role = 'Engenheiro' && homologacao.engenheiro = @request.auth.id) || (@request.auth.role = 'Vendedor' && (homologacao.vendedor = @request.auth.id || lead.proprietario = @request.auth.id)) || criado_por = @request.auth.id)",
+        "view": "@request.auth.id != '' && (@request.auth.role = 'Admin' || (@request.auth.role = 'Engenheiro' && homologacao.engenheiro = @request.auth.id) || (@request.auth.role = 'Vendedor' && (homologacao.vendedor = @request.auth.id || lead.proprietario = @request.auth.id)) || criado_por = @request.auth.id)",
+        "create": "@request.auth.id != '' && (@request.auth.role = 'Admin' || (@request.auth.role = 'Engenheiro' && homologacao.engenheiro = @request.auth.id) || @request.auth.role = 'Vendedor')",
+        "update": "@request.auth.id != '' && (@request.auth.role = 'Admin' || (@request.auth.role = 'Engenheiro' && homologacao.engenheiro = @request.auth.id) || criado_por = @request.auth.id)",
         "delete": "@request.auth.id != '' && (@request.auth.role = 'Admin' || criado_por = @request.auth.id)"
       },
       "fields": [

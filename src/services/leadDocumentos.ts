@@ -111,15 +111,27 @@ export const LeadDocumentosService = {
 
   /**
    * Busca os documentos direcionados a um determinado engenheiro (Meus Documentos Recebidos)
+   * Se isAdmin for true e engenheiroId for vazio/omitido, traz todos os documentos.
    */
-  async getDocumentosByEngenheiro(engenheiroId: string): Promise<DocumentoLead[]> {
+  async getDocumentosByEngenheiro(
+    engenheiroId?: string,
+    isAdmin = false,
+  ): Promise<DocumentoLead[]> {
     try {
-      return await pb.collection('documentos_lead').getFullList<DocumentoLead>({
-        filter: `engenheiro_destino = "${engenheiroId}"`,
+      const options: { sort: string; requestKey: null; expand: string; filter?: string } = {
         sort: '-created',
-        expand: 'lead,enviado_por',
+        expand: 'lead,enviado_por,engenheiro_destino',
         requestKey: null,
-      })
+      }
+      if (isAdmin && !engenheiroId) {
+        // Admin sem filtro de engenheiro vê todos
+      } else if (engenheiroId) {
+        options.filter = `engenheiro_destino = "${engenheiroId}"`
+      } else if (pb.authStore.model?.id && !isAdmin) {
+        options.filter = `engenheiro_destino = "${pb.authStore.model.id}"`
+      }
+
+      return await pb.collection('documentos_lead').getFullList<DocumentoLead>(options)
     } catch (err) {
       console.error('Erro ao buscar documentos do engenheiro:', err)
       return []

@@ -19,6 +19,7 @@ import {
   Inbox,
   HardHat,
   FolderOpen,
+  Kanban,
 } from 'lucide-react'
 import officialLogoPng from '@/assets/a-613c6.png'
 import EcosolarLogo from '@/components/EcosolarLogo'
@@ -82,6 +83,7 @@ export default function Layout() {
         { label: 'WhatsApp', path: '/whatsapp', icon: MessageSquare },
         ...(isAdmin
           ? [
+              { label: 'Área de Engenharia', path: '/engenharia', icon: HardHat },
               { label: 'Integrações', path: '/integracoes', icon: Webhook },
               { label: 'Equipe', path: '/equipe', icon: ShieldCheck },
             ]
@@ -101,7 +103,8 @@ export default function Layout() {
     if (path === '/propostas') return 'Gestão de Propostas Comerciais'
     if (path === '/kits') return 'Catálogo de Kits Solares'
     if (path === '/whatsapp') return 'WhatsApp & Atendimento Solar'
-    if (path === '/engenharia') return 'Meus Documentos Recebidos'
+    if (path === '/engenharia')
+      return isAdmin ? 'Área de Engenharia & Homologação' : 'Meus Documentos Recebidos'
     if (path === '/integracoes') return 'Integrações & Configurações de APIs'
     if (path === '/equipe') return 'Membros da Equipe'
     return 'Ecosolar Energy'
