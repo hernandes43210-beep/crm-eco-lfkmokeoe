@@ -22,6 +22,9 @@ import {
   AlertCircle,
   Kanban,
   FileUp,
+  Trash2,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import type { DocumentoLead, DossieTecnicoEngenharia, HomologacaoLead, User } from '@/types/crm'
@@ -35,6 +38,15 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
 import { formatDateBR, formatDateTimeBR } from '@/lib/solarUtils'
 
 export default function MeusDocumentosEngenharia() {
@@ -369,7 +381,7 @@ export default function MeusDocumentosEngenharia() {
           `O processo de homologação de ${homologacaoToDelete.cliente_nome || 'cliente'} foi removido com sucesso.`,
       })
       setHomologacaoToDelete(null)
-      fetchData()
+      fetchDocumentos()
     } catch (err: any) {
       console.error('Erro ao excluir homologação:', err)
       const msg = err?.data?.message || err?.message || 'Falha ao excluir homologação.'
@@ -393,7 +405,7 @@ export default function MeusDocumentosEngenharia() {
         description: res.message || 'Dossiê técnico removido com sucesso.',
       })
       setDossieToDelete(null)
-      fetchData()
+      fetchDocumentos()
     } catch (err: any) {
       console.error('Erro ao excluir dossie:', err)
       const msg = err?.data?.message || err?.message || 'Falha ao excluir dossiê.'
@@ -418,7 +430,7 @@ export default function MeusDocumentosEngenharia() {
           description: `O arquivo "${documentoToDelete.nome_original || documentoToDelete.arquivo}" foi removido com sucesso.`,
         })
         setDocumentoToDelete(null)
-        fetchData()
+        fetchDocumentos()
       } else {
         throw new Error('Não foi possível excluir o documento.')
       }
@@ -1255,6 +1267,189 @@ export default function MeusDocumentosEngenharia() {
           }}
         />
       )}
+
+      {/* Modal de Confirmação de Exclusão de Homologação (Admin/CEO) */}
+      <Dialog
+        open={!!homologacaoToDelete}
+        onOpenChange={(val) => !isDeletingHomolog && !val && setHomologacaoToDelete(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="gap-2">
+            <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+            </div>
+            <div>
+              <DialogTitle className="text-lg font-bold text-slate-900">
+                Excluir Processo de Homologação
+              </DialogTitle>
+              <DialogDescription className="text-sm text-slate-600 mt-1.5 leading-relaxed">
+                Deseja realmente remover o processo de homologação de{' '}
+                <strong className="text-slate-900">
+                  {homologacaoToDelete?.cliente_nome || 'este cliente'}
+                </strong>
+                ? Esta ação remove o card do Kanban e os arquivos técnicos anexados pela engenharia.
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+
+          {/* Opção de remoção em cascata dos dossiês e documentos do lead */}
+          <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-2 text-xs">
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <Checkbox
+                checked={deleteHomologCascadeDocs}
+                onCheckedChange={(checked) => setDeleteHomologCascadeDocs(!!checked)}
+                disabled={isDeletingHomolog}
+                className="mt-0.5"
+              />
+              <div className="space-y-0.5">
+                <span className="font-semibold text-slate-800 block">
+                  Excluir também dossiês e documentos comerciais recebidos
+                </span>
+                <span className="text-slate-500 block leading-snug">
+                  Remove os arquivos da aba "Dossiês & Arquivos" enviados pela equipe comercial para
+                  este lead.
+                </span>
+              </div>
+            </label>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 mt-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setHomologacaoToDelete(null)}
+              disabled={isDeletingHomolog}
+              className="text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmDeleteHomologacao}
+              disabled={isDeletingHomolog}
+              className="text-xs bg-red-600 hover:bg-red-700 text-white gap-1.5"
+            >
+              {isDeletingHomolog ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Excluindo...</span>
+                </>
+              ) : (
+                'Excluir Homologação'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Confirmação de Exclusão de Dossiê Técnico (Admin/CEO) */}
+      <Dialog
+        open={!!dossieToDelete}
+        onOpenChange={(val) => !isDeletingDossie && !val && setDossieToDelete(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="gap-2">
+            <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+            </div>
+            <div>
+              <DialogTitle className="text-lg font-bold text-slate-900">
+                Excluir Dossiê Técnico
+              </DialogTitle>
+              <DialogDescription className="text-sm text-slate-600 mt-1.5 leading-relaxed">
+                Deseja realmente excluir o dossiê técnico enviado para{' '}
+                <strong className="text-slate-900">
+                  {dossieToDelete?.clienteNome || 'este cliente'}
+                </strong>
+                ? O registro dos dados negociados será removido da engenharia.
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDossieToDelete(null)}
+              disabled={isDeletingDossie}
+              className="text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmDeleteDossie}
+              disabled={isDeletingDossie}
+              className="text-xs bg-red-600 hover:bg-red-700 text-white gap-1.5"
+            >
+              {isDeletingDossie ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Excluindo...</span>
+                </>
+              ) : (
+                'Excluir Dossiê'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Confirmação de Exclusão de Documento Individual (Admin/CEO) */}
+      <Dialog
+        open={!!documentoToDelete}
+        onOpenChange={(val) => !isDeletingDoc && !val && setDocumentoToDelete(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="gap-2">
+            <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+            </div>
+            <div>
+              <DialogTitle className="text-lg font-bold text-slate-900">
+                Excluir Documento
+              </DialogTitle>
+              <DialogDescription className="text-sm text-slate-600 mt-1.5 leading-relaxed">
+                Deseja realmente remover o arquivo{' '}
+                <strong className="text-slate-900 truncate block mt-1">
+                  "{documentoToDelete?.nome_original || documentoToDelete?.arquivo}"
+                </strong>
+                ? O arquivo será apagado do servidor permanentemente.
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDocumentoToDelete(null)}
+              disabled={isDeletingDoc}
+              className="text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmDeleteDocumento}
+              disabled={isDeletingDoc}
+              className="text-xs bg-red-600 hover:bg-red-700 text-white gap-1.5"
+            >
+              {isDeletingDoc ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Excluindo...</span>
+                </>
+              ) : (
+                'Excluir Documento'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
