@@ -226,9 +226,10 @@ export const LeadDocumentosService = {
     isAdmin = false,
   ): Promise<DossieTecnicoEngenharia[]> {
     try {
-      const options: { sort: string; requestKey: null; filter?: string } = {
+      const options: { sort: string; requestKey: null; filter?: string; expand?: string } = {
         sort: '-created',
         requestKey: null,
+        expand: 'lead,engenheiro_destino,enviado_por',
       }
       if (!isAdmin) {
         options.filter = `engenheiro_destino = "${engenheiroId}"`

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   FolderOpen,
   Download,
   CheckCircle2,
   Clock,
   User as UserIcon,
+  UserCheck,
   Search,
   FileCheck,
   FileText,
@@ -23,7 +24,7 @@ import {
   FileUp,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-import type { DocumentoLead, DossieTecnicoEngenharia, HomologacaoLead } from '@/types/crm'
+import type { DocumentoLead, DossieTecnicoEngenharia, HomologacaoLead, User } from '@/types/crm'
 import { CATEGORIAS_DOCUMENTOS, LeadDocumentosService } from '@/services/leadDocumentos'
 import { HomologacaoService } from '@/services/homologacao'
 import { KanbanHomologacao } from '@/components/KanbanHomologacao'
@@ -42,6 +43,7 @@ export default function MeusDocumentosEngenharia() {
   const [documentos, setDocumentos] = useState<DocumentoLead[]>([])
   const [dossies, setDossies] = useState<DossieTecnicoEngenharia[]>([])
   const [homologacoes, setHomologacoes] = useState<HomologacaoLead[]>([])
+  const [engenheirosList, setEngenheirosList] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [categoriaFilter, setCategoriaFilter] = useState<string>('todas')
@@ -64,16 +66,18 @@ export default function MeusDocumentosEngenharia() {
       setLoading(true)
       // Se for Admin, traz todas as homologações e dossiês de todos os engenheiros.
       // Se for Engenheiro, traz estritamente os seus registros vinculados a user.id.
-      const [docs, dossiesData, homData] = await Promise.all([
+      const [docs, dossiesData, homData, engs] = await Promise.all([
         LeadDocumentosService.getDocumentosByEngenheiro(isAdmin ? undefined : user.id, isAdmin),
         LeadDocumentosService.getDossiesByEngenheiro(user.id, isAdmin),
         HomologacaoService.getHomologacoes(
           isAdmin ? { isAdmin: true } : { engenheiroId: user.id, isAdmin: false },
         ),
+        LeadDocumentosService.getEngenheiros(),
       ])
       setDocumentos(docs)
       setDossies(dossiesData)
       setHomologacoes(homData)
+      setEngenheirosList(engs)
 
       // Por padrão expande todos os cards
       const expMap: Record<string, boolean> = {}
@@ -101,6 +105,38 @@ export default function MeusDocumentosEngenharia() {
   useEffect(() => {
     fetchDocumentos()
   }, [user?.id])
+
+  // Mapa de id do engenheiro -> nome legível
+  const engenheirosMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    // Preenche com engenheiros cadastrados no banco
+    engenheirosList.forEach((e) => {
+      if (e.id) {
+        map[e.id] = e.name || e.email || 'Engenheiro'
+      }
+    })
+    // Também adiciona o usuário logado caso seja engenheiro/admin
+    if (user?.id) {
+      map[user.id] = user.name || user.email || 'Engenheiro'
+    }
+    // E aproveita expands já resolvidos
+    homologacoes.forEach((h) => {
+      if (h.engenheiro && h.expand?.engenheiro?.name) {
+        map[h.engenheiro] = h.expand.engenheiro.name
+      }
+    })
+    dossies.forEach((ds) => {
+      if (ds.engenheiro_destino && ds.expand?.engenheiro_destino?.name) {
+        map[ds.engenheiro_destino] = ds.expand.engenheiro_destino.name
+      }
+    })
+    documentos.forEach((dc) => {
+      if (dc.engenheiro_destino && dc.expand?.engenheiro_destino?.name) {
+        map[dc.engenheiro_destino] = dc.expand.engenheiro_destino.name
+      }
+    })
+    return map
+  }, [engenheirosList, user, homologacoes, dossies, documentos])
 
   const toggleLeadExpanded = (leadId: string) => {
     setExpandedLeads((prev) => ({
@@ -518,6 +554,7 @@ export default function MeusDocumentosEngenharia() {
               onHomologacaoUpdated={(updated) => setHomologacoes(updated)}
               onOpenEnviarArt={handleOpenEnviarArt}
               onSelectCard={handleSelectCard}
+              engenheirosMap={engenheirosMap}
             />
           )}
         </div>
@@ -580,6 +617,40 @@ export default function MeusDocumentosEngenharia() {
                           {(lead.nome || 'L').slice(0, 2).toUpperCase()}
                         </div>
                         <div>
+                          {/* Nome do Engenheiro Responsável acima do nome do cliente */}
+                          {(() => {
+                            // Tenta encontrar o engenheiro responsável através do dossiê, da homologação vinculada ao lead ou dos documentos
+                            const engId =
+                              dossie?.engenheiro_destino ||
+                              homologacoes.find((h) => h.lead === (lead.id || 'sem_lead'))
+                                ?.engenheiro ||
+                              docs.find((d) => d.engenheiro_destino)?.engenheiro_destino
+
+                            const engNome =
+                              (engId && engenheirosMap[engId]) ||
+                              dossie?.expand?.engenheiro_destino?.name ||
+                              docs.find((d) => d.expand?.engenheiro_destino?.name)?.expand
+                                ?.engenheiro_destino?.name ||
+                              homologacoes.find((h) => h.lead === (lead.id || 'sem_lead'))?.expand
+                                ?.engenheiro?.name ||
+                              (engId ? 'Engenheiro atribuído' : null)
+
+                            if (!engNome) return null
+
+                            return (
+                              <div
+                                className="inline-flex items-center gap-1 mb-1 text-[11px] font-medium text-slate-600 bg-white/90 px-2 py-0.5 rounded-md border border-slate-200/90 shadow-2xs"
+                                title={`Engenheiro Responsável: ${engNome}`}
+                              >
+                                <UserCheck className="w-3 h-3 text-[#0B7A5B] shrink-0" />
+                                <span className="text-slate-500 font-normal">
+                                  Eng. Responsável:
+                                </span>
+                                <span className="font-bold text-slate-900">{engNome}</span>
+                              </div>
+                            )
+                          })()}
+
                           <div className="flex items-center gap-2">
                             <h3 className="text-sm font-bold text-slate-900 leading-tight">
                               {lead.nome || 'Cliente sem nome'}

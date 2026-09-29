@@ -28,6 +28,7 @@ interface KanbanHomologacaoProps {
   onHomologacaoUpdated: (updatedList: HomologacaoLead[]) => void
   onOpenEnviarArt: (hom: HomologacaoLead) => void
   onSelectCard: (hom: HomologacaoLead) => void
+  engenheirosMap?: Record<string, string>
 }
 
 export function KanbanHomologacao({
@@ -35,6 +36,7 @@ export function KanbanHomologacao({
   onHomologacaoUpdated,
   onOpenEnviarArt,
   onSelectCard,
+  engenheirosMap,
 }: KanbanHomologacaoProps) {
   const [draggedCardId, setDraggedCardId] = useState<string | null>(null)
   const [dragOverCol, setDragOverCol] = useState<HomologacaoStatus | null>(null)
@@ -224,8 +226,33 @@ export function KanbanHomologacao({
                             ) : null}
                           </div>
 
-                          {/* Nome do Cliente e Ação de Abrir Ficha */}
+                          {/* Engenheiro Responsável e Nome do Cliente */}
                           <div>
+                            {(() => {
+                              const nomeEngenheiro =
+                                hom.expand?.engenheiro?.name ||
+                                (hom.engenheiro && engenheirosMap
+                                  ? engenheirosMap[hom.engenheiro]
+                                  : null) ||
+                                hom.expand?.engenheiro?.email ||
+                                (hom.engenheiro ? 'Engenheiro atribuído' : null)
+
+                              if (!nomeEngenheiro) return null
+
+                              return (
+                                <div
+                                  className="flex items-center gap-1 mb-1 text-[10.5px] font-medium text-slate-600 bg-slate-50/90 px-1.5 py-0.5 rounded border border-slate-200/80 truncate"
+                                  title={`Engenheiro Responsável: ${nomeEngenheiro}`}
+                                >
+                                  <UserCheck className="w-3 h-3 text-[#0B7A5B] shrink-0" />
+                                  <span className="text-slate-500 font-normal shrink-0">Eng.:</span>
+                                  <span className="font-bold text-slate-800 truncate">
+                                    {nomeEngenheiro}
+                                  </span>
+                                </div>
+                              )
+                            })()}
+
                             <div className="flex items-center justify-between gap-1">
                               <h4
                                 className="font-extrabold text-slate-900 text-xs leading-snug truncate group-hover:text-[#0B7A5B] transition-colors"
