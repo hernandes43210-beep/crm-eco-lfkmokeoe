@@ -227,6 +227,12 @@ describe('formalizacaoPdf', () => {
     expect(html).toContain('Nome: _____________________________________________')
     expect(html).toContain('Maria Aparecida Santos')
     expect(html).toContain('CPF: 987.654.321-11')
+
+    // 7. CABEÇALHO COMPACTO E LAYOUT EM 1 PÁGINA A4 (margem 14mm, corpo 9.5pt, entrelinha 1.35)
+    expect(html).toContain('margin: 14mm 14mm 14mm 14mm;')
+    expect(html).toContain('font-size: 9.5pt;')
+    expect(html).toContain('line-height: 1.35;')
+    expect(html).toContain('ECOSOLAR ENERGY</strong> — Homologação Energisa Rondônia')
   })
 
   it('deve usar BRASILEIRO como nacionalidade padrão e destacar variáveis ausentes na procuração', () => {

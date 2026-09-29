@@ -721,7 +721,7 @@ export function generateProcuracaoEnergisaHTML(dados: DadosProcuracaoEnergisa): 
   <style>
     @page {
       size: A4 portrait;
-      margin: 20mm 20mm 20mm 20mm;
+      margin: 14mm 14mm 14mm 14mm;
     }
     * {
       box-sizing: border-box;
@@ -732,8 +732,8 @@ export function generateProcuracaoEnergisaHTML(dados: DadosProcuracaoEnergisa): 
     body {
       color: #0f172a;
       background: #ffffff;
-      font-size: 11pt;
-      line-height: 1.65;
+      font-size: 9.5pt;
+      line-height: 1.35;
       text-align: justify;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
@@ -742,46 +742,47 @@ export function generateProcuracaoEnergisaHTML(dados: DadosProcuracaoEnergisa): 
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 2px solid #EAB308;
-      padding-bottom: 12px;
-      margin-bottom: 28px;
+      border-bottom: 1.5px solid #EAB308;
+      padding-bottom: 6px;
+      margin-bottom: 12px;
     }
     .logo-img {
-      height: 48px;
-      max-width: 170px;
+      height: 30px;
+      max-width: 130px;
       object-fit: contain;
     }
     .header-sub {
       text-align: right;
-      font-size: 8.5pt;
+      font-size: 7.5pt;
       color: #64748b;
-      line-height: 1.35;
+      line-height: 1.2;
+      white-space: nowrap;
     }
     .header-sub strong {
       color: #0F284E;
     }
     .title-doc {
-      font-size: 16pt;
+      font-size: 13pt;
       font-weight: 900;
       color: #0A192F;
       text-align: center;
       text-transform: uppercase;
-      letter-spacing: 1.5px;
-      margin-bottom: 26px;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
     }
     .block-section {
-      margin-bottom: 18px;
+      margin-bottom: 8px;
     }
     .bullet-list {
-      margin: 8px 0 12px 0;
+      margin: 4px 0 5px 0;
       padding-left: 0;
       list-style: none;
     }
     .bullet-item {
       position: relative;
-      padding-left: 18px;
-      margin-bottom: 6px;
-      line-height: 1.55;
+      padding-left: 14px;
+      margin-bottom: 3px;
+      line-height: 1.3;
     }
     .bullet-item::before {
       content: "•";
@@ -793,64 +794,67 @@ export function generateProcuracaoEnergisaHTML(dados: DadosProcuracaoEnergisa): 
     .field-missing {
       background: #fef08a;
       color: #854d0e;
-      padding: 1px 6px;
-      border-radius: 4px;
+      padding: 0 4px;
+      border-radius: 3px;
       font-weight: 700;
       border: 1px dashed #ca8a04;
       display: inline-block;
     }
     .signatures-section {
-      margin-top: 36px;
+      margin-top: 14px;
       page-break-inside: avoid;
     }
     .date-location {
       text-align: left;
-      margin-bottom: 40px;
+      margin-bottom: 14px;
       font-weight: 700;
-      font-size: 11pt;
+      font-size: 9.5pt;
       color: #0A192F;
       text-transform: uppercase;
     }
     .sign-box-container {
-      margin-top: 20px;
+      margin-top: 10px;
       text-align: left;
-      line-height: 1.5;
+      line-height: 1.35;
     }
     .sign-title {
       font-weight: 600;
-      margin-bottom: 12px;
+      margin-bottom: 6px;
       color: #1e293b;
+      font-size: 9pt;
     }
     .sign-underline {
-      margin-bottom: 6px;
+      margin-bottom: 4px;
       color: #334155;
       letter-spacing: -1px;
+      font-size: 9pt;
     }
     .sign-client-name {
       font-weight: 700;
       color: #0A192F;
+      font-size: 9.5pt;
     }
     .sign-client-cpf {
       color: #334155;
+      font-size: 9pt;
     }
     .footer-doc {
-      margin-top: 40px;
-      padding-top: 10px;
+      margin-top: 12px;
+      padding-top: 4px;
       border-top: 1px solid #e2e8f0;
       display: flex;
       justify-content: space-between;
-      font-size: 8pt;
+      font-size: 7.5pt;
       color: #94a3b8;
     }
   </style>
 </head>
 <body>
-  <!-- Cabeçalho Institucional -->
+  <!-- Cabeçalho Institucional Compacto -->
   <div class="header-doc">
     <img src="${officialLogoPng}" alt="Ecosolar Energy" class="logo-img" />
     <div class="header-sub">
-      <strong>ECOSOLAR ENERGY — ENGENHARIA SOLAR</strong><br>
-      Homologação Concessionária Energisa Rondônia
+      <strong>ECOSOLAR ENERGY</strong> — Homologação Energisa Rondônia
     </div>
   </div>
 
@@ -866,7 +870,7 @@ export function generateProcuracaoEnergisaHTML(dados: DadosProcuracaoEnergisa): 
   <!-- OUTORGADOS -->
   <div class="block-section">
     <p><strong>OUTORGADOS:</strong></p>
-    <p style="margin-top: 6px; margin-bottom: 8px;">
+    <p style="margin-top: 3px; margin-bottom: 4px;">
       1º) WILLIAN DA COSTA GOVEIA, Engenheiro Eletricista, brasileiro, inscrito no CREA sob o nº 26000217D RO, portador do RG nº 1425244 SESDEC/RO e CPF nº 024.376.042-60, residente e domiciliado na Rua Piauí, nº 1970, Setor 1ª, Jaru/RO CEP:76890-000.
     </p>
     <p>
