@@ -128,11 +128,26 @@ export function SendClicksignModal({
       onOpenChange(false)
     } catch (err: any) {
       console.error('Erro ao enviar envelope para Clicksign:', err)
-      const message =
-        err?.response?.data?.error ||
-        err?.data?.error ||
-        err?.message ||
-        'Não foi possível criar o envelope de assinatura na Clicksign. Verifique suas credenciais.'
+      // Extrair mensagem real retornada pelo backend ou pela Clicksign
+      let message = ''
+      if (err?.response?.data?.error) {
+        message = err.response.data.error
+      } else if (err?.data?.error) {
+        message = err.data.error
+      } else if (err?.response?.error) {
+        message = err.response.error
+      } else if (
+        err?.message &&
+        !err.message.includes('ClientResponseError 400') &&
+        !err.message.includes('Something went wrong')
+      ) {
+        message = err.message
+      }
+
+      if (!message) {
+        message =
+          'A Clicksign rejeitou a solicitação de assinatura (HTTP 400). Verifique os dados do signatário (nome completo, e-mail e CPF) e se o documento foi gerado corretamente.'
+      }
       setErrorMsg(message)
     } finally {
       setSubmitting(false)

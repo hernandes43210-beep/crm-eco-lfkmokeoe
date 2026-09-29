@@ -125,6 +125,39 @@ routerAdd(
       Accept: 'application/vnd.api+json',
     }
 
+    console.log(
+      '[clicksign_create_envelope] Iniciando criação de envelope para lead:',
+      leadId,
+      'signatário:',
+      signerNome,
+      'email:',
+      signerEmail,
+      'cpf:',
+      signerCpf,
+      'tel:',
+      signerTelefone,
+    )
+
+    // Helper interno para formatar erros da Clicksign ou resposta HTTP
+    const formatClicksignError = (res, defaultMsg) => {
+      let msg = defaultMsg
+      try {
+        const bodyObj = res.json || {}
+        if (bodyObj.errors && Array.isArray(bodyObj.errors) && bodyObj.errors.length > 0) {
+          const errList = bodyObj.errors.map((item) => {
+            const ptr = item.source && item.source.pointer ? '(' + item.source.pointer + ') ' : ''
+            return ptr + (item.detail || item.title || item.code || JSON.stringify(item))
+          })
+          msg = errList.join('; ')
+        } else if (bodyObj.error) {
+          msg = typeof bodyObj.error === 'string' ? bodyObj.error : JSON.stringify(bodyObj.error)
+        } else if (res.raw) {
+          msg = defaultMsg + ' (HTTP ' + res.statusCode + '): ' + res.raw.slice(0, 300)
+        }
+      } catch (_) {}
+      return msg
+    }
+
     // 3. PASSO 1: Criar Envelope na Clicksign (POST /api/v3/envelopes)
     let envelopeRes = null
     try {
@@ -145,19 +178,28 @@ routerAdd(
         timeout: 30,
       })
     } catch (httpErr) {
+      console.error('[clicksign_create_envelope] Exceção ao criar envelope:', httpErr.message)
       return e.json(500, {
         error: 'Erro de conexão com o servidor da Clicksign: ' + httpErr.message,
       })
     }
 
+    console.log(
+      '[clicksign_create_envelope] Passo 1 (envelopes) status:',
+      envelopeRes.statusCode,
+      'body:',
+      JSON.stringify(envelopeRes.json || envelopeRes.raw),
+    )
+
     if (envelopeRes.statusCode < 200 || envelopeRes.statusCode >= 300) {
-      const errBody = envelopeRes.json || {}
-      let msg = 'Falha ao criar envelope na Clicksign.'
-      if (errBody.errors && Array.isArray(errBody.errors) && errBody.errors[0]) {
-        msg = errBody.errors[0].detail || errBody.errors[0].title || msg
-      }
+      const msg = formatClicksignError(envelopeRes, 'Falha ao criar envelope na Clicksign.')
+      console.error(
+        '[clicksign_create_envelope] Erro Passo 1 Clicksign:',
+        envelopeRes.statusCode,
+        msg,
+      )
       return e.json(envelopeRes.statusCode, {
-        error: msg,
+        error: 'A Clicksign rejeitou a criação do envelope: ' + msg,
         status: envelopeRes.statusCode,
       })
     }
@@ -187,38 +229,64 @@ routerAdd(
         timeout: 45,
       })
     } catch (docErr) {
+      console.error('[clicksign_create_envelope] Exceção ao enviar documento:', docErr.message)
       return e.json(500, {
         error: 'Erro no envio do documento PDF para a Clicksign: ' + docErr.message,
       })
     }
 
+    console.log(
+      '[clicksign_create_envelope] Passo 2 (documents) status:',
+      docRes.statusCode,
+      'body:',
+      JSON.stringify(docRes.json || docRes.raw),
+    )
+
     if (docRes.statusCode < 200 || docRes.statusCode >= 300) {
-      const errBody = docRes.json || {}
-      let msg = 'Falha ao adicionar documento ao envelope na Clicksign.'
-      if (errBody.errors && Array.isArray(errBody.errors) && errBody.errors[0]) {
-        msg = errBody.errors[0].detail || errBody.errors[0].title || msg
-      }
-      return e.json(docRes.statusCode, { error: msg })
+      const msg = formatClicksignError(
+        docRes,
+        'Falha ao adicionar documento ao envelope na Clicksign.',
+      )
+      console.error('[clicksign_create_envelope] Erro Passo 2 Clicksign:', docRes.statusCode, msg)
+      return e.json(docRes.statusCode, {
+        error: 'A Clicksign rejeitou o documento: ' + msg,
+        status: docRes.statusCode,
+      })
     }
 
     const docData = (docRes.json && docRes.json.data) || {}
     const clicksignDocId = docData.id || ''
 
     // 5. PASSO 3: Criar signatário (POST /api/v3/envelopes/:envelope_id/signers)
+    // Formatar CPF se tiver 11 dígitos para o padrão esperado 000.000.000-00
+    let formattedCpf = ''
+    if (signerCpf && signerCpf.length === 11) {
+      formattedCpf = signerCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+    } else if (signerCpf && signerCpf.length === 14) {
+      formattedCpf = signerCpf.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+    }
+
+    // Validação de duas palavras para o nome do signatário (exigência da API Clicksign v3)
+    let safeSignerNome = signerNome.trim()
+    if (safeSignerNome.split(/\s+/).length < 2) {
+      safeSignerNome = safeSignerNome + ' (Cliente)'
+    }
+
     const signerAttributes = {
-      name: signerNome,
+      name: safeSignerNome,
       email: signerEmail,
-      has_documentation: !!signerCpf,
+      has_documentation: !!formattedCpf,
       communicate_events: {
         document_signed: 'email',
         signature_request: 'email',
         signature_reminder: 'email',
       },
     }
-    if (signerCpf) {
-      signerAttributes.documentation = signerCpf
+    if (formattedCpf) {
+      signerAttributes.documentation = formattedCpf
     }
-    if (signerTelefone) {
+    // Telefone só é enviado se tiver 10 ou 11 dígitos (conforme spec da API v3 Clicksign)
+    if (signerTelefone && (signerTelefone.length === 10 || signerTelefone.length === 11)) {
       signerAttributes.phone_number = signerTelefone
     }
 
@@ -237,18 +305,30 @@ routerAdd(
         timeout: 30,
       })
     } catch (sErr) {
+      console.error('[clicksign_create_envelope] Exceção ao cadastrar signatário:', sErr.message)
       return e.json(500, {
         error: 'Erro ao cadastrar signatário na Clicksign: ' + sErr.message,
       })
     }
 
+    console.log(
+      '[clicksign_create_envelope] Passo 3 (signers) status:',
+      signerRes.statusCode,
+      'body:',
+      JSON.stringify(signerRes.json || signerRes.raw),
+    )
+
     if (signerRes.statusCode < 200 || signerRes.statusCode >= 300) {
-      const errBody = signerRes.json || {}
-      let msg = 'Falha ao cadastrar signatário na Clicksign.'
-      if (errBody.errors && Array.isArray(errBody.errors) && errBody.errors[0]) {
-        msg = errBody.errors[0].detail || errBody.errors[0].title || msg
-      }
-      return e.json(signerRes.statusCode, { error: msg })
+      const msg = formatClicksignError(signerRes, 'Falha ao cadastrar signatário na Clicksign.')
+      console.error(
+        '[clicksign_create_envelope] Erro Passo 3 Clicksign:',
+        signerRes.statusCode,
+        msg,
+      )
+      return e.json(signerRes.statusCode, {
+        error: 'A Clicksign rejeitou o signatário: ' + msg,
+        status: signerRes.statusCode,
+      })
     }
 
     const signerData = (signerRes.json && signerRes.json.data) || {}
@@ -282,11 +362,25 @@ routerAdd(
           }),
           timeout: 30,
         })
+        console.log(
+          '[clicksign_create_envelope] Passo 4 (requirements agree/sign) status:',
+          reqRes.statusCode,
+          'body:',
+          JSON.stringify(reqRes.json || reqRes.raw),
+        )
         if (reqRes.statusCode >= 200 && reqRes.statusCode < 300) {
           const reqData = (reqRes.json && reqRes.json.data) || {}
           clicksignReqId = reqData.id || ''
+        } else {
+          console.warn(
+            '[clicksign_create_envelope] Aviso Passo 4 requirements status:',
+            reqRes.statusCode,
+            formatClicksignError(reqRes, ''),
+          )
         }
-      } catch (_) {}
+      } catch (reqErr) {
+        console.warn('[clicksign_create_envelope] Exceção Passo 4 requirements:', reqErr.message)
+      }
     }
 
     // 7. PASSO 5: Ativar envelope (PATCH /api/v3/envelopes/:envelope_id com status: "running")
@@ -307,7 +401,37 @@ routerAdd(
         }),
         timeout: 30,
       })
-    } catch (_) {}
+      console.log(
+        '[clicksign_create_envelope] Passo 5 (activate envelope running) status:',
+        activeRes ? activeRes.statusCode : 'none',
+        'body:',
+        activeRes ? JSON.stringify(activeRes.json || activeRes.raw) : '',
+      )
+    } catch (actErr) {
+      console.warn('[clicksign_create_envelope] Exceção Passo 5 ativação:', actErr.message)
+    }
+
+    // 7.1 Enviar notificação para o signatário (POST /api/v3/envelopes/:envelope_id/notifications)
+    try {
+      const notifRes = $http.send({
+        url: baseUrl + '/api/v3/envelopes/' + envelopeId + '/notifications',
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({
+          data: {
+            type: 'notifications',
+            attributes: {},
+          },
+        }),
+        timeout: 15,
+      })
+      console.log(
+        '[clicksign_create_envelope] Passo 7.1 (notifications) status:',
+        notifRes ? notifRes.statusCode : 'none',
+      )
+    } catch (notifErr) {
+      console.warn('[clicksign_create_envelope] Exceção Passo 7.1 notificações:', notifErr.message)
+    }
 
     // 8. PASSO 6: Buscar link de assinatura do signatário
     let linkAssinatura = ''
