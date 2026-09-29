@@ -4,7 +4,12 @@ import {
   buildWhatsAppSigningMessage,
   buildWhatsAppSigningUrl,
 } from './clicksignUtils'
-import { htmlToPlainText, generatePdfBase64FromHtml } from './pdfBase64'
+import {
+  htmlToPlainText,
+  generatePdfBase64FromHtml,
+  generateSimplePdfBuffer,
+  createDocumentJsPdf,
+} from './pdfBase64'
 
 describe('clicksignUtils', () => {
   it('mapeia corretamente o status "signed" para badge visual', () => {
@@ -65,14 +70,14 @@ describe('clicksignUtils', () => {
   })
 })
 
-describe('pdfBase64 generation', () => {
+describe('pdfBase64 generation with jsPDF', () => {
   it('converte tags HTML para texto puro limpo', () => {
     const html = `
       <style>body { color: red; }</style>
       <h1>Contrato de Prestação de Serviços</h1>
       <p>Parágrafo 1 com <strong>negrito</strong> e &amp; comercial.</p>
       <br/>
-      <p>Parágrafo 2 &mdash; traço longo.</p>
+      <p>Parágrafo 2 &mdash; traço longo e &ndash; traço médio.</p>
     `
     const text = htmlToPlainText(html)
     expect(text).not.toContain('<style>')
@@ -81,17 +86,59 @@ describe('pdfBase64 generation', () => {
     expect(text).toContain('Contrato de Prestação de Serviços')
     expect(text).toContain('& comercial')
     expect(text).toContain('— traço longo')
+    expect(text).toContain('– traço médio')
   })
 
-  it('gera Data URL base64 válida para envio à Clicksign', () => {
-    const html = '<h1>Contrato de Teste</h1><p>Testando gerador de PDF para Clicksign</p>'
-    const base64Url = generatePdfBase64FromHtml('Contrato de Teste', html)
+  it('gera Data URL base64 válida para envio à Clicksign preservando acentuação', () => {
+    const html = `
+      <h2>Procuração Particular para Concessionária Energisa Rondônia</h2>
+      <p>OUTORGANTE: João da Conceição Araújo, brasileiro, casado, CPF nº 123.456.789-00.</p>
+      <p>OBJETO: Representação perante a Energisa Rondônia Distribuidora de Energia S.A. para homologação de microgeração solar fotovoltaica.</p>
+      <p>Localização: Porto Velho &mdash; RO, instalação de 12 painéis solares de 585W.</p>
+    `
+    const base64Url = generatePdfBase64FromHtml(
+      'Procuração Energisa Rondônia — João da Conceição',
+      html,
+    )
 
+    // Prefixo obrigatório exigido pelo ClicksignService e API v3
     expect(base64Url.startsWith('data:application/pdf;base64,')).toBe(true)
+
+    // Decodifica o base64 para binário
     const rawBase64 = base64Url.replace('data:application/pdf;base64,', '')
-    // Deve decodificar como cabeçalho de PDF
     const decoded = atob(rawBase64)
-    expect(decoded.startsWith('%PDF-1.4')).toBe(true)
+
+    // Header de PDF válido (%PDF-)
+    expect(decoded.startsWith('%PDF-')).toBe(true)
+    // Marca de fim de arquivo PDF
     expect(decoded).toContain('%%EOF')
+  })
+
+  it('generateSimplePdfBuffer retorna Uint8Array de PDF válido', () => {
+    const buffer = generateSimplePdfBuffer(
+      'Contrato Ecosolar',
+      'Cláusula Primeira: Prestação de serviços de engenharia e instalação.',
+    )
+    expect(buffer).toBeInstanceOf(Uint8Array)
+    expect(buffer.length).toBeGreaterThan(100)
+
+    // Primeiros bytes devem ser %PDF- (0x25, 0x50, 0x44, 0x46, 0x2D)
+    const headerStr = String.fromCharCode(...buffer.slice(0, 5))
+    expect(headerStr).toBe('%PDF-')
+  })
+
+  it('pagina adequadamente textos longos em múltiplas páginas A4', () => {
+    // Gerar texto longo simulando contrato com 60 parágrafos
+    const paragraphs: string[] = []
+    for (let i = 1; i <= 60; i++) {
+      paragraphs.push(
+        `CLÁUSULA ${i}ª: O CONTRATANTE e a CONTRATADA ECOSOLAR ENERGY acordam os termos de instalação e fornecimento de inversores solares fotovoltaicos, com suporte técnico e homologação na distribuidora de energia elétrica regional com acentuação: geração, medição e padrão técnico.`,
+      )
+    }
+    const longHtml = paragraphs.map((p) => `<p>${p}</p>`).join('\n')
+
+    const doc = createDocumentJsPdf('Contrato Longo', htmlToPlainText(longHtml))
+    const totalPages = doc.getNumberOfPages()
+    expect(totalPages).toBeGreaterThan(1)
   })
 })

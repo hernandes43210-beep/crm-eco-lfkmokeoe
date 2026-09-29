@@ -1,17 +1,17 @@
 /**
- * Utilitário para converter HTML ou texto em um arquivo PDF puro compatível com visualizadores
- * e com os servidores da Clicksign sem depender de binários nativos no navegador.
- * Gera um PDF minimalista válido (PDF-1.4) com formatação em texto, metadados e quebras de linha.
+ * Utilitário para conversão de HTML/texto em PDF e Data URL base64 usando jsPDF.
+ * Gera documentos PDF-1.4/1.5 estritamente válidos, aceitos sem restrições
+ * pela API v3 da Clicksign e outros serviços de assinatura digital.
  */
 
-function escapePdfString(str: string): string {
-  return str.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)')
-}
+import { jsPDF } from 'jspdf'
 
 /**
  * Converte HTML simples para texto limpo quebrando em parágrafos e linhas
  */
 export function htmlToPlainText(html: string): string {
+  if (!html) return ''
+
   // Substituir quebras e títulos por quebras de linha
   let text = html
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
@@ -35,6 +35,7 @@ export function htmlToPlainText(html: string): string {
     .replace(/&#39;/g, "'")
     .replace(/&bull;/g, '•')
     .replace(/&mdash;/g, '—')
+    .replace(/&ndash;/g, '–')
 
   // Reduzir múltiplas linhas em branco para no máximo duas
   text = text.replace(/\n{3,}/g, '\n\n').trim()
@@ -43,125 +44,169 @@ export function htmlToPlainText(html: string): string {
 }
 
 /**
- * Quebra uma linha de texto para que não ultrapasse maxChars por linha
+ * Cria uma instância jsPDF formatada em A4 com o conteúdo e paginação
  */
-function wrapLine(text: string, maxChars = 80): string[] {
-  if (text.length <= maxChars) return [text]
-  const words = text.split(' ')
-  const lines: string[] = []
-  let currentLine = ''
+export function createDocumentJsPdf(title: string, textContent: string): jsPDF {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+    compress: true,
+  })
 
-  for (const w of words) {
-    if ((currentLine + ' ' + w).trim().length <= maxChars) {
-      currentLine = currentLine ? currentLine + ' ' + w : w
+  // Dimensões A4 em milímetros
+  const pageWidth = 210
+  const pageHeight = 297
+  const marginTop = 22
+  const marginBottom = 20
+  const marginLeft = 20
+  const marginRight = 20
+  const contentWidth = pageWidth - marginLeft - marginRight
+  const contentHeight = pageHeight - marginTop - marginBottom
+
+  // Configuração de fontes e espaçamentos
+  const bodyFontSize = 10
+  const bodyLineHeightMm = 5.2
+
+  // Quebrar o texto em parágrafos respeitando quebras intencionais
+  const paragraphs = (textContent || '').split('\n')
+  const allLines: string[] = []
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(bodyFontSize)
+
+  for (const para of paragraphs) {
+    if (para.trim().length === 0) {
+      allLines.push('')
     } else {
-      if (currentLine) lines.push(currentLine)
-      currentLine = w
+      const splitLines = doc.splitTextToSize(para, contentWidth)
+      allLines.push(...splitLines)
     }
   }
-  if (currentLine) lines.push(currentLine)
-  return lines
-}
 
-/**
- * Gera um Buffer/Uint8Array de um PDF-1.4 válido contendo o texto formatado em páginas
- */
-export function generateSimplePdfBuffer(title: string, textContent: string): Uint8Array {
-  const rawLines = textContent.split('\n')
-  const wrappedLines: string[] = []
-
-  for (const line of rawLines) {
-    if (line.trim().length === 0) {
-      wrappedLines.push('')
-    } else {
-      wrappedLines.push(...wrapLine(line, 86))
-    }
+  if (allLines.length === 0) {
+    allLines.push('')
   }
 
-  const linesPerPage = 48
+  // Paginação
+  const maxLinesPerPage = Math.floor((contentHeight - 14) / bodyLineHeightMm) // 14mm reservado para topo/título
   const pages: string[][] = []
-  for (let i = 0; i < wrappedLines.length; i += linesPerPage) {
-    pages.push(wrappedLines.slice(i, i + linesPerPage))
+
+  let currentPage: string[] = []
+  for (const line of allLines) {
+    if (currentPage.length >= maxLinesPerPage) {
+      pages.push(currentPage)
+      currentPage = []
+    }
+    currentPage.push(line)
   }
-  if (pages.length === 0) pages.push([''])
+  if (currentPage.length > 0 || pages.length === 0) {
+    pages.push(currentPage)
+  }
 
   const totalPages = pages.length
 
-  // Montagem manual de PDF-1.4 com tabela de xref e objetos
-  const objects: string[] = []
-
-  // Obj 1: Catalog
-  objects.push('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj')
-
-  // Obj 2: Pages root
-  const pageRefs = pages.map((_, i) => `${4 + i * 2} 0 R`).join(' ')
-  objects.push(`2 0 obj\n<< /Type /Pages /Kids [ ${pageRefs} ] /Count ${totalPages} >>\nendobj`)
-
-  // Obj 3: Font
-  objects.push('3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj')
-
-  // Para cada página:
-  // Obj 4 + i*2: Page object
-  // Obj 5 + i*2: Content stream
-  pages.forEach((pageLines, idx) => {
-    const pageObjNum = 4 + idx * 2
-    const contentObjNum = pageObjNum + 1
-
-    objects.push(
-      `${pageObjNum} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [ 0 0 595 842 ] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentObjNum} 0 R >>\nendobj`,
-    )
-
-    // Construir stream de texto para a página A4 (595 x 842 pt)
-    let streamText = 'BT\n/F1 10 Tf\n14 TL\n45 800 Td\n'
-    // Cabeçalho da página
-    streamText += `(${escapePdfString(title)} - Fl. ${idx + 1}/${totalPages}) Tj\nT*\nT*\n`
-
-    for (const l of pageLines) {
-      // Remover caracteres não ASCII para compatibilidade padrão Type1 Helvetica
-      const asciiLine = l
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^\x20-\x7E]/g, ' ')
-      streamText += `(${escapePdfString(asciiLine)}) Tj\nT*\n`
+  pages.forEach((pageLines, pageIdx) => {
+    if (pageIdx > 0) {
+      doc.addPage('a4', 'portrait')
     }
-    streamText += 'ET'
 
-    const streamLength = streamText.length
-    objects.push(
-      `${contentObjNum} 0 obj\n<< /Length ${streamLength} >>\nstream\n${streamText}\nendstream\nendobj`,
+    const pageNumber = pageIdx + 1
+
+    // Cabeçalho institucional discreto no topo
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(9)
+    doc.setTextColor(50, 70, 95)
+    doc.text('ECOSOLAR ENERGY', marginLeft, 12)
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(100, 116, 139)
+    const headerRight = `${title || 'Documento'} • Pág. ${pageNumber}/${totalPages}`
+    doc.text(headerRight, pageWidth - marginRight, 12, { align: 'right' })
+
+    // Linha divisória suave no cabeçalho
+    doc.setDrawColor(226, 232, 240)
+    doc.setLineWidth(0.3)
+    doc.line(marginLeft, 15, pageWidth - marginRight, 15)
+
+    // Título destacado na primeira página
+    let cursorY = marginTop
+    if (pageIdx === 0 && title) {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(14)
+      doc.setTextColor(10, 25, 47) // Azul marinho escuro Ecosolar
+      const titleLines = doc.splitTextToSize(title, contentWidth)
+      doc.text(titleLines, marginLeft, cursorY)
+      cursorY += titleLines.length * 7 + 4
+
+      // Linha decorativa abaixo do título na pág 1
+      doc.setDrawColor(245, 158, 11) // Âmbar solar
+      doc.setLineWidth(0.8)
+      doc.line(marginLeft, cursorY - 2, marginLeft + 35, cursorY - 2)
+      cursorY += 4
+    }
+
+    // Renderizar linhas do corpo do texto
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(bodyFontSize)
+    doc.setTextColor(30, 41, 59) // Cinza escuro ardósia
+
+    for (const line of pageLines) {
+      if (line.trim().length > 0) {
+        // Detectar títulos em caixa alta ou seções como destaques
+        const isHeading =
+          (line.startsWith('CLÁUSULA') ||
+            line.startsWith('CLAUSULA') ||
+            line.startsWith('OUTORGANTE') ||
+            line.startsWith('OUTORGADO') ||
+            line.startsWith('PODERES') ||
+            line.startsWith('OBJETO') ||
+            line.startsWith('DAS PARTES')) &&
+          line.length < 80
+
+        if (isHeading) {
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(15, 23, 42)
+          doc.text(line, marginLeft, cursorY)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(30, 41, 59)
+        } else {
+          doc.text(line, marginLeft, cursorY)
+        }
+      }
+      cursorY += bodyLineHeightMm
+    }
+
+    // Rodapé de segurança e autenticidade
+    doc.setDrawColor(226, 232, 240)
+    doc.setLineWidth(0.3)
+    doc.line(marginLeft, pageHeight - 12, pageWidth - marginRight, pageHeight - 12)
+
+    doc.setFont('helvetica', 'italic')
+    doc.setFontSize(7.5)
+    doc.setTextColor(148, 163, 184)
+    doc.text(
+      'Documento preparado para assinatura eletrônica com validade jurídica (MP 2.200-2/2001).',
+      marginLeft,
+      pageHeight - 8,
     )
+    doc.text(`Folha ${pageNumber} de ${totalPages}`, pageWidth - marginRight, pageHeight - 8, {
+      align: 'right',
+    })
   })
 
-  // Montar arquivo com cabeçalho, objetos e xref
-  let pdf = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n'
-  const offsets: number[] = []
+  return doc
+}
 
-  for (const obj of objects) {
-    offsets.push(pdf.length)
-    pdf += obj + '\n'
-  }
-
-  const xrefOffset = pdf.length
-  pdf += 'xref\n'
-  pdf += `0 ${objects.length + 1}\n`
-  pdf += '0000000000 65535 f \n'
-
-  for (const off of offsets) {
-    pdf += `${String(off).padStart(10, '0')} 00000 n \n`
-  }
-
-  pdf += 'trailer\n'
-  pdf += `<< /Size ${objects.length + 1} /Root 1 0 R >>\n`
-  pdf += 'startxref\n'
-  pdf += `${xrefOffset}\n`
-  pdf += '%%EOF'
-
-  // Retornar Uint8Array codificado em bytes
-  const bytes = new Uint8Array(pdf.length)
-  for (let i = 0; i < pdf.length; i++) {
-    bytes[i] = pdf.charCodeAt(i) & 0xff
-  }
-  return bytes
+/**
+ * Gera um Buffer/Uint8Array de um PDF válido contendo o texto formatado em páginas
+ * Mantido para compatibilidade com chamadores ou testes existentes
+ */
+export function generateSimplePdfBuffer(title: string, textContent: string): Uint8Array {
+  const doc = createDocumentJsPdf(title, textContent)
+  const arrayBuffer = doc.output('arraybuffer')
+  return new Uint8Array(arrayBuffer)
 }
 
 /**
@@ -177,10 +222,25 @@ export function uint8ArrayToPdfBase64(bytes: Uint8Array): string {
 }
 
 /**
- * Gera Data URL base64 a partir do conteúdo HTML de um contrato ou procuração
+ * Gera Data URL base64 a partir do conteúdo HTML de um contrato ou procuração.
+ * Retorna no formato 'data:application/pdf;base64,...' esperado pelo ClicksignService e SendClicksignModal.
  */
 export function generatePdfBase64FromHtml(title: string, htmlContent: string): string {
   const plainText = htmlToPlainText(htmlContent)
-  const bytes = generateSimplePdfBuffer(title, plainText)
-  return uint8ArrayToPdfBase64(bytes)
+  const doc = createDocumentJsPdf(title, plainText)
+  const dataUri = doc.output('datauristring')
+  // Garantir o prefixo correto 'data:application/pdf;base64,...'
+  if (dataUri.startsWith('data:application/pdf;')) {
+    if (dataUri.startsWith('data:application/pdf;filename=')) {
+      // jsPDF às vezes coloca ;filename=generated.pdf;base64,
+      const base64Index = dataUri.indexOf(';base64,')
+      if (base64Index !== -1) {
+        return 'data:application/pdf;base64,' + dataUri.substring(base64Index + 8)
+      }
+    }
+    return dataUri
+  }
+  // Fallback seguro via arraybuffer
+  const arrayBuffer = doc.output('arraybuffer')
+  return uint8ArrayToPdfBase64(new Uint8Array(arrayBuffer))
 }

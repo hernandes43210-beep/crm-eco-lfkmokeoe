@@ -98,9 +98,11 @@ export function SendClicksignModal({
     try {
       setSubmitting(true)
 
-      // 1. Gerar base64 do PDF a partir do HTML oficial
+      // 1. Gerar base64 do PDF a partir do HTML oficial com título acentuado
       const pdfBase64 = generatePdfBase64FromHtml(
-        tipo === 'procuracao' ? 'Procuracao Energisa Rondonia' : 'Contrato Ecosolar Energy',
+        tipo === 'procuracao'
+          ? `Procuração Energisa Rondônia — ${nome.trim()}`
+          : `Contrato de Prestação de Serviços — ${nome.trim()}`,
         content,
       )
 
