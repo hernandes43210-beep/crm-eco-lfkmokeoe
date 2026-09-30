@@ -78,7 +78,10 @@ export type ArquivoEngenhariaCategoria =
   | 'memorial_descritivo'
   | 'parecer_acesso'
   | 'relatorio_vistoria'
+  | 'comprovante_pagamento'
   | 'outros'
+
+export type ComprovantePagamentoTipo = 'art' | 'projeto'
 
 export interface ArquivoEngenharia extends RecordModel {
   id: string
@@ -113,6 +116,14 @@ export interface HomologacaoLead extends RecordModel {
   art_enviada_em?: string
   art_paga_em?: string
   art_observacao?: string
+  // Comprovantes de pagamento
+  comprovante_art_arquivo?: string
+  comprovante_art_anexado_em?: string
+  comprovante_art_anexado_por?: string
+  projeto_pago?: boolean
+  comprovante_projeto_arquivo?: string
+  comprovante_projeto_anexado_em?: string
+  comprovante_projeto_anexado_por?: string
   cliente_nome?: string
   cliente_telefone?: string
   cliente_cidade?: string
@@ -135,6 +146,8 @@ export interface HomologacaoLead extends RecordModel {
     lead?: Lead
     engenheiro?: User
     vendedor?: User
+    comprovante_art_anexado_por?: User
+    comprovante_projeto_anexado_por?: User
     dossie?: DossieTecnicoEngenharia
   }
 }

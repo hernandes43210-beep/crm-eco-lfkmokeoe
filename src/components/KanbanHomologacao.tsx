@@ -21,6 +21,7 @@ import {
   FileText,
   UserCheck,
   Trash2,
+  Receipt,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
@@ -325,44 +326,71 @@ export function KanbanHomologacao({
                             </div>
                           )}
 
-                          {/* Status da ART: Alertas Âmbar / Verde Conforme Especificação */}
-                          {isArtEnviada && (
-                            <div className="flex items-center justify-between gap-1 p-1.5 rounded-md bg-amber-50 border border-amber-300 text-amber-950 text-[10.5px] font-semibold">
-                              <span className="flex items-center gap-1 truncate">
-                                <Clock className="w-3 h-3 text-amber-600 shrink-0" />
-                                <span className="truncate">ART enviada — aguardando pagamento</span>
-                              </span>
-                              {hom.art_arquivo && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleDownloadArt(e, hom)}
-                                  className="text-amber-800 hover:text-amber-950 p-0.5 rounded hover:bg-amber-100"
-                                  title="Baixar PDF da ART"
-                                >
-                                  <Download className="w-3 h-3" />
-                                </button>
-                              )}
-                            </div>
-                          )}
-
-                          {isArtPaga && (
-                            <div className="flex items-center justify-between gap-1 p-1.5 rounded-md bg-emerald-50 border border-emerald-300 text-emerald-950 text-[10.5px] font-bold">
-                              <span className="flex items-center gap-1 truncate">
+                          {/* Badges de Pagamento (ART e Projeto) para o Engenheiro */}
+                          <div className="flex flex-wrap gap-1">
+                            {/* Marcação ART Paga / Aguardando */}
+                            {isArtPaga ? (
+                              <div
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-300 text-emerald-900 text-[10px] font-bold"
+                                title={
+                                  hom.comprovante_art_arquivo
+                                    ? 'ART paga com comprovante anexado'
+                                    : 'ART marcada como paga'
+                                }
+                              >
                                 <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
                                 <span>ART paga</span>
-                              </span>
-                              {hom.art_arquivo && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleDownloadArt(e, hom)}
-                                  className="text-emerald-800 hover:text-emerald-950 p-0.5 rounded hover:bg-emerald-100"
-                                  title="Baixar PDF da ART"
-                                >
-                                  <Download className="w-3 h-3" />
-                                </button>
-                              )}
-                            </div>
-                          )}
+                                {hom.comprovante_art_arquivo && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      const u = HomologacaoService.getComprovanteArtUrl(hom)
+                                      if (u) window.open(u, '_blank')
+                                    }}
+                                    className="ml-0.5 text-emerald-700 hover:text-emerald-900"
+                                    title="Baixar comprovante de pagamento da ART"
+                                  >
+                                    <Download className="w-2.5 h-2.5" />
+                                  </button>
+                                )}
+                              </div>
+                            ) : isArtEnviada ? (
+                              <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-300 text-amber-900 text-[10px] font-semibold animate-pulse">
+                                <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+                                <span>ART aguardando pgto</span>
+                              </div>
+                            ) : null}
+
+                            {/* Marcação Projeto Pago */}
+                            {hom.projeto_pago && (
+                              <div
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 border border-blue-300 text-blue-900 text-[10px] font-bold"
+                                title={
+                                  hom.comprovante_projeto_arquivo
+                                    ? 'Projeto pago com comprovante anexado'
+                                    : 'Projeto marcado como pago'
+                                }
+                              >
+                                <Receipt className="w-3 h-3 text-blue-600 shrink-0" />
+                                <span>Projeto pago</span>
+                                {hom.comprovante_projeto_arquivo && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      const u = HomologacaoService.getComprovanteProjetoUrl(hom)
+                                      if (u) window.open(u, '_blank')
+                                    }}
+                                    className="ml-0.5 text-blue-700 hover:text-blue-900"
+                                    title="Baixar comprovante de pagamento do projeto"
+                                  >
+                                    <Download className="w-2.5 h-2.5" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
 
                           {/* Ações Rápidas no Card */}
                           <div className="pt-1.5 border-t border-slate-100 flex flex-col gap-1.5">

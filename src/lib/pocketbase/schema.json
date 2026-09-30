@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-29T22:34:19.426Z",
+  "generatedAt": "2026-09-30T20:43:39.028Z",
   "collections": [
     {
       "name": "users",
@@ -2367,6 +2367,50 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "comprovante_art_arquivo",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "comprovante_art_anexado_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "comprovante_art_anexado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "projeto_pago",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "comprovante_projeto_arquivo",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "comprovante_projeto_anexado_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "comprovante_projeto_anexado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
         }
       ],
       "indexes": [
@@ -2402,22 +2446,6 @@
           "required": false,
           "system": false,
           "collectionRef": "leads"
-        },
-        {
-          "name": "categoria",
-          "type": "select",
-          "required": true,
-          "system": false,
-          "selectValues": [
-            "projeto_eletrico",
-            "plantas",
-            "processo_energisa",
-            "art_documento",
-            "memorial_descritivo",
-            "parecer_acesso",
-            "relatorio_vistoria",
-            "outros"
-          ]
         },
         {
           "name": "titulo",
@@ -2484,6 +2512,23 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "categoria",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "projeto_eletrico",
+            "plantas",
+            "processo_energisa",
+            "art_documento",
+            "memorial_descritivo",
+            "parecer_acesso",
+            "relatorio_vistoria",
+            "comprovante_pagamento",
+            "outros"
+          ]
         }
       ],
       "indexes": [

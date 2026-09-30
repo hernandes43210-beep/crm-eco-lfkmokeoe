@@ -14,6 +14,8 @@ import {
   FileText,
   User as UserIcon,
   Zap,
+  Receipt,
+  FileCheck2,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { formatDateTimeBR } from '@/lib/solarUtils'
@@ -89,6 +91,9 @@ export function LeadHomologacaoSection({
 
   const isArtEnviada = homologacao.art_status === 'enviada'
   const isArtPaga = homologacao.art_status === 'paga'
+  const isProjetoPago = Boolean(homologacao.projeto_pago)
+  const temComprovanteArt = Boolean(homologacao.comprovante_art_arquivo)
+  const temComprovanteProjeto = Boolean(homologacao.comprovante_projeto_arquivo)
   const artUrl = HomologacaoService.getArtDownloadUrl(homologacao)
 
   const handleMarcarPaga = async () => {
@@ -185,30 +190,41 @@ export function LeadHomologacaoSection({
 
         {/* Status da ART no Header */}
         <div className="flex items-center gap-2">
-          {isArtEnviada ? (
-            <Badge
-              variant="outline"
-              className="bg-amber-100 text-amber-900 border-amber-300 text-xs font-bold gap-1 px-2.5 py-1 animate-pulse"
-            >
-              <Clock className="w-3.5 h-3.5 text-amber-700" />
-              <span>ART enviada — aguardando pagamento</span>
-            </Badge>
-          ) : isArtPaga ? (
-            <Badge
-              variant="outline"
-              className="bg-emerald-100 text-emerald-900 border-emerald-300 text-xs font-bold gap-1 px-2.5 py-1"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
-              <span>ART paga</span>
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="text-xs text-slate-500 bg-slate-50">
-              ART ainda não emitida
-            </Badge>
-          )}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {isArtEnviada ? (
+              <Badge
+                variant="outline"
+                className="text-xs bg-amber-50 text-amber-900 border-amber-300 font-bold gap-1 animate-pulse"
+              >
+                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                <span>ART aguardando pagamento</span>
+              </Badge>
+            ) : isArtPaga ? (
+              <Badge
+                variant="outline"
+                className="text-xs bg-emerald-50 text-emerald-900 border-emerald-300 font-bold gap-1"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                <span>ART paga</span>
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-xs text-slate-500 bg-slate-50">
+                ART ainda não emitida
+              </Badge>
+            )}
+
+            {isProjetoPago && (
+              <Badge
+                variant="outline"
+                className="text-xs bg-blue-50 text-blue-900 border-blue-300 font-bold gap-1"
+              >
+                <Receipt className="w-3.5 h-3.5 text-blue-700" />
+                <span>Projeto pago</span>
+              </Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
-
       <CardContent className="p-4 sm:p-6 space-y-4">
         {/* Painel com 7 etapas em linha indicando onde o lead está */}
         <div className="space-y-1.5">
@@ -348,6 +364,150 @@ export function LeadHomologacaoSection({
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
                   <span>Pagamento Confirmado</span>
                 </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Bloco de Comprovantes de Pagamento (Visualização e Download pelo Vendedor/Equipe) */}
+        <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
+          <div className="flex items-center gap-2">
+            <Receipt className="w-4 h-4 text-emerald-700" />
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+              Comprovantes de Pagamento Anexados pela Engenharia / Diretoria
+            </h4>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Comprovante da ART */}
+            <div
+              className={`p-3 rounded-lg border text-xs ${
+                temComprovanteArt || isArtPaga
+                  ? 'border-emerald-200 bg-emerald-50/30'
+                  : 'border-slate-200 bg-white'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-1 mb-1.5">
+                <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <FileCheck2 className="w-3.5 h-3.5 text-emerald-600" />
+                  Comprovante da ART
+                </span>
+                {isArtPaga ? (
+                  <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] font-bold h-5">
+                    ART Paga
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] text-slate-500 h-5">
+                    Pendente
+                  </Badge>
+                )}
+              </div>
+
+              {temComprovanteArt ? (
+                <div className="space-y-1.5 pt-1">
+                  <p className="text-[11px] text-slate-600">
+                    Anexado em:{' '}
+                    <strong className="text-slate-800">
+                      {homologacao.comprovante_art_anexado_em
+                        ? formatDateTimeBR(homologacao.comprovante_art_anexado_em)
+                        : homologacao.art_paga_em
+                          ? formatDateTimeBR(homologacao.art_paga_em)
+                          : 'Data registrada'}
+                    </strong>
+                    {homologacao.expand?.comprovante_art_anexado_por && (
+                      <>
+                        {' '}
+                        por{' '}
+                        <strong className="text-slate-800">
+                          {homologacao.expand.comprovante_art_anexado_por.name ||
+                            homologacao.expand.comprovante_art_anexado_por.email}
+                        </strong>
+                      </>
+                    )}
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const url = HomologacaoService.getComprovanteArtUrl(homologacao)
+                      if (url) window.open(url, '_blank')
+                    }}
+                    className="h-7 text-xs font-semibold gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-50 shadow-2xs"
+                  >
+                    <Download className="w-3 h-3" />
+                    <span>Baixar Comprovante ART</span>
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-500 italic pt-1">
+                  Nenhum comprovante de pagamento da ART anexado até o momento.
+                </p>
+              )}
+            </div>
+
+            {/* Comprovante do Projeto */}
+            <div
+              className={`p-3 rounded-lg border text-xs ${
+                temComprovanteProjeto || isProjetoPago
+                  ? 'border-blue-200 bg-blue-50/30'
+                  : 'border-slate-200 bg-white'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-1 mb-1.5">
+                <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <Receipt className="w-3.5 h-3.5 text-blue-600" />
+                  Comprovante do Projeto
+                </span>
+                {isProjetoPago ? (
+                  <Badge className="bg-blue-600 hover:bg-blue-600 text-white text-[10px] font-bold h-5">
+                    Projeto Pago
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] text-slate-500 h-5">
+                    Pendente
+                  </Badge>
+                )}
+              </div>
+
+              {temComprovanteProjeto ? (
+                <div className="space-y-1.5 pt-1">
+                  <p className="text-[11px] text-slate-600">
+                    Anexado em:{' '}
+                    <strong className="text-slate-800">
+                      {homologacao.comprovante_projeto_anexado_em
+                        ? formatDateTimeBR(homologacao.comprovante_projeto_anexado_em)
+                        : 'Data registrada'}
+                    </strong>
+                    {homologacao.expand?.comprovante_projeto_anexado_por && (
+                      <>
+                        {' '}
+                        por{' '}
+                        <strong className="text-slate-800">
+                          {homologacao.expand.comprovante_projeto_anexado_por.name ||
+                            homologacao.expand.comprovante_projeto_anexado_por.email}
+                        </strong>
+                      </>
+                    )}
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const url = HomologacaoService.getComprovanteProjetoUrl(homologacao)
+                      if (url) window.open(url, '_blank')
+                    }}
+                    className="h-7 text-xs font-semibold gap-1.5 border-blue-300 text-blue-800 hover:bg-blue-50 shadow-2xs"
+                  >
+                    <Download className="w-3 h-3" />
+                    <span>Baixar Comprovante Projeto</span>
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-500 italic pt-1">
+                  Nenhum comprovante de pagamento do projeto anexado até o momento.
+                </p>
               )}
             </div>
           </div>

@@ -19,6 +19,27 @@ export interface MarcarArtPagaResponse {
   art_paga_em?: string
 }
 
+export interface AnexarComprovantePayload {
+  homologacaoId: string
+  tipo: 'art' | 'projeto'
+  file: File
+  observacao?: string
+}
+
+export interface AnexarComprovanteResponse {
+  success: boolean
+  message: string
+  homologacao_id: string
+  tipo: 'art' | 'projeto'
+  art_status?: string
+  art_paga_em?: string
+  projeto_pago?: boolean
+  comprovante_art_arquivo?: string
+  comprovante_art_anexado_em?: string
+  comprovante_projeto_arquivo?: string
+  comprovante_projeto_anexado_em?: string
+}
+
 export interface MoverStatusResponse {
   success: boolean
   message: string
@@ -84,6 +105,11 @@ export const CATEGORIAS_ARQUIVOS_ENGENHARIA: Array<{
     key: 'art_documento',
     label: 'ART Registrada / Comprovantes',
     descricao: 'Anotação de Responsabilidade Técnica e certidões do CREA/CFT',
+  },
+  {
+    key: 'comprovante_pagamento',
+    label: 'Comprovante de Pagamento',
+    descricao: 'Comprovante bancário/PIX de pagamento da ART ou do Projeto',
   },
   {
     key: 'outros',
@@ -221,7 +247,8 @@ export const HomologacaoService = {
       const options: { sort: string; requestKey: null; filter?: string; expand?: string } = {
         sort: '-created',
         requestKey: null,
-        expand: 'engenheiro,vendedor,dossie',
+        expand:
+          'engenheiro,vendedor,dossie,comprovante_art_anexado_por,comprovante_projeto_anexado_por',
       }
 
       // Se for Admin/CEO ou Engenheiro Supervisor com visão de todos (sem engenheiroId específico),
@@ -253,7 +280,8 @@ export const HomologacaoService = {
         filter: `lead = "${leadId}"`,
         sort: '-created',
         requestKey: null,
-        expand: 'engenheiro,vendedor,dossie',
+        expand:
+          'engenheiro,vendedor,dossie,comprovante_art_anexado_por,comprovante_projeto_anexado_por',
       })
       return records.items[0] || null
     } catch (err) {
@@ -293,6 +321,24 @@ export const HomologacaoService = {
         homologacaoId,
         observacao,
       },
+    })
+  },
+
+  /**
+   * Admin/CEO anexa o comprovante de pagamento da ART ou do Projeto (restrito ao backend)
+   */
+  async anexarComprovante(payload: AnexarComprovantePayload): Promise<AnexarComprovanteResponse> {
+    const formData = new FormData()
+    formData.append('homologacaoId', payload.homologacaoId)
+    formData.append('tipo', payload.tipo)
+    formData.append('arquivo', payload.file)
+    if (payload.observacao) {
+      formData.append('observacao', payload.observacao)
+    }
+
+    return await pb.send<AnexarComprovanteResponse>('/backend/v1/homologacao/anexar-comprovante', {
+      method: 'POST',
+      body: formData,
     })
   },
 
@@ -448,5 +494,21 @@ export const HomologacaoService = {
   getArquivoEngenhariaUrl(record: any): string {
     if (!record || !record.arquivo) return ''
     return pb.files.getURL(record, record.arquivo)
+  },
+
+  /**
+   * Obtém a URL de download do comprovante de pagamento da ART
+   */
+  getComprovanteArtUrl(homologacao: HomologacaoLead): string {
+    if (!homologacao || !homologacao.comprovante_art_arquivo) return ''
+    return pb.files.getURL(homologacao, homologacao.comprovante_art_arquivo)
+  },
+
+  /**
+   * Obtém a URL de download do comprovante de pagamento do Projeto
+   */
+  getComprovanteProjetoUrl(homologacao: HomologacaoLead): string {
+    if (!homologacao || !homologacao.comprovante_projeto_arquivo) return ''
+    return pb.files.getURL(homologacao, homologacao.comprovante_projeto_arquivo)
   },
 }

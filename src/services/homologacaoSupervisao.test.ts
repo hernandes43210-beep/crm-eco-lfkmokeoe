@@ -63,7 +63,7 @@ describe('HomologacaoService - Permissão de Supervisão', () => {
     expect(mockGetFullList).toHaveBeenCalledWith(
       expect.objectContaining({
         sort: '-created',
-        expand: 'engenheiro,vendedor,dossie',
+        expand: expect.stringContaining('engenheiro,vendedor,dossie'),
       }),
     )
     // Não deve conter filter restringindo ao próprio engenheiro

@@ -33,6 +33,8 @@ import { HomologacaoService } from '@/services/homologacao'
 import { KanbanHomologacao } from '@/components/KanbanHomologacao'
 import { EnviarArtModal } from '@/components/EnviarArtModal'
 import { FichaTrabalhoEngenheiroModal } from '@/components/FichaTrabalhoEngenheiroModal'
+import { AnexarComprovanteModal } from '@/components/AnexarComprovanteModal'
+import { ComprovantePagamentoTipo } from '@/types/crm'
 import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -85,6 +87,12 @@ export default function MeusDocumentosEngenharia() {
   const [fichaModalOpen, setFichaModalOpen] = useState(false)
   const [selectedHomologacaoForFicha, setSelectedHomologacaoForFicha] =
     useState<HomologacaoLead | null>(null)
+
+  // Modal de Comprovante de Pagamento (ART / Projeto) — Admin/CEO
+  const [modalComprovanteOpen, setModalComprovanteOpen] = useState(false)
+  const [comprovanteHomologacao, setComprovanteHomologacao] = useState<HomologacaoLead | null>(null)
+  const [tipoComprovanteInicial, setTipoComprovanteInicial] =
+    useState<ComprovantePagamentoTipo>('art')
 
   const fetchDocumentos = async () => {
     if (!user?.id) return
@@ -358,6 +366,14 @@ export default function MeusDocumentosEngenharia() {
     setArtModalOpen(true)
   }
 
+  const handleOpenAnexarComprovante = (
+    hom: HomologacaoLead,
+    tipo: ComprovantePagamentoTipo = 'art',
+  ) => {
+    setComprovanteHomologacao(hom)
+    setTipoComprovanteInicial(tipo)
+    setModalComprovanteOpen(true)
+  }
   const handleSelectCard = (hom: HomologacaoLead) => {
     // Ao clicar no card, abre a Ficha de Trabalho completa do cliente para o engenheiro
     setSelectedHomologacaoForFicha(hom)
@@ -1264,6 +1280,36 @@ export default function MeusDocumentosEngenharia() {
           onOpenEnviarArt={(hom) => {
             setSelectedHomologacaoForArt(hom)
             setArtModalOpen(true)
+          }}
+          onOpenAnexarComprovante={(hom, tipo) => {
+            handleOpenAnexarComprovante(hom, tipo || 'art')
+          }}
+        />
+      )}
+
+      {/* Modal de Anexar Comprovante de Pagamento (ART ou Projeto) — Exclusivo Admin/CEO */}
+      {comprovanteHomologacao && (
+        <AnexarComprovanteModal
+          open={modalComprovanteOpen}
+          onOpenChange={setModalComprovanteOpen}
+          homologacao={comprovanteHomologacao}
+          tipoInicial={tipoComprovanteInicial}
+          onSuccess={async () => {
+            await fetchDocumentos()
+            if (selectedHomologacaoForFicha?.id === comprovanteHomologacao.id) {
+              try {
+                const freshList = await HomologacaoService.getHomologacoes({
+                  isAdmin,
+                  podeSupervisionar: podeSupervisionarEngenharia,
+                })
+                const fresh = freshList.find((h) => h.id === comprovanteHomologacao.id)
+                if (fresh) {
+                  handleHomologacaoUpdatedFromFicha(fresh)
+                }
+              } catch {
+                /* intentionally ignored */
+              }
+            }
           }}
         />
       )}

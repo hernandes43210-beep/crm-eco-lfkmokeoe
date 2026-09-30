@@ -1132,3 +1132,277 @@ routerAdd(
   },
   $apis.requireAuth(),
 )
+
+// Endpoint 5: Anexar Comprovante de Pagamento (ART ou Projeto) — SOMENTE Admin/CEO
+routerAdd(
+  'POST',
+  '/backend/v1/homologacao/anexar-comprovante',
+  (e) => {
+    const auth = e.auth
+    if (!auth) {
+      return e.json(401, { success: false, message: 'Usuário não autenticado.' })
+    }
+
+    const authRole = auth.getString('role')
+    // Exclusivo para Admin/CEO (backend check rígido)
+    if (authRole !== 'Admin') {
+      return e.json(403, {
+        success: false,
+        message:
+          'Apenas Administradores (Admin/CEO) têm permissão para anexar comprovante de pagamento.',
+      })
+    }
+
+    const homologacaoId = e.requestInfo().body?.homologacaoId || ''
+    const tipo = e.requestInfo().body?.tipo || '' // 'art' ou 'projeto'
+    const observacao = e.requestInfo().body?.observacao || ''
+
+    if (!homologacaoId) {
+      return e.json(400, { success: false, message: 'ID da homologação é obrigatório.' })
+    }
+
+    if (tipo !== 'art' && tipo !== 'projeto') {
+      return e.json(400, {
+        success: false,
+        message: 'Tipo de comprovante inválido. Selecione "ART" ou "Projeto".',
+      })
+    }
+
+    let homRecord = null
+    try {
+      homRecord = $app.findFirstRecordByData('homologacoes', 'id', homologacaoId)
+    } catch (_) {
+      return e.json(404, { success: false, message: 'Homologação não encontrada.' })
+    }
+
+    let files = []
+    try {
+      files = e.findUploadedFiles('arquivo')
+    } catch (_) {}
+
+    if (!files || files.length === 0) {
+      return e.json(400, {
+        success: false,
+        message:
+          'Nenhum arquivo enviado. Selecione o comprovante em PDF ou imagem (JPG, PNG, WEBP).',
+      })
+    }
+
+    const uploadedFile = files[0]
+    const now = new Date()
+    const nowIso = now.toISOString()
+    const pad = (n) => (n < 10 ? '0' + n : String(n))
+    const dataFormatadaPt =
+      pad(now.getDate()) +
+      '/' +
+      pad(now.getMonth() + 1) +
+      '/' +
+      now.getFullYear() +
+      ' às ' +
+      pad(now.getHours()) +
+      ':' +
+      pad(now.getMinutes())
+    const dataSimples = pad(now.getDate()) + '/' + pad(now.getMonth() + 1)
+    const autorNome = auth.getString('name') || auth.getString('email') || 'Administrador'
+    const leadId = homRecord.getString('lead') || ''
+    const clienteNome = homRecord.getString('cliente_nome') || 'Cliente'
+    const engenheiroId = homRecord.getString('engenheiro')
+    const vendedorId = homRecord.getString('vendedor')
+
+    const tipoLabel = tipo === 'art' ? 'ART' : 'Projeto'
+
+    // 1. Atualizar campos específicos da homologação
+    if (tipo === 'art') {
+      homRecord.set('comprovante_art_arquivo', uploadedFile)
+      homRecord.set('comprovante_art_anexado_em', nowIso)
+      homRecord.set('comprovante_art_anexado_por', auth.id)
+      // Se a ART ainda não estava marcada como paga, atualiza status para paga
+      homRecord.set('art_status', 'paga')
+      if (!homRecord.getString('art_paga_em')) {
+        homRecord.set('art_paga_em', nowIso)
+      }
+    } else {
+      // tipo === 'projeto'
+      homRecord.set('comprovante_projeto_arquivo', uploadedFile)
+      homRecord.set('comprovante_projeto_anexado_em', nowIso)
+      homRecord.set('comprovante_projeto_anexado_por', auth.id)
+      homRecord.set('projeto_pago', true)
+    }
+
+    // 2. Registrar no histórico da homologação
+    let homHist = []
+    const rawHomHist = homRecord.get('historico')
+    if (Array.isArray(rawHomHist)) {
+      homHist = rawHomHist.slice(0)
+    } else if (typeof rawHomHist === 'string') {
+      try {
+        const p = JSON.parse(rawHomHist)
+        if (Array.isArray(p)) homHist = p
+      } catch (_) {}
+    }
+
+    const descHist =
+      'Comprovante de pagamento da ' +
+      tipoLabel +
+      ' anexado por ' +
+      autorNome +
+      ' em ' +
+      dataFormatadaPt +
+      (observacao ? ' — Obs: ' + observacao : '')
+
+    homHist.push({
+      data: nowIso,
+      tipo: 'comprovante_' + tipo,
+      descricao: descHist,
+      autor_id: auth.id,
+      autor_nome: autorNome,
+      arquivo_nome: uploadedFile.originalName || '',
+      comprovante_tipo: tipo,
+      observacao: observacao || '',
+    })
+
+    if (homHist.length > 50) {
+      homHist = homHist.slice(homHist.length - 50)
+    }
+    homRecord.set('historico', homHist)
+    $app.save(homRecord)
+
+    // 3. Também salvar uma cópia na coleção 'arquivos_engenharia' com categoria 'comprovante_pagamento'
+    // Isso garante persistência histórica de todos os comprovantes anexados
+    try {
+      const arqCol = $app.findCollectionByNameOrId('arquivos_engenharia')
+      const arqRec = new Record(arqCol)
+      arqRec.set('homologacao', homRecord.id)
+      if (leadId) arqRec.set('lead', leadId)
+      arqRec.set('categoria', 'comprovante_pagamento')
+      arqRec.set(
+        'titulo',
+        'Comprovante de Pagamento — ' +
+          tipoLabel +
+          (uploadedFile.originalName ? ' (' + uploadedFile.originalName + ')' : ''),
+      )
+      arqRec.set('arquivo', uploadedFile)
+      arqRec.set('nome_original', uploadedFile.originalName || '')
+      arqRec.set('tamanho_bytes', uploadedFile.size || 0)
+      arqRec.set('etapa_origem', homRecord.getString('status') || '')
+      arqRec.set(
+        'descricao',
+        'Comprovante de pagamento da ' +
+          tipoLabel +
+          ' anexado por ' +
+          autorNome +
+          (observacao ? ' — ' + observacao : ''),
+      )
+      arqRec.set('criado_por', auth.id)
+      $app.save(arqRec)
+    } catch (arqSaveErr) {
+      console.warn('[anexar_comprovante] Aviso ao salvar em arquivos_engenharia:', arqSaveErr)
+    }
+
+    // 4. Atualizar histórico do Lead se existir
+    if (leadId) {
+      try {
+        const leadRecord = $app.findFirstRecordByData('leads', 'id', leadId)
+        let leadHist = []
+        const rawLeadHist = leadRecord.get('historico')
+        if (Array.isArray(rawLeadHist)) {
+          leadHist = rawLeadHist.slice(0)
+        } else if (typeof rawLeadHist === 'string') {
+          try {
+            const p = JSON.parse(rawLeadHist)
+            if (Array.isArray(p)) leadHist = p
+          } catch (_) {}
+        }
+
+        leadHist.push({
+          data: nowIso,
+          tipo: 'nota',
+          descricao:
+            'Comprovante de pagamento da ' +
+            tipoLabel +
+            ' anexado por ' +
+            autorNome +
+            ' em ' +
+            dataSimples +
+            (observacao ? ' (Nota: ' + observacao + ')' : ''),
+          autor: auth.id,
+          autor_nome: autorNome,
+        })
+
+        if (leadHist.length > 50) {
+          leadHist = leadHist.slice(leadHist.length - 50)
+        }
+        leadRecord.set('historico', leadHist)
+        $app.save(leadRecord)
+      } catch (lhErr) {
+        console.warn('[anexar_comprovante] Aviso ao atualizar lead:', lhErr)
+      }
+    }
+
+    // 5. Notificações no sino para o Engenheiro e para o Vendedor
+    const destinatariosNotif = []
+    if (engenheiroId && engenheiroId !== auth.id) {
+      destinatariosNotif.push(engenheiroId)
+    }
+    if (vendedorId && vendedorId !== auth.id && destinatariosNotif.indexOf(vendedorId) === -1) {
+      destinatariosNotif.push(vendedorId)
+    }
+
+    try {
+      const notifCol = $app.findCollectionByNameOrId('notificacoes')
+      for (let d = 0; d < destinatariosNotif.length; d++) {
+        try {
+          const nRec = new Record(notifCol)
+          nRec.set('usuario', destinatariosNotif[d])
+          if (leadId) nRec.set('lead', leadId)
+          nRec.set('titulo', 'Comprovante de ' + tipoLabel + ' anexado — ' + clienteNome)
+          nRec.set(
+            'mensagem',
+            autorNome +
+              ' anexou o comprovante de pagamento da ' +
+              tipoLabel +
+              ' do cliente ' +
+              clienteNome +
+              '.' +
+              (observacao ? ' Obs: ' + observacao : ''),
+          )
+          nRec.set('tipo', 'homologacao_art')
+          nRec.set('lida', false)
+          nRec.set('lead_nome', clienteNome)
+          nRec.set('lead_cidade', homRecord.getString('cliente_cidade') || '')
+          nRec.set('lead_telefone', homRecord.getString('cliente_telefone') || '')
+          nRec.set(
+            'metadados',
+            JSON.stringify({
+              acao: 'comprovante_anexado',
+              tipo_comprovante: tipo,
+              homologacao_id: homRecord.id,
+              lead_id: leadId,
+              anexado_em: nowIso,
+            }),
+          )
+          $app.save(nRec)
+        } catch (nErr) {
+          console.warn('[anexar_comprovante] Erro ao criar notificação:', nErr)
+        }
+      }
+    } catch (notifAllErr) {
+      console.warn('[anexar_comprovante] Erro geral ao salvar notificação:', notifAllErr)
+    }
+
+    return e.json(200, {
+      success: true,
+      message: 'Comprovante de pagamento da ' + tipoLabel + ' anexado com sucesso!',
+      homologacao_id: homRecord.id,
+      tipo: tipo,
+      art_status: homRecord.getString('art_status'),
+      art_paga_em: homRecord.getString('art_paga_em'),
+      projeto_pago: homRecord.getBool('projeto_pago'),
+      comprovante_art_arquivo: homRecord.getString('comprovante_art_arquivo'),
+      comprovante_art_anexado_em: homRecord.getString('comprovante_art_anexado_em'),
+      comprovante_projeto_arquivo: homRecord.getString('comprovante_projeto_arquivo'),
+      comprovante_projeto_anexado_em: homRecord.getString('comprovante_projeto_anexado_em'),
+    })
+  },
+  $apis.requireAuth(),
+)
