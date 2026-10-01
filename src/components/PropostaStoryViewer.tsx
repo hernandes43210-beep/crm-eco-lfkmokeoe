@@ -163,7 +163,91 @@ export function PropostaStoryViewer({
     proposta.kit?.string_box ||
     specs.itens.find((it) => it.tipo === 'string_box')?.nome
 
+  // Dados de tipo de instalação e estrutura de fixação:
+  // Vêm de dossies_engenharia (tipo_instalacao/tipo_estrutura_detalhe) ou da proposta (kit_tipo_estrutura)
+  const infoInstalacaoEstrutura = useMemo(() => {
+    const dossie = proposta.dossie_engenharia
+    const tipoInstDossie = (dossie?.tipo_instalacao || '').trim().toLowerCase()
+    const detalheDossie = (dossie?.tipo_estrutura_detalhe || '').trim()
+    const propTipoEstrutura = (
+      (proposta as any)?.kit_tipo_estrutura ||
+      proposta.kit?.tipo_estrutura ||
+      ''
+    ).trim()
+
+    // Rótulo amigável de instalação
+    let rotuloInstalacao = ''
+    if (tipoInstDossie === 'telhado') {
+      rotuloInstalacao = detalheDossie ? `Telhado (${detalheDossie})` : 'Instalação em Telhado'
+    } else if (tipoInstDossie === 'solo') {
+      rotuloInstalacao = detalheDossie ? `Solo (${detalheDossie})` : 'Instalação em Solo'
+    } else if (tipoInstDossie === 'outro') {
+      rotuloInstalacao = detalheDossie || 'Instalação Especial'
+    } else if (detalheDossie) {
+      rotuloInstalacao = detalheDossie
+    }
+
+    // Se não veio do dossiê, tentar inferir do kit_tipo_estrutura da proposta
+    if (!rotuloInstalacao && propTipoEstrutura) {
+      if (propTipoEstrutura === 'solo_monoposte') {
+        rotuloInstalacao = 'Instalação em Solo (Monoposte)'
+      } else if (propTipoEstrutura === 'mini_trilho') {
+        rotuloInstalacao = 'Telhado Metálico (Mini Trilho)'
+      } else if (propTipoEstrutura === 'fibrocimento') {
+        rotuloInstalacao = 'Telhado de Fibrocimento'
+      } else if (propTipoEstrutura !== 'outro') {
+        rotuloInstalacao = propTipoEstrutura
+      }
+    }
+
+    // Estrutura de fixação correspondente
+    let rotuloFixacao = ''
+    if (detalheDossie) {
+      const dLower = detalheDossie.toLowerCase()
+      if (dLower.includes('fibrocimento')) {
+        rotuloFixacao = 'Hastes em inox com vedação e trilhos de alumínio'
+      } else if (dLower.includes('cerâmic') || dLower.includes('colonial')) {
+        rotuloFixacao = 'Ganchos estruturais em inox para telha cerâmica'
+      } else if (
+        dLower.includes('metálic') ||
+        dLower.includes('mini') ||
+        dLower.includes('trapezoidal')
+      ) {
+        rotuloFixacao = 'Mini trilhos em alumínio com fita EPDM estanque'
+      } else if (dLower.includes('laje')) {
+        rotuloFixacao = 'Triângulos inclinados em alumínio de alta resistência'
+      } else if (dLower.includes('solo') || dLower.includes('monoposte')) {
+        rotuloFixacao = 'Monoposte / perfis em aço galvanizado a fogo'
+      } else {
+        rotuloFixacao = `Suportes e perfis específicos para ${detalheDossie}`
+      }
+    } else if (propTipoEstrutura) {
+      if (propTipoEstrutura === 'solo_monoposte') {
+        rotuloFixacao = 'Estrutura monoposte em aço galvanizado a fogo'
+      } else if (propTipoEstrutura === 'mini_trilho') {
+        rotuloFixacao = 'Mini trilhos em alumínio anodizado com vedação EPDM'
+      } else if (propTipoEstrutura === 'fibrocimento') {
+        rotuloFixacao = 'Parafusos prisioneiros em inox e perfis de alumínio'
+      }
+    }
+
+    // Fallback de especificação detalhada da estrutura se houver item
+    const itemEstrutura = specs.itens.find((it) => it.tipo === 'estrutura')
+    if (!rotuloFixacao && itemEstrutura && itemEstrutura.nome) {
+      rotuloFixacao = itemEstrutura.especificacao || itemEstrutura.nome
+    }
+
+    const temDados = Boolean(rotuloInstalacao || rotuloFixacao)
+
+    return {
+      temDados,
+      tipoInstalacao: rotuloInstalacao,
+      estruturaFixacao: rotuloFixacao,
+    }
+  }, [proposta, specs])
+
   const tipoEstruturaRotulo =
+    infoInstalacaoEstrutura.tipoInstalacao ||
     (proposta as any)?.kit_tipo_estrutura ||
     proposta.kit?.tipo_estrutura ||
     specs.itens.find((it) => it.tipo === 'estrutura')?.nome
@@ -587,6 +671,29 @@ export function PropostaStoryViewer({
                 </div>
               </div>
 
+              {/* Bloco discreto de Tipo de Instalação e Estrutura de Fixação (omitido graciosamente se vazio) */}
+              {infoInstalacaoEstrutura.temDados && (
+                <div className="rounded-xl bg-white/5 border border-amber-400/30 p-2.5 text-xs space-y-1 text-left">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="text-[10px] uppercase font-bold text-amber-300 flex items-center gap-1">
+                      <Layers className="w-3 h-3 text-amber-400 shrink-0" />
+                      <span>Instalação do Projeto</span>
+                    </span>
+                    {infoInstalacaoEstrutura.tipoInstalacao && (
+                      <span className="text-[10px] font-bold text-white px-2 py-0.5 rounded-md bg-amber-400/20 border border-amber-400/40">
+                        {infoInstalacaoEstrutura.tipoInstalacao}
+                      </span>
+                    )}
+                  </div>
+                  {infoInstalacaoEstrutura.estruturaFixacao && (
+                    <p className="text-[11px] text-slate-300 leading-tight">
+                      <strong className="text-slate-200">Fixação:</strong>{' '}
+                      {infoInstalacaoEstrutura.estruturaFixacao}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Tecnologias dos módulos em pílulas */}
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="bg-white/5 rounded-xl p-2.5 border border-white/10 space-y-0.5">
@@ -610,8 +717,16 @@ export function PropostaStoryViewer({
               {/* GUIA AMIGÁVEL: Mascote da Ecosolar dando vida aos números dos módulos */}
               <MascotSpeechBubble
                 titulo="O Mascote Explica:"
-                fala={`Com esses ${quantidadeModulos} painéis de ${potenciaPainelFormatada} da ${marcaPainel}, seu imóvel vai gerar energia limpa todos os dias direto do sol!`}
-                dica="Garantia de 25 anos: seu sistema gerando energia por décadas."
+                fala={
+                  infoInstalacaoEstrutura.tipoInstalacao
+                    ? `Com esses ${quantidadeModulos} painéis de ${potenciaPainelFormatada} da ${marcaPainel} instalados sob medida em seu ${infoInstalacaoEstrutura.tipoInstalacao.toLowerCase()}, seu imóvel vai gerar energia limpa todos os dias!`
+                    : `Com esses ${quantidadeModulos} painéis de ${potenciaPainelFormatada} da ${marcaPainel}, seu imóvel vai gerar energia limpa todos os dias direto do sol!`
+                }
+                dica={
+                  infoInstalacaoEstrutura.estruturaFixacao
+                    ? `Fixação segura: ${infoInstalacaoEstrutura.estruturaFixacao}.`
+                    : 'Garantia de 25 anos: seu sistema gerando energia por décadas.'
+                }
                 destaqueBadge={`${specs.potenciaTotalFormatada}`}
                 humor="animado"
               />
@@ -683,6 +798,54 @@ export function PropostaStoryViewer({
                 )}
               </div>
 
+              {/* BLOCO EM DESTAQUE: Kit Completo e Protegido com String box CC (DPS/Disjuntores), Cabos MC4 e String box AC */}
+              <div className="rounded-2xl border-2 border-emerald-400/70 bg-gradient-to-r from-emerald-950/60 via-[#0A192F] to-emerald-900/40 p-3 shadow-xl space-y-2 text-left">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-xs font-black text-emerald-300">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Proteção Elétrica Completa</span>
+                  </div>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500 text-slate-950 text-[10px] font-black uppercase tracking-wider shadow-md">
+                    <CheckCircle2 className="w-3 h-3 stroke-[3]" />
+                    <span>Kit Completo e Protegido</span>
+                  </span>
+                </div>
+
+                <div className="rounded-xl bg-black/40 border border-emerald-400/30 p-2.5 space-y-1">
+                  <div className="text-xs font-bold text-amber-300 flex items-start gap-1.5 leading-snug">
+                    <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                    <span>
+                      String box CC com disjuntores e DPS — protege o inversor contra surtos
+                      elétricos
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 leading-tight">
+                    Segurança total contra descargas atmosféricas e sobretensões na corrente
+                    contínua dos painéis.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="bg-white/5 rounded-lg p-2 border border-white/10 space-y-0.5">
+                    <span className="text-[10px] font-bold text-emerald-300 block">
+                      ✓ Cabos Solares MC4
+                    </span>
+                    <p className="text-[10px] text-slate-300 leading-tight">
+                      Cabos solares com conectores MC4 estanques IP68 com proteção anti-chama e UV.
+                    </p>
+                  </div>
+                  <div className="bg-white/5 rounded-lg p-2 border border-white/10 space-y-0.5">
+                    <span className="text-[10px] font-bold text-emerald-300 block">
+                      ✓ String Box AC / CA
+                    </span>
+                    <p className="text-[10px] text-slate-300 leading-tight">
+                      Disjuntor CA e proteção na saída do inversor até o quadro geral da
+                      concessionária.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Pilares do Inversor */}
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="bg-white/5 rounded-xl p-2.5 border border-white/10 space-y-0.5">
@@ -706,8 +869,8 @@ export function PropostaStoryViewer({
               {/* GUIA AMIGÁVEL: Mascote da Ecosolar dando vida ao inversor */}
               <MascotSpeechBubble
                 titulo="O Mascote Explica:"
-                fala={`O inversor ${marcaInversor} de ${potenciaInversorKw} kW é o maestro da usina! Ele transforma a luz do sol em eletricidade pronta para ligar seu ar-condicionado e geladeira.`}
-                dica="Você acompanha a geração minuto a minuto pelo aplicativo no celular."
+                fala={`O inversor ${marcaInversor} de ${potenciaInversorKw} kW é o maestro da usina! E aqui seu kit é 100% completo e protegido com string box CC (DPS contra surtos), string box AC e cabos solares MC4.`}
+                dica="Kit Completo e Protegido: segurança absoluta para seu patrimônio."
                 destaqueBadge={`${potenciaInversorKw} kW`}
                 humor="conselheiro"
               />

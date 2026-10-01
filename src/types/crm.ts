@@ -650,6 +650,10 @@ export interface PublicProposta {
   kit_potencia_inversor_kw?: number
   kit_descricao?: string
   kit_string_box?: KitStringBox | ''
+  dossie_engenharia?: {
+    tipo_instalacao?: TipoInstalacaoDossie
+    tipo_estrutura_detalhe?: string
+  } | null
   fotos_selecionadas?: PropostaFotoSelecionada[]
   lead?: {
     id: string

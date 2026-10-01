@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { parseKitDetailedItems } from '@/lib/kitItemsParser'
+import type { PublicProposta } from '@/types/crm'
 
 describe('Proposta Story Equipamentos e Mascote', () => {
   it('extrai corretamente quantidade, marca e potência de módulos', () => {
@@ -36,5 +37,31 @@ describe('Proposta Story Equipamentos e Mascote', () => {
 
     expect(specs.quantidadeModulosTotal).toBeGreaterThan(0)
     expect(specs.potenciaTotalFormatada).toContain('kWp')
+  })
+
+  it('suporta dados de instalação do dossiê de engenharia ou da proposta', () => {
+    const mockPropostaComDossie: Partial<PublicProposta> = {
+      id: 'prop123',
+      token_publico: 'tok123',
+      kit_nome: 'Kit Solar 6 kWp',
+      dossie_engenharia: {
+        tipo_instalacao: 'telhado',
+        tipo_estrutura_detalhe: 'fibrocimento',
+      },
+    }
+
+    expect(mockPropostaComDossie.dossie_engenharia?.tipo_instalacao).toBe('telhado')
+    expect(mockPropostaComDossie.dossie_engenharia?.tipo_estrutura_detalhe).toBe('fibrocimento')
+
+    const mockPropostaSemDossie: Partial<PublicProposta> = {
+      id: 'prop456',
+      token_publico: 'tok456',
+      kit_nome: 'Kit Solar 6 kWp',
+      kit_tipo_estrutura: 'solo_monoposte',
+      dossie_engenharia: null,
+    }
+
+    expect(mockPropostaSemDossie.kit_tipo_estrutura).toBe('solo_monoposte')
+    expect(mockPropostaSemDossie.dossie_engenharia).toBeNull()
   })
 })

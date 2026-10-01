@@ -344,6 +344,29 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
       } catch (_) {}
     }
 
+    // Buscar dados técnicos de instalação do dossiê de engenharia mais recente (se existir)
+    let dossieInstalacaoData = null
+    if (leadId && $app.hasTable('dossies_engenharia')) {
+      try {
+        const dossiesList = $app.findRecordsByFilter(
+          'dossies_engenharia',
+          "lead = '" + leadId + "'",
+          '-created,-versao',
+          1,
+          0,
+        )
+        if (dossiesList && dossiesList.length > 0) {
+          const d = dossiesList[0]
+          dossieInstalacaoData = {
+            tipo_instalacao: d.getString('tipo_instalacao') || undefined,
+            tipo_estrutura_detalhe: d.getString('tipo_estrutura_detalhe') || undefined,
+          }
+        }
+      } catch (errDossie) {
+        console.warn('Aviso: não foi possível consultar dossies_engenharia:', errDossie)
+      }
+    }
+
     const resp = {
       id: proposta.id,
       token_publico: proposta.getString('token_publico'),
@@ -376,6 +399,7 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
       kit_potencia_inversor_kw: proposta.getFloat('kit_potencia_inversor_kw') || undefined,
       kit_descricao: proposta.getString('kit_descricao') || undefined,
       kit_string_box: proposta.getString('kit_string_box') || undefined,
+      dossie_engenharia: dossieInstalacaoData,
       lead: leadData,
       kit: kitData,
       vendedor: vendedorData,
