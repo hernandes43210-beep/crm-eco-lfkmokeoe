@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Lead, FormalizacaoDocumento, FormalizacaoTipo } from '@/types/crm'
 import { ClicksignService } from '@/services/clicksign'
 import { generatePdfBase64FromHtml } from '@/utils/pdfBase64'
+import { consolidateLocation, parseCombinedCoordinates } from '@/utils/locationUtils'
 import { useToast } from '@/hooks/use-toast'
 import {
   Send,
@@ -24,6 +25,9 @@ import {
   AlertCircle,
   ShieldCheck,
   ExternalLink,
+  MapPin,
+  Link as LinkIcon,
+  Compass,
 } from 'lucide-react'
 
 interface SendClicksignModalProps {
@@ -54,6 +58,22 @@ export function SendClicksignModal({
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
+  // Campos de localização (opcionais para envio da documentação)
+  const [locMode, setLocMode] = useState<'link' | 'coords'>(() => {
+    if (lead.latitude !== undefined && lead.latitude !== null && !lead.localizacao_link) {
+      return 'coords'
+    }
+    return 'link'
+  })
+  const [locLink, setLocLink] = useState(lead.localizacao_link || lead.localizacao_maps_url || '')
+  const [locLat, setLocLat] = useState<string>(
+    lead.latitude !== undefined && lead.latitude !== null ? String(lead.latitude) : '',
+  )
+  const [locLng, setLocLng] = useState<string>(
+    lead.longitude !== undefined && lead.longitude !== null ? String(lead.longitude) : '',
+  )
+  const [locCoordsCombined, setLocCoordsCombined] = useState<string>('')
+
   // Atualizar formulário quando o modal abrir ou o lead mudar
   React.useEffect(() => {
     if (open) {
@@ -62,8 +82,28 @@ export function SendClicksignModal({
       setCpf(lead.cpf_cnpj || '')
       setTelefone(lead.telefone || '')
       setErrorMsg(null)
+
+      const initialLink = lead.localizacao_link || lead.localizacao_maps_url || ''
+      const hasCoords = lead.latitude !== undefined && lead.latitude !== null
+      setLocMode(hasCoords && !initialLink ? 'coords' : 'link')
+      setLocLink(initialLink)
+      setLocLat(hasCoords ? String(lead.latitude) : '')
+      setLocLng(
+        lead.longitude !== undefined && lead.longitude !== null ? String(lead.longitude) : '',
+      )
+      setLocCoordsCombined('')
     }
   }, [open, lead])
+
+  // Avaliação em tempo real da localização
+  const locPreview = React.useMemo(() => {
+    return consolidateLocation({
+      mode: locMode,
+      link: locLink,
+      latitude: locLat,
+      longitude: locLng,
+    })
+  }, [locMode, locLink, locLat, locLng])
 
   const docTituloDisplay =
     tipo === 'procuracao' ? 'Procuração Particular Energisa' : 'Contrato de Prestação de Serviços'
@@ -83,6 +123,19 @@ export function SendClicksignModal({
     }
     if (!email.trim() || !email.includes('@')) {
       setErrorMsg('Informe um endereço de e-mail válido para o envio da assinatura.')
+      return
+    }
+
+    // Validação da localização caso preenchida
+    const locResult = consolidateLocation({
+      mode: locMode,
+      link: locLink,
+      latitude: locLat,
+      longitude: locLng,
+    })
+
+    if (!locResult.isValid) {
+      setErrorMsg(locResult.errorMessage || 'Verifique os dados de localização do cliente.')
       return
     }
 
@@ -117,6 +170,11 @@ export function SendClicksignModal({
         signer_telefone: telefone.trim(),
         envelope_nome: envelopeSugerido,
         pdf_base64: pdfBase64,
+        localizacao_link: locResult.localizacao_link,
+        latitude: locResult.latitude,
+        longitude: locResult.longitude,
+        localizacao_maps_url: locResult.localizacao_maps_url,
+        localizacao_cliente: locResult.displayUrl,
       })
 
       toast({
@@ -263,6 +321,156 @@ export function SendClicksignModal({
                 placeholder="(69) 99999-9999"
                 className="h-9 text-xs"
               />
+            </div>
+
+            {/* Bloco: Localização do Cliente / Instalação (Opcional) */}
+            <div className="pt-2 border-t border-slate-100 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                    Localização do Cliente / Instalação
+                  </span>
+                </div>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] py-0 px-1.5 font-normal text-slate-500"
+                >
+                  Opcional
+                </Badge>
+              </div>
+
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Envie a localização do imóvel para agilizar a vistoria técnica e a mensagem do
+                WhatsApp. Você pode colar o <strong>link do Google Maps</strong> ou informar as{' '}
+                <strong>coordenadas (lat/lng)</strong>.
+              </p>
+
+              {/* Seletor de Modo: Link vs Lat/Lng */}
+              <div className="flex rounded-lg bg-slate-100 p-0.5 max-w-xs">
+                <button
+                  type="button"
+                  onClick={() => setLocMode('link')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-1 px-2.5 rounded-md text-xs font-semibold transition-all ${
+                    locMode === 'link'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <LinkIcon className="w-3 h-3 text-emerald-600" />
+                  <span>Link do Mapa</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLocMode('coords')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-1 px-2.5 rounded-md text-xs font-semibold transition-all ${
+                    locMode === 'coords'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Compass className="w-3 h-3 text-amber-600" />
+                  <span>Latitude / Longitude</span>
+                </button>
+              </div>
+
+              {locMode === 'link' ? (
+                <div className="space-y-1">
+                  <Label htmlFor="cs-loc-link" className="text-xs font-semibold text-slate-700">
+                    Link do Google Maps / Compartilhamento
+                  </Label>
+                  <Input
+                    id="cs-loc-link"
+                    value={locLink}
+                    onChange={(e) => setLocLink(e.target.value)}
+                    placeholder="https://maps.app.goo.gl/... ou https://www.google.com/maps?q=..."
+                    className="h-9 text-xs font-mono"
+                  />
+                  <span className="text-[10px] text-slate-400 block">
+                    Aceita links curtos (maps.app.goo.gl) ou links diretos com coordenadas.
+                  </span>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor="cs-loc-combined"
+                      className="text-xs font-semibold text-slate-700"
+                    >
+                      Colar "Latitude, Longitude" juntas (Opcional)
+                    </Label>
+                    <Input
+                      id="cs-loc-combined"
+                      value={locCoordsCombined}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        setLocCoordsCombined(val)
+                        const parsed = parseCombinedCoordinates(val)
+                        if (parsed) {
+                          setLocLat(String(parsed.latitude))
+                          setLocLng(String(parsed.longitude))
+                        }
+                      }}
+                      placeholder="Ex: -11.834123, -62.345123"
+                      className="h-9 text-xs font-mono"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="cs-loc-lat" className="text-xs font-semibold text-slate-700">
+                        Latitude (-90 a 90)
+                      </Label>
+                      <Input
+                        id="cs-loc-lat"
+                        type="text"
+                        value={locLat}
+                        onChange={(e) => setLocLat(e.target.value)}
+                        placeholder="-11.834123"
+                        className="h-9 text-xs font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="cs-loc-lng" className="text-xs font-semibold text-slate-700">
+                        Longitude (-180 a 180)
+                      </Label>
+                      <Input
+                        id="cs-loc-lng"
+                        type="text"
+                        value={locLng}
+                        onChange={(e) => setLocLng(e.target.value)}
+                        placeholder="-62.345123"
+                        className="h-9 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Preview da Localização com link clicável para abrir mapa */}
+              {locPreview.displayUrl && locPreview.isValid && (
+                <div className="p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200 text-xs text-emerald-950 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="truncate font-mono text-[11px] text-emerald-900">
+                      {locPreview.displayUrl}
+                    </span>
+                  </div>
+                  <a
+                    href={locPreview.displayUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-900 shrink-0 hover:underline"
+                  >
+                    <span>Abrir mapa</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              )}
+
+              {!locPreview.isValid && locPreview.errorMessage && (
+                <p className="text-[11px] text-rose-600 font-medium">{locPreview.errorMessage}</p>
+              )}
             </div>
 
             <div className="p-2.5 rounded-lg bg-amber-50/70 border border-amber-200/80 text-[11px] text-amber-900 space-y-1">

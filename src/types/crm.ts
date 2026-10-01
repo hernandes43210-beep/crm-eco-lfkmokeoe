@@ -316,6 +316,10 @@ export interface Lead extends RecordModel {
   luvik_deal_id?: string
   tipo_imovel?: string
   valor_conta_reais?: number
+  localizacao_link?: string
+  latitude?: number
+  longitude?: number
+  localizacao_maps_url?: string
   historico?: HistoricoItem[]
   created: string
   updated: string
@@ -369,6 +373,7 @@ export interface AssinaturaEnvelope extends RecordModel {
   signatario_cpf?: string
   signatario_telefone?: string
   link_assinatura?: string
+  localizacao_cliente?: string
   arquivo_assinado_pdf?: string
   assinado_em?: string
   dados_resposta?: Record<string, unknown>

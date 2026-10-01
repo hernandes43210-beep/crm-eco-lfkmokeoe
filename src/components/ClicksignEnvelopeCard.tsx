@@ -79,15 +79,26 @@ export function ClicksignEnvelopeCard({ envelope, lead, onUpdated }: ClicksignEn
     }
   }
 
+  const resolvedLocalizacao =
+    envelope.localizacao_cliente ||
+    lead.localizacao_maps_url ||
+    lead.localizacao_link ||
+    (lead.latitude !== undefined &&
+    lead.latitude !== null &&
+    lead.longitude !== undefined &&
+    lead.longitude !== null
+      ? `https://www.google.com/maps?q=${lead.latitude},${lead.longitude}`
+      : undefined)
+
   const whatsAppUrl = envelope.link_assinatura
     ? buildWhatsAppSigningUrl({
         telefone: envelope.signatario_telefone || lead.telefone,
         clienteNome: envelope.signatario_nome,
         tipoDocumento: envelope.tipo_documento,
         linkAssinatura: envelope.link_assinatura,
+        localizacaoCliente: resolvedLocalizacao,
       })
     : null
-
   const formatDataHora = (isoStr?: string) => {
     if (!isoStr) return '-'
     try {
@@ -157,6 +168,18 @@ export function ClicksignEnvelopeCard({ envelope, lead, onUpdated }: ClicksignEn
                 <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                 Assinado em: {formatDataHora(envelope.assinado_em)}
               </span>
+            )}
+            {resolvedLocalizacao && (
+              <a
+                href={resolvedLocalizacao}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-[#0B7A5B] hover:text-[#095C44] font-medium hover:underline"
+                title="Abrir mapa do local de instalação"
+              >
+                <span>📍 Local de instalação</span>
+                <ExternalLink className="w-2.5 h-2.5" />
+              </a>
             )}
           </div>
         </div>

@@ -47,6 +47,11 @@ export interface CreateEnvelopePayload {
   signer_telefone?: string
   pdf_base64: string
   envelope_nome?: string
+  localizacao_link?: string
+  latitude?: number
+  longitude?: number
+  localizacao_maps_url?: string
+  localizacao_cliente?: string
 }
 
 export interface CreateEnvelopeResponse {
@@ -56,6 +61,7 @@ export interface CreateEnvelopeResponse {
   signer_id: string
   status: string
   link_assinatura: string
+  localizacao_cliente?: string
   record_id: string
   message: string
 }

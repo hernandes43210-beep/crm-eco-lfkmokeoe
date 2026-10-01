@@ -1246,19 +1246,52 @@ export default function LeadDetail() {
                 )}
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                  <MapPin className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400">Localização e CEP</p>
-                  <p className="font-medium text-slate-800">
-                    {lead.endereco ? `${lead.endereco}, ` : ''}
-                    {lead.cidade || lead.estado
-                      ? `${lead.cidade || ''} - ${lead.estado || ''}`
-                      : 'Endereço não cadastrado'}
-                    {lead.cep ? ` • CEP: ${lead.cep}` : ''}
-                  </p>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 mt-0.5">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Endereço & Localização</p>
+                    <p className="font-medium text-slate-800">
+                      {lead.endereco ? `${lead.endereco}, ` : ''}
+                      {lead.cidade || lead.estado
+                        ? `${lead.cidade || ''} - ${lead.estado || ''}`
+                        : 'Endereço não cadastrado'}
+                      {lead.cep ? ` • CEP: ${lead.cep}` : ''}
+                    </p>
+                    {(lead.localizacao_maps_url ||
+                      lead.localizacao_link ||
+                      (lead.latitude && lead.longitude)) && (
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <Badge
+                          variant="outline"
+                          className="text-[11px] font-semibold bg-emerald-50 text-emerald-800 border-emerald-200 gap-1 py-0.5 px-2"
+                        >
+                          <MapPin className="w-3 h-3 text-emerald-600" />
+                          <span>Localização Georreferenciada</span>
+                        </Badge>
+                        <a
+                          href={
+                            lead.localizacao_maps_url ||
+                            lead.localizacao_link ||
+                            `https://www.google.com/maps?q=${lead.latitude},${lead.longitude}`
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs font-bold text-[#0B7A5B] hover:text-[#095C44] hover:underline"
+                        >
+                          <span>Ver no Google Maps</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                        {lead.latitude !== undefined && lead.latitude !== null && (
+                          <span className="text-[11px] text-slate-400 font-mono">
+                            ({lead.latitude}, {lead.longitude})
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

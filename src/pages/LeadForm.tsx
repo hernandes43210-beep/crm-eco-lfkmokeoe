@@ -14,6 +14,7 @@ import {
   Calendar,
   AlertCircle,
   Loader2,
+  ExternalLink,
 } from 'lucide-react'
 import { LeadsService } from '@/services/leads'
 import { useAuth } from '@/context/AuthContext'
@@ -93,6 +94,9 @@ export default function LeadForm() {
   const [bairro, setBairro] = useState('')
   const [cidade, setCidade] = useState('')
   const [estado, setEstado] = useState('RO')
+  const [localizacaoLink, setLocalizacaoLink] = useState('')
+  const [latitude, setLatitude] = useState<number | string>('')
+  const [longitude, setLongitude] = useState<number | string>('')
   const [status, setStatus] = useState<LeadStatus>('Novo')
   const [motivoPerda, setMotivoPerda] = useState('')
   const [prPostEncerramento, setPrPostEncerramento] = useState('')
@@ -121,6 +125,11 @@ export default function LeadForm() {
           setBairro(lead.bairro || '')
           setCidade(lead.cidade || '')
           setEstado(lead.estado || 'RO')
+          setLocalizacaoLink(lead.localizacao_link || lead.localizacao_maps_url || '')
+          setLatitude(lead.latitude !== undefined && lead.latitude !== null ? lead.latitude : '')
+          setLongitude(
+            lead.longitude !== undefined && lead.longitude !== null ? lead.longitude : '',
+          )
           setStatus(lead.status)
           setMotivoPerda(lead.motivo_perda || '')
           setPrPostEncerramento(
@@ -258,6 +267,16 @@ export default function LeadForm() {
         bairro: bairro.trim(),
         cidade: cidade.trim(),
         estado: cleanEstado || 'RO',
+        localizacao_link: localizacaoLink.trim(),
+        latitude: latitude !== '' && !isNaN(Number(latitude)) ? Number(latitude) : null,
+        longitude: longitude !== '' && !isNaN(Number(longitude)) ? Number(longitude) : null,
+        localizacao_maps_url:
+          latitude !== '' &&
+          longitude !== '' &&
+          !isNaN(Number(latitude)) &&
+          !isNaN(Number(longitude))
+            ? `https://www.google.com/maps?q=${Number(latitude)},${Number(longitude)}`
+            : localizacaoLink.trim(),
         status: status || 'Novo',
         sla_dias: Math.max(1, Number(slaDias) || 7),
         preco_venda: Math.max(0, Number(precoVenda) || 0),
@@ -621,6 +640,82 @@ export default function LeadForm() {
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            {/* Sub-bloco: Localização Georreferenciada do Cliente / Instalação */}
+            <div className="pt-3 border-t border-slate-100 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Localização do Cliente (Link do Maps ou Latitude / Longitude)</span>
+                  </h4>
+                  <p className="text-[11px] text-slate-400">
+                    Facilita a vistoria técnica, a entrega de materiais e o envio para assinatura
+                    digital.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-3 space-y-1">
+                  <Label htmlFor="localizacaoLink" className="text-xs font-semibold text-slate-700">
+                    Link do Google Maps / Compartilhamento
+                  </Label>
+                  <Input
+                    id="localizacaoLink"
+                    value={localizacaoLink}
+                    onChange={(e) => setLocalizacaoLink(e.target.value)}
+                    placeholder="https://maps.app.goo.gl/... ou https://www.google.com/maps?q=..."
+                    className="h-9 text-xs border-slate-200 font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="latitude" className="text-xs font-semibold text-slate-700">
+                    Latitude (-90 a 90)
+                  </Label>
+                  <Input
+                    id="latitude"
+                    type="text"
+                    value={latitude}
+                    onChange={(e) => setLatitude(e.target.value)}
+                    placeholder="Ex: -11.834123"
+                    className="h-9 text-xs border-slate-200 font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="longitude" className="text-xs font-semibold text-slate-700">
+                    Longitude (-180 a 180)
+                  </Label>
+                  <Input
+                    id="longitude"
+                    type="text"
+                    value={longitude}
+                    onChange={(e) => setLongitude(e.target.value)}
+                    placeholder="Ex: -62.345123"
+                    className="h-9 text-xs border-slate-200 font-mono"
+                  />
+                </div>
+
+                <div className="flex items-end">
+                  {(localizacaoLink || (latitude && longitude)) && (
+                    <a
+                      href={
+                        localizacaoLink || `https://www.google.com/maps?q=${latitude},${longitude}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100 transition-colors"
+                    >
+                      <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Ver no Google Maps</span>
+                      <ExternalLink className="w-3 h-3 text-emerald-600" />
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
 

@@ -68,6 +68,18 @@ describe('clicksignUtils', () => {
     expect(url).toContain('https://wa.me/5569992345678?text=')
     expect(url).toContain(encodeURIComponent('https://app.clicksign.com/sign/xyz'))
   })
+
+  it('inclui bloco de localização do cliente na mensagem quando fornecido', () => {
+    const msg = buildWhatsAppSigningMessage({
+      clienteNome: 'Carlos Menezes',
+      tipoDocumento: 'contrato',
+      linkAssinatura: 'https://app.clicksign.com/sign/xyz',
+      localizacaoCliente: 'https://maps.app.goo.gl/ABC123xyz',
+    })
+
+    expect(msg).toContain('📍 Local de instalação cadastrado:')
+    expect(msg).toContain('https://maps.app.goo.gl/ABC123xyz')
+  })
 })
 
 describe('pdfBase64 generation with jsPDF', () => {

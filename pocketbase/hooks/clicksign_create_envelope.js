@@ -54,6 +54,22 @@ routerAdd(
     const signerTelefone = (body.signer_telefone || '').replace(/\D/g, '')
     const pdfBase64Raw = (body.pdf_base64 || '').trim()
     const envelopeNomeParam = (body.envelope_nome || '').trim()
+    const localizacaoLink = (body.localizacao_link || '').trim()
+    const latitudeParam =
+      body.latitude !== undefined && body.latitude !== null && body.latitude !== ''
+        ? Number(body.latitude)
+        : null
+    const longitudeParam =
+      body.longitude !== undefined && body.longitude !== null && body.longitude !== ''
+        ? Number(body.longitude)
+        : null
+    const localizacaoMapsUrl = (body.localizacao_maps_url || '').trim()
+    const localizacaoCliente = (
+      body.localizacao_cliente ||
+      localizacaoMapsUrl ||
+      localizacaoLink ||
+      ''
+    ).trim()
 
     if (!leadId) {
       return e.json(400, { error: 'O identificador do lead (lead_id) é obrigatório.' })
@@ -481,6 +497,9 @@ routerAdd(
     if (signerCpf) envelopeRec.set('signatario_cpf', signerCpf)
     if (signerTelefone) envelopeRec.set('signatario_telefone', signerTelefone)
     envelopeRec.set('link_assinatura', linkAssinatura)
+    if (localizacaoCliente) {
+      envelopeRec.set('localizacao_cliente', localizacaoCliente)
+    }
     envelopeRec.set(
       'dados_resposta',
       JSON.stringify({
@@ -507,8 +526,26 @@ routerAdd(
       })
     }
 
-    // 10. Atualizar histórico do Lead
+    // 10. Atualizar dados de localização e histórico do Lead
     try {
+      let updatedLead = false
+      if (localizacaoLink && !leadRecord.getString('localizacao_link')) {
+        leadRecord.set('localizacao_link', localizacaoLink)
+        updatedLead = true
+      }
+      if (localizacaoMapsUrl && !leadRecord.getString('localizacao_maps_url')) {
+        leadRecord.set('localizacao_maps_url', localizacaoMapsUrl)
+        updatedLead = true
+      }
+      if (latitudeParam !== null && !isNaN(latitudeParam)) {
+        leadRecord.set('latitude', latitudeParam)
+        updatedLead = true
+      }
+      if (longitudeParam !== null && !isNaN(longitudeParam)) {
+        leadRecord.set('longitude', longitudeParam)
+        updatedLead = true
+      }
+
       let rawHist = leadRecord.get('historico')
       let hist = []
       if (rawHist) {
@@ -524,17 +561,21 @@ routerAdd(
       }
       const tipoNome =
         tipoDocumento === 'procuracao' ? 'Procuração Energisa' : 'Contrato de Prestação'
+      let desc =
+        'Envelope de assinatura digital criado na Clicksign para ' +
+        tipoNome +
+        ' (Signatário: ' +
+        signerNome +
+        ' <' +
+        signerEmail +
+        '>).'
+      if (localizacaoCliente) {
+        desc += ' 📍 Localização de instalação: ' + localizacaoCliente
+      }
       hist.push({
         data: new Date().toISOString(),
         tipo: 'fechamento',
-        descricao:
-          'Envelope de assinatura digital criado na Clicksign para ' +
-          tipoNome +
-          ' (Signatário: ' +
-          signerNome +
-          ' <' +
-          signerEmail +
-          '>).',
+        descricao: desc,
       })
       leadRecord.set('historico', JSON.stringify(hist))
       $app.save(leadRecord)
@@ -548,6 +589,7 @@ routerAdd(
       status: 'running',
       link_assinatura: linkAssinatura,
       record_id: envelopeRec.id,
+      localizacao_cliente: localizacaoCliente,
       message: 'Envelope criado com sucesso e enviado para assinatura digital!',
     })
   },

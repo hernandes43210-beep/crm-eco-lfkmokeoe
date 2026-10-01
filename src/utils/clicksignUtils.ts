@@ -77,6 +77,7 @@ export function buildWhatsAppSigningMessage(params: {
   clienteNome: string
   tipoDocumento: 'contrato' | 'procuracao'
   linkAssinatura: string
+  localizacaoCliente?: string
 }): string {
   const primeiroNome = params.clienteNome.trim().split(' ')[0] || 'Cliente'
   const nomeDoc =
@@ -84,14 +85,20 @@ export function buildWhatsAppSigningMessage(params: {
       ? 'Procuração Energisa'
       : 'Contrato de Prestação de Serviços'
 
-  return `Olá, ${primeiroNome}! Aqui é da Ecosolar Energy ☀️
+  let msg = `Olá, ${primeiroNome}! Aqui é da Ecosolar Energy ☀️
 
 Seu ${nomeDoc} já está pronto para assinatura digital com validade jurídica via Clicksign.
 
 Para assinar direto do seu celular ou computador, basta acessar o link abaixo:
-👉 ${params.linkAssinatura}
+👉 ${params.linkAssinatura}`
 
-O processo leva menos de 1 minuto e não precisa imprimir nada. Qualquer dúvida estamos à disposição!`
+  if (params.localizacaoCliente && params.localizacaoCliente.trim()) {
+    msg += `\n\n📍 Local de instalação cadastrado:\n${params.localizacaoCliente.trim()}`
+  }
+
+  msg += `\n\nO processo leva menos de 1 minuto e não precisa imprimir nada. Qualquer dúvida estamos à disposição!`
+
+  return msg
 }
 
 /**
@@ -102,6 +109,7 @@ export function buildWhatsAppSigningUrl(params: {
   clienteNome: string
   tipoDocumento: 'contrato' | 'procuracao'
   linkAssinatura: string
+  localizacaoCliente?: string
 }): string {
   const cleanPhone = (params.telefone || '').replace(/\D/g, '')
   // Garantir DDI 55 do Brasil se tiver 10 ou 11 dígitos
@@ -114,6 +122,7 @@ export function buildWhatsAppSigningUrl(params: {
     clienteNome: params.clienteNome,
     tipoDocumento: params.tipoDocumento,
     linkAssinatura: params.linkAssinatura,
+    localizacaoCliente: params.localizacaoCliente,
   })
 
   return `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(msg)}`
