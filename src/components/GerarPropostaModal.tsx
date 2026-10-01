@@ -904,8 +904,8 @@ export function GerarPropostaModal({
                   </Badge>
                 </div>
                 <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
-                  Sequência interativa de 6 telas com barra de progresso, foco em conversão e botão
-                  direto de assinatura.
+                  Sequência interativa de 7 telas com carrossel de equipamentos (Módulos e
+                  Inversor), Mascote Ecosolar como guia, ROI e botão direto de assinatura.
                 </p>
               </button>
 
