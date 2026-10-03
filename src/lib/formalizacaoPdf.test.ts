@@ -51,7 +51,7 @@ describe('formalizacaoPdf', () => {
           unidade: 'un',
           quantidade: '10',
           fabricanteModelo: 'TSUN Power',
-          especificacao: 'Garantia de 25 anos',
+          especificacao: 'Garantia de 30 anos',
         },
         {
           item: '01=INVERSOR DE CORRENTE L1 MONOFASICO 2MPPT 220V 5KW HUAWEI INVHW-MO-220V-5KW',

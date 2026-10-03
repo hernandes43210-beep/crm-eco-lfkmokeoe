@@ -183,7 +183,7 @@ export function parseKitDetailedItems(params: {
         nome: 'Módulos Fotovoltaicos de Alta Eficiência',
         fabricanteModelo: `${brand || 'Tier 1'}${wVal ? ` ${wVal} W` : ''}`.trim(),
         especificacao:
-          cleanText(spec) || 'Tecnologia Monocristalina com garantia linear de 25 anos',
+          cleanText(spec) || 'Tecnologia Monocristalina com garantia linear de 30 anos',
         potenciaUnit: wVal ? formatarPotenciaW(wVal, 'W') : undefined,
       })
       continue
@@ -401,7 +401,7 @@ export function parseKitDetailedItems(params: {
         nome: 'Módulos Fotovoltaicos de Alta Performance',
         fabricanteModelo: `${brand || 'Tier 1'} ${potWp ? `${potWp} W` : ''}`.trim(),
         especificacao:
-          'Células Monocristalinas de alta durabilidade com garantia linear de geração de 25 anos',
+          'Células Monocristalinas de alta durabilidade com garantia linear de geração de 30 anos',
         potenciaUnit: potWp ? formatarPotenciaW(potWp, 'W') : undefined,
       })
     }

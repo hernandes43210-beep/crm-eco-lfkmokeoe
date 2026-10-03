@@ -396,7 +396,7 @@ export default function PropostaPublica() {
       : Math.round(consumoKwh))
   const economiaMensal = calcularEconomiaMensal(consumoKwh)
   const economiaAnual = economiaMensal * 12
-  const economia25Anos = economiaAnual * 25
+  const economia30Anos = economiaAnual * 30
 
   const localCliente =
     [proposta.lead?.cidade, proposta.lead?.estado].filter(Boolean).join(' - ') || 'Brasil'
@@ -1140,17 +1140,17 @@ export default function PropostaPublica() {
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
                 <span className="text-xs uppercase font-extrabold text-slate-500">
-                  Economia em 25 Anos
+                  Economia em 30 Anos
                 </span>
                 <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center font-bold">
                   <Award className="w-4 h-4" />
                 </div>
               </div>
               <p className="text-2xl font-black text-slate-900 font-mono-numbers mt-2">
-                {formatBRL(economia25Anos)}
+                {formatBRL(economia30Anos)}
               </p>
               <p className="text-[11px] text-slate-500 mt-1">
-                Garantia linear de geração dos módulos
+                30 anos de geração linear dos módulos
               </p>
             </CardContent>
           </Card>
@@ -1340,9 +1340,7 @@ export default function PropostaPublica() {
                   Garantias & Padrão de Engenharia
                 </p>
                 <ul className="list-disc list-inside space-y-1 text-slate-600 pt-1">
-                  <li>
-                    25 anos de garantia linear de geração de energia dos módulos fotovoltaicos
-                  </li>
+                  <li>30 anos de geração linear de energia dos módulos fotovoltaicos</li>
                   <li>10 a 12 anos de garantia de fábrica do inversor fotovoltaico homologado</li>
                   <li>Homologação 100% inclusa com emissão de ART assinada por engenheiro</li>
                   <li>Instalação realizada rigorosamente conforme normas técnicas NR10 e NR35</li>

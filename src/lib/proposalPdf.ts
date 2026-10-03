@@ -107,7 +107,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
     (data.kit_potencia_kw ? calcularGeracaoMensalKwh(data.kit_potencia_kw) : Math.round(consumoKwh))
   const economiaMensal = calcularEconomiaMensal(consumoKwh)
   const economiaAnual = economiaMensal * 12
-  const economia25Anos = economiaAnual * 25
+  const economia30Anos = economiaAnual * 30
 
   // Simulação comparativa em 30 anos (Solar vs Poupança vs CDB)
   const sim = calculateInvestmentComparison(data.preco_venda || 0, economiaMensal, 30)

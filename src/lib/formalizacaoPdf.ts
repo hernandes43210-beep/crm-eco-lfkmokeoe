@@ -192,7 +192,7 @@ export function generateContratoHTML(dados: DadosContratoFormalizacao): string {
           {
             item: 'Módulos Fotovoltaicos Monocristalinos',
             quantidade: 'Conforme dimensionamento',
-            especificacao: 'Garantia de fábrica de 25 anos de desempenho linear',
+            especificacao: 'Garantia de fábrica de 30 anos de desempenho linear',
             fabricanteModelo: dados.kitFabricante || 'Tier 1 Internacional',
           },
           {

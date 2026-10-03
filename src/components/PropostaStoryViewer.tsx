@@ -664,9 +664,9 @@ export function PropostaStoryViewer({
                   </div>
                   <div className="bg-black/30 rounded-lg p-2 text-right">
                     <span className="text-[10px] text-slate-400 font-bold block uppercase">
-                      Garantia Linear
+                      Geração Linear
                     </span>
-                    <strong className="text-emerald-300 text-sm">25 Anos (84%+)</strong>
+                    <strong className="text-emerald-300 text-sm">30 Anos de Geração Linear</strong>
                   </div>
                 </div>
               </div>
@@ -725,7 +725,7 @@ export function PropostaStoryViewer({
                 dica={
                   infoInstalacaoEstrutura.estruturaFixacao
                     ? `Fixação segura: ${infoInstalacaoEstrutura.estruturaFixacao}.`
-                    : 'Garantia de 25 anos: seu sistema gerando energia por décadas.'
+                    : '30 anos de geração linear: seu sistema gerando energia por décadas.'
                 }
                 destaqueBadge={`${specs.potenciaTotalFormatada}`}
                 humor="animado"
@@ -1146,7 +1146,7 @@ export function PropostaStoryViewer({
               {/* GUIA AMIGÁVEL: Mascote da Ecosolar dando vida ao ROI */}
               <MascotSpeechBubble
                 titulo="O Mascote Explica:"
-                fala={`Em ~${paybackAnos} anos o sistema se paga integralmente e você tem mais de 25 anos de energia gratuita gerando mais de ${formatBRL(economia30Anos)} no seu bolso!`}
+                fala={`Em ~${paybackAnos} anos o sistema se paga integralmente e você tem quase 30 anos de energia gratuita gerando mais de ${formatBRL(economia30Anos)} no seu bolso com 30 anos de geração linear garantida!`}
                 dica="Nenhum investimento de banco bate o retorno da energia solar."
                 destaqueBadge={`Payback ~${paybackAnos} anos`}
                 humor="comemorando"
