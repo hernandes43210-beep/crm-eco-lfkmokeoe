@@ -50,6 +50,8 @@ import {
 } from '@/lib/quickKitUtils'
 import { useKitFilters } from '@/hooks/useKitFilters'
 import { KitFilterBar } from '@/components/KitFilterBar'
+import { ESTADOS_BRASILEIROS, obterEnderecoPorEstado } from '@/hooks/useEnderecoAutocomplete'
+import { MapPin } from 'lucide-react'
 
 interface GerarPropostaModalProps {
   open: boolean
@@ -104,6 +106,20 @@ export function GerarPropostaModal({
     'Incluso projeto de engenharia, homologação na concessionária local, estrutura de fixação em alumínio, cabos, proteções CC/CA e monitoramento via Wi-Fi.',
   )
   const [fotosSelecionadas, setFotosSelecionadas] = useState<PropostaFotoSelecionada[]>([])
+
+  // Localidade de instalação / cliente para a proposta (editável)
+  const [localidadeUf, setLocalidadeUf] = useState(lead.estado || 'RO')
+  const [localidadeCidade, setLocalidadeCidade] = useState(lead.cidade || '')
+  const [localidadeCep, setLocalidadeCep] = useState(lead.cep || '')
+
+  // Sincronizar quando lead mudar
+  useEffect(() => {
+    if (open) {
+      setLocalidadeUf(lead.estado || 'RO')
+      setLocalidadeCidade(lead.cidade || '')
+      setLocalidadeCep(lead.cep || '')
+    }
+  }, [open, lead])
 
   // Estados dos seletores técnicos do kit manual / selecionado
   const [isManualQuickMode, setIsManualQuickMode] = useState(true)
@@ -523,9 +539,57 @@ export function GerarPropostaModal({
           <DialogDescription className="text-xs text-slate-500">
             Cliente: <strong className="text-slate-800">{lead.nome}</strong> • Consumo:{' '}
             <strong className="text-slate-800">{lead.consumo_mensal_kwh} kWh/mês</strong>
-            {lead.cidade ? ` • ${lead.cidade}/${lead.estado}` : ''}
+            {localidadeCidade ? ` • ${localidadeCidade}/${localidadeUf}` : ''}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Localidade do Cliente / Instalação */}
+        <div className="p-3 rounded-lg bg-slate-50 border border-slate-200/80 space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+            <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Localidade da Instalação / Cliente</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label className="text-[11px] font-semibold text-slate-700">Estado (UF)</Label>
+              <select
+                value={localidadeUf}
+                onChange={(e) => {
+                  const novaUf = e.target.value
+                  setLocalidadeUf(novaUf)
+                  const auto = obterEnderecoPorEstado(novaUf, lead)
+                  setLocalidadeCidade(auto.cidade)
+                  setLocalidadeCep(auto.cep)
+                }}
+                className="w-full h-8 px-2 text-xs bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+              >
+                {ESTADOS_BRASILEIROS.map((item) => (
+                  <option key={item.sigla} value={item.sigla}>
+                    {item.sigla} - {item.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px] font-semibold text-slate-700">Cidade</Label>
+              <Input
+                value={localidadeCidade}
+                onChange={(e) => setLocalidadeCidade(e.target.value)}
+                placeholder="Ex: Seringueiras"
+                className="h-8 text-xs bg-white"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px] font-semibold text-slate-700">CEP</Label>
+              <Input
+                value={localidadeCep}
+                onChange={(e) => setLocalidadeCep(e.target.value)}
+                placeholder="Ex: 76934-000"
+                className="h-8 text-xs bg-white"
+              />
+            </div>
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           {/* Selecionar Kit do Catálogo com Filtros Idênticos à aba Kits Solares */}

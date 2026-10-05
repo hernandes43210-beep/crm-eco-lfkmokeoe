@@ -73,6 +73,8 @@ import {
 import { toast } from '@/hooks/use-toast'
 import { useKitFilters } from '@/hooks/useKitFilters'
 import { KitFilterBar } from '@/components/KitFilterBar'
+import { ESTADOS_BRASILEIROS, obterEnderecoPorEstado } from '@/hooks/useEnderecoAutocomplete'
+import { MapPin } from 'lucide-react'
 
 interface EditarPropostaModalProps {
   open: boolean
@@ -123,6 +125,22 @@ export function EditarPropostaModal({
   const [condicoesPagamento, setCondicoesPagamento] = useState('')
   const [observacoes, setObservacoes] = useState('')
   const [fotosSelecionadas, setFotosSelecionadas] = useState<PropostaFotoSelecionada[]>([])
+
+  // Localidade de instalação / cliente (editável)
+  const leadSalvo = proposta?.expand?.lead
+  const [localidadeUf, setLocalidadeUf] = useState(leadSalvo?.estado || 'RO')
+  const [localidadeCidade, setLocalidadeCidade] = useState(leadSalvo?.cidade || '')
+  const [localidadeCep, setLocalidadeCep] = useState(leadSalvo?.cep || '')
+
+  // Sincronizar localidade ao abrir proposta
+  useEffect(() => {
+    if (open && proposta) {
+      const leadRef = proposta.expand?.lead
+      setLocalidadeUf(leadRef?.estado || 'RO')
+      setLocalidadeCidade(leadRef?.cidade || '')
+      setLocalidadeCep(leadRef?.cep || '')
+    }
+  }, [open, proposta])
 
   // Equipamentos técnicos do kit (tanto para manual quanto derivados do catálogo)
   const [technicalValues, setTechnicalValues] = useState<KitTechnicalSelectorsValues>({
@@ -614,12 +632,61 @@ export function EditarPropostaModal({
                     </strong>
                   </>
                 ) : null}
+                {localidadeCidade ? ` • ${localidadeCidade}/${localidadeUf}` : ''}
               </>
             ) : (
               'Altere os dados comerciais, kit solar, condições e prazo de validade.'
             )}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Localidade do Cliente / Instalação */}
+        <div className="p-3 rounded-lg bg-slate-50 border border-slate-200/80 space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+            <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Localidade da Instalação / Cliente</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label className="text-[11px] font-semibold text-slate-700">Estado (UF)</Label>
+              <select
+                value={localidadeUf}
+                onChange={(e) => {
+                  const novaUf = e.target.value
+                  setLocalidadeUf(novaUf)
+                  const auto = obterEnderecoPorEstado(novaUf, leadSalvo)
+                  setLocalidadeCidade(auto.cidade)
+                  setLocalidadeCep(auto.cep)
+                }}
+                className="w-full h-8 px-2 text-xs bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+              >
+                {ESTADOS_BRASILEIROS.map((item) => (
+                  <option key={item.sigla} value={item.sigla}>
+                    {item.sigla} - {item.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px] font-semibold text-slate-700">Cidade</Label>
+              <Input
+                value={localidadeCidade}
+                onChange={(e) => setLocalidadeCidade(e.target.value)}
+                placeholder="Ex: Seringueiras"
+                className="h-8 text-xs bg-white"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px] font-semibold text-slate-700">CEP</Label>
+              <Input
+                value={localidadeCep}
+                onChange={(e) => setLocalidadeCep(e.target.value)}
+                placeholder="Ex: 76934-000"
+                className="h-8 text-xs bg-white"
+              />
+            </div>
+          </div>
+        </div>
 
         {isAceita && (
           <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-start gap-2">

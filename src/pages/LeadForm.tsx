@@ -27,6 +27,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from '@/hooks/use-toast'
+import { ESTADOS_BRASILEIROS, obterEnderecoPorEstado } from '@/hooks/useEnderecoAutocomplete'
 
 const ORIGENS: LeadOrigem[] = ['Indicação', 'Site', 'Redes Sociais', 'Evento', 'Parceria', 'Outros']
 
@@ -37,36 +38,6 @@ const STATUSES: LeadStatus[] = [
   'Negociação',
   'Fechado Ganho',
   'Fechado Perdido',
-]
-
-const ESTADOS_BR = [
-  'AC',
-  'AL',
-  'AP',
-  'AM',
-  'BA',
-  'CE',
-  'DF',
-  'ES',
-  'GO',
-  'MA',
-  'MT',
-  'MS',
-  'MG',
-  'PA',
-  'PB',
-  'PR',
-  'PE',
-  'PI',
-  'RJ',
-  'RN',
-  'RS',
-  'RO',
-  'RR',
-  'SC',
-  'SP',
-  'SE',
-  'TO',
 ]
 
 export default function LeadForm() {
@@ -94,6 +65,8 @@ export default function LeadForm() {
   const [bairro, setBairro] = useState('')
   const [cidade, setCidade] = useState('')
   const [estado, setEstado] = useState('RO')
+  // Armazena os dados originais salvos do lead para autopreenchimento dinâmico ao selecionar UF
+  const [leadOriginal, setLeadOriginal] = useState<Lead | null>(null)
   const [localizacaoLink, setLocalizacaoLink] = useState('')
   const [latitude, setLatitude] = useState<number | string>('')
   const [longitude, setLongitude] = useState<number | string>('')
@@ -111,6 +84,7 @@ export default function LeadForm() {
     if (isEditing && id) {
       LeadsService.getLeadById(id)
         .then((lead) => {
+          setLeadOriginal(lead)
           setNome(lead.nome)
           setEmail(lead.email)
           setTelefone(lead.telefone || '')
@@ -631,12 +605,18 @@ export default function LeadForm() {
                 <select
                   id="estado"
                   value={estado}
-                  onChange={(e) => setEstado(e.target.value)}
+                  onChange={(e) => {
+                    const novaUf = e.target.value
+                    setEstado(novaUf)
+                    const auto = obterEnderecoPorEstado(novaUf, leadOriginal)
+                    setCidade(auto.cidade)
+                    setCep(auto.cep)
+                  }}
                   className="w-full h-10 px-2 text-sm bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
                 >
-                  {ESTADOS_BR.map((uf) => (
-                    <option key={uf} value={uf}>
-                      {uf}
+                  {ESTADOS_BRASILEIROS.map((item) => (
+                    <option key={item.sigla} value={item.sigla}>
+                      {item.sigla} - {item.nome}
                     </option>
                   ))}
                 </select>

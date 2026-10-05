@@ -40,6 +40,7 @@ import { parseKitDetailedItems } from '@/lib/kitItemsParser'
 import { FormalizacaoService } from '@/services/formalizacao'
 import { useToast } from '@/hooks/use-toast'
 import { toPortugueseErrorMessage } from '@/lib/errors'
+import { ESTADOS_BRASILEIROS, obterEnderecoPorEstado } from '@/hooks/useEnderecoAutocomplete'
 
 interface FormalizacaoDocEditorModalProps {
   open: boolean
@@ -535,7 +536,7 @@ export function FormalizacaoDocEditorModal({
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                     <div className="sm:col-span-2 space-y-1">
                       <Label className="text-xs font-semibold text-slate-700">
-                        Endereço Completo
+                        Endereço Completo (Rua, Nº e Bairro)
                       </Label>
                       <Input
                         value={contratoState.clienteEndereco}
@@ -547,20 +548,42 @@ export function FormalizacaoDocEditorModal({
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs font-semibold text-slate-700">Cidade - UF</Label>
-                      <Input
-                        value={`${contratoState.clienteCidade} - ${contratoState.clienteEstado}`}
+                      <Label className="text-xs font-semibold text-slate-700">Estado (UF)</Label>
+                      <select
+                        value={contratoState.clienteEstado}
                         onChange={(e) => {
-                          const parts = e.target.value.split('-')
+                          const novaUf = e.target.value
+                          const auto = obterEnderecoPorEstado(novaUf, lead)
                           setContratoState({
                             ...contratoState,
-                            clienteCidade: parts[0]?.trim() || '',
-                            clienteEstado: parts[1]?.trim() || 'RO',
+                            clienteEstado: novaUf,
+                            clienteCidade: auto.cidade,
+                            clienteCep: auto.cep,
                           })
                         }}
+                        className="w-full h-9 px-2 text-xs bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+                      >
+                        {ESTADOS_BRASILEIROS.map((item) => (
+                          <option key={item.sigla} value={item.sigla}>
+                            {item.sigla} - {item.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold text-slate-700">Cidade</Label>
+                      <Input
+                        value={contratoState.clienteCidade}
+                        onChange={(e) =>
+                          setContratoState({ ...contratoState, clienteCidade: e.target.value })
+                        }
+                        placeholder="Seringueiras"
                         className="h-9 text-xs"
                       />
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold text-slate-700">CEP</Label>
                       <Input
@@ -958,22 +981,36 @@ export function FormalizacaoDocEditorModal({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
+                      <Label className="text-xs font-semibold text-slate-700">Estado (UF)</Label>
+                      <select
+                        value={procuracaoState.clienteEstado}
+                        onChange={(e) => {
+                          const novaUf = e.target.value
+                          const auto = obterEnderecoPorEstado(novaUf, lead)
+                          setProcuracaoState({
+                            ...procuracaoState,
+                            clienteEstado: novaUf,
+                            clienteCidade: auto.cidade,
+                            clienteCep: auto.cep,
+                          })
+                        }}
+                        className="w-full h-9 px-2 text-xs bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+                      >
+                        {ESTADOS_BRASILEIROS.map((item) => (
+                          <option key={item.sigla} value={item.sigla}>
+                            {item.sigla} - {item.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
                       <Label className="text-xs font-semibold text-slate-700">Município</Label>
                       <Input
                         value={procuracaoState.clienteCidade}
                         onChange={(e) =>
                           setProcuracaoState({ ...procuracaoState, clienteCidade: e.target.value })
                         }
-                        className="h-9 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold text-slate-700">Estado (UF)</Label>
-                      <Input
-                        value={procuracaoState.clienteEstado}
-                        onChange={(e) =>
-                          setProcuracaoState({ ...procuracaoState, clienteEstado: e.target.value })
-                        }
+                        placeholder="Seringueiras"
                         className="h-9 text-xs"
                       />
                     </div>

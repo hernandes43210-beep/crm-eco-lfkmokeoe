@@ -17,6 +17,7 @@ import { ClicksignService } from '@/services/clicksign'
 import { generatePdfBase64FromHtml } from '@/utils/pdfBase64'
 import { consolidateLocation, parseCombinedCoordinates } from '@/utils/locationUtils'
 import { useToast } from '@/hooks/use-toast'
+import { ESTADOS_BRASILEIROS, obterEnderecoPorEstado } from '@/hooks/useEnderecoAutocomplete'
 import {
   Send,
   Loader2,
@@ -28,6 +29,7 @@ import {
   MapPin,
   Link as LinkIcon,
   Compass,
+  Home,
 } from 'lucide-react'
 
 interface SendClicksignModalProps {
@@ -58,6 +60,11 @@ export function SendClicksignModal({
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
+  // Endereço / localidade do cliente
+  const [estadoCliente, setEstadoCliente] = useState(lead.estado || 'RO')
+  const [cidadeCliente, setCidadeCliente] = useState(lead.cidade || '')
+  const [cepCliente, setCepCliente] = useState(lead.cep || '')
+
   // Campos de localização (opcionais para envio da documentação)
   const [locMode, setLocMode] = useState<'link' | 'coords'>(() => {
     if (lead.latitude !== undefined && lead.latitude !== null && !lead.localizacao_link) {
@@ -81,6 +88,9 @@ export function SendClicksignModal({
       setEmail(lead.email || '')
       setCpf(lead.cpf_cnpj || '')
       setTelefone(lead.telefone || '')
+      setEstadoCliente(lead.estado || 'RO')
+      setCidadeCliente(lead.cidade || '')
+      setCepCliente(lead.cep || '')
       setErrorMsg(null)
 
       const initialLink = lead.localizacao_link || lead.localizacao_maps_url || ''
@@ -321,6 +331,68 @@ export function SendClicksignModal({
                 placeholder="(69) 99999-9999"
                 className="h-9 text-xs"
               />
+            </div>
+
+            {/* Endereço / Localidade do Cliente */}
+            <div className="pt-2 border-t border-slate-100 space-y-2.5">
+              <div className="flex items-center gap-2">
+                <Home className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                  Endereço do Cliente / Localidade
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="cs-uf" className="text-xs font-semibold text-slate-700">
+                    UF (Estado)
+                  </Label>
+                  <select
+                    id="cs-uf"
+                    value={estadoCliente}
+                    onChange={(e) => {
+                      const novaUf = e.target.value
+                      setEstadoCliente(novaUf)
+                      const auto = obterEnderecoPorEstado(novaUf, lead)
+                      setCidadeCliente(auto.cidade)
+                      setCepCliente(auto.cep)
+                    }}
+                    className="w-full h-9 px-2 text-xs bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+                  >
+                    {ESTADOS_BRASILEIROS.map((item) => (
+                      <option key={item.sigla} value={item.sigla}>
+                        {item.sigla} - {item.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="cs-cidade" className="text-xs font-semibold text-slate-700">
+                    Cidade
+                  </Label>
+                  <Input
+                    id="cs-cidade"
+                    value={cidadeCliente}
+                    onChange={(e) => setCidadeCliente(e.target.value)}
+                    placeholder="Seringueiras"
+                    className="h-9 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="cs-cep" className="text-xs font-semibold text-slate-700">
+                    CEP
+                  </Label>
+                  <Input
+                    id="cs-cep"
+                    value={cepCliente}
+                    onChange={(e) => setCepCliente(e.target.value)}
+                    placeholder="76934-000"
+                    className="h-9 text-xs"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Bloco: Localização do Cliente / Instalação (Opcional) */}
