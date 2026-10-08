@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { parseKitDetailedItems } from '@/lib/kitItemsParser'
+import { parseCondicoesPagamento } from '@/lib/paymentConditionsParser'
 import type { PublicProposta } from '@/types/crm'
 
 describe('Proposta Story Equipamentos e Mascote', () => {
@@ -63,5 +64,37 @@ describe('Proposta Story Equipamentos e Mascote', () => {
 
     expect(mockPropostaSemDossie.kit_tipo_estrutura).toBe('solo_monoposte')
     expect(mockPropostaSemDossie.dossie_engenharia).toBeNull()
+  })
+
+  it('permite inclusão da tela de pagamento quando condicoes_pagamento está preenchida', () => {
+    const mockPropostaComPagamento: Partial<PublicProposta> = {
+      id: 'prop789',
+      token_publico: 'tok789',
+      preco_venda: 30000,
+      condicoes_pagamento:
+        'À vista com 5% via TED/PIX ou Financiamento em até 84x com carência de 90 dias.',
+    }
+
+    const parsed = parseCondicoesPagamento(
+      mockPropostaComPagamento.condicoes_pagamento,
+      mockPropostaComPagamento.preco_venda,
+    )
+
+    expect(parsed.temCondicoes).toBe(true)
+    expect(parsed.temAVista).toBe(true)
+    expect(parsed.temFinanciamento).toBe(true)
+    expect(parsed.resumoMascote).toBeTruthy()
+  })
+
+  it('omite graciosamente a tela de pagamento quando condicoes_pagamento é nula ou vazia', () => {
+    const mockPropostaSemPagamento: Partial<PublicProposta> = {
+      id: 'prop000',
+      token_publico: 'tok000',
+      condicoes_pagamento: '',
+    }
+
+    const parsed = parseCondicoesPagamento(mockPropostaSemPagamento.condicoes_pagamento)
+    expect(parsed.temCondicoes).toBe(false)
+    expect(parsed.itens.length).toBe(0)
   })
 })

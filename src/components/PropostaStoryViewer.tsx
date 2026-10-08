@@ -28,6 +28,10 @@ import {
   PiggyBank,
   DollarSign,
   Maximize2,
+  CreditCard,
+  Wallet,
+  Landmark,
+  BadgePercent,
 } from 'lucide-react'
 import officialLogoPng from '@/assets/a-613c6.png'
 import type { PublicProposta } from '@/types/crm'
@@ -41,6 +45,7 @@ import {
   FATOR_PERDAS_SISTEMA,
 } from '@/lib/solarUtils'
 import { parseKitDetailedItems } from '@/lib/kitItemsParser'
+import { parseCondicoesPagamento } from '@/lib/paymentConditionsParser'
 import { INSTITUTIONAL_INSTALLATION_PHOTOS } from '@/data/socialProofPhotos'
 import { MascotSpeechBubble } from '@/components/MascotSpeechBubble'
 import { Button } from '@/components/ui/button'
@@ -59,17 +64,15 @@ export interface PropostaStoryViewerProps {
   isInternalViewer?: boolean
 }
 
-/**
- * Sequência de Telas do Story:
- * Tela 0: MÓDULOS (Painéis) - quantidade, marca e potência bem grandes e visuais (ex.: '10 painéis de 630W — [marca]')
- * Tela 1: INVERSOR - potência, marca e quantidade (ex.: 'Sungrow 5 kW'), com destaque da marca
- * Tela 2: GERAÇÃO - dimensionamento, geração kWh/mês e tecnologia de captação
- * Tela 3: ECONOMIA - alívio na conta de luz, comparação de custos antes vs depois
- * Tela 4: RETORNO SOBRE INVESTIMENTO (ROI 30 Anos) - economia acumulada vs poupança/CDB e payback
- * Tela 5: QUALIDADES ECOSOLAR - engenharia própria, ART, homologação Energisa e prova social
- * Tela 6: VALOR FINAL & CTA DE ASSINATURA - valor total, economia, condições e aceite eletrônico com nome
- */
-const TOTAL_SCREENS = 7
+export type StoryScreenKey =
+  | 'modulos'
+  | 'inversor'
+  | 'geracao'
+  | 'economia'
+  | 'roi'
+  | 'qualidades'
+  | 'pagamento'
+  | 'valor_assinatura'
 
 export function PropostaStoryViewer({
   proposta,
@@ -80,7 +83,7 @@ export function PropostaStoryViewer({
   onSwitchToClassic,
   isInternalViewer,
 }: PropostaStoryViewerProps) {
-  const [currentScreen, setCurrentScreen] = useState(0)
+  const [currentScreenIndex, setCurrentScreenIndex] = useState(0)
   const [nomeConfirmacao, setNomeConfirmacao] = useState(proposta.lead?.nome || '')
   const [selectedPhotoModal, setSelectedPhotoModal] = useState<{
     id?: string
@@ -95,6 +98,33 @@ export function PropostaStoryViewer({
   // Autoplay pausável (estilo Instagram Story com 8.5 segundos por tela, exceto a tela final de aceite)
   const [isPaused, setIsPaused] = useState(false)
   const [progressPercent, setProgressPercent] = useState(0)
+
+  // Decompor as condições de pagamento reais da proposta
+  const pagamentoParsed = useMemo(() => {
+    return parseCondicoesPagamento(proposta.condicoes_pagamento, proposta.preco_venda)
+  }, [proposta.condicoes_pagamento, proposta.preco_venda])
+
+  // Lista dinâmica de telas do Story: se não houver condição de pagamento definida, omite graciosamente
+  const screens: StoryScreenKey[] = useMemo(() => {
+    const list: StoryScreenKey[] = [
+      'modulos',
+      'inversor',
+      'geracao',
+      'economia',
+      'roi',
+      'qualidades',
+    ]
+
+    if (pagamentoParsed.temCondicoes) {
+      list.push('pagamento')
+    }
+
+    list.push('valor_assinatura')
+    return list
+  }, [pagamentoParsed.temCondicoes])
+
+  const totalScreens = screens.length
+  const activeScreenKey = screens[currentScreenIndex] || screens[0]
 
   // Decompor o kit em componentes detalhados
   const specs = useMemo(() => {
@@ -442,22 +472,22 @@ export function PropostaStoryViewer({
 
   // Navegação
   const handleNext = useCallback(() => {
-    if (currentScreen < TOTAL_SCREENS - 1) {
-      setCurrentScreen((prev) => prev + 1)
+    if (currentScreenIndex < totalScreens - 1) {
+      setCurrentScreenIndex((prev) => prev + 1)
       setProgressPercent(0)
     }
-  }, [currentScreen])
+  }, [currentScreenIndex, totalScreens])
 
   const handlePrev = useCallback(() => {
-    if (currentScreen > 0) {
-      setCurrentScreen((prev) => prev - 1)
+    if (currentScreenIndex > 0) {
+      setCurrentScreenIndex((prev) => prev - 1)
       setProgressPercent(0)
     }
-  }, [currentScreen])
+  }, [currentScreenIndex])
 
   // Timer de avanço estilo Instagram Story (pausado na última tela de assinatura)
   useEffect(() => {
-    if (currentScreen === TOTAL_SCREENS - 1 || isPaused) {
+    if (currentScreenIndex === totalScreens - 1 || isPaused) {
       return
     }
 
@@ -475,7 +505,7 @@ export function PropostaStoryViewer({
     }, interval)
 
     return () => clearInterval(timer)
-  }, [currentScreen, isPaused, handleNext])
+  }, [currentScreenIndex, totalScreens, isPaused, handleNext])
 
   // Controle por teclado
   useEffect(() => {
@@ -512,28 +542,30 @@ export function PropostaStoryViewer({
         {/* Barra de Progresso Estilo Story (Segmentada no topo) */}
         <div className="absolute top-0 left-0 right-0 z-30 pt-3 px-3 pb-2 bg-gradient-to-b from-[#060F1E]/95 to-transparent">
           <div className="flex items-center gap-1">
-            {Array.from({ length: TOTAL_SCREENS }).map((_, idx) => {
+            {screens.map((_, idx) => {
               let fillWidth = '0%'
-              if (idx < currentScreen) {
+              if (idx < currentScreenIndex) {
                 fillWidth = '100%'
-              } else if (idx === currentScreen) {
+              } else if (idx === currentScreenIndex) {
                 fillWidth = `${progressPercent}%`
               }
               return (
-                <div
+                <button
+                  type="button"
                   key={`progress-${idx}`}
                   onClick={() => {
-                    setCurrentScreen(idx)
+                    setCurrentScreenIndex(idx)
                     setProgressPercent(0)
                   }}
-                  className="flex-1 h-1 sm:h-1.5 bg-white/25 rounded-full overflow-hidden cursor-pointer"
+                  className="flex-1 h-1 sm:h-1.5 bg-white/25 rounded-full overflow-hidden cursor-pointer p-0 border-0 focus:outline-hidden"
                   title={`Tela ${idx + 1}`}
+                  aria-label={`Ir para a tela ${idx + 1} de ${totalScreens}`}
                 >
                   <div
                     className="h-full bg-amber-400 transition-all duration-75 ease-linear rounded-full shadow-[0_0_8px_rgba(251,191,36,0.8)]"
                     style={{ width: fillWidth }}
                   />
-                </div>
+                </button>
               )
             })}
           </div>
@@ -587,7 +619,7 @@ export function PropostaStoryViewer({
         <button
           type="button"
           onClick={handlePrev}
-          disabled={currentScreen === 0}
+          disabled={currentScreenIndex === 0}
           aria-label="Voltar tela anterior"
           className="absolute left-0 top-16 bottom-20 w-1/4 z-20 opacity-0 focus:opacity-10 focus:bg-white/10 disabled:pointer-events-none text-left pl-2 cursor-pointer flex items-center"
         >
@@ -596,7 +628,7 @@ export function PropostaStoryViewer({
         <button
           type="button"
           onClick={handleNext}
-          disabled={currentScreen === TOTAL_SCREENS - 1}
+          disabled={currentScreenIndex === totalScreens - 1}
           aria-label="Avançar próxima tela"
           className="absolute right-0 top-16 bottom-20 w-1/4 z-20 opacity-0 focus:opacity-10 focus:bg-white/10 disabled:pointer-events-none text-right pr-2 cursor-pointer flex items-center justify-end"
         >
@@ -608,12 +640,14 @@ export function PropostaStoryViewer({
           {/* ======================================================== */}
           {/* TELA 1: CARROSSEL DE EQUIPAMENTOS — (1) MÓDULOS SOLARES  */}
           {/* ======================================================== */}
-          {currentScreen === 0 && (
+          {activeScreenKey === 'modulos' && (
             <div className="flex-1 flex flex-col justify-between space-y-3 animate-in fade-in duration-300 py-1">
               <div className="space-y-1.5">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400/15 border border-amber-400/40 text-amber-300 text-[11px] font-black uppercase tracking-wider">
                   <Sun className="w-3.5 h-3.5 text-amber-400" />
-                  <span>1 de 7 • Equipamento: Módulos Fotovoltaicos</span>
+                  <span>
+                    {currentScreenIndex + 1} de {totalScreens} • Equipamento: Módulos Fotovoltaicos
+                  </span>
                 </div>
 
                 <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">
@@ -736,12 +770,14 @@ export function PropostaStoryViewer({
           {/* ======================================================== */}
           {/* TELA 2: CARROSSEL DE EQUIPAMENTOS — (2) INVERSOR SOLAR    */}
           {/* ======================================================== */}
-          {currentScreen === 1 && (
+          {activeScreenKey === 'inversor' && (
             <div className="flex-1 flex flex-col justify-between space-y-3 animate-in fade-in duration-300 py-1">
               <div className="space-y-1.5">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/15 border border-blue-400/40 text-blue-300 text-[11px] font-black uppercase tracking-wider">
                   <Cpu className="w-3.5 h-3.5 text-blue-400" />
-                  <span>2 de 7 • Equipamento: Inversor Fotovoltaico</span>
+                  <span>
+                    {currentScreenIndex + 1} de {totalScreens} • Equipamento: Inversor Fotovoltaico
+                  </span>
                 </div>
 
                 <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">
@@ -880,12 +916,14 @@ export function PropostaStoryViewer({
           {/* ======================================================== */}
           {/* TELA 3: GERAÇÃO MENSAL ESTIMADA                           */}
           {/* ======================================================== */}
-          {currentScreen === 2 && (
+          {activeScreenKey === 'geracao' && (
             <div className="flex-1 flex flex-col justify-between space-y-3 animate-in fade-in duration-300 py-1">
               <div className="space-y-1.5">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400/15 border border-amber-400/40 text-amber-300 text-[11px] font-black uppercase tracking-wider">
                   <Zap className="w-3.5 h-3.5 text-amber-400" />
-                  <span>3 de 7 • Geração Mensal de Energia</span>
+                  <span>
+                    {currentScreenIndex + 1} de {totalScreens} • Geração Mensal de Energia
+                  </span>
                 </div>
 
                 <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">
@@ -992,12 +1030,14 @@ export function PropostaStoryViewer({
           {/* ======================================================== */}
           {/* TELA 4: ECONOMIA NA CONTA DE LUZ                          */}
           {/* ======================================================== */}
-          {currentScreen === 3 && (
+          {activeScreenKey === 'economia' && (
             <div className="flex-1 flex flex-col justify-between space-y-3 animate-in fade-in duration-300 py-1">
               <div className="space-y-1.5">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 text-[11px] font-black uppercase tracking-wider">
                   <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>4 de 7 • Economia na Fatura de Energia</span>
+                  <span>
+                    {currentScreenIndex + 1} de {totalScreens} • Economia na Fatura de Energia
+                  </span>
                 </div>
 
                 <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">
@@ -1075,12 +1115,14 @@ export function PropostaStoryViewer({
           {/* ======================================================== */}
           {/* TELA 5: RETORNO SOBRE O INVESTIMENTO (ROI 30 ANOS)        */}
           {/* ======================================================== */}
-          {currentScreen === 4 && (
+          {activeScreenKey === 'roi' && (
             <div className="flex-1 flex flex-col justify-between space-y-3 animate-in fade-in duration-300 py-1">
               <div className="space-y-1.5">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 text-[11px] font-black uppercase tracking-wider">
                   <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>5 de 7 • Retorno sobre Investimento (ROI)</span>
+                  <span>
+                    {currentScreenIndex + 1} de {totalScreens} • Retorno sobre Investimento (ROI)
+                  </span>
                 </div>
 
                 <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">
@@ -1157,12 +1199,14 @@ export function PropostaStoryViewer({
           {/* ======================================================== */}
           {/* TELA 6: QUALIDADES DA ECOSOLAR ENERGY                     */}
           {/* ======================================================== */}
-          {currentScreen === 5 && (
+          {activeScreenKey === 'qualidades' && (
             <div className="flex-1 flex flex-col justify-between space-y-3 animate-in fade-in duration-300 py-1">
               <div className="space-y-1.5">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 text-[11px] font-black uppercase tracking-wider">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>6 de 7 • Por que Escolher a Ecosolar?</span>
+                  <span>
+                    {currentScreenIndex + 1} de {totalScreens} • Por que Escolher a Ecosolar?
+                  </span>
                 </div>
 
                 <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">
@@ -1265,14 +1309,127 @@ export function PropostaStoryViewer({
           )}
 
           {/* ======================================================== */}
-          {/* TELA 7: VALOR FINAL COM CTA DE ASSINATURA / ACEITE        */}
+          {/* TELA MEIO DE PAGAMENTO: Condições Configurada na Proposta  */}
           {/* ======================================================== */}
-          {currentScreen === 6 && (
+          {activeScreenKey === 'pagamento' && (
+            <div className="flex-1 flex flex-col justify-between space-y-3 animate-in fade-in duration-300 py-1">
+              <div className="space-y-1.5">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400/20 border border-amber-400/50 text-amber-300 text-[11px] font-black uppercase tracking-wider">
+                  <Wallet className="w-3.5 h-3.5 text-amber-400" />
+                  <span>
+                    {currentScreenIndex + 1} de {totalScreens} • Meio & Condições de Pagamento
+                  </span>
+                </div>
+
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">
+                  Facilidade de <span className="text-amber-400">Pagamento</span>
+                </h2>
+                <p className="text-xs text-slate-300">
+                  Condições personalizadas para viabilizar seu investimento sem pesar no orçamento.
+                </p>
+              </div>
+
+              {/* CARDS VISUAIS DE DESTAQUE: Condições Reais Configurada na Proposta */}
+              <div className="space-y-2.5">
+                {pagamentoParsed.itens.map((item, idx) => {
+                  const isAVista = item.tipo === 'a_vista'
+                  const isFin = item.tipo === 'financiamento'
+                  const isCartao = item.tipo === 'cartao'
+
+                  const IconComp = isAVista
+                    ? BadgePercent
+                    : isFin
+                      ? Landmark
+                      : isCartao
+                        ? CreditCard
+                        : Wallet
+
+                  const borderClass = isAVista
+                    ? 'border-emerald-400/80 bg-gradient-to-br from-emerald-950/60 via-[#0A192F] to-[#0A192F]'
+                    : isFin
+                      ? 'border-amber-400/80 bg-gradient-to-br from-amber-950/50 via-[#0A192F] to-[#0A192F]'
+                      : 'border-sky-400/80 bg-gradient-to-br from-sky-950/50 via-[#0A192F] to-[#0A192F]'
+
+                  const iconColor = isAVista
+                    ? 'text-emerald-300'
+                    : isFin
+                      ? 'text-amber-300'
+                      : 'text-sky-300'
+
+                  return (
+                    <div
+                      key={item.id || `pag-${idx}`}
+                      className={`relative rounded-2xl p-3 sm:p-3.5 border-2 ${borderClass} shadow-xl text-left transition-transform`}
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-7 h-7 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center shrink-0 ${iconColor}`}
+                          >
+                            <IconComp className="w-4 h-4" />
+                          </div>
+                          <span className="text-xs sm:text-sm font-black text-white tracking-tight">
+                            {item.titulo}
+                          </span>
+                        </div>
+
+                        {item.destaqueBadge && (
+                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 shadow-sm shrink-0">
+                            {item.destaqueBadge}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-slate-200 leading-snug pl-9 font-medium">
+                        {item.descricao}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Pilares das Condições de Pagamento */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-white/5 rounded-xl p-2.5 border border-white/10 space-y-0.5 text-left">
+                  <span className="text-[10px] text-emerald-400 font-bold block flex items-center gap-1">
+                    <CheckCircle className="w-3.5 h-3.5" /> Sem Entrada Obrigatória
+                  </span>
+                  <p className="text-[11px] text-slate-300 leading-tight">
+                    Opções de financiamento com primeira parcela só após a usina estar gerando.
+                  </p>
+                </div>
+                <div className="bg-white/5 rounded-xl p-2.5 border border-white/10 space-y-0.5 text-left">
+                  <span className="text-[10px] text-amber-300 font-bold block flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5" /> A Parcela se Paga
+                  </span>
+                  <p className="text-[11px] text-slate-300 leading-tight">
+                    A economia mensal na conta de luz quita as parcelas do financiamento.
+                  </p>
+                </div>
+              </div>
+
+              {/* GUIA AMIGÁVEL: Mascote da Ecosolar comentando a condição */}
+              <MascotSpeechBubble
+                titulo="O Mascote Comenta a Condição:"
+                fala={pagamentoParsed.resumoMascote}
+                dica="Condição válida até a data de validade da proposta."
+                destaqueBadge="Facilidade Total"
+                humor="animado"
+              />
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* TELA FINAL: VALOR FINAL COM CTA DE ASSINATURA / ACEITE    */}
+          {/* ======================================================== */}
+          {activeScreenKey === 'valor_assinatura' && (
             <div className="flex-1 flex flex-col justify-between space-y-2.5 animate-in fade-in duration-300 py-1">
               <div className="space-y-1">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400/20 border border-amber-400/50 text-amber-300 text-[11px] font-black uppercase tracking-wider">
                   <Award className="w-3.5 h-3.5 text-amber-400" />
-                  <span>7 de 7 • Fechamento & Assinatura Digital</span>
+                  <span>
+                    {currentScreenIndex + 1} de {totalScreens} • Fechamento & Assinatura Digital
+                  </span>
                 </div>
 
                 <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">
@@ -1320,7 +1477,18 @@ export function PropostaStoryViewer({
                   </div>
                 )}
 
-                <div className="pt-1.5 border-t border-white/10 text-[10px] text-slate-300 flex items-center justify-between">
+                {/* Destaque sutil da condição de pagamento também no resumo final */}
+                {pagamentoParsed.temCondicoes && (
+                  <div className="pt-1.5 pb-1 border-t border-white/10 text-[10.5px] text-left flex items-start gap-1.5 text-slate-200">
+                    <Wallet className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                    <span className="line-clamp-2">
+                      <strong className="text-amber-300">Pagamento:</strong>{' '}
+                      {proposta.condicoes_pagamento}
+                    </span>
+                  </div>
+                )}
+
+                <div className="pt-1 border-t border-white/10 text-[10px] text-slate-300 flex items-center justify-between">
                   <span>Validade garantida até:</span>
                   <strong className="text-white">{formatDateBR(proposta.data_validade)}</strong>
                 </div>
@@ -1329,7 +1497,11 @@ export function PropostaStoryViewer({
               {/* GUIA AMIGÁVEL: Mascote da Ecosolar chamando para a assinatura */}
               <MascotSpeechBubble
                 titulo="O Mascote Comemora:"
-                fala="Tudo pronto para você dar adeus às contas de luz caras! Preencha seu nome abaixo e formalize sua adesão agora mesmo."
+                fala={
+                  pagamentoParsed.temCondicoes
+                    ? `Tudo pronto e com as melhores condições de pagamento aprovadas! Preencha seu nome abaixo e garanta sua economia solar.`
+                    : 'Tudo pronto para você dar adeus às contas de luz caras! Preencha seu nome abaixo e formalize sua adesão agora mesmo.'
+                }
                 dica="Aceite eletrônico simples, seguro e com validade jurídica."
                 destaqueBadge="Aceite Digital"
                 humor="comemorando"
@@ -1415,7 +1587,7 @@ export function PropostaStoryViewer({
             variant="outline"
             size="sm"
             onClick={handlePrev}
-            disabled={currentScreen === 0}
+            disabled={currentScreenIndex === 0}
             className="text-xs h-8.5 font-semibold bg-white/5 hover:bg-white/15 text-white border-white/15 disabled:opacity-30 gap-1 px-3"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -1423,10 +1595,10 @@ export function PropostaStoryViewer({
           </Button>
 
           <div className="text-[11px] font-bold text-slate-300">
-            {currentScreen + 1} de {TOTAL_SCREENS}
+            {currentScreenIndex + 1} de {totalScreens}
           </div>
 
-          {currentScreen < TOTAL_SCREENS - 1 ? (
+          {currentScreenIndex < totalScreens - 1 ? (
             <Button
               type="button"
               size="sm"
