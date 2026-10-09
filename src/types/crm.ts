@@ -16,7 +16,15 @@ export interface User extends RecordModel {
   updated: string
 }
 
-export type NotificacaoTipo = 'lead_cidade' | 'geral' | 'sla' | 'contato' | 'documentos_engenharia'
+export type NotificacaoTipo =
+  | 'lead_cidade'
+  | 'geral'
+  | 'sla'
+  | 'contato'
+  | 'documentos_engenharia'
+  | 'homologacao_art'
+  | 'comprovante_pagamento'
+  | 'proposta_concluida'
 
 export type DocumentoLeadCategoria =
   | 'documentos_pessoais'
@@ -565,6 +573,9 @@ export interface Proposta extends RecordModel {
   ultimo_user_agent?: string
   historico_acessos?: PropostaAcessoItem[] | string
   visualizacoes_historico?: string[] | string
+  visualizacao_concluida_em?: string
+  visualizacoes_concluidas_count?: number
+  historico_conclusoes?: Array<{ data: string; formato?: string; ip?: string }> | string
   kit_marca_painel?: string
   kit_marca_inversor?: string
   kit_tipo_estrutura?: KitTipoEstrutura | ''
@@ -647,6 +658,9 @@ export interface PublicProposta {
   primeira_visualizacao?: string
   ultima_visualizacao?: string
   visualizacoes_historico?: string[] | string
+  visualizacao_concluida_em?: string
+  visualizacoes_concluidas_count?: number
+  historico_conclusoes?: Array<{ data: string; formato?: string; ip?: string }> | string
   created: string
   kit_marca_painel?: string
   kit_marca_inversor?: string

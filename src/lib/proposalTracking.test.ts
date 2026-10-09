@@ -102,6 +102,25 @@ describe('proposalTracking utils', () => {
       expect(tracking.hasViewed).toBe(true)
       expect(tracking.historico).toHaveLength(1)
       expect(tracking.historico[0].ip).toBe('10.0.0.1')
+      expect(tracking.hasConcluded).toBe(false)
+    })
+
+    it('extrai dados de conclusão de visualização (hasConcluded, concluidaEm, historicoConclusoes)', () => {
+      const prop = {
+        visualizacoes_count: 2,
+        visualizacoes_concluidas_count: 1,
+        visualizacao_concluida_em: '2026-09-15T14:20:00Z',
+        historico_conclusoes: [
+          { data: '2026-09-15T14:20:00Z', formato: 'story', ip: '177.10.20.30' },
+        ],
+      }
+      const tracking = extractProposalTracking(prop)
+      expect(tracking.hasConcluded).toBe(true)
+      expect(tracking.concluidasTotal).toBe(1)
+      expect(tracking.concluidaEm).toBe('2026-09-15T14:20:00Z')
+      expect(tracking.concluidaRelativa).toContain('hoje às')
+      expect(tracking.historicoConclusoes).toHaveLength(1)
+      expect(tracking.historicoConclusoes![0].formato).toBe('story')
     })
   })
 })

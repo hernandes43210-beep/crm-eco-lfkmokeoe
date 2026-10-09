@@ -472,6 +472,41 @@ export const ProposalsService = {
     }
   },
 
+  // Notificação pública de conclusão de visualização (chegada à última tela)
+  async notifyProposalCompleteView(
+    token: string,
+    formato: 'story' | 'classica' = 'story',
+  ): Promise<{ success: boolean; throttled?: boolean; ignored?: boolean }> {
+    const rawToken = token.trim()
+    const cleanToken = encodeURIComponent(rawToken)
+
+    const isAuth = Boolean(pb.authStore.isValid && pb.authStore.token)
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    }
+
+    if (isAuth && pb.authStore.token) {
+      headers['Authorization'] = `Bearer ${pb.authStore.token}`
+      headers['x-crm-internal'] = 'true'
+    }
+
+    try {
+      return await pb.send<{
+        success: boolean
+        throttled?: boolean
+        ignored?: boolean
+      }>(`/backend/v1/propostas/public/${cleanToken}/concluir-visualizacao`, {
+        method: 'POST',
+        headers,
+        body: { formato },
+      })
+    } catch (err) {
+      console.warn('Aviso: Não foi possível registrar conclusão de visualização:', err)
+      return { success: false }
+    }
+  },
+
   // Aceite público por token (não exige auth)
   async acceptPublicProposta(
     token: string,

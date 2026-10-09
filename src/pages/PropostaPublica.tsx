@@ -82,6 +82,48 @@ export default function PropostaPublica() {
     local: string
   } | null>(null)
 
+  // Disparar conclusão de visualização apenas 1 vez por sessão de navegação do usuário
+  const handleNotifyCompleteView = React.useCallback(
+    async (formato: 'story' | 'classica') => {
+      if (!token || isInternalViewer) return
+      try {
+        const sessionKey = `crm_prop_completed_${token}`
+        if (typeof window !== 'undefined' && window.sessionStorage) {
+          const alreadyNotified = window.sessionStorage.getItem(sessionKey)
+          if (alreadyNotified) return
+          window.sessionStorage.setItem(sessionKey, String(Date.now()))
+        }
+        await ProposalsService.notifyProposalCompleteView(token, formato)
+      } catch (err) {
+        console.warn('Falha silenciosa ao notificar conclusão de visualização:', err)
+      }
+    },
+    [token, isInternalViewer],
+  )
+
+  // IntersectionObserver para o formato clássico quando o bloco de aceite/assinatura digital entrar na viewport
+  useEffect(() => {
+    if (visualizacaoFormato !== 'classica' || isInternalViewer || !proposta) return
+
+    const targetEl = document.getElementById('secao-assinatura-classica')
+    if (!targetEl) return
+
+    let triggered = false
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0]
+        if (first && first.isIntersecting && !triggered) {
+          triggered = true
+          handleNotifyCompleteView('classica')
+        }
+      },
+      { threshold: 0.25 },
+    )
+
+    observer.observe(targetEl)
+    return () => observer.disconnect()
+  }, [visualizacaoFormato, isInternalViewer, proposta, handleNotifyCompleteView])
+
   // Determinar foto de abertura / hero da proposta clássica:
   // Regra: Foto manual escolhida pelo vendedor SEMPRE tem prioridade (1ª de fotos_selecionadas).
   // Se o vendedor NÃO escolheu foto manual, a imagem IA do kit entra como abertura/hero.
@@ -430,6 +472,7 @@ export default function PropostaPublica() {
         onDownloadPDF={handleDownloadPDF}
         onSwitchToClassic={() => setVisualizacaoFormato('classica')}
         isInternalViewer={isInternalViewer}
+        onStoryCompleted={() => handleNotifyCompleteView('story')}
       />
     )
   }
@@ -1616,7 +1659,7 @@ export default function PropostaPublica() {
 
         {/* 6. Fechamento com CTA & Aceite Online com Assinatura Digital */}
         <Card
-          id="aceite-proposta"
+          id="secao-assinatura-classica"
           className={`border-2 shadow-lg transition-all ${
             acceptedSuccess
               ? 'border-emerald-500 bg-emerald-50/50'

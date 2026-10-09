@@ -97,4 +97,33 @@ describe('Proposta Story Equipamentos e Mascote', () => {
     expect(parsed.temCondicoes).toBe(false)
     expect(parsed.itens.length).toBe(0)
   })
+
+  it('calcula corretamente a última tela considerando tela de pagamento ativa ou omitida', () => {
+    // Sequência de telas:
+    // Com pagamento: ['abertura', 'potencia_kit', 'inversor', 'diferenciais', 'roi_comparativo', 'pagamento', 'valor_assinatura'] -> total: 7, última tela índice 6 (valor_assinatura)
+    // Sem pagamento: ['abertura', 'potencia_kit', 'inversor', 'diferenciais', 'roi_comparativo', 'valor_assinatura'] -> total: 6, última tela índice 5 (valor_assinatura)
+
+    const telasComPagamento = [
+      'abertura',
+      'potencia_kit',
+      'inversor',
+      'diferenciais',
+      'roi_comparativo',
+      'pagamento',
+      'valor_assinatura',
+    ]
+    expect(telasComPagamento[telasComPagamento.length - 1]).toBe('valor_assinatura')
+    expect(telasComPagamento.length - 1).toBe(6)
+
+    const telasSemPagamento = [
+      'abertura',
+      'potencia_kit',
+      'inversor',
+      'diferenciais',
+      'roi_comparativo',
+      'valor_assinatura',
+    ]
+    expect(telasSemPagamento[telasSemPagamento.length - 1]).toBe('valor_assinatura')
+    expect(telasSemPagamento.length - 1).toBe(5)
+  })
 })

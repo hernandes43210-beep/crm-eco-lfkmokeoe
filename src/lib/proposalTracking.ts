@@ -9,6 +9,14 @@ export interface VisualizacaoItemFormatada {
   origem?: string
 }
 
+export interface ConclusaoVisualizacaoItem {
+  dataIso: string
+  formatado: string
+  relativo: string
+  formato?: string
+  ip?: string
+}
+
 export interface ProposalTrackingInfo {
   total: number
   hasViewed: boolean
@@ -18,6 +26,12 @@ export interface ProposalTrackingInfo {
   ultimaFormatada?: string
   ultimaRelativa?: string
   historico: VisualizacaoItemFormatada[]
+  hasConcluded?: boolean
+  concluidasTotal?: number
+  concluidaEm?: string
+  concluidaFormatada?: string
+  concluidaRelativa?: string
+  historicoConclusoes?: ConclusaoVisualizacaoItem[]
 }
 
 /**
@@ -161,6 +175,43 @@ export function extractProposalTracking(proposta: Partial<Proposta>): ProposalTr
   const ultimaIso = proposta.ultima_visualizacao || sorted[0]?.dataIso
   const primeiraIso = proposta.primeira_visualizacao || sorted[sorted.length - 1]?.dataIso
 
+  // 4. Conclusões de visualização (cliente chegou à última tela)
+  const concluidasCount = Number(proposta.visualizacoes_concluidas_count) || 0
+  const concluidaEmIso = proposta.visualizacao_concluida_em || undefined
+
+  let rawHistConcl = proposta.historico_conclusoes
+  if (typeof rawHistConcl === 'string') {
+    try {
+      rawHistConcl = JSON.parse(rawHistConcl)
+    } catch {
+      rawHistConcl = []
+    }
+  }
+
+  const concluidasList: ConclusaoVisualizacaoItem[] = []
+  if (Array.isArray(rawHistConcl)) {
+    for (const item of rawHistConcl as any[]) {
+      if (item && item.data) {
+        const d = new Date(item.data)
+        if (!isNaN(d.getTime())) {
+          concluidasList.push({
+            dataIso: d.toISOString(),
+            formatado: formatDateTimeBR(d.toISOString()),
+            relativo: formatRelativeDateTimePT(d),
+            formato: item.formato,
+            ip: item.ip,
+          })
+        }
+      }
+    }
+  }
+
+  // Ordenar conclusões da mais recente para a mais antiga
+  concluidasList.sort((a, b) => new Date(b.dataIso).getTime() - new Date(a.dataIso).getTime())
+
+  const finalConcluidaIso = concluidaEmIso || concluidasList[0]?.dataIso
+  const hasConcluded = concluidasCount > 0 || Boolean(finalConcluidaIso)
+
   return {
     total: Math.max(total, sorted.length),
     hasViewed: hasViewed || sorted.length > 0,
@@ -170,5 +221,11 @@ export function extractProposalTracking(proposta: Partial<Proposta>): ProposalTr
     ultimaFormatada: ultimaIso ? formatDateTimeBR(ultimaIso) : undefined,
     ultimaRelativa: ultimaIso ? formatRelativeDateTimePT(ultimaIso) : undefined,
     historico: sorted,
+    hasConcluded,
+    concluidasTotal: Math.max(concluidasCount, concluidasList.length),
+    concluidaEm: finalConcluidaIso,
+    concluidaFormatada: finalConcluidaIso ? formatDateTimeBR(finalConcluidaIso) : undefined,
+    concluidaRelativa: finalConcluidaIso ? formatRelativeDateTimePT(finalConcluidaIso) : undefined,
+    historicoConclusoes: concluidasList,
   }
 }

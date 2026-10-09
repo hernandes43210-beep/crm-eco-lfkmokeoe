@@ -62,6 +62,7 @@ export interface PropostaStoryViewerProps {
   onDownloadPDF: () => void
   onSwitchToClassic?: () => void
   isInternalViewer?: boolean
+  onStoryCompleted?: () => void
 }
 
 export type StoryScreenKey =
@@ -82,6 +83,7 @@ export function PropostaStoryViewer({
   onDownloadPDF,
   onSwitchToClassic,
   isInternalViewer,
+  onStoryCompleted,
 }: PropostaStoryViewerProps) {
   const [currentScreenIndex, setCurrentScreenIndex] = useState(0)
   const [nomeConfirmacao, setNomeConfirmacao] = useState(proposta.lead?.nome || '')
@@ -98,6 +100,7 @@ export function PropostaStoryViewer({
   // Autoplay pausável (estilo Instagram Story com 8.5 segundos por tela, exceto a tela final de aceite)
   const [isPaused, setIsPaused] = useState(false)
   const [progressPercent, setProgressPercent] = useState(0)
+  const [hasTriggeredCompletion, setHasTriggeredCompletion] = useState(false)
 
   // Decompor as condições de pagamento reais da proposta
   const pagamentoParsed = useMemo(() => {
@@ -506,6 +509,17 @@ export function PropostaStoryViewer({
 
     return () => clearInterval(timer)
   }, [currentScreenIndex, totalScreens, isPaused, handleNext])
+
+  // Disparar evento de conclusão de visualização quando o cliente atinge a ÚLTIMA tela da sequência (valor_assinatura)
+  useEffect(() => {
+    const isLastScreen = currentScreenIndex === totalScreens - 1
+    if (isLastScreen && !hasTriggeredCompletion) {
+      setHasTriggeredCompletion(true)
+      if (onStoryCompleted) {
+        onStoryCompleted()
+      }
+    }
+  }, [currentScreenIndex, totalScreens, hasTriggeredCompletion, onStoryCompleted])
 
   // Controle por teclado
   useEffect(() => {

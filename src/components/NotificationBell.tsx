@@ -11,6 +11,7 @@ import {
   ExternalLink,
   Loader2,
   Trash2,
+  CheckCircle2,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import useRealtime from '@/hooks/use-realtime'
@@ -206,6 +207,7 @@ export function NotificationBell({ side = 'right', align = 'end' }: Notification
           ) : (
             notificacoes.map((item) => {
               const isLeadCidade = item.tipo === 'lead_cidade'
+              const isPropostaConcluida = item.tipo === 'proposta_concluida'
               return (
                 <div
                   key={item.id}
@@ -213,22 +215,34 @@ export function NotificationBell({ side = 'right', align = 'end' }: Notification
                   className={`p-3.5 transition-colors cursor-pointer group flex items-start gap-3 relative ${
                     item.lida
                       ? 'bg-white hover:bg-slate-50/80 text-slate-700'
-                      : 'bg-emerald-50/40 hover:bg-emerald-50/70 text-slate-900 border-l-3 border-[#0B7A5B]'
+                      : isPropostaConcluida
+                        ? 'bg-amber-50/50 hover:bg-amber-50/80 text-slate-900 border-l-3 border-amber-500'
+                        : 'bg-emerald-50/40 hover:bg-emerald-50/70 text-slate-900 border-l-3 border-[#0B7A5B]'
                   }`}
                 >
                   {/* Ícone Indicador */}
                   <div
                     className={`p-2 rounded-lg shrink-0 mt-0.5 ${
-                      isLeadCidade
+                      isPropostaConcluida
                         ? item.lida
                           ? 'bg-slate-100 text-slate-500'
-                          : 'bg-emerald-100 text-[#0B7A5B] border border-emerald-200'
-                        : item.lida
-                          ? 'bg-slate-100 text-slate-500'
-                          : 'bg-blue-100 text-blue-700'
+                          : 'bg-amber-100 text-amber-700 border border-amber-300'
+                        : isLeadCidade
+                          ? item.lida
+                            ? 'bg-slate-100 text-slate-500'
+                            : 'bg-emerald-100 text-[#0B7A5B] border border-emerald-200'
+                          : item.lida
+                            ? 'bg-slate-100 text-slate-500'
+                            : 'bg-blue-100 text-blue-700'
                     }`}
                   >
-                    {isLeadCidade ? <MapPin className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+                    {isPropostaConcluida ? (
+                      <CheckCircle2 className="w-4 h-4" />
+                    ) : isLeadCidade ? (
+                      <MapPin className="w-4 h-4" />
+                    ) : (
+                      <Bell className="w-4 h-4" />
+                    )}
                   </div>
 
                   {/* Conteúdo */}

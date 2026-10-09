@@ -2187,6 +2187,14 @@ export default function LeadDetail() {
                                           {tracking.ultimaRelativa || tracking.ultimaFormatada}
                                         </span>
                                       )}
+                                      {tracking.hasConcluded && (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100/90 border border-emerald-300 px-2 py-0.5 rounded ml-1">
+                                          ✓ Viu até o fim (
+                                          {tracking.concluidaRelativa ||
+                                            tracking.concluidaFormatada}
+                                          )
+                                        </span>
+                                      )}
                                     </div>
 
                                     {/* Histórico com os horários em que o cliente visualizou */}

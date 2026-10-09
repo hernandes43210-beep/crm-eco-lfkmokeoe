@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-08T01:50:29.828Z",
+  "generatedAt": "2026-10-09T01:22:56.200Z",
   "collections": [
     {
       "name": "users",
@@ -1123,6 +1123,24 @@
           "required": false,
           "system": false,
           "selectValues": ["story", "classica"]
+        },
+        {
+          "name": "visualizacao_concluida_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "visualizacoes_concluidas_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "historico_conclusoes",
+          "type": "json",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -1718,7 +1736,9 @@
             "sla",
             "contato",
             "documentos_engenharia",
-            "homologacao_art"
+            "homologacao_art",
+            "comprovante_pagamento",
+            "proposta_concluida"
           ]
         }
       ],
