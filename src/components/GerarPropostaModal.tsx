@@ -100,7 +100,7 @@ export function GerarPropostaModal({
   const [formato, setFormato] = useState<'story' | 'classica'>('story')
   const [validadeDias, setValidadeDias] = useState<number>(15)
   const [condicoesPagamento, setCondicoesPagamento] = useState(
-    'À vista com 5% de desconto via TED/PIX ou Financiamento Solar em até 84x (Santander, BV ou Solfácil) com carência de 90 dias.',
+    'À vista com 5% de desconto via TED/PIX ou Financiamento bancário em até 84x com carência de 90 dias. No cartão de crédito em até 24 vezes, dependendo da bandeira.',
   )
   const [observacoes, setObservacoes] = useState(
     'Incluso projeto de engenharia, homologação na concessionária local, estrutura de fixação em alumínio, cabos, proteções CC/CA e monitoramento via Wi-Fi.',

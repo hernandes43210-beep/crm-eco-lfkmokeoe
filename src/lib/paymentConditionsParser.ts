@@ -15,6 +15,7 @@ export interface CondicaoPagamentoItem {
 export interface CondicoesPagamentoParsed {
   temCondicoes: boolean
   textoOriginal: string
+  textoSanitizado: string
   itens: CondicaoPagamentoItem[]
   temAVista: boolean
   temFinanciamento: boolean
@@ -24,9 +25,51 @@ export interface CondicoesPagamentoParsed {
 }
 
 /**
+ * Remove menções a bancos ou financeiras específicos (BV, Santander, Solfácil, Fácil, etc.)
+ * para que a apresentação das condições seja sempre genérica e institucional Ecosolar Energy.
+ */
+export function sanitizarNomesInstituicoes(texto: string): string {
+  if (!texto) return ''
+
+  let limpo = texto
+
+  // 1. Remover parênteses contendo bancos/financeiras: ex "(Santander, BV ou Solfácil)", "(banco BV)", "(Fácil)"
+  limpo = limpo.replace(
+    /\s*\((?:[^)]*?\b(?:santander|bv|solf[aá]cil|f[aá]cil|bradesco|ita[uú]|safra|losango|pan|banco\s+pan|porto\s+seguro|votorantim|sicoob|sicredi)\b[^)]*?)\)/gi,
+    '',
+  )
+
+  // 2. Remover frases como "pelo banco BV", "via Santander", "junto ao BV", "pela Solfácil"
+  limpo = limpo.replace(
+    /\b(?:pelo|pela|via|junto\s+ao|junto\s+[aà]|no|na|com\s+o|com\s+a)\s+(?:banco\s+)?(?:santander|bv|solf[aá]cil|f[aá]cil|bradesco|ita[uú]|safra|banco\s+pan|pan)\b/gi,
+    '',
+  )
+
+  // 3. Remover menções diretas aos nomes isolados de instituições financeiras
+  limpo = limpo.replace(/\b(?:banco\s+)?bv\b/gi, '')
+  limpo = limpo.replace(/\bsantander\b/gi, '')
+  limpo = limpo.replace(/\bsolf[aá]cil\b/gi, '')
+  limpo = limpo.replace(/\b(?:financeira\s+|banco\s+)?f[aá]cil\b/gi, '')
+  limpo = limpo.replace(/\bbradesco\b/gi, '')
+  limpo = limpo.replace(/\bita[uú]\b/gi, '')
+
+  // 4. Limpeza de pontuação duplicada, espaços e vírgulas residuais
+  limpo = limpo
+    .replace(/\s*,\s*,+/g, ', ')
+    .replace(/\s*,\s*\./g, '.')
+    .replace(/\(\s*\)/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([.,;:])/g, '$1')
+    .replace(/^\s*[,.;:]+\s*/g, '')
+    .trim()
+
+  return limpo
+}
+
+/**
  * Analisa a string livre de condições de pagamento configurada na proposta
- * (ex: "À vista com 5% de desconto via TED/PIX ou Financiamento Solar em até 84x (Santander, BV ou Solfácil) com carência de 90 dias. No cartão de crédito em 24 vezes de 1.030,04")
- * e quebra em cartões visuais ricos com ícones, badges e sugestão de comentário do mascote.
+ * e quebra em cartões visuais ricos com ícones, badges e sugestão de comentário do mascote,
+ * garantindo apresentação genérica sem citar nomes de instituições específicas.
  */
 export function parseCondicoesPagamento(
   rawTexto?: string | null,
@@ -38,6 +81,7 @@ export function parseCondicoesPagamento(
     return {
       temCondicoes: false,
       textoOriginal: '',
+      textoSanitizado: '',
       itens: [],
       temAVista: false,
       temFinanciamento: false,
@@ -79,18 +123,21 @@ export function parseCondicoesPagamento(
 
   const itens: CondicaoPagamentoItem[] = []
 
+  // Sanitizar o texto para remover qualquer menção a bancos/financeiras específicos
+  const textoSanitizado = sanitizarNomesInstituicoes(textoLimpo)
+
   // 1. Tentar extrair partes separadas se o texto tiver marcadores ou quebras de linha
-  const linhasOuFrases = textoLimpo
+  const linhasOuFrases = textoSanitizado
     .split(/\n|\r\n|(?<=\.)\s+(?=[A-ZÀ-Ú])|(?<=\b(?:PIX|TED|dias|vezes)\b)\.\s+/)
     .map((s) => s.trim())
     .filter(Boolean)
 
   // Se o texto for uma linha corrida com "ou" ligando à vista e financiamento
-  if (linhasOuFrases.length === 1 && textoLimpo.toLowerCase().includes(' ou ')) {
-    const partesOu = textoLimpo.split(/\s+ou\s+/i)
+  if (linhasOuFrases.length === 1 && textoSanitizado.toLowerCase().includes(' ou ')) {
+    const partesOu = textoSanitizado.split(/\s+ou\s+/i)
     if (partesOu.length > 1) {
       partesOu.forEach((p, idx) => {
-        const parteLimpa = p.trim().replace(/^\W+|\W+$/g, '')
+        const parteLimpa = sanitizarNomesInstituicoes(p.trim().replace(/^\W+|\W+$/g, ''))
         if (!parteLimpa) return
         const pLower = parteLimpa.toLowerCase()
 
@@ -105,18 +152,17 @@ export function parseCondicoesPagamento(
           itens.push({
             id: `av-${idx}`,
             tipo: 'a_vista',
-            titulo: 'Pagamento À Vista',
+            titulo: 'Pagamento à Vista',
             descricao:
               parteLimpa.startsWith('À vista') || parteLimpa.startsWith('A vista')
                 ? parteLimpa
                 : `À vista: ${parteLimpa}`,
-            destaqueBadge: matchDesc ? `${matchDesc[1]} de Desconto` : 'Melhor Preço',
+            destaqueBadge: matchDesc ? `${matchDesc[1]} de Desconto` : 'A Melhor Opção',
             icone: 'pix',
           })
         } else if (
           pLower.includes('financiamento') ||
-          pLower.includes('santander') ||
-          pLower.includes('bv') ||
+          pLower.includes('banco') ||
           /\d{1,2}x/i.test(pLower)
         ) {
           // Extrair parcelas (ex: 84x, 120x)
@@ -124,11 +170,11 @@ export function parseCondicoesPagamento(
           itens.push({
             id: `fin-${idx}`,
             tipo: 'financiamento',
-            titulo: 'Financiamento Solar',
+            titulo: 'Financiamento Bancário',
             descricao: parteLimpa.toLowerCase().startsWith('financiamento')
               ? parteLimpa
-              : `Financiamento: ${parteLimpa}`,
-            destaqueBadge: matchX ? `Até ${matchX[1].toUpperCase()}` : 'Financiamento Facilitado',
+              : `Financiamento bancário: ${parteLimpa}`,
+            destaqueBadge: matchX ? `Até ${matchX[1].toUpperCase()}` : 'Parcerias Ecosolar',
             icone: 'banco',
           })
         } else if (pLower.includes('cartão') || pLower.includes('cartao')) {
@@ -137,7 +183,7 @@ export function parseCondicoesPagamento(
             tipo: 'cartao',
             titulo: 'Cartão de Crédito',
             descricao: parteLimpa,
-            destaqueBadge: 'Parcelado no Cartão',
+            destaqueBadge: 'Em até 24x',
             icone: 'cartao',
           })
         } else {
@@ -153,7 +199,9 @@ export function parseCondicoesPagamento(
       })
     }
   } else if (linhasOuFrases.length > 1) {
-    linhasOuFrases.forEach((linha, idx) => {
+    linhasOuFrases.forEach((linhaRaw, idx) => {
+      const linha = sanitizarNomesInstituicoes(linhaRaw)
+      if (!linha) return
       const lLower = linha.toLowerCase()
       if (
         lLower.includes('à vista') ||
@@ -165,24 +213,23 @@ export function parseCondicoesPagamento(
         itens.push({
           id: `av-${idx}`,
           tipo: 'a_vista',
-          titulo: 'Pagamento À Vista',
+          titulo: 'Pagamento à Vista',
           descricao: linha,
-          destaqueBadge: matchDesc ? `${matchDesc[1]} de Desconto` : 'Desconto Especial',
+          destaqueBadge: matchDesc ? `${matchDesc[1]} de Desconto` : 'A Melhor Opção',
           icone: 'pix',
         })
       } else if (
         lLower.includes('financiamento') ||
-        lLower.includes('santander') ||
-        lLower.includes('solfácil') ||
-        lLower.includes('bv')
+        lLower.includes('banco') ||
+        lLower.includes('financeira')
       ) {
         const matchX = linha.match(/(\d{1,3}\s*x)/i)
         itens.push({
           id: `fin-${idx}`,
           tipo: 'financiamento',
-          titulo: 'Financiamento Solar',
+          titulo: 'Financiamento Bancário',
           descricao: linha,
-          destaqueBadge: matchX ? `Até ${matchX[1].toUpperCase()}` : 'Bancos Parceiros',
+          destaqueBadge: matchX ? `Até ${matchX[1].toUpperCase()}` : 'Parcerias Ecosolar',
           icone: 'banco',
         })
       } else if (lLower.includes('cartão') || lLower.includes('cartao')) {
@@ -192,7 +239,7 @@ export function parseCondicoesPagamento(
           tipo: 'cartao',
           titulo: 'Cartão de Crédito',
           descricao: linha,
-          destaqueBadge: matchX ? matchX[1] : 'Cartão',
+          destaqueBadge: matchX ? matchX[1] : 'Em até 24x',
           icone: 'cartao',
         })
       } else if (lLower.includes('entrada')) {
@@ -224,20 +271,20 @@ export function parseCondicoesPagamento(
     let badgeFallback = 'Condição Flexível'
 
     if (temAVista && temFinanciamento) {
-      tituloFallback = 'À Vista ou Financiado'
-      badgeFallback = 'Opções Flexíveis'
-      iconeFallback = 'banco'
+      tituloFallback = 'À Vista ou Financiamento'
+      badgeFallback = 'A Melhor Opção'
+      iconeFallback = 'pix'
     } else if (temAVista) {
-      tituloFallback = 'Pagamento À Vista'
-      badgeFallback = 'Melhor Desconto'
+      tituloFallback = 'Pagamento à Vista'
+      badgeFallback = 'A Melhor Opção'
       iconeFallback = 'pix'
     } else if (temFinanciamento) {
-      tituloFallback = 'Financiamento Solar'
-      badgeFallback = 'Parcelas Suaves'
+      tituloFallback = 'Financiamento Bancário'
+      badgeFallback = 'Parcerias Ecosolar'
       iconeFallback = 'banco'
     } else if (temCartao) {
       tituloFallback = 'Cartão de Crédito'
-      badgeFallback = 'Parcelamento'
+      badgeFallback = 'Em até 24x'
       iconeFallback = 'cartao'
     }
 
@@ -251,34 +298,21 @@ export function parseCondicoesPagamento(
             ? 'cartao'
             : 'outro',
       titulo: tituloFallback,
-      descricao: textoLimpo,
+      descricao: textoSanitizado,
       destaqueBadge: badgeFallback,
       icone: iconeFallback,
     })
   }
 
-  // Montar fala amigável do mascote comentando a condição
-  let resumoMascote = ''
-  if (temAVista && temFinanciamento) {
-    resumoMascote =
-      'Você escolhe como prefere pagar: com super desconto à vista no PIX/TED ou financiamento facilitado em até 84x com a parcela paga pela própria economia de energia!'
-  } else if (temFinanciamento) {
-    resumoMascote =
-      'O financiamento solar é incrível porque a parcela substitui sua conta de luz: você paga o sistema usando o dinheiro que já entregava todo mês para a concessionária!'
-  } else if (temAVista) {
-    resumoMascote =
-      'Com o pagamento à vista você garante o melhor retorno financeiro e começa a lucrar imediatamente com a geração solar desde o primeiro dia de sol!'
-  } else if (temCartao) {
-    resumoMascote =
-      'Pagamento parcelado no cartão de crédito com toda praticidade e segurança para você começar a gerar sua própria energia limpa!'
-  } else {
-    resumoMascote =
-      'Preparamos condições especiais e personalizadas de pagamento para viabilizar sua usina solar com total tranquilidade para seu bolso!'
-  }
+  // Fala convidativa do mascote da Ecosolar reforçando o convite: "Escolha a sua melhor opção"
+  // seguindo estritamente as diretrizes do usuário.
+  const resumoMascote =
+    'O pagamento à vista é a melhor opção, com retorno imediato! Mas você também pode parcelar no cartão em até 24x ou financiar com as parcerias que a nossa Ecosolar Energy tem com bancos e financeiras. Escolha a sua melhor opção!'
 
   return {
     temCondicoes: true,
     textoOriginal: textoLimpo,
+    textoSanitizado,
     itens,
     temAVista,
     temFinanciamento,

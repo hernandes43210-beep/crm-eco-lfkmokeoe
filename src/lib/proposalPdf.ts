@@ -8,6 +8,7 @@ import {
 } from './solarUtils'
 import { calculateInvestmentComparison } from '../utils/investmentComparison'
 import { parseKitDetailedItems } from './kitItemsParser'
+import { sanitizarNomesInstituicoes } from './paymentConditionsParser'
 import { CONTATO_ECOSOLAR } from '@/constants/empresa'
 import officialLogoPng from '@/assets/a-613c6.png'
 import { INSTITUTIONAL_INSTALLATION_PHOTOS } from '@/data/socialProofPhotos'
@@ -1484,7 +1485,7 @@ export function generateProposalPrintHTML(data: ProposalPDFData): string {
         ? `
     <div class="card">
       <div class="card-title">Condições de Pagamento</div>
-      <p style="font-size: 9.5px; color: #334155; line-height: 1.4; white-space: pre-line;">${data.condicoes_pagamento}</p>
+      <p style="font-size: 9.5px; color: #334155; line-height: 1.4; white-space: pre-line;">${sanitizarNomesInstituicoes(data.condicoes_pagamento)}</p>
     </div>`
         : ''
     }

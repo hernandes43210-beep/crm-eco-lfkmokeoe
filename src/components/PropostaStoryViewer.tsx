@@ -1323,111 +1323,122 @@ export function PropostaStoryViewer({
           )}
 
           {/* ======================================================== */}
-          {/* TELA MEIO DE PAGAMENTO: Condições Configurada na Proposta  */}
+          {/* TELA MEIO DE PAGAMENTO: Modalidades Genéricas sem Bancos   */}
           {/* ======================================================== */}
           {activeScreenKey === 'pagamento' && (
-            <div className="flex-1 flex flex-col justify-between space-y-3 animate-in fade-in duration-300 py-1">
-              <div className="space-y-1.5">
+            <div className="flex-1 flex flex-col justify-between space-y-2.5 animate-in fade-in duration-300 py-1">
+              <div className="space-y-1">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400/20 border border-amber-400/50 text-amber-300 text-[11px] font-black uppercase tracking-wider">
                   <Wallet className="w-3.5 h-3.5 text-amber-400" />
                   <span>
-                    {currentScreenIndex + 1} de {totalScreens} • Meio & Condições de Pagamento
+                    {currentScreenIndex + 1} de {totalScreens} • Meio & Modalidades de Pagamento
                   </span>
                 </div>
 
                 <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">
-                  Facilidade de <span className="text-amber-400">Pagamento</span>
+                  Opções de <span className="text-amber-400">Pagamento</span>
                 </h2>
                 <p className="text-xs text-slate-300">
-                  Condições personalizadas para viabilizar seu investimento sem pesar no orçamento.
+                  Condições flexíveis para você começar a gerar a sua própria energia limpa hoje
+                  mesmo.
                 </p>
               </div>
 
-              {/* CARDS VISUAIS DE DESTAQUE: Condições Reais Configurada na Proposta */}
-              <div className="space-y-2.5">
-                {pagamentoParsed.itens.map((item, idx) => {
-                  const isAVista = item.tipo === 'a_vista'
-                  const isFin = item.tipo === 'financiamento'
-                  const isCartao = item.tipo === 'cartao'
-
-                  const IconComp = isAVista
-                    ? BadgePercent
-                    : isFin
-                      ? Landmark
-                      : isCartao
-                        ? CreditCard
-                        : Wallet
-
-                  const borderClass = isAVista
-                    ? 'border-emerald-400/80 bg-gradient-to-br from-emerald-950/60 via-[#0A192F] to-[#0A192F]'
-                    : isFin
-                      ? 'border-amber-400/80 bg-gradient-to-br from-amber-950/50 via-[#0A192F] to-[#0A192F]'
-                      : 'border-sky-400/80 bg-gradient-to-br from-sky-950/50 via-[#0A192F] to-[#0A192F]'
-
-                  const iconColor = isAVista
-                    ? 'text-emerald-300'
-                    : isFin
-                      ? 'text-amber-300'
-                      : 'text-sky-300'
-
-                  return (
-                    <div
-                      key={item.id || `pag-${idx}`}
-                      className={`relative rounded-2xl p-3 sm:p-3.5 border-2 ${borderClass} shadow-xl text-left transition-transform`}
-                    >
-                      <div className="flex items-start justify-between gap-2 mb-1.5">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={`w-7 h-7 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center shrink-0 ${iconColor}`}
-                          >
-                            <IconComp className="w-4 h-4" />
-                          </div>
+              {/* MODALIDADES GENÉRICAS APRESENTADAS COM DESTAQUE CONVIDATIVO */}
+              <div className="space-y-2">
+                {/* 1. PAGAMENTO À VISTA — A MELHOR OPÇÃO EM DESTAQUE VISUAL MÁXIMO */}
+                <div className="relative rounded-2xl p-3 sm:p-3.5 border-2 border-emerald-400 bg-gradient-to-br from-emerald-950/80 via-[#0A192F] to-[#0A192F] shadow-xl text-left ring-2 ring-emerald-400/30">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center shrink-0 text-emerald-300">
+                        <BadgePercent className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
                           <span className="text-xs sm:text-sm font-black text-white tracking-tight">
-                            {item.titulo}
+                            Pagamento à Vista
                           </span>
                         </div>
-
-                        {item.destaqueBadge && (
-                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 shadow-sm shrink-0">
-                            {item.destaqueBadge}
-                          </span>
-                        )}
+                        <span className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider block">
+                          ⭐ A Melhor Opção
+                        </span>
                       </div>
-
-                      <p className="text-xs text-slate-200 leading-snug pl-9 font-medium">
-                        {item.descricao}
-                      </p>
                     </div>
-                  )
-                })}
-              </div>
 
-              {/* Pilares das Condições de Pagamento */}
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="bg-white/5 rounded-xl p-2.5 border border-white/10 space-y-0.5 text-left">
-                  <span className="text-[10px] text-emerald-400 font-bold block flex items-center gap-1">
-                    <CheckCircle className="w-3.5 h-3.5" /> Sem Entrada Obrigatória
-                  </span>
-                  <p className="text-[11px] text-slate-300 leading-tight">
-                    Opções de financiamento com primeira parcela só após a usina estar gerando.
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-400 text-slate-950 shadow-sm shrink-0">
+                      Melhor Retorno
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-emerald-100/90 leading-snug pl-10 font-medium">
+                    A melhor opção de rentabilidade: garanta o desconto máximo e tenha retorno
+                    financeiro imediato desde o primeiro dia de sol.
                   </p>
                 </div>
-                <div className="bg-white/5 rounded-xl p-2.5 border border-white/10 space-y-0.5 text-left">
-                  <span className="text-[10px] text-amber-300 font-bold block flex items-center gap-1">
-                    <Sparkles className="w-3.5 h-3.5" /> A Parcela se Paga
-                  </span>
-                  <p className="text-[11px] text-slate-300 leading-tight">
-                    A economia mensal na conta de luz quita as parcelas do financiamento.
+
+                {/* 2. CARTÃO DE CRÉDITO — EM ATÉ 24X, DEPENDENDO DA BANDEIRA */}
+                <div className="relative rounded-2xl p-3 sm:p-3.5 border border-sky-400/70 bg-gradient-to-br from-sky-950/50 via-[#0A192F] to-[#0A192F] shadow-md text-left">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-sky-500/20 border border-sky-400/40 flex items-center justify-center shrink-0 text-sky-300">
+                        <CreditCard className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-xs sm:text-sm font-black text-white tracking-tight block">
+                          Cartão de Crédito
+                        </span>
+                        <span className="text-[10px] text-sky-300 font-semibold block">
+                          Praticidade e rapidez
+                        </span>
+                      </div>
+                    </div>
+
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-sky-400/90 text-slate-950 shadow-sm shrink-0">
+                      Até 24x
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-200 leading-snug pl-10 font-medium">
+                    Em até 24 vezes, dependendo da bandeira do seu cartão, sem comprometer o limite
+                    global em operadoras selecionadas.
+                  </p>
+                </div>
+
+                {/* 3. FINANCIAMENTO BANCÁRIO — PARCERIAS ECOSOLAR ENERGY */}
+                <div className="relative rounded-2xl p-3 sm:p-3.5 border border-amber-400/70 bg-gradient-to-br from-amber-950/50 via-[#0A192F] to-[#0A192F] shadow-md text-left">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-400/40 flex items-center justify-center shrink-0 text-amber-300">
+                        <Landmark className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-xs sm:text-sm font-black text-white tracking-tight block">
+                          Financiamento Bancário
+                        </span>
+                        <span className="text-[10px] text-amber-300 font-semibold block">
+                          Parcerias Ecosolar Energy
+                        </span>
+                      </div>
+                    </div>
+
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 shadow-sm shrink-0">
+                      Taxas Especiais
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-200 leading-snug pl-10 font-medium">
+                    Com as parcerias que a nossa própria empresa, Ecosolar Energy, tem com os bancos
+                    e financeiras — a economia na conta quita as parcelas.
                   </p>
                 </div>
               </div>
 
-              {/* GUIA AMIGÁVEL: Mascote da Ecosolar comentando a condição */}
+              {/* CONVITE FINAL COM O MASCOTE DA ECOSOLAR */}
               <MascotSpeechBubble
-                titulo="O Mascote Comenta a Condição:"
-                fala={pagamentoParsed.resumoMascote}
-                dica="Condição válida até a data de validade da proposta."
-                destaqueBadge="Facilidade Total"
+                titulo="Escolha a sua melhor opção!"
+                fala="O pagamento à vista é a melhor opção, mas você também conta com cartão em até 24x ou financiamento pelas parcerias da nossa própria Ecosolar Energy com bancos e financeiras. Escolha a sua melhor opção e comece a economizar!"
+                dica="Escolha a sua melhor opção na assinatura do projeto."
+                destaqueBadge="Sua Escolha"
                 humor="animado"
               />
             </div>
@@ -1497,7 +1508,7 @@ export function PropostaStoryViewer({
                     <Wallet className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
                     <span className="line-clamp-2">
                       <strong className="text-amber-300">Pagamento:</strong>{' '}
-                      {proposta.condicoes_pagamento}
+                      {pagamentoParsed.textoSanitizado || proposta.condicoes_pagamento}
                     </span>
                   </div>
                 )}

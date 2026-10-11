@@ -1,5 +1,24 @@
 import { describe, it, expect } from 'vitest'
-import { parseCondicoesPagamento } from './paymentConditionsParser'
+import { parseCondicoesPagamento, sanitizarNomesInstituicoes } from './paymentConditionsParser'
+
+describe('sanitizarNomesInstituicoes', () => {
+  it('remove nomes de bancos específicos em parênteses', () => {
+    const raw =
+      'Financiamento Solar em até 84x (Santander, BV ou Solfácil) com carência de 90 dias.'
+    const limpo = sanitizarNomesInstituicoes(raw)
+    expect(limpo).not.toMatch(/Santander/i)
+    expect(limpo).not.toMatch(/BV/i)
+    expect(limpo).not.toMatch(/Solfácil/i)
+    expect(limpo).toContain('Financiamento Solar em até 84x com carência de 90 dias.')
+  })
+
+  it('remove citações a bancos ou financeiras como banco BV ou Fácil', () => {
+    const raw = 'Financiamento bancário em até 72x pelo banco BV ou Fácil com taxa reduzida.'
+    const limpo = sanitizarNomesInstituicoes(raw)
+    expect(limpo).not.toMatch(/\bBV\b/i)
+    expect(limpo).not.toMatch(/\bFácil\b/i)
+  })
+})
 
 describe('parseCondicoesPagamento', () => {
   it('retorna temCondicoes=false para texto vazio, null ou undefined', () => {
@@ -9,7 +28,7 @@ describe('parseCondicoesPagamento', () => {
     expect(parseCondicoesPagamento('   ').temCondicoes).toBe(false)
   })
 
-  it('analisa texto padrão de proposta com À Vista e Financiamento', () => {
+  it('analisa texto padrão de proposta, sanitiza nomes de bancos e gera modalidades genéricas', () => {
     const raw =
       'À vista com 5% de desconto via TED/PIX ou Financiamento Solar em até 84x (Santander, BV ou Solfácil) com carência de 90 dias.'
     const parsed = parseCondicoesPagamento(raw, 25000)
@@ -19,6 +38,9 @@ describe('parseCondicoesPagamento', () => {
     expect(parsed.temFinanciamento).toBe(true)
     expect(parsed.itens.length).toBeGreaterThanOrEqual(2)
 
+    // Verifica que nomes específicos foram removidos
+    expect(parsed.textoSanitizado).not.toMatch(/Santander|BV|Solfácil/i)
+
     const aVista = parsed.itens.find((i) => i.tipo === 'a_vista')
     expect(aVista).toBeDefined()
     expect(aVista?.destaqueBadge).toContain('5%')
@@ -26,7 +48,11 @@ describe('parseCondicoesPagamento', () => {
     const fin = parsed.itens.find((i) => i.tipo === 'financiamento')
     expect(fin).toBeDefined()
     expect(fin?.destaqueBadge).toContain('84X')
-    expect(parsed.resumoMascote).toContain('Você escolhe como prefere pagar')
+    expect(fin?.descricao).not.toMatch(/Santander|BV|Solfácil/i)
+
+    // Fala do mascote reforça o convite convidativo e opções genéricas
+    expect(parsed.resumoMascote).toContain('Escolha a sua melhor opção')
+    expect(parsed.resumoMascote).toContain('pagamento à vista é a melhor opção')
   })
 
   it('analisa texto com pagamento com cartão de crédito e parcelas', () => {
@@ -48,12 +74,13 @@ describe('parseCondicoesPagamento', () => {
     expect(parsed.resumoMascote).toBeDefined()
   })
 
-  it('gera comentário relevante do mascote quando é apenas financiamento', () => {
+  it('gera comentário do mascote convidativo mesmo para financiamento isolado', () => {
     const raw = 'Financiamento bancário em até 72x pelo banco BV com 60 dias de carência.'
     const parsed = parseCondicoesPagamento(raw)
 
     expect(parsed.temFinanciamento).toBe(true)
-    expect(parsed.resumoMascote).toContain('substitui sua conta de luz')
+    expect(parsed.textoSanitizado).not.toMatch(/\bBV\b/i)
+    expect(parsed.resumoMascote).toContain('Escolha a sua melhor opção')
   })
 
   it('gera comentário relevante do mascote quando é apenas à vista', () => {
@@ -61,6 +88,6 @@ describe('parseCondicoesPagamento', () => {
     const parsed = parseCondicoesPagamento(raw)
 
     expect(parsed.temAVista).toBe(true)
-    expect(parsed.resumoMascote).toContain('pagamento à vista')
+    expect(parsed.resumoMascote).toContain('Escolha a sua melhor opção')
   })
 })

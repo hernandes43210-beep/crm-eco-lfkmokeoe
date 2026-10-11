@@ -38,6 +38,7 @@ import {
 import { CONTATO_ECOSOLAR } from '@/constants/empresa'
 import { openProposalPDFPrint } from '@/lib/proposalPdf'
 import { parseKitDetailedItems } from '@/lib/kitItemsParser'
+import { sanitizarNomesInstituicoes } from '@/lib/paymentConditionsParser'
 import { InvestmentComparison } from '@/components/InvestmentComparison'
 import { AnimatedInvestmentRace } from '@/components/AnimatedInvestmentRace'
 import { PropostaStoryViewer } from '@/components/PropostaStoryViewer'
@@ -1636,7 +1637,7 @@ export default function PropostaPublica() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 text-xs text-slate-700 leading-relaxed whitespace-pre-line">
-                  {proposta.condicoes_pagamento}
+                  {sanitizarNomesInstituicoes(proposta.condicoes_pagamento)}
                 </CardContent>
               </Card>
             )}

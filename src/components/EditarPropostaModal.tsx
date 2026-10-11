@@ -1236,7 +1236,7 @@ export function EditarPropostaModal({
               value={condicoesPagamento}
               onChange={(e) => setCondicoesPagamento(e.target.value)}
               className="text-xs leading-relaxed"
-              placeholder="Ex: À vista com 5% de desconto via TED/PIX ou Financiamento Solar em até 84x..."
+              placeholder="Ex: À vista com 5% de desconto via TED/PIX ou Financiamento bancário com parcerias Ecosolar..."
             />
           </div>
 
