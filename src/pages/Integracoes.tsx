@@ -27,6 +27,7 @@ import {
   FileCheck2,
   Save,
   Activity,
+  Zap,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -47,6 +48,7 @@ import { LuvikService, type WebhookUrls } from '@/services/luvik'
 import { SiteFormService } from '@/services/siteForm'
 import { ClicksignService, type ClicksignStatusResponse } from '@/services/clicksign'
 import { GeminiIntegrationService, type GeminiStatusResponse } from '@/services/geminiIntegration'
+import { PhbSolarService, type PhbStatusResponse } from '@/services/phbSolar'
 import { toPortugueseErrorMessage } from '@/lib/errors'
 import type { LuvikSettings, LuvikLogItem, SiteFormSettings, SiteFormLogItem } from '@/types/crm'
 
@@ -54,7 +56,24 @@ export default function IntegracoesPage() {
   const { isAdmin } = useAuth()
 
   // Tab ativa
-  const [activeTab, setActiveTab] = useState<'gemini' | 'clicksign' | 'site' | 'luvik'>('gemini')
+  const [activeTab, setActiveTab] = useState<'gemini' | 'phb' | 'clicksign' | 'site' | 'luvik'>(
+    'gemini',
+  )
+
+  // Estado da integração PHB Solar v1.4.0
+  const [phbStatus, setPhbStatus] = useState<PhbStatusResponse | null>(null)
+  const [loadingPhb, setLoadingPhb] = useState(false)
+  const [savingPhbToken, setSavingPhbToken] = useState(false)
+  const [testingPhb, setTestingPhb] = useState(false)
+  const [phbInputToken, setPhbInputToken] = useState('')
+  const [showPhbInputToken, setShowPhbInputToken] = useState(false)
+  const [phbTestResult, setPhbTestResult] = useState<{
+    success: boolean
+    message: string
+    http_status?: number
+    duration_ms?: number
+    quantidade_modulos?: number
+  } | null>(null)
 
   // Estado da integração Gemini (Google AI)
   const [geminiStatus, setGeminiStatus] = useState<GeminiStatusResponse | null>(null)
@@ -162,6 +181,102 @@ export default function IntegracoesPage() {
       setLoadingGemini(false)
     }
   }, [])
+
+  const loadPhbData = useCallback(async () => {
+    try {
+      setLoadingPhb(true)
+      const data = await PhbSolarService.getStatus()
+      setPhbStatus(data)
+    } catch (err: unknown) {
+      console.error('Erro ao carregar status da PHB Solar:', err)
+    } finally {
+      setLoadingPhb(false)
+    }
+  }, [])
+
+  const handleSavePhbToken = async () => {
+    if (!phbInputToken.trim()) {
+      toast({
+        title: 'Token não informado',
+        description: 'Cole o token Bearer da PHB Solar para salvar.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      setSavingPhbToken(true)
+      setPhbTestResult(null)
+      await PhbSolarService.saveSettings({
+        token: phbInputToken.trim(),
+      })
+
+      toast({
+        title: 'Token da PHB Solar salvo com sucesso!',
+        description:
+          'O token foi salvo com segurança no backend e já está ativo para busca de kits.',
+      })
+
+      setPhbInputToken('')
+      setShowPhbInputToken(false)
+      await loadPhbData()
+    } catch (err: unknown) {
+      const msg = toPortugueseErrorMessage(err, 'Falha ao salvar token da PHB Solar.')
+      toast({
+        title: 'Erro ao salvar token',
+        description: msg,
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingPhbToken(false)
+    }
+  }
+
+  const handleTestPhbConnection = async () => {
+    try {
+      setTestingPhb(true)
+      setPhbTestResult(null)
+
+      const tokenToTest = phbInputToken.trim() || undefined
+      const res = await PhbSolarService.testConnection(tokenToTest)
+
+      setPhbTestResult({
+        success: res.success,
+        message: res.message,
+        http_status: res.http_status,
+        duration_ms: res.duration_ms,
+        quantidade_modulos: res.quantidade_modulos,
+      })
+
+      if (res.success) {
+        toast({
+          title: 'Conexão validada!',
+          description: res.message,
+        })
+      } else {
+        toast({
+          title: 'Falha no teste de conexão',
+          description: res.message,
+          variant: 'destructive',
+        })
+      }
+
+      await loadPhbData()
+    } catch (err: unknown) {
+      const msg = toPortugueseErrorMessage(err, 'Erro ao testar conexão com a PHB Solar.')
+      setPhbTestResult({
+        success: false,
+        message: msg,
+      })
+      toast({
+        title: 'Erro ao testar conexão',
+        description: msg,
+        variant: 'destructive',
+      })
+    } finally {
+      setTestingPhb(false)
+    }
+  }
 
   const loadClicksignData = useCallback(async () => {
     try {
@@ -347,10 +462,11 @@ export default function IntegracoesPage() {
 
   const loadAllData = useCallback(() => {
     loadGeminiData()
+    loadPhbData()
     loadSiteData()
     loadLuvikData()
     loadClicksignData()
-  }, [loadGeminiData, loadSiteData, loadLuvikData, loadClicksignData])
+  }, [loadGeminiData, loadPhbData, loadSiteData, loadLuvikData, loadClicksignData])
 
   useEffect(() => {
     loadAllData()
@@ -578,7 +694,9 @@ export default function IntegracoesPage() {
       {/* Tabs para alternar entre Gemini, Clicksign, Site Form e Luvik */}
       <Tabs
         value={activeTab}
-        onValueChange={(val) => setActiveTab(val as 'gemini' | 'clicksign' | 'site' | 'luvik')}
+        onValueChange={(val) =>
+          setActiveTab(val as 'gemini' | 'phb' | 'clicksign' | 'site' | 'luvik')
+        }
         className="space-y-6"
       >
         <TabsList className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex flex-wrap h-auto gap-1">
@@ -589,6 +707,22 @@ export default function IntegracoesPage() {
             <Sparkles className="w-4 h-4 text-amber-500" />
             <span>Google Gemini (Imagens IA)</span>
             {geminiStatus?.configured ? (
+              <Badge className="bg-emerald-100 text-emerald-800 text-[10px] py-0 px-1.5 ml-1">
+                Conectada
+              </Badge>
+            ) : (
+              <Badge className="bg-amber-100 text-amber-800 text-[10px] py-0 px-1.5 ml-1">
+                Pendente
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="phb"
+            className="data-[state=active]:bg-white data-[state=active]:text-[#0B7A5B] data-[state=active]:shadow-xs font-semibold text-xs py-2 px-4 gap-2"
+          >
+            <Zap className="w-4 h-4 text-amber-500" />
+            <span>PHB Solar (Catálogo de Kits)</span>
+            {phbStatus?.configured ? (
               <Badge className="bg-emerald-100 text-emerald-800 text-[10px] py-0 px-1.5 ml-1">
                 Conectada
               </Badge>
@@ -942,6 +1076,293 @@ export default function IntegracoesPage() {
                       O Google oferece cota gratuita mensal para testes e uso no Google AI Studio.
                       Nenhuma cobrança é realizada sem ativação explícita de faturamento no Google
                       Cloud.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* TAB PHB SOLAR (NOVA - CATÁLOGO E BUSCA DE KITS) */}
+        <TabsContent value="phb" className="space-y-6 mt-0">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-7 space-y-5">
+              <Card className="border-slate-200/80 shadow-xs bg-white">
+                <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <Zap className="w-5 h-5 text-amber-500" />
+                      <span>PHB Solar — API Plataforma v1.4.0</span>
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-500">
+                      Integração oficial para busca em tempo real e importação de kits solares
+                      diretamente para o catálogo do CRM.
+                    </CardDescription>
+                  </div>
+
+                  {phbStatus?.configured ? (
+                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 text-xs gap-1.5 py-1 px-2.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Conectada</span>
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="bg-amber-50 text-amber-700 border-amber-300 text-xs gap-1 py-1 px-2.5"
+                    >
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Não Configurada</span>
+                    </Badge>
+                  )}
+                </CardHeader>
+
+                <CardContent className="p-6 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase block">
+                        Versão & Endpoint Oficial
+                      </span>
+                      <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-amber-500" />
+                        API v1.4.0 (plataformaphbsolar.com.br)
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase block">
+                        Origem da Configuração
+                      </span>
+                      <span className="font-semibold text-slate-800 text-[11px] truncate block">
+                        {phbStatus?.source === 'database'
+                          ? 'Banco de Dados (CRM - Prioritário)'
+                          : phbStatus?.source === 'env'
+                            ? 'Variável de Ambiente ($os.getenv)'
+                            : 'Nenhum token configurado'}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1 sm:col-span-2">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase block">
+                        Token Bearer da PHB Solar (Armazenamento Seguro no Backend)
+                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-slate-800 text-xs font-semibold">
+                          {phbStatus?.masked_token || 'Nenhum token configurado'}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-white text-emerald-700 border-emerald-300"
+                          >
+                            Protegido no Servidor
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px] bg-white text-slate-500">
+                            Apenas Admin
+                          </Badge>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-slate-400 pt-0.5">
+                        As chamadas à PHB Solar são efetuadas 100% pelo servidor do CRM (pb_hooks).
+                        O token nunca é exposto ao navegador de nenhum usuário ou cliente.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Formulário de Configuração do Token */}
+                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-3.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <KeyRound className="w-4 h-4 text-emerald-600" />
+                        <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                          Configurar / Atualizar Token de Acesso PHB Solar
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        Apenas Administradores
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Cole abaixo o token de autenticação{' '}
+                      <strong className="text-slate-800">Bearer</strong> fornecido pela PHB Solar.
+                      Ao salvar, o CRM utiliza o token para pesquisar kits por potência (Wp),
+                      estrutura e tensão, trazendo custo e componentes em tempo real.
+                    </p>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                          Token de acesso PHB Solar (Bearer)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showPhbInputToken ? 'text' : 'password'}
+                            value={phbInputToken}
+                            onChange={(e) => setPhbInputToken(e.target.value)}
+                            placeholder={
+                              phbStatus?.configured
+                                ? 'Cole um novo token para substituir o atual...'
+                                : 'Cole aqui seu token Bearer da PHB Solar'
+                            }
+                            className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-xs font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#0B7A5B] pr-9"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPhbInputToken(!showPhbInputToken)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            title={showPhbInputToken ? 'Ocultar token' : 'Exibir token digitado'}
+                          >
+                            {showPhbInputToken ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={savingPhbToken || !phbInputToken.trim()}
+                          onClick={handleSavePhbToken}
+                          className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold h-8.5 px-3.5 gap-1.5 shadow-xs"
+                        >
+                          <Save className="w-3.5 h-3.5" />
+                          <span>{savingPhbToken ? 'Salvando...' : 'Salvar Token'}</span>
+                        </Button>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={testingPhb || (!phbStatus?.configured && !phbInputToken.trim())}
+                          onClick={handleTestPhbConnection}
+                          className="h-8.5 px-3.5 text-xs font-semibold border-slate-300 text-slate-700 hover:text-emerald-700 hover:bg-emerald-50 gap-1.5"
+                          title="Faz uma chamada real à API da PHB Solar (GET /modulos) para validar o token"
+                        >
+                          <Activity className={`w-3.5 h-3.5 ${testingPhb ? 'animate-spin' : ''}`} />
+                          <span>{testingPhb ? 'Testando...' : 'Testar Conexão'}</span>
+                        </Button>
+
+                        <a
+                          href="https://plataformaphbsolar.com.br"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs text-[#0B7A5B] hover:text-[#095C44] font-medium hover:underline ml-auto"
+                        >
+                          <span>Portal PHB Solar</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+
+                      {/* Feedback do Teste de Conexão */}
+                      {phbTestResult && (
+                        <div
+                          className={`p-3 rounded-lg border text-xs flex items-start gap-2.5 ${
+                            phbTestResult.success
+                              ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                              : 'bg-rose-50 border-rose-200 text-rose-900'
+                          }`}
+                        >
+                          {phbTestResult.success ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                          )}
+                          <div className="space-y-0.5">
+                            <p className="font-semibold">{phbTestResult.message}</p>
+                            {phbTestResult.duration_ms && (
+                              <p className="text-[11px] opacity-80">
+                                Latência da API PHB: {phbTestResult.duration_ms} ms
+                                {phbTestResult.http_status
+                                  ? ` • HTTP ${phbTestResult.http_status}`
+                                  : ''}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-amber-50/60 border border-amber-200/80 text-xs text-amber-950 space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-amber-900">
+                      <Zap className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>Como funciona a busca de kits na PHB Solar?</span>
+                    </div>
+                    <ul className="list-disc list-inside space-y-1 text-amber-900/90 text-[11px]">
+                      <li>
+                        <strong>Tela de Kits Solares:</strong> ao clicar em &quot;Novo Kit&quot;,
+                        acesse a aba <em>&quot;Buscar na PHB Solar&quot;</em>.
+                      </li>
+                      <li>
+                        <strong>Parâmetros:</strong> informe a potência desejada em Wp (ex: 6000),
+                        selecione a tensão da rede (220V, 380V) e o tipo de fixação da estrutura.
+                      </li>
+                      <li>
+                        <strong>Importação automática:</strong> ao clicar em{' '}
+                        <em>&quot;Importar&quot;</em>, o CRM consulta os componentes completos do
+                        kit (módulos, inversor, string box, cabos) e preenche o custo oficial da
+                        PHB. Você apenas revisa a sua margem e salva no catálogo!
+                      </li>
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="lg:col-span-5 space-y-5">
+              <Card className="border-slate-200/80 shadow-xs bg-white">
+                <CardHeader className="pb-3 border-b border-slate-100">
+                  <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <HelpCircle className="w-5 h-5 text-amber-500" />
+                    <span>Endpoints Integrados (v1.4.0)</span>
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    Especificação oficial da API da Plataforma PHB Solar
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent className="p-6 space-y-3.5 text-xs text-slate-600">
+                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-1 font-mono text-[11px]">
+                    <strong className="text-slate-800 font-sans block text-xs">
+                      1. GET /buscarkits
+                    </strong>
+                    <p className="text-slate-600 font-sans">
+                      Busca geradores por potência (Wp), tensão e estrutura. Retorna lista com UID
+                      único válido por 1 hora.
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-1 font-mono text-[11px]">
+                    <strong className="text-slate-800 font-sans block text-xs">
+                      2. GET /kit/{'{uid}'}
+                    </strong>
+                    <p className="text-slate-600 font-sans">
+                      Detalhamento completo dos componentes (módulos, inversor Sungrow/Huawei/PHB,
+                      string box, estruturas de fixação, condutores).
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-1 font-mono text-[11px]">
+                    <strong className="text-slate-800 font-sans block text-xs">
+                      3. GET /modulos
+                    </strong>
+                    <p className="text-slate-600 font-sans">
+                      Lista de módulos fotovoltaicos disponíveis em estoque na PHB (usado no teste
+                      leve de conexão).
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-emerald-50/70 rounded-lg border border-emerald-200 text-[11px] text-emerald-950 space-y-1">
+                    <strong className="text-emerald-900 block">Segurança das Credenciais:</strong>
+                    <p>
+                      O token Bearer da PHB Solar fica salvo exclusivamente no banco do CRM (tabela{' '}
+                      <code>integracoes_config</code>), protegido por RLS e nunca enviado ao
+                      browser.
                     </p>
                   </div>
                 </CardContent>

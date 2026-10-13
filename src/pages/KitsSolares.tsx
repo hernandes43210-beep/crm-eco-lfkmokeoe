@@ -26,6 +26,8 @@ import { KitMarketingModal } from '@/components/KitMarketingModal'
 import { KitIaImageModal } from '@/components/KitIaImageModal'
 import { SaudacaoModal } from '@/components/SaudacaoModal'
 import { GeminiImageModal } from '@/components/GeminiImageModal'
+import { PhbSearchSection } from '@/components/PhbSearchSection'
+import type { PhbImportResult } from '@/services/phbSolar'
 import { KitsService } from '@/services/kits'
 import type { Kit, KitCategoria, KitTipoEstrutura } from '@/types/crm'
 import useRealtime from '@/hooks/use-realtime'
@@ -107,6 +109,10 @@ export default function KitsSolares() {
   const [descricao, setDescricao] = useState('')
   const [stringBox, setStringBox] = useState<string>('')
   const [tipoEstrutura, setTipoEstrutura] = useState<string>('solo_monoposte')
+
+  // Modo do formulário: 'quick' (pré-pronta), 'manual' (completo) ou 'phb' (buscar na PHB Solar)
+  const [activeFormTab, setActiveFormTab] = useState<'quick' | 'manual' | 'phb'>('quick')
+  const [isPhbImported, setIsPhbImported] = useState(false)
 
   // Modo montagem pré-pronta / rápida
   const [isQuickMode, setIsQuickMode] = useState(true)
@@ -289,6 +295,8 @@ export default function KitsSolares() {
     setEditingKit(null)
     setIsCloning(false)
     setIsQuickMode(true)
+    setActiveFormTab('quick')
+    setIsPhbImported(false)
     setQtdPaineis(10)
     setPotenciaPainelW(630)
     setIsCustomPotenciaW(false)
@@ -333,6 +341,8 @@ export default function KitsSolares() {
     setIsCloning(false)
     // Na edição, ativa montagem técnica completa por padrão para permitir editar todos os componentes
     setIsQuickMode(true)
+    setActiveFormTab('quick')
+    setIsPhbImported(false)
     setNome(kit.nome)
     setFabricante(kit.fabricante || '')
     setPotenciaKw(kit.potencia_kw)
@@ -422,6 +432,8 @@ export default function KitsSolares() {
 
     // Se o kit puder ser mapeado em pré-pronto, abre em modo pré-pronto; caso contrário modo completo
     setIsQuickMode(componentes.isPrePronto)
+    setActiveFormTab(componentes.isPrePronto ? 'quick' : 'manual')
+    setIsPhbImported(false)
 
     // Campos preenchidos duplicados do kit original com sufixo "— Cópia"
     const novoNome = gerarNomeKitClonado(kit.nome)
@@ -444,6 +456,75 @@ export default function KitsSolares() {
     toast({
       title: 'Kit clonado para edição',
       description: `Editando "${novoNome}". Altere os campos e clique em Salvar para criar o novo kit.`,
+    })
+  }
+
+  /**
+   * Recebe os dados importados da API da PHB Solar e preenche o formulário
+   */
+  const handleImportFromPhb = (kitData: PhbImportResult) => {
+    setNome(kitData.nome)
+    setFabricante(kitData.fabricante)
+    setPotenciaKw(kitData.potenciaKw)
+    setCategoria(kitData.categoria)
+    setCusto(kitData.custo)
+    setDescricao(kitData.descricao)
+
+    if (kitData.tipoEstrutura) {
+      setTipoEstrutura(kitData.tipoEstrutura)
+    }
+    if (kitData.stringBox) {
+      setStringBox(kitData.stringBox)
+    }
+
+    if (kitData.qtdPaineis > 0) {
+      setQtdPaineis(kitData.qtdPaineis)
+    }
+    if (kitData.potenciaPainelW > 0) {
+      setPotenciaPainelW(kitData.potenciaPainelW)
+      setIsCustomPotenciaW(
+        !(POTENCIAS_COMUNS_PAINEIS as readonly number[]).includes(kitData.potenciaPainelW),
+      )
+    }
+    if (kitData.marcaPainel) {
+      setMarcaPaineis(kitData.marcaPainel)
+      setIsCustomMarcaPainel(
+        !(MARCAS_PAINEIS_SUGERIDAS as readonly string[]).includes(kitData.marcaPainel),
+      )
+    }
+
+    if (kitData.qtdInversores > 0) {
+      setQtdInversores(kitData.qtdInversores)
+    }
+    if (kitData.marcaInversor) {
+      setMarcaInversor(kitData.marcaInversor)
+      setIsCustomMarcaInversor(
+        !(MARCAS_INVERSORES_SUGERIDAS as readonly string[]).includes(kitData.marcaInversor),
+      )
+    }
+    if (kitData.potenciaInversorKw > 0) {
+      setPotenciaInversorKw(kitData.potenciaInversorKw)
+      setIsCustomPotenciaInversorKw(
+        !(POTENCIAS_COMUNS_INVERSORES as readonly number[]).includes(kitData.potenciaInversorKw),
+      )
+    }
+
+    // Calcula preço de venda com base na margem atual
+    const numMargem = parseFloat(String(margem)) || 30
+    if (kitData.custo > 0 && numMargem < 100) {
+      const vendaCalc = Math.round((kitData.custo / (1 - numMargem / 100)) * 100) / 100
+      setPrecoVenda(vendaCalc)
+    }
+
+    setIsPhbImported(true)
+    // Muda para a aba de revisão com campos completos
+    setIsQuickMode(false)
+    setActiveFormTab('manual')
+
+    toast({
+      title: 'Kit PHB Solar importado!',
+      description:
+        'Custo, componentes e inversor preenchidos. Revise sua margem e clique em Salvar no Catálogo.',
     })
   }
 
@@ -1023,31 +1104,57 @@ export default function KitsSolares() {
             </DialogDescription>
           </DialogHeader>
 
-          {/* Toggle entre Montagem Pré-Pronta e Modo Completo/Manual */}
-          <div className="flex items-center justify-between p-1 bg-slate-100 rounded-lg border border-slate-200/80">
+          {/* Abas do Formulário: Buscar na PHB Solar, Montagem Pré-Pronta e Modo Completo */}
+          <div className="flex items-center justify-between p-1 bg-slate-100 rounded-lg border border-slate-200/80 gap-1">
             <button
               type="button"
-              onClick={() => setIsQuickMode(true)}
-              className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded-md text-xs font-semibold transition-all ${
-                isQuickMode
-                  ? 'bg-white text-[#0B7A5B] shadow-xs border border-slate-200/70'
-                  : 'text-slate-600 hover:text-slate-900'
+              onClick={() => {
+                setActiveFormTab('phb')
+              }}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-md text-xs font-semibold transition-all ${
+                activeFormTab === 'phb'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs font-bold'
+                  : 'text-slate-700 hover:text-amber-700 hover:bg-amber-50/60'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>Montagem Pré-Pronta</span>
+              <Zap className="w-3.5 h-3.5 text-amber-900 shrink-0" />
+              <span>Buscar na PHB Solar</span>
             </button>
             <button
               type="button"
-              onClick={() => setIsQuickMode(false)}
-              className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded-md text-xs font-semibold transition-all ${
-                !isQuickMode
+              onClick={() => {
+                setActiveFormTab('quick')
+                setIsQuickMode(true)
+              }}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-md text-xs font-semibold transition-all ${
+                activeFormTab === 'quick'
                   ? 'bg-white text-[#0B7A5B] shadow-xs border border-slate-200/70'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span>Manual / Completo</span>
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span>Montagem Rápida</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveFormTab('manual')
+                setIsQuickMode(false)
+              }}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-md text-xs font-semibold transition-all ${
+                activeFormTab === 'manual'
+                  ? 'bg-white text-[#0B7A5B] shadow-xs border border-slate-200/70'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
+              <span>Manual / Revisão</span>
+              {isPhbImported && (
+                <span
+                  className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"
+                  title="Dados importados da PHB"
+                />
+              )}
             </button>
           </div>
 
@@ -1058,761 +1165,776 @@ export default function KitsSolares() {
             </div>
           )}
 
-          <form onSubmit={handleSaveKit} className="space-y-4">
-            {/* Bloco de Montagem Pré-Pronta */}
-            {isQuickMode && (
-              <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-50/70 via-white to-amber-50/40 border border-emerald-200/80 shadow-2xs space-y-3.5 animate-fade-in">
-                <div className="flex items-center justify-between border-b border-emerald-100 pb-2.5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-[#0B7A5B] text-white flex items-center justify-center">
-                      <Zap className="w-4 h-4 text-amber-300" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">
-                        Configuração Rápida dos Componentes
-                      </h4>
-                      <p className="text-[11px] text-slate-500">
-                        Cálculo automático de kWp por módulos e inversores
-                      </p>
-                    </div>
-                  </div>
+          {/* Seção 1: Buscar na PHB Solar */}
+          {activeFormTab === 'phb' && (
+            <PhbSearchSection
+              onImportKit={handleImportFromPhb}
+              onCancel={() => {
+                setActiveFormTab('quick')
+                setIsQuickMode(true)
+              }}
+            />
+          )}
 
-                  {/* Badge de Potência ao vivo */}
-                  <div className="text-right">
-                    <span className="text-[10px] font-semibold text-slate-400 block uppercase tracking-wider">
-                      Potência Pico
-                    </span>
-                    <span className="text-base font-extrabold text-[#0B7A5B] font-mono-numbers">
-                      {quickKwpInfo.formattedBR} kWp
-                    </span>
-                  </div>
-                </div>
+          {/* Seção 2: Formulário de Kit (Modo Pré-Pronto ou Modo Completo / Pós-Importação PHB) */}
+          {activeFormTab !== 'phb' && (
+            <form onSubmit={handleSaveKit} className="space-y-4">
+              {/* Bloco de Montagem Pré-Pronta */}
+              {isQuickMode && (
+                <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-50/70 via-white to-amber-50/40 border border-emerald-200/80 shadow-2xs space-y-3.5 animate-fade-in">
+                  <div className="flex items-center justify-between border-b border-emerald-100 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-[#0B7A5B] text-white flex items-center justify-center">
+                        <Zap className="w-4 h-4 text-amber-300" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900">
+                          Configuração Rápida dos Componentes
+                        </h4>
+                        <p className="text-[11px] text-slate-500">
+                          Cálculo automático de kWp por módulos e inversores
+                        </p>
+                      </div>
+                    </div>
 
-                {/* Painéis: Quantidade e Potência */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                      <span>Módulos Fotovoltaicos (Painéis)</span>
-                      <span className="text-emerald-700 text-[10px] font-normal">
-                        ({qtdPaineis || 0} × {potenciaPainelW || 0}Wp = {quickKwpInfo.formattedBR}{' '}
-                        kWp)
+                    {/* Badge de Potência ao vivo */}
+                    <div className="text-right">
+                      <span className="text-[10px] font-semibold text-slate-400 block uppercase tracking-wider">
+                        Potência Pico
                       </span>
-                    </Label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCustomPotenciaW(!isCustomPotenciaW)
-                      }}
-                      className="text-[11px] text-[#0B7A5B] hover:underline font-medium"
-                    >
-                      {isCustomPotenciaW ? 'Potências comuns' : 'Valor personalizado'}
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-                    {/* Qtd Painéis */}
-                    <div className="sm:col-span-3">
-                      <Label
-                        htmlFor="quickQtdPaineis"
-                        className="text-[11px] text-slate-500 block mb-1"
-                      >
-                        Qtd. Painéis
-                      </Label>
-                      <Input
-                        id="quickQtdPaineis"
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={qtdPaineis}
-                        onChange={(e) => setQtdPaineis(e.target.value)}
-                        placeholder="Ex: 10"
-                        className="h-9 text-sm font-semibold border-slate-200"
-                      />
-                    </div>
-
-                    {/* Potência Painel */}
-                    <div className="sm:col-span-4">
-                      <Label
-                        htmlFor="quickPotPainel"
-                        className="text-[11px] text-slate-500 block mb-1"
-                      >
-                        Potência (Wp)
-                      </Label>
-                      {isCustomPotenciaW ? (
-                        <Input
-                          id="quickPotPainel"
-                          type="number"
-                          min="100"
-                          step="5"
-                          value={potenciaPainelW}
-                          onChange={(e) => setPotenciaPainelW(e.target.value)}
-                          placeholder="Ex: 580"
-                          className="h-9 text-sm font-semibold border-slate-200"
-                        />
-                      ) : (
-                        <select
-                          id="quickPotPainel"
-                          value={potenciaPainelW}
-                          onChange={(e) => {
-                            if (e.target.value === 'custom') {
-                              setIsCustomPotenciaW(true)
-                            } else {
-                              setPotenciaPainelW(Number(e.target.value))
-                            }
-                          }}
-                          className="w-full h-9 px-3 text-sm font-semibold bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
-                        >
-                          {POTENCIAS_COMUNS_PAINEIS.map((p) => (
-                            <option key={p} value={p}>
-                              {p} Wp
-                            </option>
-                          ))}
-                          <option value="custom">Outro (personalizado)...</option>
-                        </select>
-                      )}
-                    </div>
-
-                    {/* Marca Painéis */}
-                    <div className="sm:col-span-5">
-                      <Label
-                        htmlFor="quickMarcaPaineis"
-                        className="text-[11px] text-slate-500 block mb-1"
-                      >
-                        Marca dos Painéis
-                      </Label>
-                      {isCustomMarcaPainel ? (
-                        <div className="flex gap-1.5">
-                          <Input
-                            id="quickMarcaPaineis"
-                            value={marcaPaineis}
-                            onChange={(e) => setMarcaPaineis(e.target.value)}
-                            placeholder="Ex: OSDA, DMEGC, TSUN..."
-                            className="h-9 text-sm border-slate-200"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsCustomMarcaPainel(false)}
-                            className="h-9 px-2 text-[11px]"
-                          >
-                            Lista
-                          </Button>
-                        </div>
-                      ) : (
-                        <select
-                          id="quickMarcaPaineis"
-                          value={marcaPaineis}
-                          onChange={(e) => {
-                            if (e.target.value === 'custom') {
-                              setIsCustomMarcaPainel(true)
-                            } else {
-                              setMarcaPaineis(e.target.value)
-                            }
-                          }}
-                          className="w-full h-9 px-3 text-xs sm:text-sm font-semibold bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
-                        >
-                          <optgroup label="Marcas em Destaque">
-                            <option value="OSDA">OSDA</option>
-                            <option value="DMEGC">DMEGC</option>
-                            <option value="TSUN POWER">TSUN POWER</option>
-                          </optgroup>
-                          <optgroup label="Outras Marcas Frequentes">
-                            {MARCAS_PAINEIS_SUGERIDAS.filter(
-                              (m) => !['OSDA', 'DMEGC', 'TSUN POWER'].includes(m),
-                            ).map((m) => (
-                              <option key={m} value={m}>
-                                {m}
-                              </option>
-                            ))}
-                          </optgroup>
-                          <option value="custom">Outra marca (digitar)...</option>
-                        </select>
-                      )}
+                      <span className="text-base font-extrabold text-[#0B7A5B] font-mono-numbers">
+                        {quickKwpInfo.formattedBR} kWp
+                      </span>
                     </div>
                   </div>
-                </div>
 
-                {/* Inversor: Quantidade, Potência e Marca/Modelo */}
-                <div className="space-y-1.5 pt-1 border-t border-slate-200/60">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                      <span>Inversor Solar</span>
-                      {potenciaInversorKw ? (
-                        <span className="text-amber-700 text-[10px] font-normal">
-                          ({formatarPotenciaKw(potenciaInversorKw)})
+                  {/* Painéis: Quantidade e Potência */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                        <span>Módulos Fotovoltaicos (Painéis)</span>
+                        <span className="text-emerald-700 text-[10px] font-normal">
+                          ({qtdPaineis || 0} × {potenciaPainelW || 0}Wp = {quickKwpInfo.formattedBR}{' '}
+                          kWp)
                         </span>
-                      ) : null}
-                    </Label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCustomPotenciaInversorKw(!isCustomPotenciaInversorKw)
-                      }}
-                      className="text-[11px] text-[#0B7A5B] hover:underline font-medium"
-                    >
-                      {isCustomPotenciaInversorKw ? 'Potências comuns' : 'Potência personalizada'}
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-                    <div className="sm:col-span-3">
-                      <Label
-                        htmlFor="quickQtdInv"
-                        className="text-[11px] text-slate-500 block mb-1"
-                      >
-                        Qtd. Inversores
                       </Label>
-                      <Input
-                        id="quickQtdInv"
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={qtdInversores}
-                        onChange={(e) => setQtdInversores(e.target.value)}
-                        placeholder="1"
-                        className="h-9 text-sm font-semibold border-slate-200"
-                      />
-                    </div>
-
-                    {/* Potência do Inversor em kW */}
-                    <div className="sm:col-span-4">
-                      <Label
-                        htmlFor="quickPotInversor"
-                        className="text-[11px] text-slate-500 block mb-1"
-                      >
-                        Potência (kW)
-                      </Label>
-                      {isCustomPotenciaInversorKw ? (
-                        <Input
-                          id="quickPotInversor"
-                          type="number"
-                          min="0.5"
-                          step="0.1"
-                          value={potenciaInversorKw}
-                          onChange={(e) => setPotenciaInversorKw(e.target.value)}
-                          placeholder="Ex: 7.5"
-                          className="h-9 text-sm font-semibold border-slate-200"
-                        />
-                      ) : (
-                        <select
-                          id="quickPotInversor"
-                          value={potenciaInversorKw}
-                          onChange={(e) => {
-                            if (e.target.value === 'custom') {
-                              setIsCustomPotenciaInversorKw(true)
-                            } else {
-                              setPotenciaInversorKw(Number(e.target.value))
-                            }
-                          }}
-                          className="w-full h-9 px-3 text-sm font-semibold bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
-                        >
-                          {POTENCIAS_COMUNS_INVERSORES.map((p) => (
-                            <option key={p} value={p}>
-                              {p.toLocaleString('pt-BR')} kW
-                            </option>
-                          ))}
-                          <option value="custom">Outra potência...</option>
-                        </select>
-                      )}
-                    </div>
-
-                    <div className="sm:col-span-5">
-                      <Label
-                        htmlFor="quickMarcaInv"
-                        className="text-[11px] text-slate-500 block mb-1"
-                      >
-                        Marca / Modelo do Inversor
-                      </Label>
-                      {isCustomMarcaInversor ? (
-                        <div className="flex gap-1.5">
-                          <Input
-                            id="quickMarcaInv"
-                            value={marcaInversor}
-                            onChange={(e) => setMarcaInversor(e.target.value)}
-                            placeholder="Ex: Sungrow, HUAWEI, AUSXOL, PHB, GOODWE..."
-                            className="h-9 text-sm border-slate-200"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsCustomMarcaInversor(false)}
-                            className="h-9 px-2 text-[11px]"
-                          >
-                            Lista
-                          </Button>
-                        </div>
-                      ) : (
-                        <select
-                          id="quickMarcaInv"
-                          value={marcaInversor}
-                          onChange={(e) => {
-                            if (e.target.value === 'custom') {
-                              setIsCustomMarcaInversor(true)
-                            } else {
-                              setMarcaInversor(e.target.value)
-                            }
-                          }}
-                          className="w-full h-9 px-3 text-xs sm:text-sm font-semibold bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
-                        >
-                          <optgroup label="Marcas em Destaque">
-                            <option value="Sungrow">Sungrow</option>
-                            <option value="HUAWEI">HUAWEI</option>
-                            <option value="AUSXOL">AUSXOL</option>
-                            <option value="PHB">PHB</option>
-                            <option value="GOODWE">GOODWE</option>
-                          </optgroup>
-                          <optgroup label="Outras Marcas Frequentes">
-                            {MARCAS_INVERSORES_SUGERIDAS.filter(
-                              (m) => !['Sungrow', 'HUAWEI', 'AUSXOL', 'PHB', 'GOODWE'].includes(m),
-                            ).map((m) => (
-                              <option key={m} value={m}>
-                                {m}
-                              </option>
-                            ))}
-                          </optgroup>
-                          <option value="custom">Outra marca (digitar)...</option>
-                        </select>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                {/* Resumo da montagem com botão de recarregar sugestões */}
-                <div className="p-2.5 rounded-lg bg-white/80 border border-emerald-100 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-1.5 text-emerald-900">
-                    <Calculator className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>
-                      Total calculado: <strong>{quickKwpInfo.formattedBR} kWp</strong> (
-                      {qtdPaineis || 0} painéis × {potenciaPainelW || 0}Wp)
-                    </span>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      if (suggestedName) setNome(suggestedName)
-                      if (suggestedFab) setFabricante(suggestedFab)
-                      if (quickKwpInfo.kwp > 0) setPotenciaKw(quickKwpInfo.kwp)
-                      setDescricao(
-                        sugerirDescricaoTecnica({
-                          qtdPaineis,
-                          potenciaPainelW,
-                          marcaPaineis,
-                          qtdInversores,
-                          marcaInversor,
-                          potenciaInversorKw,
-                          kwp: quickKwpInfo.kwp,
-                          stringBox,
-                          tipoEstrutura,
-                        }),
-                      )
-                    }}
-                    className="h-6 px-2 text-[11px] text-[#0B7A5B] hover:text-[#095C44] hover:bg-emerald-50 font-medium"
-                  >
-                    Reaplicar sugestões
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Seletores Técnicos: Tipo de Estrutura & String Box */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {/* Seletor Tipo de Estrutura */}
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label
-                    htmlFor="kitTipoEstrutura"
-                    className="text-xs font-semibold text-slate-800 flex items-center gap-1.5"
-                  >
-                    <Building className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Tipo de Estrutura</span>
-                  </Label>
-                  {tipoEstrutura && (
-                    <span className="text-[11px] font-bold text-blue-800 bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-full">
-                      {formatarRotuloEstrutura(tipoEstrutura)}
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-slate-500 leading-snug">
-                  Defina a estrutura de sustentação dos painéis:
-                </p>
-                <select
-                  id="kitTipoEstrutura"
-                  value={tipoEstrutura}
-                  onChange={(e) => {
-                    const novaEstrut = e.target.value
-                    setTipoEstrutura(novaEstrut)
-                    if (isQuickMode && !editingKit && !isCloning) {
-                      const novoNome = sugerirNomeKit({
-                        kwp: quickKwpInfo.kwp,
-                        marcaPaineis,
-                        marcaInversor,
-                        qtdPaineis,
-                        potenciaPainelW,
-                        tipoEstrutura: novaEstrut,
-                      })
-                      if (novoNome) setNome(novoNome)
-                      setDescricao(
-                        sugerirDescricaoTecnica({
-                          qtdPaineis,
-                          potenciaPainelW,
-                          marcaPaineis,
-                          qtdInversores,
-                          marcaInversor,
-                          potenciaInversorKw,
-                          kwp: quickKwpInfo.kwp,
-                          stringBox,
-                          tipoEstrutura: novaEstrut,
-                        }),
-                      )
-                    } else if (novaEstrut && nome) {
-                      // Ao mudar a estrutura em modo de edição ou manual, se o usuário quiser, pode atualizar
-                      // ou podemos atualizar o nome automaticamente se tiver rótulo de estrutura anterior
-                      const atualizado = aplicarEstruturaAoNomeKit(nome, novaEstrut)
-                      setNome(atualizado)
-                    }
-                  }}
-                  className="w-full h-9.5 px-3 text-xs sm:text-sm bg-white border border-slate-200 rounded-lg text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
-                >
-                  <option value="">Não especificado</option>
-                  {TIPOS_ESTRUTURA_OPCOES.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Seletor de String Box */}
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label
-                    htmlFor="kitStringBox"
-                    className="text-xs font-semibold text-slate-800 flex items-center gap-1.5"
-                  >
-                    <Boxes className="w-3.5 h-3.5 text-amber-600" />
-                    <span>String Box (Opcional)</span>
-                  </Label>
-                  {stringBox && (
-                    <span className="text-[11px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
-                      {formatarRotuloStringBox(stringBox)}
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-slate-500 leading-snug">
-                  Proteção CC com DPS e disjuntor:
-                </p>
-                <select
-                  id="kitStringBox"
-                  value={stringBox}
-                  onChange={(e) => {
-                    const novoSb = e.target.value
-                    setStringBox(novoSb)
-                    if (isQuickMode && !editingKit && !isCloning) {
-                      setDescricao(
-                        sugerirDescricaoTecnica({
-                          qtdPaineis,
-                          potenciaPainelW,
-                          marcaPaineis,
-                          qtdInversores,
-                          marcaInversor,
-                          potenciaInversorKw,
-                          kwp: quickKwpInfo.kwp,
-                          stringBox: novoSb,
-                          tipoEstrutura,
-                        }),
-                      )
-                    }
-                  }}
-                  className="w-full h-9.5 px-3 text-xs sm:text-sm bg-white border border-slate-200 rounded-lg text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
-                >
-                  <option value="">Sem string box</option>
-                  <option value="1_entrada">1 entrada (1E / 1S)</option>
-                  <option value="2_entradas">2 entradas (2E / 2S)</option>
-                  <option value="3_entradas">3 entradas (3E / 3S)</option>
-                </select>
-              </div>
-            </div>
-            {/* Campos Principais do Kit (pré-preenchidos ou editáveis) */}
-            <div className="space-y-3.5 pt-1">
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="kitNome" className="text-xs font-semibold text-slate-700">
-                    Nome Comercial do Kit *
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    {tipoEstrutura && (
                       <button
                         type="button"
                         onClick={() => {
-                          const comEstrutura = aplicarEstruturaAoNomeKit(nome, tipoEstrutura)
-                          if (comEstrutura) setNome(comEstrutura)
+                          setIsCustomPotenciaW(!isCustomPotenciaW)
                         }}
-                        className="text-[11px] text-blue-700 hover:text-blue-900 hover:underline font-medium"
-                        title="Inclui o tipo de estrutura atual ao nome do kit"
+                        className="text-[11px] text-[#0B7A5B] hover:underline font-medium"
                       >
-                        + Incluir estrutura no nome
+                        {isCustomPotenciaW ? 'Potências comuns' : 'Valor personalizado'}
                       </button>
-                    )}
-                    {isQuickMode && suggestedName && nome !== suggestedName && (
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                      {/* Qtd Painéis */}
+                      <div className="sm:col-span-3">
+                        <Label
+                          htmlFor="quickQtdPaineis"
+                          className="text-[11px] text-slate-500 block mb-1"
+                        >
+                          Qtd. Painéis
+                        </Label>
+                        <Input
+                          id="quickQtdPaineis"
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={qtdPaineis}
+                          onChange={(e) => setQtdPaineis(e.target.value)}
+                          placeholder="Ex: 10"
+                          className="h-9 text-sm font-semibold border-slate-200"
+                        />
+                      </div>
+
+                      {/* Potência Painel */}
+                      <div className="sm:col-span-4">
+                        <Label
+                          htmlFor="quickPotPainel"
+                          className="text-[11px] text-slate-500 block mb-1"
+                        >
+                          Potência (Wp)
+                        </Label>
+                        {isCustomPotenciaW ? (
+                          <Input
+                            id="quickPotPainel"
+                            type="number"
+                            min="100"
+                            step="5"
+                            value={potenciaPainelW}
+                            onChange={(e) => setPotenciaPainelW(e.target.value)}
+                            placeholder="Ex: 580"
+                            className="h-9 text-sm font-semibold border-slate-200"
+                          />
+                        ) : (
+                          <select
+                            id="quickPotPainel"
+                            value={potenciaPainelW}
+                            onChange={(e) => {
+                              if (e.target.value === 'custom') {
+                                setIsCustomPotenciaW(true)
+                              } else {
+                                setPotenciaPainelW(Number(e.target.value))
+                              }
+                            }}
+                            className="w-full h-9 px-3 text-sm font-semibold bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+                          >
+                            {POTENCIAS_COMUNS_PAINEIS.map((p) => (
+                              <option key={p} value={p}>
+                                {p} Wp
+                              </option>
+                            ))}
+                            <option value="custom">Outro (personalizado)...</option>
+                          </select>
+                        )}
+                      </div>
+
+                      {/* Marca Painéis */}
+                      <div className="sm:col-span-5">
+                        <Label
+                          htmlFor="quickMarcaPaineis"
+                          className="text-[11px] text-slate-500 block mb-1"
+                        >
+                          Marca dos Painéis
+                        </Label>
+                        {isCustomMarcaPainel ? (
+                          <div className="flex gap-1.5">
+                            <Input
+                              id="quickMarcaPaineis"
+                              value={marcaPaineis}
+                              onChange={(e) => setMarcaPaineis(e.target.value)}
+                              placeholder="Ex: OSDA, DMEGC, TSUN..."
+                              className="h-9 text-sm border-slate-200"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsCustomMarcaPainel(false)}
+                              className="h-9 px-2 text-[11px]"
+                            >
+                              Lista
+                            </Button>
+                          </div>
+                        ) : (
+                          <select
+                            id="quickMarcaPaineis"
+                            value={marcaPaineis}
+                            onChange={(e) => {
+                              if (e.target.value === 'custom') {
+                                setIsCustomMarcaPainel(true)
+                              } else {
+                                setMarcaPaineis(e.target.value)
+                              }
+                            }}
+                            className="w-full h-9 px-3 text-xs sm:text-sm font-semibold bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+                          >
+                            <optgroup label="Marcas em Destaque">
+                              <option value="OSDA">OSDA</option>
+                              <option value="DMEGC">DMEGC</option>
+                              <option value="TSUN POWER">TSUN POWER</option>
+                            </optgroup>
+                            <optgroup label="Outras Marcas Frequentes">
+                              {MARCAS_PAINEIS_SUGERIDAS.filter(
+                                (m) => !['OSDA', 'DMEGC', 'TSUN POWER'].includes(m),
+                              ).map((m) => (
+                                <option key={m} value={m}>
+                                  {m}
+                                </option>
+                              ))}
+                            </optgroup>
+                            <option value="custom">Outra marca (digitar)...</option>
+                          </select>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Inversor: Quantidade, Potência e Marca/Modelo */}
+                  <div className="space-y-1.5 pt-1 border-t border-slate-200/60">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                        <span>Inversor Solar</span>
+                        {potenciaInversorKw ? (
+                          <span className="text-amber-700 text-[10px] font-normal">
+                            ({formatarPotenciaKw(potenciaInversorKw)})
+                          </span>
+                        ) : null}
+                      </Label>
                       <button
                         type="button"
-                        onClick={() => setNome(suggestedName)}
-                        className="text-[11px] text-[#0B7A5B] hover:underline"
+                        onClick={() => {
+                          setIsCustomPotenciaInversorKw(!isCustomPotenciaInversorKw)
+                        }}
+                        className="text-[11px] text-[#0B7A5B] hover:underline font-medium"
                       >
-                        Usar sugestão: &quot;{suggestedName}&quot;
+                        {isCustomPotenciaInversorKw ? 'Potências comuns' : 'Potência personalizada'}
                       </button>
-                    )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                      <div className="sm:col-span-3">
+                        <Label
+                          htmlFor="quickQtdInv"
+                          className="text-[11px] text-slate-500 block mb-1"
+                        >
+                          Qtd. Inversores
+                        </Label>
+                        <Input
+                          id="quickQtdInv"
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={qtdInversores}
+                          onChange={(e) => setQtdInversores(e.target.value)}
+                          placeholder="1"
+                          className="h-9 text-sm font-semibold border-slate-200"
+                        />
+                      </div>
+
+                      {/* Potência do Inversor em kW */}
+                      <div className="sm:col-span-4">
+                        <Label
+                          htmlFor="quickPotInversor"
+                          className="text-[11px] text-slate-500 block mb-1"
+                        >
+                          Potência (kW)
+                        </Label>
+                        {isCustomPotenciaInversorKw ? (
+                          <Input
+                            id="quickPotInversor"
+                            type="number"
+                            min="0.5"
+                            step="0.1"
+                            value={potenciaInversorKw}
+                            onChange={(e) => setPotenciaInversorKw(e.target.value)}
+                            placeholder="Ex: 7.5"
+                            className="h-9 text-sm font-semibold border-slate-200"
+                          />
+                        ) : (
+                          <select
+                            id="quickPotInversor"
+                            value={potenciaInversorKw}
+                            onChange={(e) => {
+                              if (e.target.value === 'custom') {
+                                setIsCustomPotenciaInversorKw(true)
+                              } else {
+                                setPotenciaInversorKw(Number(e.target.value))
+                              }
+                            }}
+                            className="w-full h-9 px-3 text-sm font-semibold bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+                          >
+                            {POTENCIAS_COMUNS_INVERSORES.map((p) => (
+                              <option key={p} value={p}>
+                                {p.toLocaleString('pt-BR')} kW
+                              </option>
+                            ))}
+                            <option value="custom">Outra potência...</option>
+                          </select>
+                        )}
+                      </div>
+
+                      <div className="sm:col-span-5">
+                        <Label
+                          htmlFor="quickMarcaInv"
+                          className="text-[11px] text-slate-500 block mb-1"
+                        >
+                          Marca / Modelo do Inversor
+                        </Label>
+                        {isCustomMarcaInversor ? (
+                          <div className="flex gap-1.5">
+                            <Input
+                              id="quickMarcaInv"
+                              value={marcaInversor}
+                              onChange={(e) => setMarcaInversor(e.target.value)}
+                              placeholder="Ex: Sungrow, HUAWEI, AUSXOL, PHB, GOODWE..."
+                              className="h-9 text-sm border-slate-200"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsCustomMarcaInversor(false)}
+                              className="h-9 px-2 text-[11px]"
+                            >
+                              Lista
+                            </Button>
+                          </div>
+                        ) : (
+                          <select
+                            id="quickMarcaInv"
+                            value={marcaInversor}
+                            onChange={(e) => {
+                              if (e.target.value === 'custom') {
+                                setIsCustomMarcaInversor(true)
+                              } else {
+                                setMarcaInversor(e.target.value)
+                              }
+                            }}
+                            className="w-full h-9 px-3 text-xs sm:text-sm font-semibold bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+                          >
+                            <optgroup label="Marcas em Destaque">
+                              <option value="Sungrow">Sungrow</option>
+                              <option value="HUAWEI">HUAWEI</option>
+                              <option value="AUSXOL">AUSXOL</option>
+                              <option value="PHB">PHB</option>
+                              <option value="GOODWE">GOODWE</option>
+                            </optgroup>
+                            <optgroup label="Outras Marcas Frequentes">
+                              {MARCAS_INVERSORES_SUGERIDAS.filter(
+                                (m) =>
+                                  !['Sungrow', 'HUAWEI', 'AUSXOL', 'PHB', 'GOODWE'].includes(m),
+                              ).map((m) => (
+                                <option key={m} value={m}>
+                                  {m}
+                                </option>
+                              ))}
+                            </optgroup>
+                            <option value="custom">Outra marca (digitar)...</option>
+                          </select>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Resumo da montagem com botão de recarregar sugestões */}
+                  <div className="p-2.5 rounded-lg bg-white/80 border border-emerald-100 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 text-emerald-900">
+                      <Calculator className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>
+                        Total calculado: <strong>{quickKwpInfo.formattedBR} kWp</strong> (
+                        {qtdPaineis || 0} painéis × {potenciaPainelW || 0}Wp)
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (suggestedName) setNome(suggestedName)
+                        if (suggestedFab) setFabricante(suggestedFab)
+                        if (quickKwpInfo.kwp > 0) setPotenciaKw(quickKwpInfo.kwp)
+                        setDescricao(
+                          sugerirDescricaoTecnica({
+                            qtdPaineis,
+                            potenciaPainelW,
+                            marcaPaineis,
+                            qtdInversores,
+                            marcaInversor,
+                            potenciaInversorKw,
+                            kwp: quickKwpInfo.kwp,
+                            stringBox,
+                            tipoEstrutura,
+                          }),
+                        )
+                      }}
+                      className="h-6 px-2 text-[11px] text-[#0B7A5B] hover:text-[#095C44] hover:bg-emerald-50 font-medium"
+                    >
+                      Reaplicar sugestões
+                    </Button>
                   </div>
                 </div>
-                <Input
-                  id="kitNome"
-                  required
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  placeholder="Ex: Kit Solar 6,1 kWp — Canadian Solar + Growatt — Fibrocimento"
-                  className="h-9.5 text-sm border-slate-200 focus-visible:ring-[#0B7A5B]"
-                />
-              </div>
+              )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="kitFab" className="text-xs font-semibold text-slate-700">
-                    Fabricante / Marcas
-                  </Label>
-                  <Input
-                    id="kitFab"
-                    value={fabricante}
-                    onChange={(e) => setFabricante(e.target.value)}
-                    placeholder="Ex: Canadian Solar / Growatt"
-                    className="h-9.5 text-sm border-slate-200"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="kitCat" className="text-xs font-semibold text-slate-700">
-                    Categoria *
-                  </Label>
+              {/* Seletores Técnicos: Tipo de Estrutura & String Box */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Seletor Tipo de Estrutura */}
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label
+                      htmlFor="kitTipoEstrutura"
+                      className="text-xs font-semibold text-slate-800 flex items-center gap-1.5"
+                    >
+                      <Building className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Tipo de Estrutura</span>
+                    </Label>
+                    {tipoEstrutura && (
+                      <span className="text-[11px] font-bold text-blue-800 bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-full">
+                        {formatarRotuloEstrutura(tipoEstrutura)}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-snug">
+                    Defina a estrutura de sustentação dos painéis:
+                  </p>
                   <select
-                    id="kitCat"
-                    value={categoria}
-                    onChange={(e) => setCategoria(e.target.value as KitCategoria)}
-                    className="w-full h-9.5 px-3 text-sm bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+                    id="kitTipoEstrutura"
+                    value={tipoEstrutura}
+                    onChange={(e) => {
+                      const novaEstrut = e.target.value
+                      setTipoEstrutura(novaEstrut)
+                      if (isQuickMode && !editingKit && !isCloning) {
+                        const novoNome = sugerirNomeKit({
+                          kwp: quickKwpInfo.kwp,
+                          marcaPaineis,
+                          marcaInversor,
+                          qtdPaineis,
+                          potenciaPainelW,
+                          tipoEstrutura: novaEstrut,
+                        })
+                        if (novoNome) setNome(novoNome)
+                        setDescricao(
+                          sugerirDescricaoTecnica({
+                            qtdPaineis,
+                            potenciaPainelW,
+                            marcaPaineis,
+                            qtdInversores,
+                            marcaInversor,
+                            potenciaInversorKw,
+                            kwp: quickKwpInfo.kwp,
+                            stringBox,
+                            tipoEstrutura: novaEstrut,
+                          }),
+                        )
+                      } else if (novaEstrut && nome) {
+                        // Ao mudar a estrutura em modo de edição ou manual, se o usuário quiser, pode atualizar
+                        // ou podemos atualizar o nome automaticamente se tiver rótulo de estrutura anterior
+                        const atualizado = aplicarEstruturaAoNomeKit(nome, novaEstrut)
+                        setNome(atualizado)
+                      }
+                    }}
+                    className="w-full h-9.5 px-3 text-xs sm:text-sm bg-white border border-slate-200 rounded-lg text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
                   >
-                    {CATEGORIAS.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
+                    <option value="">Não especificado</option>
+                    {TIPOS_ESTRUTURA_OPCOES.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
                       </option>
                     ))}
                   </select>
                 </div>
-              </div>
 
-              {/* Valores Comerciais: Potência, Custo, Margem e Preço de Venda Totalmente Editáveis */}
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <div className="space-y-1">
-                  <Label
-                    htmlFor="potencia"
-                    className="text-xs font-semibold text-slate-700 flex items-center justify-between"
-                  >
-                    <span>Potência (kWp) *</span>
-                    {isQuickMode && (
-                      <span className="text-[10px] text-emerald-600 font-normal">Auto</span>
+                {/* Seletor de String Box */}
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label
+                      htmlFor="kitStringBox"
+                      className="text-xs font-semibold text-slate-800 flex items-center gap-1.5"
+                    >
+                      <Boxes className="w-3.5 h-3.5 text-amber-600" />
+                      <span>String Box (Opcional)</span>
+                    </Label>
+                    {stringBox && (
+                      <span className="text-[11px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
+                        {formatarRotuloStringBox(stringBox)}
+                      </span>
                     )}
-                  </Label>
-                  <Input
-                    id="potencia"
-                    type="number"
-                    step="0.01"
-                    min="0.1"
-                    required
-                    value={potenciaKw}
-                    onChange={(e) => setPotenciaKw(e.target.value)}
-                    placeholder="5.5"
-                    className="h-9.5 text-sm font-semibold border-slate-200"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="custo" className="text-xs font-semibold text-slate-700">
-                    Preço de Custo (R$) *
-                  </Label>
-                  <Input
-                    id="custo"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    value={custo}
-                    onChange={(e) => handleCustoChange(e.target.value)}
-                    placeholder="15000"
-                    className="h-9.5 text-sm font-semibold border-slate-200 font-mono-numbers"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="margem" className="text-xs font-semibold text-slate-700">
-                    Margem (%) *
-                  </Label>
-                  <Input
-                    id="margem"
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="99"
-                    required
-                    value={margem}
-                    onChange={(e) => handleMargemChange(e.target.value)}
-                    placeholder="30"
-                    className="h-9.5 text-sm font-semibold border-slate-200 font-mono-numbers"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label
-                    htmlFor="precoVendaInput"
-                    className="text-xs font-semibold text-slate-700 flex items-center justify-between"
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-snug">
+                    Proteção CC com DPS e disjuntor:
+                  </p>
+                  <select
+                    id="kitStringBox"
+                    value={stringBox}
+                    onChange={(e) => {
+                      const novoSb = e.target.value
+                      setStringBox(novoSb)
+                      if (isQuickMode && !editingKit && !isCloning) {
+                        setDescricao(
+                          sugerirDescricaoTecnica({
+                            qtdPaineis,
+                            potenciaPainelW,
+                            marcaPaineis,
+                            qtdInversores,
+                            marcaInversor,
+                            potenciaInversorKw,
+                            kwp: quickKwpInfo.kwp,
+                            stringBox: novoSb,
+                            tipoEstrutura,
+                          }),
+                        )
+                      }
+                    }}
+                    className="w-full h-9.5 px-3 text-xs sm:text-sm bg-white border border-slate-200 rounded-lg text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
                   >
-                    <span>Preço de Venda (R$) *</span>
-                    <span className="text-[10px] text-[#0B7A5B] font-semibold">Editável</span>
-                  </Label>
-                  <Input
-                    id="precoVendaInput"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    required
-                    value={precoVenda}
-                    onChange={(e) => handlePrecoVendaChange(e.target.value)}
-                    placeholder="21428.57"
-                    className="h-9.5 text-sm font-bold border-emerald-300 text-[#0B7A5B] focus-visible:ring-[#0B7A5B] font-mono-numbers"
-                  />
+                    <option value="">Sem string box</option>
+                    <option value="1_entrada">1 entrada (1E / 1S)</option>
+                    <option value="2_entradas">2 entradas (2E / 2S)</option>
+                    <option value="3_entradas">3 entradas (3E / 3S)</option>
+                  </select>
                 </div>
               </div>
-
-              {/* Interactive Live Price Preview Box & Painel de Margem Real do Negócio */}
-              {(() => {
-                const margemInfo = calcularMargemReal(livePriceCalculated, custo)
-                return (
-                  <div className="p-3.5 rounded-xl bg-gradient-to-br from-emerald-50/80 via-white to-slate-50 border border-emerald-200 space-y-3 shadow-2xs">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
-                        <Sun className="w-4 h-4 text-emerald-700" />
-                        Preço de Venda Atual do Kit:
-                      </span>
-                      <span className="text-2xl font-extrabold text-[#0B7A5B] font-mono-numbers">
-                        {formatBRL(livePriceCalculated)}
-                      </span>
-                    </div>
-
-                    {/* Painel de Margem Real do Negócio (v0.0.72) com semáforo oficial */}
-                    <div className="p-3 rounded-lg bg-white border border-emerald-200/90 shadow-2xs space-y-2">
-                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                          <Calculator className="w-3.5 h-3.5 text-[#0B7A5B]" />
-                          Margem Real do Negócio (Semáforo de Saúde)
-                        </span>
-                        <Badge
-                          className={`text-[10px] px-2 py-0.5 font-bold border ${margemInfo.status.badgeClass}`}
+              {/* Campos Principais do Kit (pré-preenchidos ou editáveis) */}
+              <div className="space-y-3.5 pt-1">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="kitNome" className="text-xs font-semibold text-slate-700">
+                      Nome Comercial do Kit *
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      {tipoEstrutura && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const comEstrutura = aplicarEstruturaAoNomeKit(nome, tipoEstrutura)
+                            if (comEstrutura) setNome(comEstrutura)
+                          }}
+                          className="text-[11px] text-blue-700 hover:text-blue-900 hover:underline font-medium"
+                          title="Inclui o tipo de estrutura atual ao nome do kit"
                         >
-                          {margemInfo.status.label}
-                        </Badge>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-2 text-center sm:text-left">
-                        <div>
-                          <span className="text-[10px] text-slate-500 block uppercase font-medium">
-                            Custo Base
-                          </span>
-                          <span className="text-xs sm:text-sm font-bold text-slate-800 font-mono-numbers">
-                            {formatBRL(Number(custo) || 0)}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-500 block uppercase font-medium">
-                            Preço de Venda
-                          </span>
-                          <span className="text-xs sm:text-sm font-bold text-slate-900 font-mono-numbers">
-                            {formatBRL(livePriceCalculated)}
-                          </span>
-                        </div>
-                        <div className="sm:text-right">
-                          <span className="text-[10px] text-slate-500 block uppercase font-medium">
-                            Lucro Bruto (R$ e %)
-                          </span>
-                          <span
-                            className={`text-xs sm:text-sm font-extrabold font-mono-numbers block ${
-                              margemInfo.isSaudavel
-                                ? 'text-emerald-700'
-                                : margemInfo.isApertada
-                                  ? 'text-amber-700'
-                                  : 'text-rose-700'
-                            }`}
-                          >
-                            {margemInfo.formatado}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-[11px] text-slate-500">
-                      <span>
-                        Custo e preço de venda são 100% editáveis com recálculo automático da
-                        margem.
-                      </span>
-                      <span className="hidden sm:inline font-mono text-[10px] text-emerald-800 bg-emerald-100/70 px-1.5 py-0.5 rounded">
-                        Margem = (Venda − Custo) ÷ Venda
-                      </span>
+                          + Incluir estrutura no nome
+                        </button>
+                      )}
+                      {isQuickMode && suggestedName && nome !== suggestedName && (
+                        <button
+                          type="button"
+                          onClick={() => setNome(suggestedName)}
+                          className="text-[11px] text-[#0B7A5B] hover:underline"
+                        >
+                          Usar sugestão: &quot;{suggestedName}&quot;
+                        </button>
+                      )}
                     </div>
                   </div>
-                )
-              })()}
+                  <Input
+                    id="kitNome"
+                    required
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    placeholder="Ex: Kit Solar 6,1 kWp — Canadian Solar + Growatt — Fibrocimento"
+                    className="h-9.5 text-sm border-slate-200 focus-visible:ring-[#0B7A5B]"
+                  />
+                </div>
 
-              <div className="space-y-1">
-                <Label htmlFor="kitDesc" className="text-xs font-semibold text-slate-700">
-                  Descrição e Componentes
-                </Label>
-                <Textarea
-                  id="kitDesc"
-                  rows={2}
-                  value={descricao}
-                  onChange={(e) => setDescricao(e.target.value)}
-                  placeholder="Ex: 10 painéis bifaciais 610Wp + Inversor com garantia..."
-                  className="text-xs border-slate-200 font-sans"
-                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="kitFab" className="text-xs font-semibold text-slate-700">
+                      Fabricante / Marcas
+                    </Label>
+                    <Input
+                      id="kitFab"
+                      value={fabricante}
+                      onChange={(e) => setFabricante(e.target.value)}
+                      placeholder="Ex: Canadian Solar / Growatt"
+                      className="h-9.5 text-sm border-slate-200"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="kitCat" className="text-xs font-semibold text-slate-700">
+                      Categoria *
+                    </Label>
+                    <select
+                      id="kitCat"
+                      value={categoria}
+                      onChange={(e) => setCategoria(e.target.value as KitCategoria)}
+                      className="w-full h-9.5 px-3 text-sm bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
+                    >
+                      {CATEGORIAS.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Valores Comerciais: Potência, Custo, Margem e Preço de Venda Totalmente Editáveis */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor="potencia"
+                      className="text-xs font-semibold text-slate-700 flex items-center justify-between"
+                    >
+                      <span>Potência (kWp) *</span>
+                      {isQuickMode && (
+                        <span className="text-[10px] text-emerald-600 font-normal">Auto</span>
+                      )}
+                    </Label>
+                    <Input
+                      id="potencia"
+                      type="number"
+                      step="0.01"
+                      min="0.1"
+                      required
+                      value={potenciaKw}
+                      onChange={(e) => setPotenciaKw(e.target.value)}
+                      placeholder="5.5"
+                      className="h-9.5 text-sm font-semibold border-slate-200"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="custo" className="text-xs font-semibold text-slate-700">
+                      Preço de Custo (R$) *
+                    </Label>
+                    <Input
+                      id="custo"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      value={custo}
+                      onChange={(e) => handleCustoChange(e.target.value)}
+                      placeholder="15000"
+                      className="h-9.5 text-sm font-semibold border-slate-200 font-mono-numbers"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="margem" className="text-xs font-semibold text-slate-700">
+                      Margem (%) *
+                    </Label>
+                    <Input
+                      id="margem"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="99"
+                      required
+                      value={margem}
+                      onChange={(e) => handleMargemChange(e.target.value)}
+                      placeholder="30"
+                      className="h-9.5 text-sm font-semibold border-slate-200 font-mono-numbers"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor="precoVendaInput"
+                      className="text-xs font-semibold text-slate-700 flex items-center justify-between"
+                    >
+                      <span>Preço de Venda (R$) *</span>
+                      <span className="text-[10px] text-[#0B7A5B] font-semibold">Editável</span>
+                    </Label>
+                    <Input
+                      id="precoVendaInput"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      required
+                      value={precoVenda}
+                      onChange={(e) => handlePrecoVendaChange(e.target.value)}
+                      placeholder="21428.57"
+                      className="h-9.5 text-sm font-bold border-emerald-300 text-[#0B7A5B] focus-visible:ring-[#0B7A5B] font-mono-numbers"
+                    />
+                  </div>
+                </div>
+
+                {/* Interactive Live Price Preview Box & Painel de Margem Real do Negócio */}
+                {(() => {
+                  const margemInfo = calcularMargemReal(livePriceCalculated, custo)
+                  return (
+                    <div className="p-3.5 rounded-xl bg-gradient-to-br from-emerald-50/80 via-white to-slate-50 border border-emerald-200 space-y-3 shadow-2xs">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                          <Sun className="w-4 h-4 text-emerald-700" />
+                          Preço de Venda Atual do Kit:
+                        </span>
+                        <span className="text-2xl font-extrabold text-[#0B7A5B] font-mono-numbers">
+                          {formatBRL(livePriceCalculated)}
+                        </span>
+                      </div>
+
+                      {/* Painel de Margem Real do Negócio (v0.0.72) com semáforo oficial */}
+                      <div className="p-3 rounded-lg bg-white border border-emerald-200/90 shadow-2xs space-y-2">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                            <Calculator className="w-3.5 h-3.5 text-[#0B7A5B]" />
+                            Margem Real do Negócio (Semáforo de Saúde)
+                          </span>
+                          <Badge
+                            className={`text-[10px] px-2 py-0.5 font-bold border ${margemInfo.status.badgeClass}`}
+                          >
+                            {margemInfo.status.label}
+                          </Badge>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 text-center sm:text-left">
+                          <div>
+                            <span className="text-[10px] text-slate-500 block uppercase font-medium">
+                              Custo Base
+                            </span>
+                            <span className="text-xs sm:text-sm font-bold text-slate-800 font-mono-numbers">
+                              {formatBRL(Number(custo) || 0)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-500 block uppercase font-medium">
+                              Preço de Venda
+                            </span>
+                            <span className="text-xs sm:text-sm font-bold text-slate-900 font-mono-numbers">
+                              {formatBRL(livePriceCalculated)}
+                            </span>
+                          </div>
+                          <div className="sm:text-right">
+                            <span className="text-[10px] text-slate-500 block uppercase font-medium">
+                              Lucro Bruto (R$ e %)
+                            </span>
+                            <span
+                              className={`text-xs sm:text-sm font-extrabold font-mono-numbers block ${
+                                margemInfo.isSaudavel
+                                  ? 'text-emerald-700'
+                                  : margemInfo.isApertada
+                                    ? 'text-amber-700'
+                                    : 'text-rose-700'
+                              }`}
+                            >
+                              {margemInfo.formatado}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-slate-500">
+                        <span>
+                          Custo e preço de venda são 100% editáveis com recálculo automático da
+                          margem.
+                        </span>
+                        <span className="hidden sm:inline font-mono text-[10px] text-emerald-800 bg-emerald-100/70 px-1.5 py-0.5 rounded">
+                          Margem = (Venda − Custo) ÷ Venda
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                <div className="space-y-1">
+                  <Label htmlFor="kitDesc" className="text-xs font-semibold text-slate-700">
+                    Descrição e Componentes
+                  </Label>
+                  <Textarea
+                    id="kitDesc"
+                    rows={2}
+                    value={descricao}
+                    onChange={(e) => setDescricao(e.target.value)}
+                    placeholder="Ex: 10 painéis bifaciais 610Wp + Inversor com garantia..."
+                    className="text-xs border-slate-200 font-sans"
+                  />
+                </div>
               </div>
-            </div>
 
-            <DialogFooter className="pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsModalOpen(false)}
-                className="text-xs"
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                disabled={submitting}
-                className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold gap-1.5"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Salvando...</span>
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Salvar Kit Solar</span>
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
+              <DialogFooter className="pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsModalOpen(false)}
+                  className="text-xs"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={submitting}
+                  className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold gap-1.5"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Salvando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Salvar Kit Solar</span>
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 
