@@ -5,6 +5,7 @@ export interface GetLeadsParams {
   page?: number
   perPage?: number
   search?: string
+  cidade?: string
   status?: LeadStatus[]
   proprietario?: string
   origem?: string
@@ -17,6 +18,7 @@ export const LeadsService = {
     page = 1,
     perPage = 20,
     search,
+    cidade,
     status,
     proprietario,
     origem,
@@ -27,6 +29,13 @@ export const LeadsService = {
 
     if (search) {
       filterClauses.push(`(nome ~ "${search}" || email ~ "${search}" || telefone ~ "${search}")`)
+    }
+
+    if (cidade && cidade.trim()) {
+      const sanitizedCidade = cidade.trim().replace(/["\\]/g, '')
+      if (sanitizedCidade) {
+        filterClauses.push(`cidade ~ "${sanitizedCidade}"`)
+      }
     }
 
     if (status && status.length > 0) {
@@ -70,6 +79,36 @@ export const LeadsService = {
       sort,
       expand: 'proprietario,qualificado_por',
     })
+  },
+
+  /**
+   * Retorna lista distinta e ordenada de cidades já cadastradas nos leads
+   */
+  async getCidadesCadastradas(): Promise<string[]> {
+    try {
+      const records = await pb.collection('leads').getFullList<{ cidade?: string }>({
+        filter: "cidade != ''",
+        fields: 'cidade',
+      })
+      const map = new Map<string, string>()
+      for (const r of records) {
+        const raw = (r.cidade || '').trim()
+        if (!raw) continue
+        const key = raw
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+        if (!map.has(key)) {
+          map.set(key, raw)
+        }
+      }
+      return Array.from(map.values()).sort((a, b) =>
+        a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }),
+      )
+    } catch (err) {
+      console.error('Erro ao buscar cidades cadastradas:', err)
+      return []
+    }
   },
   async getLeadById(id: string) {
     return await pb.collection('leads').getOne<Lead>(id, {

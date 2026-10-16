@@ -48,6 +48,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { DeleteLeadDialog } from '@/components/DeleteLeadDialog'
+import { CidadeFilterInput } from '@/components/CidadeFilterInput'
 import { toast } from '@/hooks/use-toast'
 
 const ALL_STATUSES: LeadStatus[] = [
@@ -71,6 +72,9 @@ export default function LeadsList() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedStatuses, setSelectedStatuses] = useState<LeadStatus[]>([])
   const [selectedOwner, setSelectedOwner] = useState<string>('all')
+  const [cidadeFilter, setCidadeFilter] = useState('')
+  const [debouncedCidade, setDebouncedCidade] = useState('')
+  const [cidadesCadastradas, setCidadesCadastradas] = useState<string[]>([])
   const [sortBy, setSortBy] = useState<string>('-created')
   const [loading, setLoading] = useState(true)
 
@@ -104,6 +108,29 @@ export default function LeadsList() {
     return () => clearTimeout(timer)
   }, [search])
 
+  // Debounce filtro de cidade
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedCidade(cidadeFilter)
+      setPage(1)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [cidadeFilter])
+
+  // Carrega cidades cadastradas distintas para sugestão
+  const refreshCidadesCadastradas = useCallback(async () => {
+    try {
+      const lista = await LeadsService.getCidadesCadastradas()
+      setCidadesCadastradas(lista)
+    } catch (err) {
+      console.error('Erro ao carregar lista de cidades:', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    refreshCidadesCadastradas()
+  }, [refreshCidadesCadastradas])
+
   // Load team members for owner filter (apenas ativos para novos filtros)
   useEffect(() => {
     if (isAdmin) {
@@ -131,6 +158,7 @@ export default function LeadsList() {
         page,
         perPage: 20,
         search: debouncedSearch,
+        cidade: debouncedCidade.trim() || undefined,
         proprietario: selectedOwner !== 'all' ? selectedOwner : undefined,
         sort: sortBy,
       }
@@ -164,6 +192,7 @@ export default function LeadsList() {
   }, [
     page,
     debouncedSearch,
+    debouncedCidade,
     selectedStatuses,
     selectedOwner,
     sortBy,
@@ -179,6 +208,7 @@ export default function LeadsList() {
   useRealtime<Lead>('leads', () => {
     fetchLeads()
     refreshCounterAguardando()
+    refreshCidadesCadastradas()
   })
 
   // Ação de Qualificar lead
@@ -249,6 +279,8 @@ export default function LeadsList() {
   const resetFilters = () => {
     setSearch('')
     setDebouncedSearch('')
+    setCidadeFilter('')
+    setDebouncedCidade('')
     setSelectedStatuses([])
     setSelectedOwner('all')
     setSortBy('-created')
@@ -400,21 +432,31 @@ export default function LeadsList() {
 
       {/* Search & Filter Bar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-3.5">
-        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-          {/* Search Input */}
-          <div className="relative flex-1">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-stretch md:items-center">
+          {/* Search Input (Nome, e-mail, telefone) */}
+          <div className="relative md:col-span-4">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por nome ou e-mail..."
+              placeholder="Buscar por nome, e-mail ou telefone..."
               className="pl-9 h-10 text-sm border-slate-200 focus-visible:ring-[#0B7A5B]"
             />
           </div>
 
+          {/* Filtro de Cidade com Autocomplete */}
+          <div className="md:col-span-3">
+            <CidadeFilterInput
+              value={cidadeFilter}
+              onChange={setCidadeFilter}
+              cidadesCadastradas={cidadesCadastradas}
+              placeholder="Filtrar por cidade..."
+            />
+          </div>
+
           {/* Owner Filter (if Admin) */}
-          {isAdmin && (
-            <div className="w-full md:w-52">
+          {isAdmin ? (
+            <div className="md:col-span-2">
               <select
                 value={selectedOwner}
                 onChange={(e) => {
@@ -423,7 +465,7 @@ export default function LeadsList() {
                 }}
                 className="w-full h-10 px-3 text-sm bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B7A5B]"
               >
-                <option value="all">Todos os Proprietários</option>
+                <option value="all">Todos Vendedores</option>
                 {teamMembers.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name || m.email}
@@ -431,10 +473,10 @@ export default function LeadsList() {
                 ))}
               </select>
             </div>
-          )}
+          ) : null}
 
           {/* Sort By */}
-          <div className="w-full md:w-52">
+          <div className={isAdmin ? 'md:col-span-2' : 'md:col-span-3'}>
             <select
               value={sortBy}
               onChange={(e) => {
@@ -452,18 +494,27 @@ export default function LeadsList() {
           </div>
 
           {/* Reset Filters */}
-          {(debouncedSearch || selectedStatuses.length > 0 || selectedOwner !== 'all') && (
-            <Button
-              variant="outline"
-              onClick={resetFilters}
-              className="h-10 text-xs font-semibold text-slate-600 gap-1.5 border-dashed border-slate-300"
+          {(debouncedSearch ||
+            debouncedCidade ||
+            selectedStatuses.length > 0 ||
+            selectedOwner !== 'all') && (
+            <div
+              className={
+                isAdmin ? 'md:col-span-1 flex justify-end' : 'md:col-span-2 flex justify-end'
+              }
             >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Limpar filtros</span>
-            </Button>
+              <Button
+                variant="outline"
+                onClick={resetFilters}
+                className="w-full md:w-auto h-10 text-xs font-semibold text-slate-600 gap-1.5 border-dashed border-slate-300"
+                title="Limpar todos os filtros"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span className="md:hidden lg:inline">Limpar</span>
+              </Button>
+            </div>
           )}
         </div>
-
         {/* Status Multi-select Chips (apenas no Funil) */}
         {tabView === 'funil' && (
           <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100">
@@ -526,15 +577,21 @@ export default function LeadsList() {
               <FolderOpen className="w-8 h-8" />
             </div>
             <h3 className="text-base font-bold text-slate-800">
-              {debouncedSearch || selectedStatuses.length > 0 || selectedOwner !== 'all'
+              {debouncedSearch ||
+              debouncedCidade ||
+              selectedStatuses.length > 0 ||
+              selectedOwner !== 'all'
                 ? 'Nenhum lead encontrado'
                 : 'Nenhum lead ainda'}
             </h3>
             <p className="text-xs text-slate-500 max-w-sm mt-1 mb-4">
-              {debouncedSearch || selectedStatuses.length > 0 || selectedOwner !== 'all'
+              {debouncedSearch ||
+              debouncedCidade ||
+              selectedStatuses.length > 0 ||
+              selectedOwner !== 'all'
                 ? 'Não encontramos nenhum lead com os filtros aplicados.'
                 : 'Sua carteira de leads está vazia no momento — cadastre o primeiro lead para iniciar seu pipeline comercial.'}
-            </p>
+            </p>{' '}
             <div className="flex items-center gap-2.5">
               <Button
                 variant="outline"
@@ -628,9 +685,15 @@ export default function LeadsList() {
                                 {lead.nome}
                               </span>
                               <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-normal">
-                                {lead.cidade && (
-                                  <span>
-                                    {lead.cidade}/{lead.estado}
+                                {lead.cidade ? (
+                                  <span className="inline-flex items-center gap-1 text-slate-600 font-medium">
+                                    <span className="text-slate-400">📍</span>
+                                    {lead.cidade}
+                                    {lead.estado ? `/${lead.estado}` : ''}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-300 italic text-[10px]">
+                                    Sem cidade
                                   </span>
                                 )}
                                 {lead.tipo_imovel && <span>• {lead.tipo_imovel}</span>}
@@ -867,7 +930,15 @@ export default function LeadsList() {
                         >
                           {lead.nome}
                         </h4>
-                        <p className="text-xs text-slate-500">{lead.email}</p>
+                        <div className="flex items-center gap-1.5 text-xs text-slate-500 flex-wrap">
+                          <span>{lead.email}</span>
+                          {lead.cidade && (
+                            <span className="inline-flex items-center gap-0.5 text-[11px] text-[#0B7A5B] font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                              📍 {lead.cidade}
+                              {lead.estado ? `/${lead.estado}` : ''}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       {isAguardando ? (
                         <Badge
