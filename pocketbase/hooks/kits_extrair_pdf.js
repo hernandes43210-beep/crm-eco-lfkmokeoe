@@ -157,13 +157,19 @@ routerAdd(
     // - gemini-2.0-flash (nova geração do Gemini)
     // - gemini-1.5-flash-latest
     // - gemini-1.5-pro (fallback de alta fidelidade)
+    // Lista de modelos e endpoints candidatos ordenados por compatibilidade e eficiência:
+    // Modelos modernos da família Gemini (3.8-flash, 2.5-flash, 3.6-flash, 2.5-flash-lite, 2.5-pro, 3-flash-preview)
     const candidateEndpoints = [
+      { version: 'v1beta', model: 'gemini-2.5-flash' },
+      { version: 'v1beta', model: 'gemini-3.8-flash' },
+      { version: 'v1beta', model: 'gemini-3.6-flash' },
+      { version: 'v1beta', model: 'gemini-2.5-flash-lite' },
+      { version: 'v1beta', model: 'gemini-2.5-pro' },
+      { version: 'v1beta', model: 'gemini-flash-latest' },
+      { version: 'v1beta', model: 'gemini-3-flash-preview' },
+      { version: 'v1', model: 'gemini-2.5-flash' },
       { version: 'v1beta', model: 'gemini-1.5-flash' },
-      { version: 'v1', model: 'gemini-1.5-flash' },
-      { version: 'v1beta', model: 'gemini-2.0-flash' },
-      { version: 'v1beta', model: 'gemini-1.5-flash-latest' },
       { version: 'v1beta', model: 'gemini-1.5-pro' },
-      { version: 'v1', model: 'gemini-1.5-pro' },
     ]
 
     const generatePayload = {
@@ -325,10 +331,12 @@ routerAdd(
     if (!parsedData || typeof parsedData !== 'object') {
       // NUNCA retorne 404 daqui: 404 induz o frontend e o SDK a achar que a rota /backend/v1/kits/extrair-pdf não existe
       const statusFinal = lastErrorStatus >= 400 && lastErrorStatus !== 404 ? lastErrorStatus : 422
+      const finalMsg =
+        lastErrorMessage ||
+        'Não foi possível ler o PDF — verifique se é uma cotação válida de kit solar com texto legível.'
       return e.json(statusFinal, {
-        error:
-          lastErrorMessage ||
-          'Não foi possível ler o PDF — verifique se é uma cotação válida de kit solar com texto legível.',
+        message: finalMsg,
+        error: finalMsg,
         code: 'EXTRACTION_FAILED',
         model_tried: lastModelTried,
       })

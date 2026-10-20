@@ -286,8 +286,32 @@ export function toPortugueseErrorMessage(
       return 'Não foi possível conectar ao servidor. Verifique sua conexão com a internet ou tente novamente em instantes.'
     }
 
+    // Verifica se a resposta traz uma mensagem explícita do backend em error, message ou response.data
+    const responseObj = (pbErr.response || {}) as Record<string, unknown>
+    const dataObj = (pbErr.data || responseObj.data || {}) as Record<string, unknown>
+    const directErrorMsg =
+      (typeof responseObj.error === 'string' && responseObj.error.trim()) ||
+      (typeof dataObj.error === 'string' && dataObj.error.trim()) ||
+      (typeof responseObj.message === 'string' &&
+        !responseObj.message.toLowerCase().includes('something went wrong') &&
+        responseObj.message.trim()) ||
+      (typeof dataObj.message === 'string' &&
+        !dataObj.message.toLowerCase().includes('something went wrong') &&
+        dataObj.message.trim())
+
+    // Tratamento de 422 (Unprocessable Entity — retornado por endpoints customizados com mensagem de negócio)
+    if (status === 422) {
+      if (directErrorMsg) {
+        return translateValidationMessage(directErrorMsg)
+      }
+      return fallbackMsg || 'Não foi possível processar as informações fornecidas.'
+    }
+
     // Tratamento de códigos HTTP comuns
     if (status === 401 || status === 403) {
+      if (directErrorMsg) {
+        return translateValidationMessage(directErrorMsg)
+      }
       const msg = pbErr.message?.toLowerCase() || ''
       if (msg.includes('authenticate') || msg.includes('credential') || msg.includes('login')) {
         return 'E-mail ou senha incorretos.'
@@ -295,13 +319,15 @@ export function toPortugueseErrorMessage(
       return 'Você não tem permissão para realizar esta operação.'
     }
     if (status === 404) {
-      const responseData = pbErr.response as any
-      if (responseData && typeof responseData === 'object' && responseData.error) {
-        return translateValidationMessage(responseData.error)
+      if (directErrorMsg) {
+        return translateValidationMessage(directErrorMsg)
       }
       return 'Registro não encontrado ou já excluído.'
     }
     if (status === 400) {
+      if (directErrorMsg) {
+        return translateValidationMessage(directErrorMsg)
+      }
       const originalMsg = pbErr.message || (pbErr.response as any)?.message || ''
       const lower = originalMsg.toLowerCase()
       if (
@@ -322,6 +348,9 @@ export function toPortugueseErrorMessage(
       return 'Verifique os dados informados e tente novamente.'
     }
     if (status && status >= 500) {
+      if (directErrorMsg) {
+        return translateValidationMessage(directErrorMsg)
+      }
       return 'O servidor encontrou uma instabilidade temporária. Tente novamente em instantes.'
     }
   }
