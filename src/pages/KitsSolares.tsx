@@ -21,12 +21,14 @@ import {
   X,
   Share2,
   Image as ImageIcon,
+  FileText,
 } from 'lucide-react'
 import { KitMarketingModal } from '@/components/KitMarketingModal'
 import { KitIaImageModal } from '@/components/KitIaImageModal'
 import { SaudacaoModal } from '@/components/SaudacaoModal'
 import { GeminiImageModal } from '@/components/GeminiImageModal'
 import { PhbSearchSection } from '@/components/PhbSearchSection'
+import { KitPdfImportSection } from '@/components/KitPdfImportSection'
 import type { PhbImportResult } from '@/services/phbSolar'
 import { KitsService } from '@/services/kits'
 import type { Kit, KitCategoria, KitTipoEstrutura } from '@/types/crm'
@@ -110,9 +112,10 @@ export default function KitsSolares() {
   const [stringBox, setStringBox] = useState<string>('')
   const [tipoEstrutura, setTipoEstrutura] = useState<string>('solo_monoposte')
 
-  // Modo do formulário: 'quick' (pré-pronta), 'manual' (completo) ou 'phb' (buscar na PHB Solar)
-  const [activeFormTab, setActiveFormTab] = useState<'quick' | 'manual' | 'phb'>('quick')
+  // Modo do formulário: 'quick' (pré-pronta), 'manual' (completo), 'phb' (buscar na PHB Solar) ou 'pdf' (importar cotação PDF)
+  const [activeFormTab, setActiveFormTab] = useState<'quick' | 'manual' | 'phb' | 'pdf'>('quick')
   const [isPhbImported, setIsPhbImported] = useState(false)
+  const [isPdfImported, setIsPdfImported] = useState(false)
 
   // Modo montagem pré-pronta / rápida
   const [isQuickMode, setIsQuickMode] = useState(true)
@@ -297,6 +300,7 @@ export default function KitsSolares() {
     setIsQuickMode(true)
     setActiveFormTab('quick')
     setIsPhbImported(false)
+    setIsPdfImported(false)
     setQtdPaineis(10)
     setPotenciaPainelW(630)
     setIsCustomPotenciaW(false)
@@ -343,6 +347,7 @@ export default function KitsSolares() {
     setIsQuickMode(true)
     setActiveFormTab('quick')
     setIsPhbImported(false)
+    setIsPdfImported(false)
     setNome(kit.nome)
     setFabricante(kit.fabricante || '')
     setPotenciaKw(kit.potencia_kw)
@@ -434,6 +439,7 @@ export default function KitsSolares() {
     setIsQuickMode(componentes.isPrePronto)
     setActiveFormTab(componentes.isPrePronto ? 'quick' : 'manual')
     setIsPhbImported(false)
+    setIsPdfImported(false)
 
     // Campos preenchidos duplicados do kit original com sufixo "— Cópia"
     const novoNome = gerarNomeKitClonado(kit.nome)
@@ -525,6 +531,84 @@ export default function KitsSolares() {
       title: 'Kit PHB Solar importado!',
       description:
         'Custo, componentes e inversor preenchidos. Revise sua margem e clique em Salvar no Catálogo.',
+    })
+  }
+
+  /**
+   * Recebe os dados extraídos de uma cotação em PDF (ex: Belenus) e pré-preenche o formulário
+   */
+  const handleImportFromPdf = (pdfData: import('@/services/kits').ExtrairPdfCotacaoResult) => {
+    setNome(pdfData.nome)
+    setFabricante(pdfData.fabricante)
+    setPotenciaKw(pdfData.potencia_kwp)
+    setCategoria(pdfData.categoria || 'Residencial')
+    setCusto(pdfData.custo)
+
+    // Constrói descrição detalhada e completa
+    let descFinal = pdfData.descricao || ''
+    if (pdfData.estrutura_detalhe && !descFinal.includes(pdfData.estrutura_detalhe)) {
+      descFinal = descFinal
+        ? `${descFinal}\nArranjo/Estrutura: ${pdfData.estrutura_detalhe}`
+        : `Arranjo/Estrutura: ${pdfData.estrutura_detalhe}`
+    }
+    if (pdfData.frete > 0) {
+      descFinal = `${descFinal}\nFrete: ${formatBRL(pdfData.frete)} incluso no custo.`
+    }
+    setDescricao(descFinal)
+
+    if (pdfData.tipo_estrutura) {
+      setTipoEstrutura(pdfData.tipo_estrutura)
+    }
+    if (pdfData.string_box) {
+      setStringBox(pdfData.string_box)
+    }
+
+    if (pdfData.qtd_paineis > 0) {
+      setQtdPaineis(pdfData.qtd_paineis)
+    }
+    if (pdfData.potencia_painel_w > 0) {
+      setPotenciaPainelW(pdfData.potencia_painel_w)
+      setIsCustomPotenciaW(
+        !(POTENCIAS_COMUNS_PAINEIS as readonly number[]).includes(pdfData.potencia_painel_w),
+      )
+    }
+    if (pdfData.marca_painel) {
+      setMarcaPaineis(pdfData.marca_painel)
+      setIsCustomMarcaPainel(
+        !(MARCAS_PAINEIS_SUGERIDAS as readonly string[]).includes(pdfData.marca_painel),
+      )
+    }
+
+    if (pdfData.qtd_inversores > 0) {
+      setQtdInversores(pdfData.qtd_inversores)
+    }
+    if (pdfData.marca_inversor) {
+      setMarcaInversor(pdfData.marca_inversor)
+      setIsCustomMarcaInversor(
+        !(MARCAS_INVERSORES_SUGERIDAS as readonly string[]).includes(pdfData.marca_inversor),
+      )
+    }
+    if (pdfData.potencia_inversor_kw > 0) {
+      setPotenciaInversorKw(pdfData.potencia_inversor_kw)
+      setIsCustomPotenciaInversorKw(
+        !(POTENCIAS_COMUNS_INVERSORES as readonly number[]).includes(pdfData.potencia_inversor_kw),
+      )
+    }
+
+    // Calcula preço de venda com base na margem atual (padrão 30%)
+    const numMargem = parseFloat(String(margem)) || 30
+    if (pdfData.custo > 0 && numMargem < 100) {
+      const vendaCalc = Math.round((pdfData.custo / (1 - numMargem / 100)) * 100) / 100
+      setPrecoVenda(vendaCalc)
+    }
+
+    setIsPdfImported(true)
+    setIsQuickMode(false)
+    setActiveFormTab('manual')
+
+    toast({
+      title: 'Cotação em PDF importada com sucesso!',
+      description: `Kit "${pdfData.nome}" pré-preenchido com custo de ${formatBRL(pdfData.custo)}. Revise sua margem e salve.`,
     })
   }
 
@@ -1104,21 +1188,35 @@ export default function KitsSolares() {
             </DialogDescription>
           </DialogHeader>
 
-          {/* Abas do Formulário: Buscar na PHB Solar, Montagem Pré-Pronta e Modo Completo */}
-          <div className="flex items-center justify-between p-1 bg-slate-100 rounded-lg border border-slate-200/80 gap-1">
+          {/* Abas do Formulário: Importar PDF Cotação, Buscar na PHB Solar, Montagem Rápida e Modo Completo */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 p-1 bg-slate-100 rounded-lg border border-slate-200/80 gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveFormTab('pdf')
+              }}
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                activeFormTab === 'pdf'
+                  ? 'bg-purple-600 text-white shadow-xs font-bold'
+                  : 'text-slate-700 hover:text-purple-700 hover:bg-purple-50/70'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">Cotação PDF (IA)</span>
+            </button>
             <button
               type="button"
               onClick={() => {
                 setActiveFormTab('phb')
               }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-md text-xs font-semibold transition-all ${
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                 activeFormTab === 'phb'
                   ? 'bg-amber-500 text-slate-950 shadow-xs font-bold'
                   : 'text-slate-700 hover:text-amber-700 hover:bg-amber-50/60'
               }`}
             >
               <Zap className="w-3.5 h-3.5 text-amber-900 shrink-0" />
-              <span>Buscar na PHB Solar</span>
+              <span className="truncate">PHB Solar</span>
             </button>
             <button
               type="button"
@@ -1126,14 +1224,14 @@ export default function KitsSolares() {
                 setActiveFormTab('quick')
                 setIsQuickMode(true)
               }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-md text-xs font-semibold transition-all ${
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                 activeFormTab === 'quick'
                   ? 'bg-white text-[#0B7A5B] shadow-xs border border-slate-200/70'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <span>Montagem Rápida</span>
+              <span className="truncate">Rápida</span>
             </button>
             <button
               type="button"
@@ -1141,18 +1239,18 @@ export default function KitsSolares() {
                 setActiveFormTab('manual')
                 setIsQuickMode(false)
               }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-md text-xs font-semibold transition-all ${
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                 activeFormTab === 'manual'
                   ? 'bg-white text-[#0B7A5B] shadow-xs border border-slate-200/70'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
-              <span>Manual / Revisão</span>
-              {isPhbImported && (
+              <span className="truncate">Revisão</span>
+              {(isPhbImported || isPdfImported) && (
                 <span
                   className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"
-                  title="Dados importados da PHB"
+                  title={isPdfImported ? 'Dados importados do PDF' : 'Dados importados da PHB'}
                 />
               )}
             </button>
@@ -1165,7 +1263,18 @@ export default function KitsSolares() {
             </div>
           )}
 
-          {/* Seção 1: Buscar na PHB Solar */}
+          {/* Seção 1: Importar Cotação PDF com IA */}
+          {activeFormTab === 'pdf' && (
+            <KitPdfImportSection
+              onApplyExtractedData={handleImportFromPdf}
+              onCancel={() => {
+                setActiveFormTab('quick')
+                setIsQuickMode(true)
+              }}
+            />
+          )}
+
+          {/* Seção 2: Buscar na PHB Solar */}
           {activeFormTab === 'phb' && (
             <PhbSearchSection
               onImportKit={handleImportFromPhb}
@@ -1176,8 +1285,8 @@ export default function KitsSolares() {
             />
           )}
 
-          {/* Seção 2: Formulário de Kit (Modo Pré-Pronto ou Modo Completo / Pós-Importação PHB) */}
-          {activeFormTab !== 'phb' && (
+          {/* Seção 3: Formulário de Kit (Modo Pré-Pronto ou Modo Completo / Pós-Importação PHB ou PDF) */}
+          {activeFormTab !== 'phb' && activeFormTab !== 'pdf' && (
             <form onSubmit={handleSaveKit} className="space-y-4">
               {/* Bloco de Montagem Pré-Pronta */}
               {isQuickMode && (
