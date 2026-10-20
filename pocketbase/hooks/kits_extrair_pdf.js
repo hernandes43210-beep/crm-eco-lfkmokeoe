@@ -59,62 +59,35 @@ routerAdd(
     let nomeArquivo = 'cotacao.pdf'
     let tamanhoBytes = 0
 
-    // 3.1 Tentativa via multipart (findUploadedFiles)
-    let uploadedFiles = []
-    try {
-      uploadedFiles = e.findUploadedFiles('arquivo')
-      if (!uploadedFiles || uploadedFiles.length === 0) {
-        uploadedFiles = e.findUploadedFiles('pdf')
-      }
-      if (!uploadedFiles || uploadedFiles.length === 0) {
-        uploadedFiles = e.findUploadedFiles('file')
-      }
-    } catch (_) {}
+    // 3. Obtenção do conteúdo em PDF (base64) a partir do corpo JSON da requisição
+    const reqInfo = e.requestInfo() || {}
+    const body = reqInfo.body || {}
+    const rawBase64 = (body.pdf_base64 || body.base64 || body.arquivo_base64 || '').trim()
 
-    if (uploadedFiles && uploadedFiles.length > 0) {
-      const fileObj = uploadedFiles[0]
-      nomeArquivo = fileObj.name || nomeArquivo
-
-      // Validação de extensão
-      if (nomeArquivo && !nomeArquivo.toLowerCase().endsWith('.pdf')) {
-        return e.json(400, {
-          error: 'Formato inválido. O arquivo enviado deve ser um PDF (.pdf).',
-          code: 'INVALID_FILE_TYPE',
-        })
-      }
-
-      try {
-        // Leitura de bytes no PocketBase v0.36
-        if (typeof toBytes === 'function') {
-          const rawBytes = toBytes(fileObj)
-          tamanhoBytes = rawBytes.length
-          pdfBase64 = Buffer.from(rawBytes).toString('base64')
-        } else if (typeof $filesystem !== 'undefined' && fileObj.reader) {
-          const r = fileObj.reader.open()
-          const rawBytes = toBytes(r)
-          tamanhoBytes = rawBytes.length
-          pdfBase64 = Buffer.from(rawBytes).toString('base64')
-          try {
-            r.close()
-          } catch (_) {}
-        }
-      } catch (readErr) {
-        console.warn('[extrair-pdf] Erro ao ler bytes do arquivo multipart:', readErr)
+    if (rawBase64) {
+      // Remove eventual prefixo data:application/pdf;base64,
+      pdfBase64 = rawBase64.replace(/^data:[^;]+;base64,/, '').trim()
+      tamanhoBytes = Math.round((pdfBase64.length * 3) / 4)
+      if (body.nome_arquivo) {
+        nomeArquivo = String(body.nome_arquivo)
       }
     }
 
-    // 3.2 Se não veio via multipart ou falhou a conversão, checa o body JSON
+    // Fallback: se não veio via body JSON, tenta verificar se veio multipart
     if (!pdfBase64) {
-      const body = e.requestInfo().body || {}
-      const rawBase64 = (body.pdf_base64 || body.base64 || body.arquivo_base64 || '').trim()
-      if (rawBase64) {
-        // Remove eventual prefixo data:application/pdf;base64,
-        pdfBase64 = rawBase64.replace(/^data:[^;]+;base64,/, '').trim()
-        tamanhoBytes = Math.round((pdfBase64.length * 3) / 4)
-        if (body.nome_arquivo) {
-          nomeArquivo = String(body.nome_arquivo)
+      try {
+        let uploadedFiles = e.findUploadedFiles('arquivo')
+        if (!uploadedFiles || uploadedFiles.length === 0) {
+          uploadedFiles = e.findUploadedFiles('pdf')
         }
-      }
+        if (!uploadedFiles || uploadedFiles.length === 0) {
+          uploadedFiles = e.findUploadedFiles('file')
+        }
+        if (uploadedFiles && uploadedFiles.length > 0) {
+          const fileObj = uploadedFiles[0]
+          nomeArquivo = fileObj.name || nomeArquivo
+        }
+      } catch (_) {}
     }
 
     if (!pdfBase64) {
@@ -179,11 +152,19 @@ routerAdd(
       '5. Responda APENAS o JSON.'
 
     // 6. Chamada aos modelos do Gemini via endpoint oficial generateContent com inlineData PDF
-    // Modelos candidatos recomendados para análise multimodal com suporte nativo a PDF:
-    // - gemini-2.5-flash (modelo padrão atual estável e rápido)
-    // - gemini-2.0-flash
-    // - gemini-1.5-flash
-    const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+    // Modelos candidatos recomendados com suporte nativo a PDF e fallback de versão de API:
+    // - gemini-1.5-flash (padrão multimodal estável e rápido para documentos)
+    // - gemini-2.0-flash (nova geração do Gemini)
+    // - gemini-1.5-flash-latest
+    // - gemini-1.5-pro (fallback de alta fidelidade)
+    const candidateEndpoints = [
+      { version: 'v1beta', model: 'gemini-1.5-flash' },
+      { version: 'v1', model: 'gemini-1.5-flash' },
+      { version: 'v1beta', model: 'gemini-2.0-flash' },
+      { version: 'v1beta', model: 'gemini-1.5-flash-latest' },
+      { version: 'v1beta', model: 'gemini-1.5-pro' },
+      { version: 'v1', model: 'gemini-1.5-pro' },
+    ]
 
     const generatePayload = {
       contents: [
@@ -211,11 +192,16 @@ routerAdd(
     let lastModelTried = ''
     let rawAiText = ''
 
-    for (let i = 0; i < candidateModels.length; i++) {
-      const modelName = candidateModels[i]
+    for (let i = 0; i < candidateEndpoints.length; i++) {
+      const ep = candidateEndpoints[i]
+      const modelName = ep.model
       lastModelTried = modelName
       const apiUrl =
-        'https://generativelanguage.googleapis.com/v1beta/models/' + modelName + ':generateContent'
+        'https://generativelanguage.googleapis.com/' +
+        ep.version +
+        '/models/' +
+        modelName +
+        ':generateContent'
 
       let httpRes = null
       try {
@@ -234,6 +220,7 @@ routerAdd(
         lastErrorMessage =
           'Falha na comunicação com o servidor do Google Gemini: ' +
           (httpErr && httpErr.message ? httpErr.message : 'tempo limite esgotado.')
+        console.warn('[kits_extrair_pdf] Erro de rede ao chamar ' + apiUrl + ':', httpErr)
         continue
       }
 
@@ -275,9 +262,18 @@ routerAdd(
         .replace(/AQ\.[A-Za-z0-9_-]+/g, '[CHAVE_PROTEGIDA]')
         .replace(/AIza[A-Za-z0-9_-]+/g, '[CHAVE_PROTEGIDA]')
 
+      console.warn(
+        '[kits_extrair_pdf] Erro ao chamar ' +
+          apiUrl +
+          ' (status ' +
+          httpRes.statusCode +
+          '): ' +
+          apiMsg,
+      )
+
       if (httpRes.statusCode === 401 || httpRes.statusCode === 403) {
         lastErrorMessage =
-          'Falha de autenticação com a API do Google Gemini. Verifique a chave configurada em Configurações > Integrações.'
+          'Falha de autenticação com a API do Google Gemini. Verifique se a chave configurada em Configurações > Integrações é válida.'
         break
       }
 
@@ -288,7 +284,11 @@ routerAdd(
       }
 
       if (httpRes.statusCode === 404) {
-        // Modelo indisponível na chave, tenta o próximo candidato
+        // Modelo ou versão indisponível na chave, tenta o próximo endpoint candidato
+        lastErrorMessage =
+          'O modelo de IA (' +
+          modelName +
+          ') não está disponível nesta versão da API do Google Gemini.'
         continue
       }
 
@@ -323,7 +323,9 @@ routerAdd(
 
     // 8. Se o Gemini falhou ou não conseguiu parsear o JSON
     if (!parsedData || typeof parsedData !== 'object') {
-      return e.json(lastErrorStatus >= 400 ? lastErrorStatus : 422, {
+      // NUNCA retorne 404 daqui: 404 induz o frontend e o SDK a achar que a rota /backend/v1/kits/extrair-pdf não existe
+      const statusFinal = lastErrorStatus >= 400 && lastErrorStatus !== 404 ? lastErrorStatus : 422
+      return e.json(statusFinal, {
         error:
           lastErrorMessage ||
           'Não foi possível ler o PDF — verifique se é uma cotação válida de kit solar com texto legível.',

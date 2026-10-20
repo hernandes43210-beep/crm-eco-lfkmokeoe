@@ -295,6 +295,10 @@ export function toPortugueseErrorMessage(
       return 'Você não tem permissão para realizar esta operação.'
     }
     if (status === 404) {
+      const responseData = pbErr.response as any
+      if (responseData && typeof responseData === 'object' && responseData.error) {
+        return translateValidationMessage(responseData.error)
+      }
       return 'Registro não encontrado ou já excluído.'
     }
     if (status === 400) {

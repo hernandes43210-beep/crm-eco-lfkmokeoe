@@ -101,7 +101,7 @@ export function KitPdfImportSection({ onApplyExtractedData, onCancel }: KitPdfIm
       console.error('Erro ao extrair PDF de cotação:', err)
       const msg = toPortugueseErrorMessage(
         err,
-        'Não foi possível extrair as informações do PDF. Verifique se é uma cotação solar válida.',
+        'Não foi possível extrair as informações do PDF. Verifique se é uma cotação solar válida com texto legível.',
       )
       setErrorMessage(msg)
     } finally {
