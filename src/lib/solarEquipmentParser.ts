@@ -13,6 +13,92 @@ export interface SolarEquipmentExtracted {
   potenciaDisplay: string
   economiaMensal?: number
   economiaDisplay: string
+  inversorPotenciaKw?: number
+}
+
+/**
+ * Extrai a potência nominal do inversor em kW a partir de texto (descrição, modelo ou fabricante).
+ * Trata:
+ * - Padrões explícitos: "5 kW", "5.0 kW", "7,5 kW", "10KW" (vírgula e ponto decimal)
+ * - Modelos com KTL/RT/RS/K: SG5KTL-MT, SG5.0RT, SUN2000-5KTL-L1, MAC 50KTL3-X, MID 20KTL, SOFAR 5KTL, DEYE 5K
+ * - Modelos em watts: SUN2000-5000, Growatt 5000, MIC 3000TL-X, MIN 5000TL-X, 5000W (divide por 1000 quando entre 1000 e 100000)
+ * NUNCA retorna potência do kit.
+ */
+export function extrairPotenciaInversorTexto(texto?: string | null): number | undefined {
+  if (!texto) return undefined
+  const raw = String(texto).trim()
+  if (!raw) return undefined
+
+  // 1. Padrão explícito em kW: "5 kW", "5.0 kW", "7,5 kW", "10KW", "7.5kW"
+  const matchKw = raw.match(/(?:^|[^\w.,])(\d+(?:[.,]\d+)?)\s*k\s*w(?!\w)/i)
+  if (matchKw) {
+    const val = parseFloat(matchKw[1].replace(',', '.'))
+    if (!isNaN(val) && val > 0 && val <= 500) {
+      return val
+    }
+  }
+
+  // 2. Modelos com KTL, RT ou RS grudados no número:
+  // Ex: SG5KTL, SG5.0RT, SG10RT, SUN2000-5KTL-L1, SUN2000-10KTL, MAC 50KTL3-X, MID 20KTL3-X, SOFAR 5KTLM
+  const matchKtl = raw.match(
+    /(?:^|[^\d,.-])(\d+(?:[.,]\d+)?)\s*(?:KTL[A-Za-z0-9_-]*|RT[A-Za-z0-9_-]*|RS[A-Za-z0-9_-]*)/i,
+  )
+  if (matchKtl) {
+    const val = parseFloat(matchKtl[1].replace(',', '.'))
+    if (!isNaN(val) && val > 0 && val <= 500) {
+      return val
+    }
+  }
+
+  // Modelos com K isolado ou antes de delimitador (ex: SUN-5K, DEYE 5K, FOX 5K, SG5K)
+  const matchK = raw.match(/(?:^|[^\d,.-])(\d+(?:[.,]\d+)?)\s*K(?=[-_/\s]|$)(?![A-Za-z0-9])/i)
+  if (matchK) {
+    const val = parseFloat(matchK[1].replace(',', '.'))
+    if (!isNaN(val) && val > 0 && val <= 500) {
+      return val
+    }
+  }
+
+  // 3. Padrões em watts com sufixo TL: MIC 3000TL-X, MIN 5000TL-X (3000 -> 3 kW, 5000 -> 5 kW)
+  const matchTl = raw.match(/(?:^|[^\d,.-])(\d{4,5})\s*TL/i)
+  if (matchTl) {
+    const num = parseInt(matchTl[1], 10)
+    if (num >= 1000 && num <= 100000) {
+      return num / 1000
+    }
+  }
+
+  // Watts explícitos em inversor: 5000W, 3000 W
+  const matchWatts = raw.match(/(?:^|[^\d,.-])(\d{4,5})\s*W\b/i)
+  if (matchWatts) {
+    const num = parseInt(matchWatts[1], 10)
+    if (num >= 1000 && num <= 100000) {
+      return num / 1000
+    }
+  }
+
+  // Marca seguida de número de watts: Growatt 5000, SUN2000-5000, PHB 3000
+  const matchBrandWatts = raw.match(
+    /(?:SUN2000[-_\s]+|GROWATT[-_\s]+|PHB[-_\s]+|DEYE[-_\s]+|SOFAR[-_\s]+)(\d{4,5})\b/i,
+  )
+  if (matchBrandWatts) {
+    const num = parseInt(matchBrandWatts[1], 10)
+    if (num >= 1000 && num <= 100000) {
+      return num / 1000
+    }
+  }
+
+  // 4 a 5 dígitos genéricos em texto de inversor (excluindo voltagem como 1000V e o prefixo SUN2000)
+  const matchGenericWatts = raw.match(/(?:^|[^\d])(\d{4,5})(?!\s*V(?:DC|AC)?\b)/i)
+  if (matchGenericWatts) {
+    const num = parseInt(matchGenericWatts[1], 10)
+    const isSun2000Prefix = /SUN2000/i.test(raw) && num === 2000
+    if (!isSun2000Prefix && num >= 1000 && num <= 100000) {
+      return num / 1000
+    }
+  }
+
+  return undefined
 }
 
 /**
@@ -115,13 +201,16 @@ function extractFromDescription(desc: string): { modulos?: string; inversor?: st
 
     // Identificar inversor
     if (!inversor && (upper.includes('INVERSOR') || upper.includes('MICROINVERSOR'))) {
-      // Ex: INVERSOR DE CORRENTE MONOFASICO 3MPPT 220V 10KW SUNGROWINVSG-MO-220V-10KW
-      const potMatch = line.match(/(\d+(?:[.,]\d+)?)\s*(KW|W(?:P)?)/i)
+      // Extração robusta de potência nominal do inversor (kW, KTL, W)
+      const potKw = extrairPotenciaInversorTexto(line)
       let pot = ''
-      if (potMatch) {
-        const val = potMatch[1]
-        const unit = potMatch[2].toUpperCase()
-        pot = unit.startsWith('KW') ? `${val} kW` : `${val} Wp`
+      if (potKw !== undefined) {
+        pot = `${String(potKw).replace('.', ',')} kW`
+      } else {
+        const potMatch = line.match(/(\d+(?:[.,]\d+)?)\s*KW\b/i)
+        if (potMatch) {
+          pot = `${potMatch[1].replace('.', ',')} kW`
+        }
       }
 
       let brand = ''
@@ -138,6 +227,7 @@ function extractFromDescription(desc: string): { modulos?: string; inversor?: st
       else if (/INTELBRAS/i.test(line)) brand = 'Intelbras'
       else if (/PHB/i.test(line)) brand = 'PHB'
       else if (/TSUN/i.test(line)) brand = 'TSUN'
+      else if (/FOX/i.test(line)) brand = 'FoxESS'
 
       if (brand && pot) {
         inversor = `Inversor ${brand} ${pot}`
@@ -353,7 +443,23 @@ export function extractSolarEquipmentFromProposal(
     inversor = `Inversor ${primaryProposal.kit_fabricante}`
   }
 
-  // Potência (kWp)
+  // Resolver potência nominal isolada do inversor (nunca a potência do kit)
+  let resolvedPotInversorKw: number | undefined
+  if (directPotInvKw && Number(directPotInvKw) > 0) {
+    resolvedPotInversorKw = Number(directPotInvKw)
+  } else {
+    // Tenta extrair potência nominal do inversor a partir do texto do inversor ou das descrições
+    const fromInversorText = extrairPotenciaInversorTexto(inversor)
+    const fromDescText = extrairPotenciaInversorTexto(descCandidate)
+    resolvedPotInversorKw = fromInversorText || fromDescText || undefined
+  }
+
+  // Se temos a marca do inversor mas a string do inversor não continha potência e conseguimos extrair:
+  if (inversor && resolvedPotInversorKw && !/\d+(?:[.,]\d+)?\s*kW/i.test(inversor)) {
+    inversor = `${inversor} ${String(resolvedPotInversorKw).replace('.', ',')} kW`
+  }
+
+  // Potência total do gerador/kit (kWp) - NUNCA atribuída ao inversor
   const potVal = primaryProposal?.kit_potencia_kw ?? kitExpanded?.potencia_kw ?? undefined
 
   const potenciaKw = potVal && Number(potVal) > 0 ? Number(potVal) : undefined
@@ -384,5 +490,6 @@ export function extractSolarEquipmentFromProposal(
     potenciaDisplay,
     economiaMensal: economiaCalculada,
     economiaDisplay,
+    inversorPotenciaKw: resolvedPotInversorKw,
   }
 }

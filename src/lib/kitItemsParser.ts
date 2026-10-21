@@ -437,14 +437,51 @@ export function parseKitDetailedItems(params: {
       }
     }
 
-    const potMatch = textToScan.match(/(\d+(?:[.,]\d+)?)\s*(?:KW|kW|KWP|kWp|Wp)\b/i)
-    if (potMatch) {
-      const val = parseFloat(potMatch[1].replace(',', '.'))
-      invPot = formatarPotenciaKw(val)
-    } else if (paramPotenciaInversorKw) {
+    if (paramPotenciaInversorKw && paramPotenciaInversorKw > 0) {
       invPot = formatarPotenciaKw(paramPotenciaInversorKw)
-    } else if (kitPotenciaKw) {
-      invPot = formatarPotenciaKw(kitPotenciaKw)
+    } else {
+      // Extração robusta a partir de texto de inversor (kW, KTL, W) sem pegar módulos nem potência do kit
+      // Procura primeiro linha/trecho com "inversor"
+      const invLines = textToScan
+        .split(/\r?\n/)
+        .filter((l) => /inversor|microinversor|sungrow|growatt|huawei|deye|phb|sofar/i.test(l))
+      let potKwDetected: number | undefined
+      for (const line of invLines) {
+        // Tentar padrão explícito em kW
+        const matchKw =
+          line.match(/(?:inversor[^\n]*?)(\d+(?:[.,]\d+)?)\s*k\s*w(?!\w)/i) ||
+          line.match(/(\d+(?:[.,]\d+)?)\s*k\s*w(?!\w)(?:[^\n]*?inversor)?/i)
+        if (matchKw) {
+          const v = parseFloat(matchKw[1].replace(',', '.'))
+          if (!isNaN(v) && v > 0 && v <= 500) {
+            potKwDetected = v
+            break
+          }
+        }
+        // Tentar KTL
+        const matchKtl = line.match(/(?:^|[^\d,.-])(\d+(?:[.,]\d+)?)\s*(?:KTL|RT|RS)/i)
+        if (matchKtl) {
+          const v = parseFloat(matchKtl[1].replace(',', '.'))
+          if (!isNaN(v) && v > 0 && v <= 500) {
+            potKwDetected = v
+            break
+          }
+        }
+        // Tentar watts (ex: 5000, 3000TL)
+        const matchW = line.match(/(?:^|[^\d])(\d{4,5})\s*(?:TL|W\b)/i)
+        if (matchW) {
+          const num = parseInt(matchW[1], 10)
+          if (num >= 1000 && num <= 100000) {
+            potKwDetected = num / 1000
+            break
+          }
+        }
+      }
+
+      if (potKwDetected !== undefined) {
+        invPot = formatarPotenciaKw(potKwDetected)
+      }
+      // NUNCA usar kitPotenciaKw como fallback da potência do inversor
     }
 
     if (invBrand || invPot) {
@@ -453,7 +490,8 @@ export function parseKitDetailedItems(params: {
         quantidade: 1,
         unidade: 'un',
         nome: 'Inversor Fotovoltaico On-Grid',
-        fabricanteModelo: `${invBrand || 'Inversor Homologado'} ${invPot}`.trim(),
+        fabricanteModelo:
+          `${invBrand || 'Inversor Homologado'}${invPot ? ` ${invPot}` : ''}`.trim(),
         especificacao:
           'Alta eficiência de conversão e conectividade Wi-Fi para monitoramento via smartphone',
         potenciaUnit: invPot || undefined,

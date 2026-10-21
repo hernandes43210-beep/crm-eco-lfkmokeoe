@@ -634,12 +634,7 @@ export function extrairComponentesKit(kit: {
     marcaInversor:
       marcaInversor || (fab ? (fab.split('/')[1] || fab.split('/')[0])?.trim() : '') || 'Sungrow',
     potenciaInversorKw:
-      potInversorKw ||
-      (kit.potencia_inversor_kw
-        ? Number(kit.potencia_inversor_kw)
-        : kit.potencia_kw
-          ? Number(kit.potencia_kw)
-          : undefined),
+      potInversorKw || (kit.potencia_inversor_kw ? Number(kit.potencia_inversor_kw) : undefined),
     stringBox,
     tipoEstrutura,
   }

@@ -228,8 +228,7 @@ export function GerarPropostaModal({
       marcaPaineis: kit.marca_painel || componentes.marcaPaineis || 'TSUN POWER',
       qtdInversores: componentes.qtdInversores || 1,
       marcaInversor: kit.marca_inversor || componentes.marcaInversor || 'Sungrow',
-      potenciaInversorKw:
-        kit.potencia_inversor_kw ?? componentes.potenciaInversorKw ?? (kit.potencia_kw || 7.5),
+      potenciaInversorKw: kit.potencia_inversor_kw ?? componentes.potenciaInversorKw ?? 5,
       tipoEstrutura: kit.tipo_estrutura || componentes.tipoEstrutura || 'fibrocimento',
       stringBox: kit.string_box || componentes.stringBox || '',
     })

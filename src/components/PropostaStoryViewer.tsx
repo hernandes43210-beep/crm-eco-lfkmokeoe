@@ -182,14 +182,21 @@ export function PropostaStoryViewer({
       : proposta.kit_fabricante) ||
     'Homologado INMETRO'
 
-  const potenciaInversorKw =
+  const rawPotenciaInversor =
     (proposta as any)?.kit_potencia_inversor_kw ||
     proposta.kit?.potencia_inversor_kw ||
-    proposta.kit_potencia_kw ||
-    5
+    (inversorItem?.potenciaUnit
+      ? parseFloat(inversorItem.potenciaUnit.replace(/[^\d.,]/g, '').replace(',', '.'))
+      : undefined)
+
+  const potenciaInversorKw =
+    rawPotenciaInversor && !isNaN(rawPotenciaInversor) && rawPotenciaInversor > 0
+      ? rawPotenciaInversor
+      : undefined
 
   const inversorPrincipal =
-    inversorItem?.fabricanteModelo || `${marcaInversor} ${potenciaInversorKw} kW`
+    inversorItem?.fabricanteModelo ||
+    (potenciaInversorKw ? `${marcaInversor} ${potenciaInversorKw} kW` : marcaInversor)
 
   const stringBoxDesc =
     (proposta as any)?.kit_string_box ||
@@ -812,13 +819,15 @@ export function PropostaStoryViewer({
 
                 {/* Potência e Marca em Letras Garrafais */}
                 <div className="my-3 space-y-1">
-                  <div className="text-3xl sm:text-4xl font-black text-white tracking-tight flex items-baseline justify-center gap-2">
+                  <div className="text-3xl sm:text-4xl font-black text-white tracking-tight flex items-baseline justify-center gap-2 flex-wrap">
                     <span className="text-sky-300 text-3xl sm:text-4xl font-mono-numbers">
                       {marcaInversor}
                     </span>
-                    <span className="text-amber-400 text-4xl sm:text-5xl font-mono-numbers">
-                      {potenciaInversorKw} kW
-                    </span>
+                    {potenciaInversorKw ? (
+                      <span className="text-amber-400 text-4xl sm:text-5xl font-mono-numbers">
+                        {potenciaInversorKw} kW
+                      </span>
+                    ) : null}
                   </div>
 
                   <div className="inline-flex items-center gap-2 mt-2 px-3 py-1 rounded-lg bg-blue-500/20 border border-blue-400/40 text-blue-200 text-xs font-bold">
@@ -919,9 +928,13 @@ export function PropostaStoryViewer({
               {/* GUIA AMIGÁVEL: Mascote da Ecosolar dando vida ao inversor */}
               <MascotSpeechBubble
                 titulo="O Mascote Explica:"
-                fala={`O inversor ${marcaInversor} de ${potenciaInversorKw} kW é o maestro da usina! E aqui seu kit é 100% completo e protegido com string box CC (DPS contra surtos), string box AC e cabos solares MC4.`}
+                fala={
+                  potenciaInversorKw
+                    ? `O inversor ${marcaInversor} de ${potenciaInversorKw} kW é o maestro da usina! E aqui seu kit é 100% completo e protegido com string box CC (DPS contra surtos), string box AC e cabos solares MC4.`
+                    : `O inversor ${marcaInversor} é o maestro da usina! E aqui seu kit é 100% completo e protegido com string box CC (DPS contra surtos), string box AC e cabos solares MC4.`
+                }
                 dica="Kit Completo e Protegido: segurança absoluta para seu patrimônio."
-                destaqueBadge={`${potenciaInversorKw} kW`}
+                destaqueBadge={potenciaInversorKw ? `${potenciaInversorKw} kW` : undefined}
                 humor="conselheiro"
               />
             </div>
