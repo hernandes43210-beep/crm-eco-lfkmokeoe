@@ -30,6 +30,7 @@ import { useAuth } from '@/context/AuthContext'
 import type { DocumentoLead, DossieTecnicoEngenharia, HomologacaoLead, User } from '@/types/crm'
 import { CATEGORIAS_DOCUMENTOS, LeadDocumentosService } from '@/services/leadDocumentos'
 import { HomologacaoService } from '@/services/homologacao'
+import { formatarEnderecoCompleto, obterLinkMaps } from '@/utils/formatadorLocalizacao'
 import { KanbanHomologacao } from '@/components/KanbanHomologacao'
 import { EnviarArtModal } from '@/components/EnviarArtModal'
 import { FichaTrabalhoEngenheiroModal } from '@/components/FichaTrabalhoEngenheiroModal'
@@ -984,31 +985,82 @@ export default function MeusDocumentosEngenharia() {
                           </div>
 
                           {/* Card 2: Local & Unidade Consumidora */}
-                          <div className="bg-white p-3 rounded-lg border border-slate-200/90 shadow-2xs space-y-1">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                              Local & Unidade Consumidora
-                            </span>
-                            <p
-                              className="text-xs text-slate-700 leading-snug line-clamp-2"
-                              title={dossie.endereco_instalacao}
-                            >
-                              <MapPin className="w-3 h-3 text-[#0B7A5B] inline mr-1" />
-                              {dossie.endereco_instalacao || lead.cidade || 'Não informado'}
-                            </p>
-                            <div className="pt-0.5 flex flex-wrap items-center gap-1.5 text-[11px]">
-                              <span className="text-slate-500">UC:</span>
-                              <strong className="text-[#0B7A5B] font-mono-numbers">
-                                {dossie.unidade_consumidora || 'Não informada'}
-                              </strong>
+                          <div className="bg-white p-3 rounded-lg border border-slate-200/90 shadow-2xs space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                                Localização do Projeto
+                              </span>
+                              {(() => {
+                                const mapUrl = obterLinkMaps({
+                                  ...dossie,
+                                  endereco: lead.endereco,
+                                  bairro: lead.bairro,
+                                  cidade: lead.cidade,
+                                  estado: lead.estado,
+                                  cep: lead.cep,
+                                })
+                                return mapUrl ? (
+                                  <a
+                                    href={mapUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-[10px] font-bold text-[#0B7A5B] hover:underline inline-flex items-center gap-0.5"
+                                    title="Abrir no Google Maps"
+                                  >
+                                    <span>Maps ↗</span>
+                                  </a>
+                                ) : null
+                              })()}
                             </div>
-                            {dossie.consumo_medio_kwh !== undefined && (
-                              <p className="text-[11px] text-slate-500">
-                                Consumo:{' '}
-                                <strong className="text-slate-800">
-                                  {dossie.consumo_medio_kwh} kWh/mês
+
+                            <p
+                              className="text-xs text-slate-800 font-medium leading-relaxed"
+                              title={formatarEnderecoCompleto({
+                                ...dossie,
+                                endereco: lead.endereco,
+                                bairro: lead.bairro,
+                                cidade: lead.cidade,
+                                estado: lead.estado,
+                                cep: lead.cep,
+                              })}
+                            >
+                              <MapPin className="w-3.5 h-3.5 text-[#0B7A5B] inline mr-1 shrink-0" />
+                              {formatarEnderecoCompleto({
+                                ...dossie,
+                                endereco: lead.endereco,
+                                bairro: lead.bairro,
+                                cidade: lead.cidade,
+                                estado: lead.estado,
+                                cep: lead.cep,
+                              })}
+                            </p>
+
+                            {dossie.latitude !== undefined &&
+                              dossie.latitude !== null &&
+                              dossie.longitude !== undefined &&
+                              dossie.longitude !== null && (
+                                <p className="text-[10px] text-slate-500 font-mono-numbers">
+                                  Coordenadas: {dossie.latitude.toFixed(5)},{' '}
+                                  {dossie.longitude.toFixed(5)}
+                                </p>
+                              )}
+
+                            <div className="pt-1 border-t border-slate-100 flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
+                              <div>
+                                <span className="text-slate-500">UC: </span>
+                                <strong className="text-[#0B7A5B] font-mono-numbers">
+                                  {dossie.unidade_consumidora || 'Não informada'}
                                 </strong>
-                              </p>
-                            )}
+                              </div>
+                              {dossie.consumo_medio_kwh !== undefined && (
+                                <p className="text-[11px] text-slate-500">
+                                  Consumo:{' '}
+                                  <strong className="text-slate-800">
+                                    {dossie.consumo_medio_kwh} kWh/mês
+                                  </strong>
+                                </p>
+                              )}
+                            </div>
                           </div>
 
                           {/* Card 3: Kit Negociado - Painéis */}

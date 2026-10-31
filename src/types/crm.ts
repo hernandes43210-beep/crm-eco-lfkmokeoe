@@ -136,6 +136,12 @@ export interface HomologacaoLead extends RecordModel {
   cliente_telefone?: string
   cliente_cidade?: string
   cliente_estado?: string
+  cliente_bairro?: string
+  cliente_cep?: string
+  latitude?: number
+  longitude?: number
+  localizacao_maps_url?: string
+  localizacao_link?: string
   endereco_instalacao?: string
   unidade_consumidora?: string
   potencia_total_kwp?: number
@@ -171,6 +177,12 @@ export interface DossieTecnicoEngenharia extends RecordModel {
   cliente_email?: string
   cliente_cidade?: string
   cliente_estado?: string
+  cliente_bairro?: string
+  cliente_cep?: string
+  latitude?: number
+  longitude?: number
+  localizacao_maps_url?: string
+  localizacao_link?: string
   endereco_instalacao?: string
   unidade_consumidora?: string
   consumo_medio_kwh?: number

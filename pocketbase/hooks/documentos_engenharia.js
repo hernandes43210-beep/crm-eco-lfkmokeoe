@@ -182,6 +182,47 @@ routerAdd(
           novoDossie.set('endereco_instalacao', String(dossiePayload.endereco_instalacao).trim())
         else novoDossie.set('endereco_instalacao', leadRecord.getString('endereco') || '')
 
+        // Localização detalhada do cliente (Bairro, CEP, Coordenadas e Links)
+        const clienteBairro =
+          dossiePayload.cliente_bairro !== undefined
+            ? String(dossiePayload.cliente_bairro).trim()
+            : leadRecord.getString('bairro') || ''
+        novoDossie.set('cliente_bairro', clienteBairro)
+
+        const clienteCep =
+          dossiePayload.cliente_cep !== undefined
+            ? String(dossiePayload.cliente_cep).trim()
+            : leadRecord.getString('cep') || ''
+        novoDossie.set('cliente_cep', clienteCep)
+
+        const latitudeVal =
+          typeof dossiePayload.latitude === 'number'
+            ? dossiePayload.latitude
+            : leadRecord.get('latitude') !== null && leadRecord.get('latitude') !== undefined
+              ? Number(leadRecord.get('latitude'))
+              : null
+        if (latitudeVal !== null && !isNaN(latitudeVal)) {
+          novoDossie.set('latitude', latitudeVal)
+        }
+
+        const longitudeVal =
+          typeof dossiePayload.longitude === 'number'
+            ? dossiePayload.longitude
+            : leadRecord.get('longitude') !== null && leadRecord.get('longitude') !== undefined
+              ? Number(leadRecord.get('longitude'))
+              : null
+        if (longitudeVal !== null && !isNaN(longitudeVal)) {
+          novoDossie.set('longitude', longitudeVal)
+        }
+
+        const mapsUrl =
+          dossiePayload.localizacao_maps_url || leadRecord.getString('localizacao_maps_url') || ''
+        novoDossie.set('localizacao_maps_url', mapsUrl)
+
+        const locLink =
+          dossiePayload.localizacao_link || leadRecord.getString('localizacao_link') || ''
+        novoDossie.set('localizacao_link', locLink)
+
         if (dossiePayload.unidade_consumidora)
           novoDossie.set('unidade_consumidora', String(dossiePayload.unidade_consumidora).trim())
         else novoDossie.set('unidade_consumidora', '')
@@ -235,6 +276,14 @@ routerAdd(
         novoDossie.set('cliente_cidade', leadRecord.getString('cidade') || '')
         novoDossie.set('cliente_estado', leadRecord.getString('estado') || '')
         novoDossie.set('endereco_instalacao', leadRecord.getString('endereco') || '')
+        novoDossie.set('cliente_bairro', leadRecord.getString('bairro') || '')
+        novoDossie.set('cliente_cep', leadRecord.getString('cep') || '')
+        if (leadRecord.get('latitude'))
+          novoDossie.set('latitude', Number(leadRecord.get('latitude')))
+        if (leadRecord.get('longitude'))
+          novoDossie.set('longitude', Number(leadRecord.get('longitude')))
+        novoDossie.set('localizacao_maps_url', leadRecord.getString('localizacao_maps_url') || '')
+        novoDossie.set('localizacao_link', leadRecord.getString('localizacao_link') || '')
         if (leadRecord.get('consumo_mensal_kwh'))
           novoDossie.set('consumo_medio_kwh', Number(leadRecord.get('consumo_mensal_kwh')))
         novoDossie.set('tipo_instalacao', 'telhado')
@@ -304,6 +353,40 @@ routerAdd(
       recHomologacao.set(
         'endereco_instalacao',
         dossiePayload?.endereco_instalacao || leadRecord.getString('endereco') || '',
+      )
+      recHomologacao.set(
+        'cliente_bairro',
+        dossiePayload?.cliente_bairro || leadRecord.getString('bairro') || '',
+      )
+      recHomologacao.set(
+        'cliente_cep',
+        dossiePayload?.cliente_cep || leadRecord.getString('cep') || '',
+      )
+      const homLat =
+        typeof dossiePayload?.latitude === 'number'
+          ? dossiePayload.latitude
+          : leadRecord.get('latitude') !== null && leadRecord.get('latitude') !== undefined
+            ? Number(leadRecord.get('latitude'))
+            : null
+      if (homLat !== null && !isNaN(homLat)) {
+        recHomologacao.set('latitude', homLat)
+      }
+      const homLng =
+        typeof dossiePayload?.longitude === 'number'
+          ? dossiePayload.longitude
+          : leadRecord.get('longitude') !== null && leadRecord.get('longitude') !== undefined
+            ? Number(leadRecord.get('longitude'))
+            : null
+      if (homLng !== null && !isNaN(homLng)) {
+        recHomologacao.set('longitude', homLng)
+      }
+      recHomologacao.set(
+        'localizacao_maps_url',
+        dossiePayload?.localizacao_maps_url || leadRecord.getString('localizacao_maps_url') || '',
+      )
+      recHomologacao.set(
+        'localizacao_link',
+        dossiePayload?.localizacao_link || leadRecord.getString('localizacao_link') || '',
       )
       recHomologacao.set('unidade_consumidora', dossiePayload?.unidade_consumidora || '')
 
@@ -526,11 +609,44 @@ routerAdd(
         const clienteNome = dossiePayload.cliente_nome || leadNome
         const clienteTel =
           dossiePayload.cliente_telefone || leadRecord.getString('telefone') || 'Não informado'
-        const clienteEnd =
-          dossiePayload.endereco_instalacao ||
-          leadRecord.getString('endereco') ||
-          leadRecord.getString('cidade') + '/' + leadRecord.getString('estado') ||
-          'Não informado'
+        const logradouro =
+          dossiePayload.endereco_instalacao || leadRecord.getString('endereco') || ''
+        const bairro = dossiePayload.cliente_bairro || leadRecord.getString('bairro') || ''
+        const cidade = dossiePayload.cliente_cidade || leadRecord.getString('cidade') || ''
+        const uf = dossiePayload.cliente_estado || leadRecord.getString('estado') || ''
+        const cep = dossiePayload.cliente_cep || leadRecord.getString('cep') || ''
+        const lat =
+          typeof dossiePayload.latitude === 'number'
+            ? dossiePayload.latitude
+            : leadRecord.get('latitude')
+              ? Number(leadRecord.get('latitude'))
+              : null
+        const lng =
+          typeof dossiePayload.longitude === 'number'
+            ? dossiePayload.longitude
+            : leadRecord.get('longitude')
+              ? Number(leadRecord.get('longitude'))
+              : null
+        const mapsUrlEmail =
+          dossiePayload.localizacao_maps_url || leadRecord.getString('localizacao_maps_url') || ''
+
+        const endParts = []
+        if (logradouro) endParts.push(logradouro)
+        if (bairro) endParts.push('Bairro ' + bairro)
+        if (cidade || uf) endParts.push([cidade, uf].filter(Boolean).join(' - '))
+        if (cep) endParts.push('CEP: ' + cep)
+
+        let clienteEnd = endParts.join(', ') || 'Não informado'
+        if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
+          clienteEnd += ' (Coord: ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + ')'
+        }
+        if (mapsUrlEmail) {
+          clienteEnd +=
+            ' <a href="' +
+            mapsUrlEmail +
+            '" target="_blank" style="color: #0B7A5B; font-weight: bold; text-decoration: underline;">[Abrir no Google Maps]</a>'
+        }
+
         const uc = dossiePayload.unidade_consumidora || 'Não informada'
         const consMed = dossiePayload.consumo_medio_kwh
           ? dossiePayload.consumo_medio_kwh + ' kWh/mês'

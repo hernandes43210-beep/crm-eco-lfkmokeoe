@@ -48,6 +48,7 @@ import {
   HomologacaoService,
 } from '@/services/homologacao'
 import { CATEGORIAS_DOCUMENTOS, LeadDocumentosService } from '@/services/leadDocumentos'
+import { formatarEnderecoCompleto, obterLinkMaps } from '@/utils/formatadorLocalizacao'
 import { toast } from '@/hooks/use-toast'
 import { formatDateBR, formatDateTimeBR } from '@/lib/solarUtils'
 
@@ -1017,33 +1018,70 @@ export function FichaTrabalhoEngenheiroModal({
                       )}
                     </div>
 
-                    {/* Local & UC */}
-                    <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/90 shadow-2xs space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                        Local & Unidade Consumidora
-                      </span>
-                      <p className="text-xs text-slate-700 leading-snug line-clamp-2">
-                        <MapPin className="w-3 h-3 text-[#0B7A5B] inline mr-1" />
-                        {dossie.endereco_instalacao ||
-                          homologacao.endereco_instalacao ||
-                          'Não informado'}
-                      </p>
-                      <div className="pt-0.5 flex flex-wrap items-center gap-1.5 text-[11px]">
-                        <span className="text-slate-500">UC:</span>
-                        <strong className="text-[#0B7A5B] font-mono">
-                          {dossie.unidade_consumidora ||
-                            homologacao.unidade_consumidora ||
-                            'Não informada'}
-                        </strong>
+                    {/* Localização & UC */}
+                    <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/90 shadow-2xs space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                          Localização do Projeto
+                        </span>
+                        {(() => {
+                          const mapUrl = obterLinkMaps({
+                            ...dossie,
+                            ...homologacao,
+                          })
+                          return mapUrl ? (
+                            <a
+                              href={mapUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[10px] font-bold text-[#0B7A5B] hover:underline"
+                            >
+                              Maps ↗
+                            </a>
+                          ) : null
+                        })()}
                       </div>
-                      {dossie.consumo_medio_kwh !== undefined && (
-                        <p className="text-[11px] text-slate-500">
-                          Consumo:{' '}
-                          <strong className="text-slate-800">
-                            {dossie.consumo_medio_kwh} kWh/mês
+
+                      <p
+                        className="text-xs text-slate-800 font-medium leading-relaxed"
+                        title={formatarEnderecoCompleto({
+                          ...dossie,
+                          ...homologacao,
+                        })}
+                      >
+                        <MapPin className="w-3.5 h-3.5 text-[#0B7A5B] inline mr-1 shrink-0" />
+                        {formatarEnderecoCompleto({
+                          ...dossie,
+                          ...homologacao,
+                        })}
+                      </p>
+
+                      {(homologacao.latitude || dossie.latitude) &&
+                        (homologacao.longitude || dossie.longitude) && (
+                          <p className="text-[10px] text-slate-500 font-mono">
+                            Coord: {(homologacao.latitude || dossie.latitude)?.toFixed(5)},{' '}
+                            {(homologacao.longitude || dossie.longitude)?.toFixed(5)}
+                          </p>
+                        )}
+
+                      <div className="pt-1 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
+                        <div>
+                          <span className="text-slate-500">UC: </span>
+                          <strong className="text-[#0B7A5B] font-mono">
+                            {dossie.unidade_consumidora ||
+                              homologacao.unidade_consumidora ||
+                              'Não informada'}
                           </strong>
-                        </p>
-                      )}
+                        </div>
+                        {dossie.consumo_medio_kwh !== undefined && (
+                          <p className="text-[11px] text-slate-500">
+                            Consumo:{' '}
+                            <strong className="text-slate-800">
+                              {dossie.consumo_medio_kwh} kWh/mês
+                            </strong>
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     {/* Painéis */}

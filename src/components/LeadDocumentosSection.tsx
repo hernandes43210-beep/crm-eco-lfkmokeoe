@@ -415,9 +415,7 @@ export function LeadDocumentosSection({
     // 4. Se já existia um dossiê anterior salvo para este lead, usar os dados mais atualizados da proposta/lead
     // para que qualquer edição recente na negociação seja refletida no formulário de reenvio
     if (ultimoDossie) {
-      const enderecoAtualizado = [lead.endereco, lead.bairro, lead.cidade, lead.estado]
-        .filter(Boolean)
-        .join(', ')
+      const enderecoAtualizado = lead.endereco || ultimoDossie.endereco_instalacao || ''
 
       return {
         cliente_nome: lead.nome || ultimoDossie.cliente_nome,
@@ -425,6 +423,18 @@ export function LeadDocumentosSection({
         cliente_email: lead.email || ultimoDossie.cliente_email || '',
         cliente_cidade: lead.cidade || ultimoDossie.cliente_cidade || '',
         cliente_estado: lead.estado || ultimoDossie.cliente_estado || '',
+        cliente_bairro: lead.bairro || ultimoDossie.cliente_bairro || '',
+        cliente_cep: lead.cep || ultimoDossie.cliente_cep || '',
+        latitude:
+          lead.latitude !== undefined && lead.latitude !== null
+            ? lead.latitude
+            : ultimoDossie.latitude,
+        longitude:
+          lead.longitude !== undefined && lead.longitude !== null
+            ? lead.longitude
+            : ultimoDossie.longitude,
+        localizacao_maps_url: lead.localizacao_maps_url || ultimoDossie.localizacao_maps_url || '',
+        localizacao_link: lead.localizacao_link || ultimoDossie.localizacao_link || '',
         endereco_instalacao:
           enderecoAtualizado || ultimoDossie.endereco_instalacao || lead.cidade || '',
         unidade_consumidora: ultimoDossie.unidade_consumidora || '',
@@ -485,9 +495,7 @@ export function LeadDocumentosSection({
     }
 
     // Caso novo (sem dossiê anterior salvo)
-    const enderecoInicial = [lead.endereco, lead.bairro, lead.cidade, lead.estado]
-      .filter(Boolean)
-      .join(', ')
+    const enderecoInicial = lead.endereco || ''
 
     return {
       cliente_nome: lead.nome,
@@ -495,6 +503,12 @@ export function LeadDocumentosSection({
       cliente_email: lead.email || '',
       cliente_cidade: lead.cidade || '',
       cliente_estado: lead.estado || '',
+      cliente_bairro: lead.bairro || '',
+      cliente_cep: lead.cep || '',
+      latitude: lead.latitude ?? undefined,
+      longitude: lead.longitude ?? undefined,
+      localizacao_maps_url: lead.localizacao_maps_url || '',
+      localizacao_link: lead.localizacao_link || '',
       endereco_instalacao: enderecoInicial || lead.cidade || '',
       unidade_consumidora: '',
       consumo_medio_kwh: lead.consumo_mensal_kwh || undefined,
@@ -1087,20 +1101,121 @@ export function LeadDocumentosSection({
                   />
                 </div>
 
-                <div className="sm:col-span-2 space-y-1">
+                {/* Alerta de localização incompleta do Lead */}
+                {(!dossieForm.endereco_instalacao?.trim() ||
+                  !dossieForm.cliente_cidade?.trim() ||
+                  !dossieForm.cliente_cep?.trim()) && (
+                  <div className="sm:col-span-2 p-2.5 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                    <div>
+                      <span className="font-bold">Aviso de localização incompleta:</span> Este lead
+                      não possui todos os dados de localização (
+                      {[
+                        !dossieForm.endereco_instalacao?.trim() && 'endereço/logradouro',
+                        !dossieForm.cliente_cidade?.trim() && 'cidade',
+                        !dossieForm.cliente_cep?.trim() && 'CEP',
+                      ]
+                        .filter(Boolean)
+                        .join(', ')}
+                      ) cadastrados. O projeto será enviado sem a localização completa, o que pode
+                      dificultar o dimensionamento estrutural e a homologação. Você pode preencher
+                      os campos abaixo antes de confirmar o envio.
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-1">
                   <Label className="text-[11px] font-semibold text-slate-600">
-                    Endereço Completo / Local de Instalação *
+                    Endereço (Rua e Número) *
                   </Label>
                   <Input
                     value={dossieForm.endereco_instalacao || ''}
                     onChange={(e) =>
                       setDossieForm((prev) => ({ ...prev, endereco_instalacao: e.target.value }))
                     }
-                    placeholder="Rua, número, bairro, cidade - UF, CEP"
+                    placeholder="Rua / Avenida, número, complemento"
                     className="h-8 text-xs bg-white"
                     required
                   />
                 </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-semibold text-slate-600">Bairro</Label>
+                  <Input
+                    value={dossieForm.cliente_bairro || ''}
+                    onChange={(e) =>
+                      setDossieForm((prev) => ({ ...prev, cliente_bairro: e.target.value }))
+                    }
+                    placeholder="Bairro"
+                    className="h-8 text-xs bg-white"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-semibold text-slate-600">Cidade / UF *</Label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <Input
+                      value={dossieForm.cliente_cidade || ''}
+                      onChange={(e) =>
+                        setDossieForm((prev) => ({ ...prev, cliente_cidade: e.target.value }))
+                      }
+                      placeholder="Cidade"
+                      className="col-span-2 h-8 text-xs bg-white"
+                      required
+                    />
+                    <Input
+                      value={dossieForm.cliente_estado || ''}
+                      onChange={(e) =>
+                        setDossieForm((prev) => ({
+                          ...prev,
+                          cliente_estado: e.target.value.toUpperCase(),
+                        }))
+                      }
+                      placeholder="UF"
+                      maxLength={2}
+                      className="h-8 text-xs bg-white uppercase"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-semibold text-slate-600">CEP</Label>
+                  <Input
+                    value={dossieForm.cliente_cep || ''}
+                    onChange={(e) =>
+                      setDossieForm((prev) => ({ ...prev, cliente_cep: e.target.value }))
+                    }
+                    placeholder="00000-000"
+                    className="h-8 text-xs bg-white font-mono-numbers"
+                  />
+                </div>
+
+                {(dossieForm.latitude !== undefined ||
+                  dossieForm.longitude !== undefined ||
+                  dossieForm.localizacao_maps_url ||
+                  dossieForm.localizacao_link) && (
+                  <div className="sm:col-span-2 p-2 rounded-md bg-emerald-50/80 border border-emerald-200 text-[11px] text-emerald-900 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span className="truncate">
+                        <strong>Coordenadas GPS disponíveis:</strong>{' '}
+                        {dossieForm.latitude !== undefined && dossieForm.longitude !== undefined
+                          ? `${dossieForm.latitude.toFixed(5)}, ${dossieForm.longitude.toFixed(5)}`
+                          : 'Link de mapa salvo'}
+                      </span>
+                    </div>
+                    {(dossieForm.localizacao_maps_url || dossieForm.localizacao_link) && (
+                      <a
+                        href={dossieForm.localizacao_maps_url || dossieForm.localizacao_link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-emerald-700 hover:underline font-bold text-[10px] shrink-0"
+                      >
+                        Abrir Maps ↗
+                      </a>
+                    )}
+                  </div>
+                )}
 
                 <div className="space-y-1">
                   <Label className="text-[11px] font-semibold text-slate-600 flex items-center justify-between">

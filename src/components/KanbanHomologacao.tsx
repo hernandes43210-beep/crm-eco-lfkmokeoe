@@ -23,6 +23,7 @@ import {
   Trash2,
   Receipt,
 } from 'lucide-react'
+import { formatarEnderecoCompleto } from '@/utils/formatadorLocalizacao'
 import { toast } from '@/hooks/use-toast'
 
 interface KanbanHomologacaoProps {
@@ -288,11 +289,17 @@ export function KanbanHomologacao({
                                 <ArrowRight className="w-2.5 h-2.5" />
                               </span>
                             </div>
-                            {(hom.cliente_cidade || hom.endereco_instalacao) && (
-                              <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 truncate">
-                                <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                                <span className="truncate">
-                                  {hom.cliente_cidade || hom.endereco_instalacao}
+                            {(hom.cliente_cidade ||
+                              hom.endereco_instalacao ||
+                              hom.cliente_bairro ||
+                              hom.cliente_cep) && (
+                              <p
+                                className="text-[11px] text-slate-600 flex items-center gap-1 mt-0.5 truncate"
+                                title={formatarEnderecoCompleto(hom)}
+                              >
+                                <MapPin className="w-3 h-3 text-[#0B7A5B] shrink-0" />
+                                <span className="truncate font-medium">
+                                  {formatarEnderecoCompleto(hom)}
                                 </span>
                               </p>
                             )}

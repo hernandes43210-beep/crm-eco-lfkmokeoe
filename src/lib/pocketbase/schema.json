@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-21T01:12:37.063Z",
+  "generatedAt": "2026-10-31T12:02:08.314Z",
   "collections": [
     {
       "name": "users",
@@ -2215,6 +2215,42 @@
           "type": "date",
           "required": false,
           "system": false
+        },
+        {
+          "name": "cliente_bairro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliente_cep",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "latitude",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "longitude",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "localizacao_maps_url",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "localizacao_link",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -2461,6 +2497,42 @@
           "required": false,
           "system": false,
           "collectionRef": "users"
+        },
+        {
+          "name": "cliente_bairro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliente_cep",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "latitude",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "longitude",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "localizacao_maps_url",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "localizacao_link",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
