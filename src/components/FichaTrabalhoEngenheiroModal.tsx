@@ -48,7 +48,11 @@ import {
   HomologacaoService,
 } from '@/services/homologacao'
 import { CATEGORIAS_DOCUMENTOS, LeadDocumentosService } from '@/services/leadDocumentos'
-import { formatarEnderecoCompleto, obterLinkMaps } from '@/utils/formatadorLocalizacao'
+import {
+  formatarEnderecoCompleto,
+  formatarCidadeUf,
+  obterLinkMaps,
+} from '@/utils/formatadorLocalizacao'
 import { toast } from '@/hooks/use-toast'
 import { formatDateBR, formatDateTimeBR } from '@/lib/solarUtils'
 
@@ -316,12 +320,19 @@ export function FichaTrabalhoEngenheiroModal({
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300 mt-1">
-                  {(homologacao.cliente_cidade || dossie?.cliente_cidade) && (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>{homologacao.cliente_cidade || dossie?.cliente_cidade}</span>
-                    </span>
-                  )}
+                  {(() => {
+                    const cidUf = formatarCidadeUf({
+                      cliente_cidade: homologacao.cliente_cidade || dossie?.cliente_cidade,
+                      cliente_estado: homologacao.cliente_estado || dossie?.cliente_estado,
+                    })
+                    if (!cidUf) return null
+                    return (
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>{cidUf}</span>
+                      </span>
+                    )
+                  })()}
                   {(homologacao.cliente_telefone || dossie?.cliente_telefone) && (
                     <span className="flex items-center gap-1">
                       <Phone className="w-3.5 h-3.5 text-slate-400" />

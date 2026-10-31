@@ -23,7 +23,7 @@ import {
   Trash2,
   Receipt,
 } from 'lucide-react'
-import { formatarEnderecoCompleto } from '@/utils/formatadorLocalizacao'
+import { formatarEnderecoCompleto, obterLinkMaps } from '@/utils/formatadorLocalizacao'
 import { toast } from '@/hooks/use-toast'
 
 interface KanbanHomologacaoProps {
@@ -289,20 +289,37 @@ export function KanbanHomologacao({
                                 <ArrowRight className="w-2.5 h-2.5" />
                               </span>
                             </div>
-                            {(hom.cliente_cidade ||
-                              hom.endereco_instalacao ||
-                              hom.cliente_bairro ||
-                              hom.cliente_cep) && (
-                              <p
-                                className="text-[11px] text-slate-600 flex items-center gap-1 mt-0.5 truncate"
-                                title={formatarEnderecoCompleto(hom)}
-                              >
-                                <MapPin className="w-3 h-3 text-[#0B7A5B] shrink-0" />
-                                <span className="truncate font-medium">
-                                  {formatarEnderecoCompleto(hom)}
-                                </span>
-                              </p>
-                            )}
+                            {(() => {
+                              const enderecoTexto = formatarEnderecoCompleto(hom)
+                              if (!enderecoTexto || enderecoTexto === 'Localização não informada')
+                                return null
+                              const mapLink = obterLinkMaps(hom)
+
+                              return (
+                                <div className="flex items-center justify-between gap-1 mt-0.5">
+                                  <p
+                                    className="text-[11px] text-slate-600 flex items-center gap-1 truncate min-w-0 flex-1"
+                                    title={enderecoTexto}
+                                  >
+                                    <MapPin className="w-3 h-3 text-[#0B7A5B] shrink-0" />
+                                    <span className="truncate font-medium">{enderecoTexto}</span>
+                                  </p>
+                                  {mapLink && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        window.open(mapLink, '_blank', 'noreferrer')
+                                      }}
+                                      className="text-[10px] font-bold text-[#0B7A5B] hover:underline shrink-0 px-1 hover:bg-emerald-50 rounded"
+                                      title="Abrir localização no Google Maps"
+                                    >
+                                      Maps ↗
+                                    </button>
+                                  )}
+                                </div>
+                              )
+                            })()}
                             {hom.unidade_consumidora && (
                               <p className="text-[10.5px] font-mono text-emerald-700 mt-0.5 truncate">
                                 UC: {hom.unidade_consumidora}

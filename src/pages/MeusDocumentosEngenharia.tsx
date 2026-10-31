@@ -30,7 +30,11 @@ import { useAuth } from '@/context/AuthContext'
 import type { DocumentoLead, DossieTecnicoEngenharia, HomologacaoLead, User } from '@/types/crm'
 import { CATEGORIAS_DOCUMENTOS, LeadDocumentosService } from '@/services/leadDocumentos'
 import { HomologacaoService } from '@/services/homologacao'
-import { formatarEnderecoCompleto, obterLinkMaps } from '@/utils/formatadorLocalizacao'
+import {
+  formatarEnderecoCompleto,
+  formatarCidadeUf,
+  obterLinkMaps,
+} from '@/utils/formatadorLocalizacao'
 import { KanbanHomologacao } from '@/components/KanbanHomologacao'
 import { EnviarArtModal } from '@/components/EnviarArtModal'
 import { FichaTrabalhoEngenheiroModal } from '@/components/FichaTrabalhoEngenheiroModal'
@@ -859,12 +863,21 @@ export default function MeusDocumentosEngenharia() {
                             )}
                           </div>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 mt-0.5">
-                            {(lead.cidade || dossie?.cliente_cidade) && (
-                              <span className="flex items-center gap-1">
-                                <MapPin className="w-3 h-3 text-[#0B7A5B]" />
-                                <span>{dossie?.cliente_cidade || lead.cidade}</span>
-                              </span>
-                            )}
+                            {(() => {
+                              const cidadeUf = formatarCidadeUf({
+                                cliente_cidade: dossie?.cliente_cidade,
+                                cliente_estado: dossie?.cliente_estado,
+                                cidade: lead.cidade,
+                                estado: lead.estado,
+                              })
+                              if (!cidadeUf) return null
+                              return (
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="w-3 h-3 text-[#0B7A5B]" />
+                                  <span>{cidadeUf}</span>
+                                </span>
+                              )
+                            })()}
                             {(lead.telefone || dossie?.cliente_telefone) && (
                               <span className="flex items-center gap-1">
                                 <Phone className="w-3 h-3 text-slate-400" />
