@@ -36,6 +36,7 @@ import {
   obterLinkMaps,
 } from '@/utils/formatadorLocalizacao'
 import { KanbanHomologacao } from '@/components/KanbanHomologacao'
+import { PainelPagamentoProjetos } from '@/components/PainelPagamentoProjetos'
 import { EnviarArtModal } from '@/components/EnviarArtModal'
 import { FichaTrabalhoEngenheiroModal } from '@/components/FichaTrabalhoEngenheiroModal'
 import { AnexarComprovanteModal } from '@/components/AnexarComprovanteModal'
@@ -581,6 +582,13 @@ export default function MeusDocumentosEngenharia() {
           </Button>
         </div>
       </div>
+
+      {/* Painel: Pagamento de Projetos (pagos x pendentes, apenas nomes e dias) */}
+      <PainelPagamentoProjetos
+        homologacoes={homologacoes}
+        loading={loading}
+        engenheirosMap={engenheirosMap}
+      />
 
       {/* Cards de Resumo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
