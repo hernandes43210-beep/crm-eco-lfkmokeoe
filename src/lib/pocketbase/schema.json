@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-31T12:02:08.314Z",
+  "generatedAt": "2026-11-05T23:16:18.803Z",
   "collections": [
     {
       "name": "users",
@@ -2531,6 +2531,31 @@
         {
           "name": "localizacao_link",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "projeto_pago_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "projeto_pago_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "projeto_pago_confirmacoes",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "projeto_pago_reversoes",
+          "type": "json",
           "required": false,
           "system": false
         }
