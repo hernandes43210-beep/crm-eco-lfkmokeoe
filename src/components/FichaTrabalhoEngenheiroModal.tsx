@@ -55,6 +55,7 @@ import {
 } from '@/utils/formatadorLocalizacao'
 import { toast } from '@/hooks/use-toast'
 import { formatDateBR, formatDateTimeBR } from '@/lib/solarUtils'
+import { ProjetoPagoBloco } from '@/components/ProjetoPagoBloco'
 
 interface FichaTrabalhoEngenheiroModalProps {
   homologacao: HomologacaoLead | null
@@ -77,8 +78,8 @@ export function FichaTrabalhoEngenheiroModal({
   onOpenEnviarArt,
   onOpenAnexarComprovante,
 }: FichaTrabalhoEngenheiroModalProps) {
-  const { user } = useAuth()
-  const isAdmin = user?.role === 'Admin'
+  const { user, isAdmin, podeSupervisionarEngenharia } = useAuth()
+  const isEngenheiro = user?.role === 'Engenheiro'
   const [activeTab, setActiveTab] = useState<'acoes' | 'dossie' | 'arquivos' | 'historico'>('acoes')
 
   // Estado para avanço de etapa com observação
@@ -836,12 +837,13 @@ export function FichaTrabalhoEngenheiroModal({
                           Comprovante do Projeto
                         </span>
                         {homologacao.projeto_pago ? (
-                          <Badge className="bg-blue-600 text-white text-[10px] font-bold h-5">
+                          <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold h-5 gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                             Projeto Pago
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="text-slate-400 text-[10px] h-5">
-                            Pendente
+                            Pagamento pendente
                           </Badge>
                         )}
                       </div>
@@ -915,6 +917,15 @@ export function FichaTrabalhoEngenheiroModal({
                           )}
                         </div>
                       )}
+
+                      {/* Pagamento do Projeto: selo + marcar/desfazer (reversão exige 2 oks).
+                         A ficha só é aberta pelo engenheiro responsável ou pelo Admin/CEO,
+                         então aqui engenheiro = responsável; vendedor não abre esta ficha. */}
+                      <ProjetoPagoBloco
+                        homologacao={homologacao}
+                        podeGerenciar={isAdmin || isEngenheiro}
+                        onHomologacaoUpdated={onHomologacaoUpdated}
+                      />
                     </div>
                   </div>
                 </CardContent>

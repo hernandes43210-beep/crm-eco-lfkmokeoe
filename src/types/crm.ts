@@ -129,6 +129,10 @@ export interface HomologacaoLead extends RecordModel {
   comprovante_art_anexado_em?: string
   comprovante_art_anexado_por?: string
   projeto_pago?: boolean
+  projeto_pago_em?: string
+  projeto_pago_por?: string
+  projeto_pago_confirmacoes?: ProjetoPagoConfirmacaoItem[]
+  projeto_pago_reversoes?: ProjetoPagoConfirmacaoItem[]
   comprovante_projeto_arquivo?: string
   comprovante_projeto_anexado_em?: string
   comprovante_projeto_anexado_por?: string
@@ -162,8 +166,15 @@ export interface HomologacaoLead extends RecordModel {
     vendedor?: User
     comprovante_art_anexado_por?: User
     comprovante_projeto_anexado_por?: User
+    projeto_pago_por?: User
     dossie?: DossieTecnicoEngenharia
   }
+}
+
+export interface ProjetoPagoConfirmacaoItem {
+  usuario_id: string
+  usuario_nome: string
+  data: string
 }
 
 export interface DossieTecnicoEngenharia extends RecordModel {

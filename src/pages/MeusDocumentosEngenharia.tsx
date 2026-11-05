@@ -728,7 +728,14 @@ export default function MeusDocumentosEngenharia() {
           ) : (
             <KanbanHomologacao
               homologacoes={filteredHomologacoes}
+              homologacoesCompletas={homologacoes}
               onHomologacaoUpdated={(updated) => setHomologacoes(updated)}
+              onHomologacaoIndividualUpdated={(updated) => {
+                setHomologacoes((prev) => prev.map((h) => (h.id === updated.id ? updated : h)))
+                if (selectedHomologacaoForFicha?.id === updated.id) {
+                  setSelectedHomologacaoForFicha(updated)
+                }
+              }}
               onOpenEnviarArt={handleOpenEnviarArt}
               onSelectCard={handleSelectCard}
               engenheirosMap={engenheirosMap}

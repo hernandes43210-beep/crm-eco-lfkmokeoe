@@ -24,6 +24,9 @@ import {
   Receipt,
 } from 'lucide-react'
 import { formatarEnderecoCompleto, obterLinkMaps } from '@/utils/formatadorLocalizacao'
+import { formatDateBR, formatDateTimeBR } from '@/lib/solarUtils'
+import { useAuth } from '@/context/AuthContext'
+import { ProjetoPagoBloco } from '@/components/ProjetoPagoBloco'
 import { toast } from '@/hooks/use-toast'
 
 interface KanbanHomologacaoProps {
@@ -34,6 +37,10 @@ interface KanbanHomologacaoProps {
   engenheirosMap?: Record<string, string>
   isAdmin?: boolean
   onRequestDelete?: (hom: HomologacaoLead) => void
+  /** Lista completa (não filtrada) para recolocar o card atualizado sem perder os demais. */
+  homologacoesCompletas?: HomologacaoLead[]
+  /** Propaga uma homologação individual atualizada (ex.: pagamento do projeto) ao pai. */
+  onHomologacaoIndividualUpdated?: (hom: HomologacaoLead) => void
 }
 
 export function KanbanHomologacao({
@@ -44,7 +51,10 @@ export function KanbanHomologacao({
   engenheirosMap,
   isAdmin = false,
   onRequestDelete,
+  homologacoesCompletas,
+  onHomologacaoIndividualUpdated,
 }: KanbanHomologacaoProps) {
+  const { user } = useAuth()
   const [draggedCardId, setDraggedCardId] = useState<string | null>(null)
   const [dragOverCol, setDragOverCol] = useState<HomologacaoStatus | null>(null)
   const [movingId, setMovingId] = useState<string | null>(null)
@@ -386,18 +396,40 @@ export function KanbanHomologacao({
                               </div>
                             ) : null}
 
-                            {/* Marcação Projeto Pago */}
+                            {/* Marcação Projeto Pago (enriquecida: data + quem marcou) */}
                             {hom.projeto_pago && (
                               <div
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 border border-blue-300 text-blue-900 text-[10px] font-bold"
-                                title={
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-300 text-emerald-900 text-[10px] font-bold"
+                                title={`Projeto pago${
+                                  hom.expand?.projeto_pago_por?.name ||
+                                  hom.expand?.projeto_pago_por?.email
+                                    ? ` por ${
+                                        hom.expand?.projeto_pago_por?.name ||
+                                        hom.expand?.projeto_pago_por?.email
+                                      }`
+                                    : ''
+                                }${
+                                  hom.projeto_pago_em
+                                    ? ` em ${formatDateTimeBR(hom.projeto_pago_em)}`
+                                    : ''
+                                }${
                                   hom.comprovante_projeto_arquivo
-                                    ? 'Projeto pago com comprovante anexado'
-                                    : 'Projeto marcado como pago'
-                                }
+                                    ? ' • com comprovante anexado'
+                                    : ''
+                                }`}
                               >
-                                <Receipt className="w-3 h-3 text-blue-600 shrink-0" />
+                                <Receipt className="w-3 h-3 text-emerald-600 shrink-0" />
                                 <span>Projeto pago</span>
+                                {hom.expand?.projeto_pago_por?.name && (
+                                  <span className="text-emerald-700 font-semibold max-w-[90px] truncate">
+                                    {hom.expand.projeto_pago_por.name}
+                                  </span>
+                                )}
+                                {hom.projeto_pago_em && (
+                                  <span className="text-emerald-600 font-semibold text-[9px] whitespace-nowrap">
+                                    {formatDateBR(hom.projeto_pago_em)}
+                                  </span>
+                                )}
                                 {hom.comprovante_projeto_arquivo && (
                                   <button
                                     type="button"
@@ -406,7 +438,7 @@ export function KanbanHomologacao({
                                       const u = HomologacaoService.getComprovanteProjetoUrl(hom)
                                       if (u) window.open(u, '_blank')
                                     }}
-                                    className="ml-0.5 text-blue-700 hover:text-blue-900"
+                                    className="ml-0.5 text-emerald-700 hover:text-emerald-900"
                                     title="Baixar comprovante de pagamento do projeto"
                                   >
                                     <Download className="w-2.5 h-2.5" />
@@ -418,6 +450,23 @@ export function KanbanHomologacao({
 
                           {/* Ações Rápidas no Card */}
                           <div className="pt-1.5 border-t border-slate-100 flex flex-col gap-1.5">
+                            {/* Pagamento do Projeto: selo + marcar/desfazer (reversão exige 2 oks) */}
+                            <ProjetoPagoBloco
+                              homologacao={hom}
+                              compacto
+                              podeGerenciar={isAdmin || user?.role === 'Engenheiro'}
+                              onHomologacaoUpdated={(updated) => {
+                                if (onHomologacaoIndividualUpdated) {
+                                  onHomologacaoIndividualUpdated(updated)
+                                } else {
+                                  const listaBase = homologacoesCompletas || homologacoes
+                                  onHomologacaoUpdated(
+                                    listaBase.map((h) => (h.id === updated.id ? updated : h)),
+                                  )
+                                }
+                              }}
+                            />
+
                             {/* Botão de Abrir Ficha do Cliente */}
                             <Button
                               type="button"

@@ -1,5 +1,5 @@
 import pb from '@/lib/pocketbase/client'
-import type { HomologacaoLead, HomologacaoStatus } from '@/types/crm'
+import type { HomologacaoLead, HomologacaoStatus, ProjetoPagoConfirmacaoItem } from '@/types/crm'
 
 export interface EnviarArtResponse {
   success: boolean
@@ -38,6 +38,19 @@ export interface AnexarComprovanteResponse {
   comprovante_art_anexado_em?: string
   comprovante_projeto_arquivo?: string
   comprovante_projeto_anexado_em?: string
+}
+
+export interface ProjetoPagoResponse {
+  success: boolean
+  message: string
+  homologacao_id?: string
+  projeto_pago?: boolean
+  projeto_pago_em?: string
+  projeto_pago_por?: string
+  projeto_pago_por_nome?: string
+  projeto_pago_revertido?: boolean
+  confirmacoes?: ProjetoPagoConfirmacaoItem[]
+  faltam?: number
 }
 
 export interface MoverStatusResponse {
@@ -248,7 +261,7 @@ export const HomologacaoService = {
         sort: '-created',
         requestKey: null,
         expand:
-          'engenheiro,vendedor,dossie,comprovante_art_anexado_por,comprovante_projeto_anexado_por',
+          'engenheiro,vendedor,dossie,comprovante_art_anexado_por,comprovante_projeto_anexado_por,projeto_pago_por',
       }
 
       // Se for Admin/CEO ou Engenheiro Supervisor com visão de todos (sem engenheiroId específico),
@@ -281,7 +294,7 @@ export const HomologacaoService = {
         sort: '-created',
         requestKey: null,
         expand:
-          'engenheiro,vendedor,dossie,comprovante_art_anexado_por,comprovante_projeto_anexado_por',
+          'engenheiro,vendedor,dossie,comprovante_art_anexado_por,comprovante_projeto_anexado_por,projeto_pago_por',
       })
       return records.items[0] || null
     } catch (err) {
@@ -469,6 +482,42 @@ export const HomologacaoService = {
         body: { dossieId },
       },
     )
+  },
+
+  /**
+   * Marca o projeto (engenharia) como pago. Permitido para Admin/CEO e
+   * Engenheiro responsável (ou supervisor). Vendedor não tem permissão (403).
+   */
+  async marcarProjetoPago(
+    homologacaoId: string,
+    observacao?: string,
+  ): Promise<ProjetoPagoResponse> {
+    return await pb.send<ProjetoPagoResponse>('/backend/v1/homologacao/marcar-projeto-pago', {
+      method: 'POST',
+      body: {
+        homologacaoId,
+        observacao,
+      },
+    })
+  },
+
+  /**
+   * Registra o ok do usuário atual para REVERTER o pagamento do projeto.
+   * ATENÇÃO: com apenas 1 ok, o backend responde HTTP 200 com success:false e
+   * `faltam: 1` — este método NÃO lança nesse caso; o chamador deve tratar o
+   * `success` da resposta para exibir a mensagem correta ao usuário.
+   */
+  async desmarcarProjetoPago(
+    homologacaoId: string,
+    observacao?: string,
+  ): Promise<ProjetoPagoResponse> {
+    return await pb.send<ProjetoPagoResponse>('/backend/v1/homologacao/desmarcar-projeto-pago', {
+      method: 'POST',
+      body: {
+        homologacaoId,
+        observacao,
+      },
+    })
   },
 
   /**

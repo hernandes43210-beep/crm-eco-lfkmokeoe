@@ -1,5 +1,9 @@
 // Hook: Pagamento do Projeto (Área de Engenharia — coleção 'homologacoes')
 //
+// IMPORTANTE (JSVM): callbacks rodam em um pool separado de VM — NADA de
+// declarações top-level (funções/variáveis) pode ser referenciado dentro dos
+// callbacks. Toda a lógica (helpers incluídos) vive INLINE no corpo do callback.
+//
 // Regras:
 //  - Admin/CEO e Engenheiro (responsável pelo dossiê ou supervisor) podem marcar o projeto como pago.
 //  - Vendedores NÃO podem marcar nem reverter (403).
@@ -58,6 +62,7 @@ routerAdd(
     const now = new Date()
     const nowIso = now.toISOString()
     const autorNome = auth.getString('name') || auth.getString('email') || 'Usuário'
+    const leadId = hom.getString('lead')
 
     hom.set('projeto_pago', true)
     hom.set('projeto_pago_em', nowIso)
@@ -111,7 +116,6 @@ routerAdd(
       } catch (_) {}
     }
 
-    const leadId = hom.getString('lead')
     try {
       const notifCol = $app.findCollectionByNameOrId('notificacoes')
       for (let d = 0; d < destinatarios.length; d++) {
@@ -213,6 +217,7 @@ routerAdd(
     const now = new Date()
     const nowIso = now.toISOString()
     const autorNome = auth.getString('name') || auth.getString('email') || 'Usuário'
+    const leadId = hom.getString('lead')
 
     // Oks de reversão já registrados
     let reversoes = []
@@ -270,17 +275,13 @@ routerAdd(
       // 2º ok: aplica a reversão
       const marcadoPorId = hom.getString('projeto_pago_por')
       const nomesConfirmacoes = []
+      const vistos = []
       for (let i = 0; i < reversoes.length; i++) {
         const uid = reversoes[i] && reversoes[i].usuario_id
-        if (
-          uid &&
-          idsUnicos.indexOf(uid) !== -1 &&
-          nomesConfirmacoes.indexOf(reversoes[i].usuario_nome) === -1
-        ) {
-          nomesConfirmacoes.push(reversoes[i].usuario_nome)
+        if (uid && vistos.indexOf(uid) === -1) {
+          vistos.push(uid)
+          nomesConfirmacoes.push(reversoes[i].usuario_nome || 'Usuário')
         }
-        // mantém apenas o primeiro nome de cada usuário
-        if (nomesConfirmacoes.length > idsUnicos.length) break
       }
 
       hom.set('projeto_pago', false)
@@ -313,7 +314,7 @@ routerAdd(
           const notifCol = $app.findCollectionByNameOrId('notificacoes')
           const nRec = new Record(notifCol)
           nRec.set('usuario', marcadoPorId)
-          if (leadIdSafe(hom)) nRec.set('lead', hom.getString('lead'))
+          if (leadId) nRec.set('lead', leadId)
           nRec.set('titulo', 'Pagamento do projeto revertido — ' + clienteNome)
           nRec.set(
             'mensagem',
@@ -385,11 +386,3 @@ routerAdd(
   },
   $apis.requireAuth(),
 )
-
-function leadIdSafe(hom) {
-  try {
-    return !!hom.getString('lead')
-  } catch (_) {
-    return false
-  }
-}
