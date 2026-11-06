@@ -1,1572 +1,524 @@
+/**
+ * Versão para imprimir/PDF da proposta comercial clássica v2 (6 páginas A4).
+ * Reaproveita proposalDadosV2 (dados/cálculos) e proposalPdfCss (identidade visual).
+ * As fotos das obras são pré-carregadas (preloadFotosProposta) antes de abrir a
+ * janela de impressão, para que apareçam de verdade no PDF (não quadros vazios).
+ */
 import {
-  formatBRL,
-  formatDateBR,
-  calcularGeracaoMensalKwh,
-  calcularEconomiaMensal,
-  IRRADIACAO_MEDIA_DIARIA_HORAS,
-  FATOR_PERDAS_SISTEMA,
-} from './solarUtils'
-import { calculateInvestmentComparison } from '../utils/investmentComparison'
-import { parseKitDetailedItems } from './kitItemsParser'
-import { sanitizarNomesInstituicoes } from './paymentConditionsParser'
-import { CONTATO_ECOSOLAR } from '@/constants/empresa'
-import officialLogoPng from '@/assets/a-613c6.png'
-import { INSTITUTIONAL_INSTALLATION_PHOTOS } from '@/data/socialProofPhotos'
+  ProposalPDFData,
+  montarDadosV2,
+  fotosPropostaDe,
+  esc,
+  DadosV2,
+  FotoProposta,
+} from './proposalDadosV2'
+import { propostaHeadHtml } from './proposalPdfCss'
+import {
+  RENDIMENTO_POUPANCA_AO_ANO as REN_POUP,
+  RENDIMENTO_CDB_LIQUIDO_AO_ANO as REN_CDB,
+} from './proposalCalculos'
 
-export interface ProposalPDFData {
-  id?: string
-  token_publico?: string
-  status?: string
-  kit_nome: string
-  kit_potencia_kw?: number
-  kit_fabricante?: string
-  custo?: number
-  margem?: number
-  preco_venda: number
-  desconto_percentual?: number
-  valor_desconto?: number
-  valor_bruto?: number
-  validade_dias?: number
-  data_validade: string
-  condicoes_pagamento?: string
-  observacoes?: string
-  data_aceite?: string
-  aceito_por_nome?: string
-  created?: string
-  cliente: {
-    nome: string
-    email?: string
-    telefone?: string
-    cidade?: string
-    estado?: string
-    endereco?: string
-    consumo_mensal_kwh?: number
-  }
-  vendedor?: {
-    name?: string
-    email?: string
-  }
-  kit_descricao?: string
-  kit_string_box?: string
-  kit_marca_painel?: string
-  kit_marca_inversor?: string
-  kit_potencia_painel_w?: number
-  kit_potencia_inversor_kw?: number
-  kit_tipo_estrutura?: string
-  kit?: {
-    descricao?: string
-    string_box?: string
-    marca_painel?: string
-    marca_inversor?: string
-    potencia_painel_w?: number
-    potencia_inversor_kw?: number
-    tipo_estrutura?: string
-  }
-  lead?: {
-    consumo_mensal_kwh?: number
-  }
-  fotos_selecionadas?:
-    | Array<{
-        origem: 'lead' | 'institucional'
-        id: string
-        legenda?: string
-      }>
-    | string
-  fotos_obra?: Array<{
-    id: string
-    url?: string
-    foto?: string
-    legenda?: string
-  }>
+export type { ProposalPDFData }
+
+/* ------------------------------------------------------------------ */
+/* Preload das fotos: espera todas as imagens terminarem de carregar  */
+/* ------------------------------------------------------------------ */
+export function preloadFotosProposta(urls: string[]): Promise<void> {
+  const validas = urls.filter((u) => !!u)
+  if (validas.length === 0) return Promise.resolve()
+  return Promise.all(
+    validas.map(
+      (url) =>
+        new Promise<void>((resolve) => {
+          const img = new Image()
+          img.onload = () => resolve()
+          img.onerror = () => resolve() // foto que falha não bloqueia o PDF
+          img.src = url
+        }),
+    ),
+  ).then(() => undefined)
 }
 
-export function generateProposalPrintHTML(data: ProposalPDFData): string {
-  // Validade = data de emissão + 15 dias (regra comercial)
-  const dataEmissao = data.created ? new Date(data.created) : new Date()
-  const dataValidade = new Date(dataEmissao.getTime() + 15 * 24 * 60 * 60 * 1000)
-  const validadeFormatted = formatDateBR(dataValidade.toISOString())
-  const emissaoFormatted = formatDateBR(dataEmissao.toISOString())
+/* ------------------------------------------------------------------ */
+/* Blocos reutilizados                                                */
+/* ------------------------------------------------------------------ */
+function headerInterno(d: DadosV2): string {
+  return `<header class="pv-header">
+    <div class="pv-logo"><span class="eco">ECO</span><span class="solar">SOLAR</span> <span class="energy">ENERGY</span></div>
+    <div class="pv-header-info">
+      <div><strong>PROPOSTA Nº ${esc(d.numero)}</strong></div>
+      <div>Emissão ${esc(d.emissaoBR)} • Válida até <strong>${esc(d.validadeBR)}</strong></div>
+    </div>
+  </header>`
+}
 
-  // Decompor o kit com os itens reais cadastrados no sistema
-  const specs = parseKitDetailedItems({
-    kitNome: data.kit_nome,
-    kitPotenciaKw: data.kit_potencia_kw,
-    kitFabricante: data.kit_fabricante,
-    descricao: data.kit_descricao || data.kit?.descricao,
-    observacoes: data.observacoes,
-    consumoKwh: data.lead?.consumo_mensal_kwh || data.cliente?.consumo_mensal_kwh,
-    stringBox: data.kit_string_box || data.kit?.string_box,
-    marcaPainel: data.kit_marca_painel || data.kit?.marca_painel,
-    marcaInversor: data.kit_marca_inversor || data.kit?.marca_inversor,
-    potenciaPainelW: data.kit_potencia_painel_w || data.kit?.potencia_painel_w,
-    potenciaInversorKw: data.kit_potencia_inversor_kw || data.kit?.potencia_inversor_kw,
-    tipoEstrutura: data.kit_tipo_estrutura || data.kit?.tipo_estrutura,
-  })
-  // Estimativas solares calculadas
-  const consumoKwh = data.cliente.consumo_mensal_kwh || 400
-  const geracaoEstimadaKwh =
-    specs.geracaoMensalEstimadaKwh ||
-    (data.kit_potencia_kw ? calcularGeracaoMensalKwh(data.kit_potencia_kw) : Math.round(consumoKwh))
-  const economiaMensal = calcularEconomiaMensal(consumoKwh)
-  const economiaAnual = economiaMensal * 12
-  const economia30Anos = economiaAnual * 30
+function footerInterno(pagina: number): string {
+  return `<footer class="pv-footer">
+    <span><strong>Ecosolar Energy</strong> — A energia do futuro, hoje!</span>
+    <span class="pv-pgnum">Página ${pagina}</span>
+  </footer>`
+}
 
-  // Simulação comparativa em 30 anos (Solar vs Poupança vs CDB)
-  const sim = calculateInvestmentComparison(data.preco_venda || 0, economiaMensal, 30)
-  const marcos = [5, 10, 15, 20, 25, 30]
+function fotoHtml(f: FotoProposta | null, classe: string): string {
+  if (!f) {
+    return `<div class="pv-foto ${classe}"><div style="width:100%;height:100%;background:linear-gradient(140deg,#0b1f4d,#1d4290);display:flex;align-items:center;justify-content:center;color:#ffd23f;font-family:Montserrat;font-weight:800;font-size:9pt;text-align:center;padding:4mm;">ECOSOLAR ENERGY</div></div>`
+  }
+  return `<figure class="pv-foto ${classe}"><img src="${esc(f.url)}" alt="${esc(f.legenda)}" /><figcaption class="leg">${esc(f.legenda)}</figcaption></figure>`
+}
 
-  // Proposta ID formatada
-  const proposalCode = (data.id || 'ECO').slice(-6).toUpperCase()
-  const localCliente =
-    [data.cliente.cidade, data.cliente.estado].filter(Boolean).join(' - ') || 'Brasil'
-  const consultorNome = data.vendedor?.name || 'Equipe Ecosolar Energy'
-  const consultorEmail = data.vendedor?.email || CONTATO_ECOSOLAR.email
+/* ------------------------------------------------------------------ */
+/* PÁGINA 1 — CAPA                                                    */
+/* ------------------------------------------------------------------ */
+function paginaCapa(d: DadosV2, fotos: FotoProposta[]): string {
+  const fotoCapa = fotos[0] || null
+  return `<section class="pv-page">
+    <div class="pv-capa">
+      <div class="pv-capa-grid"></div>
+      <div style="position:relative;z-index:1;display:flex;flex-direction:column;flex:1;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8mm;">
+          <div>
+            <div class="pv-logo" style="font-size:21pt;"><span class="eco">ECO</span><span class="solar">SOLAR</span> <span class="energy">ENERGY</span></div>
+            <div class="pv-slogan" style="margin-top:1.5mm;">A energia do futuro, hoje!</div>
+          </div>
+          <span class="pv-selo">Proposta Nº ${esc(d.numero)}</span>
+        </div>
+
+        <div style="display:flex;gap:8mm;align-items:stretch;margin-top:10mm;flex:1;">
+          <div style="flex:1.1;display:flex;flex-direction:column;">
+            <h1>Proposta de<br /><span class="am">Energia Solar</span><br />sob medida</h1>
+            <p class="pv-capa-sub" style="margin-top:5mm;">Um sistema dimensionado para a sua conta de luz, explicado passo a passo: o que você recebe, quanto vai economizar e como funciona cada etapa até a usina ligada.</p>
+            <div class="pv-card-cliente" style="margin-top:auto;">
+              <div class="lbl">Preparada especialmente para</div>
+              <div class="nome">${esc(d.clienteNome)}</div>
+              <div class="meta">📍 ${esc(d.localCliente)} • Consumo médio: ${esc(d.consumoKwh ? `${d.consumoKwh} kWh/mês` : '—')} • Telhado: ${esc(d.tipoTelhado)}</div>
+            </div>
+          </div>
+          <div style="flex:0.9;min-width:0;">
+            <div class="pv-capa-foto pv-clip">${fotoHtml(fotoCapa, '')}</div>
+          </div>
+        </div>
+
+        <div class="pv-minis" style="margin-top:9mm;">
+          <div class="pv-mini"><div class="k">Potência</div><div class="v">${esc(d.kwpFmt)} kWp</div></div>
+          <div class="pv-mini"><div class="k">Geração</div><div class="v">~${esc(Math.round(d.calc.geracaoMensalKwh))} kWh</div></div>
+          <div class="pv-mini"><div class="k">Economia/mês</div><div class="v am">${esc(d.economiaMensalRS)}</div></div>
+          <div class="pv-mini"><div class="k">Retorno</div><div class="v">${esc(d.paybackCurtoTxt)}</div></div>
+        </div>
+
+        <div class="pv-capaline" style="margin-top:8mm;border-top:1px solid rgba(255,255,255,.18);padding-top:4.5mm;">
+          <span>Consultor responsável: <strong>${esc(d.consultorNome)}</strong></span>
+          <span>Data de emissão: <strong>${esc(d.emissaoBR)}</strong></span>
+          <span class="val">Válida até: <strong>${esc(d.validadeBR)}</strong></span>
+        </div>
+
+        <div style="margin-top:auto;border-top:1px solid rgba(255,255,255,.18);padding-top:4mm;display:flex;justify-content:space-between;font-size:8pt;color:#cdd7ec;flex-wrap:wrap;gap:2mm;">
+          <span><strong style="color:#fff;">Ecosolar Energy</strong> • Projeto • Homologação • Instalação</span>
+          <span>WhatsApp ${esc(d.whatsapp)} • ${esc(d.instagram)}</span>
+        </div>
+      </div>
+    </div>
+  </section>`
+}
+
+/* ------------------------------------------------------------------ */
+/* PÁGINA 2 — APRESENTAÇÃO + COMO FUNCIONA                            */
+/* ------------------------------------------------------------------ */
+function pagina2(d: DadosV2): string {
+  return `<section class="pv-page">
+    ${headerInterno(d)}
+    <div class="pv-page-inner pv-pad">
+      <div style="margin-top:6mm;">
+        <span class="pv-sec-tag">Apresentação</span>
+        <h2 class="pv-sec-title" style="margin-top:3mm;">Olá, ${esc(d.primeiroNome)}.<br /><span style="color:${'#ffd23f'};background:${'#0b1f4d'};padding:0 2mm;border-radius:1.5mm;">Esta proposta foi feita para você.</span></h2>
+      </div>
+
+      <div class="pv-card" style="margin-top:5mm;font-size:9pt;line-height:1.65;">
+        <p>Obrigado pela confiança em conversar com a Ecosolar Energy. Analisamos o seu consumo médio de <strong>${esc(d.consumoKwh || '—')} kWh por mês</strong> — hoje cerca de <strong>${esc(d.contaHojeRS)}</strong> na conta de luz — e dimensionamos um sistema de energia solar de <strong>${esc(d.kwpFmt)} kWp</strong> para que a maior parte dessa energia seja produzida no seu próprio telhado, com equipamentos de marcas reconhecidas e instalação feita pela nossa equipe.</p>
+        <p style="margin-top:2.5mm;">Nas próximas páginas explicamos, sem termos complicados, como o sistema funciona, por que escolhemos esse tamanho, o que está incluso, quanto você vai economizar e o passo a passo da obra. Se surgir qualquer dúvida, é só chamar no WhatsApp — explicamos quantas vezes for preciso.</p>
+      </div>
+
+      <div style="margin-top:5mm;">
+        <div style="font-family:Montserrat;font-weight:800;font-size:9pt;color:#1d4290;letter-spacing:1.2px;">RESUMO EM 30 SEGUNDOS</div>
+        <div class="pv-grid4" style="margin-top:3mm;">
+          <div class="pv-resumo"><div class="k">Conta hoje</div><div class="v">${esc(d.contaHojeRS)}</div><div class="n">${esc(d.consumoKwh || '—')} kWh/mês</div></div>
+          <div class="pv-resumo"><div class="k">Geração do sistema</div><div class="v">~${esc(Math.round(d.calc.geracaoMensalKwh))} kWh</div><div class="n">cobre ${esc(d.calc.coberturaPct)}% do consumo</div></div>
+          <div class="pv-resumo hl"><div class="k">Economia</div><div class="v">${esc(d.economiaMensalRS)}/mês</div><div class="n">dinheiro que deixa de ir para a conta de luz</div></div>
+          <div class="pv-resumo"><div class="k">Retorno</div><div class="v">${esc(d.paybackCurtoTxt.replace('≈ ', ''))}</div><div class="n">depois disso, é lucro</div></div>
+        </div>
+      </div>
+
+      <div style="margin-top:6mm;">
+        <div style="font-family:Montserrat;font-weight:800;font-size:9pt;color:#1d4290;letter-spacing:1.2px;">DO SOL ATÉ A SUA CONTA DE LUZ</div>
+        <div class="pv-fluxo" style="margin-top:3mm;">
+          <div class="pv-fluxo-item"><div class="ico">☀️</div><div class="t">Sol</div><div class="d">Luz gratuita, todos os dias</div></div>
+          <div class="pv-fluxo-arrow">→</div>
+          <div class="pv-fluxo-item"><div class="ico">🔆</div><div class="t">Painéis</div><div class="d">Transformam a luz em energia</div></div>
+          <div class="pv-fluxo-arrow">→</div>
+          <div class="pv-fluxo-item"><div class="ico">⚡</div><div class="t">Inversor</div><div class="d">Deixa a energia pronta para uso</div></div>
+          <div class="pv-fluxo-arrow">→</div>
+          <div class="pv-fluxo-item"><div class="ico">🏠</div><div class="t">Sua casa</div><div class="d">Usa na hora o que precisa</div></div>
+          <div class="pv-fluxo-arrow">→</div>
+          <div class="pv-fluxo-item"><div class="ico">🔌</div><div class="t">Rede</div><div class="d">Guarda a sobra como crédito</div></div>
+        </div>
+        <div style="text-align:center;font-size:7.4pt;color:#11845b;font-weight:800;margin-top:1.5mm;">⇠ seta verde: a rede devolve a sobra como crédito em kWh ⇠</div>
+      </div>
+
+      <div class="pv-grid2" style="margin-top:5mm;">
+        <div class="pv-periodo dia"><strong>☀ De dia:</strong> Os painéis produzem energia e a casa usa primeiro o que está sendo gerado. O que sobra vai para a rede da ${esc(d.concessionaria)} e vira crédito em kWh na sua conta.</div>
+        <div class="pv-periodo noite"><strong>🌙 À noite e em dias nublados:</strong> A casa puxa energia da rede normalmente e os créditos acumulados abatem esse consumo. Os créditos valem por até 60 meses. Você nunca fica sem luz.</div>
+      </div>
+    </div>
+    ${footerInterno(2)}
+  </section>`
+}
+
+/* ------------------------------------------------------------------ */
+/* PÁGINA 3 — SEU SISTEMA                                             */
+/* ------------------------------------------------------------------ */
+function pagina3(d: DadosV2): string {
+  const ger = Math.round(d.calc.geracaoMensalKwh)
+  const linhas = d.itensKit
+    .map(
+      (i) => `<tr>
+        <td class="qtd">${esc(i.qtd)}</td>
+        <td class="item">${esc(i.item)}</td>
+        <td class="para">${esc(i.para)}</td>
+        <td class="pv-incluso">✓ Incluso</td>
+      </tr>`,
+    )
+    .join('')
+
+  return `<section class="pv-page">
+    ${headerInterno(d)}
+    <div class="pv-page-inner pv-pad">
+      <div style="margin-top:6mm;">
+        <span class="pv-sec-tag">1 • Seu sistema</span>
+        <h2 class="pv-sec-title" style="margin-top:3mm;">Kit solar ${esc(d.kwpFmt)} kWp — ${esc(d.marcaPainel || 'painéis de alta eficiência')} + ${esc(d.marcaInversor || 'inversor homologado')}</h2>
+        <p class="pv-sub" style="margin-top:2mm;">Como chegamos a esse tamanho: partimos do seu consumo e da quantidade de sol da região.</p>
+      </div>
+
+      <div class="pv-conta" style="margin-top:5mm;">
+        ${esc(d.kwpFmt)} kWp <span class="op">×</span> ${esc(String(d.calc.irradiacaoHoras).replace('.', ','))} h de sol/dia
+        <span class="op">×</span> 30 dias <span class="op">×</span> 80% aproveitamento real
+        <span class="op">=</span> <span class="res">~${esc(ger)} kWh/mês</span>
+      </div>
+
+      <div style="margin-top:5mm;">
+        <div style="font-weight:800;font-size:9pt;color:#0b1f4d;">Quanto do seu consumo o sistema cobre: ${esc(d.calc.coberturaPct)}%</div>
+        <div class="pv-barra" style="margin-top:2mm;">
+          <div class="g" style="width:${esc(d.calc.coberturaPct)}%;">Gerado pelo sistema: ~${esc(ger)} kWh</div>
+          <div class="r" style="width:${esc(100 - d.calc.coberturaPct)}%;">Restante da rede: ~${esc(d.calc.restanteRedeKwh)} kWh</div>
+        </div>
+      </div>
+
+      <div class="pv-info-azul" style="margin-top:5mm;">
+        <strong>Por que considerar 20% de perdas?</strong> Painel no calor, cabos, sujeira e o próprio inversor consomem uma parte da energia. Usamos esse desconto para que a geração prometida seja realista — preferimos que você se surpreenda para mais, não para menos.
+      </div>
+
+      <div style="margin-top:6mm;">
+        <div style="font-family:Montserrat;font-weight:800;font-size:9pt;color:#1d4290;letter-spacing:1.2px;">O QUE VEM NO SEU KIT — E PARA QUE SERVE CADA ITEM</div>
+        <table class="pv-tabela" style="margin-top:3mm;">
+          <thead><tr><th style="width:14mm;">Qtd.</th><th>Item</th><th>Para que serve</th><th style="width:18mm;">Incluso</th></tr></thead>
+          <tbody>${linhas}</tbody>
+        </table>
+      </div>
+
+      <div class="pv-kits-fim" style="margin-top:auto;padding-top:5mm;">
+        <div class="pv-card"><div style="font-size:7.2pt;letter-spacing:.8px;text-transform:uppercase;color:#5b6782;font-weight:700;">Área no telhado</div><div class="v">${d.areaTelhadoM2 ? `~${esc(d.areaTelhadoM2)} m²` : '—'}</div><div class="n">estimativa com os painéis deste kit</div></div>
+        <div class="pv-card"><div style="font-size:7.2pt;letter-spacing:.8px;text-transform:uppercase;color:#5b6782;font-weight:700;">Tipo de telhado</div><div class="v">${esc(d.tipoTelhado)}</div><div class="n">estrutura própria inclusa</div></div>
+        <div class="pv-card"><div style="font-size:7.2pt;letter-spacing:.8px;text-transform:uppercase;color:#5b6782;font-weight:700;">Monitoramento</div><div class="v">24 h</div><div class="n">acompanhamento no celular</div></div>
+      </div>
+    </div>
+    ${footerInterno(3)}
+  </section>`
+}
+
+/* ------------------------------------------------------------------ */
+/* PÁGINA 4 — INVESTIMENTO E RETORNO                                  */
+/* ------------------------------------------------------------------ */
+function pagina4(d: DadosV2): string {
+  const maxRend = Math.max(d.rendimentoSolarInt, Math.round(d.calc.rendimentoSolarPct) || 0, 12)
+  const largura = (pct: number) => Math.max(6, Math.round((pct / Math.max(maxRend, 1)) * 100))
+  const poupancaPct = Math.round(REN_POUP * 100)
+  const cdbPct = Math.round(REN_CDB * 100)
+
+  const linhasBarras = `
+    <div class="linha">
+      <span class="nome">Poupança 6,17% a.a.</span>
+      <div class="faixa"><div class="fill" style="width:${largura(poupancaPct)}%;background:#aab4c9;">&nbsp;</div></div>
+      <span class="pct">${poupancaPct}%</span>
+    </div>
+    <div class="linha">
+      <span class="nome">CDB (líquido de IR) ~10% a.a.</span>
+      <div class="faixa"><div class="fill" style="width:${largura(cdbPct)}%;background:#1d4290;">&nbsp;</div></div>
+      <span class="pct">${cdbPct}%</span>
+    </div>
+    <div class="linha">
+      <span class="nome">Energia solar (economia)</span>
+      <div class="faixa"><div class="fill" style="width:${largura(d.rendimentoSolarInt)}%;background:#11845b;font-family:Montserrat;">&nbsp;</div></div>
+      <span class="pct solar">${d.rendimentoSolarInt}%</span>
+    </div>`
+
+  const fioBTexto =
+    d.anoEmissao >= 2028
+      ? 'em 2028, 90% desse componente'
+      : d.anoEmissao === 2027
+        ? 'em 2027, 75% desse componente'
+        : `em ${d.anoEmissao}, ${d.fioB}% desse componente (2027: 75%, 2028: 90%)`
+
+  return `<section class="pv-page">
+    ${headerInterno(d)}
+    <div class="pv-page-inner pv-pad">
+      <div style="margin-top:6mm;">
+        <span class="pv-sec-tag">2 • Investimento e retorno</span>
+        <h2 class="pv-sec-title" style="margin-top:3mm;">Quanto custa e em quanto tempo se paga</h2>
+      </div>
+
+      <div class="pv-invest" style="margin-top:5mm;">
+        <div style="flex:1;">
+          <div class="lbl">Investimento total • chave na mão</div>
+          <h3>${esc(d.precoFinalRS)}</h3>
+          <p>Equipamentos + projeto de engenharia com ART + homologação na ${esc(d.concessionaria)} + instalação.</p>
+          <p style="margin-top:1.5mm;">Sem custos escondidos: tudo o que está na página anterior já está neste valor.</p>
+        </div>
+        <div class="pv-preco">
+          <div><span class="cheio">${esc(d.precoCheioRS)}</span><span class="off">-${esc(String(d.descontoPct))}% OFF</span></div>
+          <div class="final">${esc(d.precoFinalRS)}</div>
+          <div class="economiza">Você economiza ${esc(d.descontoRS)} nesta proposta</div>
+        </div>
+      </div>
+
+      <div class="pv-cards4" style="margin-top:4mm;">
+        <div class="pv-inv-card"><div class="k">Economia/mês (estimada)</div><div class="v">${esc(d.economiaMensalRS)}</div><div class="n">média no primeiro ano</div></div>
+        <div class="pv-inv-card"><div class="k">Economia/ano</div><div class="v">${esc(d.economiaAnualRS)}</div><div class="n">dinheiro que fica com você</div></div>
+        <div class="pv-inv-card hl"><div class="k">Retorno</div><div class="v">${esc(d.paybackCurtoTxt.replace('≈ ', ''))}</div><div class="n">${esc(d.paybackExtensoTxt)}</div></div>
+        <div class="pv-inv-card"><div class="k">Em 25 anos</div><div class="v">R$ ${esc(d.economia25Txt)}</div><div class="n">sem contar reajustes</div></div>
+      </div>
+
+      <div class="pv-card" style="margin-top:4mm;">
+        <h3>Comparando com deixar o dinheiro aplicado</h3>
+        <p class="pv-sub" style="margin-top:1mm;">Se você colocar ${esc(d.precoFinalRS)} em uma aplicação, quanto ela devolve por ano? Compare com o que o sistema solar devolve em economia:</p>
+        <div class="pv-barras">${linhasBarras}</div>
+        <p style="font-size:8.4pt;margin-top:2.5mm;"><strong>Em reais, no 1º ano:</strong> aplicação no CDB ≈ ${esc(d.cdbNoPrimeiroAnoRS)} • sistema solar ≈ ${esc(d.economiaAnualRS)} de economia.</p>
+        <p class="pv-nota" style="margin-top:1.5mm;">Rendimentos de referência aproximados, apenas para comparação. A economia na conta de luz não paga imposto de renda.</p>
+      </div>
+
+      <div class="pv-grid2" style="margin-top:4mm;">
+        <div class="pv-card">
+          <h3>Como calculamos a economia</h3>
+          <div class="pv-li"><span class="bola v"></span><span>Geração de ~${esc(Math.round(d.calc.geracaoMensalKwh))} kWh/mês, com 20% de perdas já descontadas.</span></div>
+          <div class="pv-li"><span class="bola v"></span><span>Tarifa média de ${esc(d.tarifaRS)}/kWh com impostos, a mesma da sua conta.</span></div>
+          <div class="pv-li"><span class="bola v"></span><span>Sem considerar aumentos futuros da conta de luz — que historicamente sobem todos os anos e deixam a economia ainda maior.</span></div>
+          <div class="pv-li"><span class="bola v"></span><span>Em 25 anos já descontamos o leve desgaste natural dos painéis (cerca de 0,4% ao ano).</span></div>
+        </div>
+        <div class="pv-caixa-am">
+          <h4>O que continua aparecendo na sua conta (transparência)</h4>
+          <p>• A taxa mínima da ${esc(d.concessionaria)} (custo de disponibilidade), que todo cliente conectado à rede paga;</p>
+          <p>• O Fio B (Lei 14.300): uma parte do uso da rede cobrada sobre a energia que vai e volta como crédito — ${esc(fioBTexto)};</p>
+          <p>• O consumo que passar do que o sistema gera.</p>
+          <p style="font-weight:700;">Por isso falamos em economia estimada: a conta não zera, mas cai muito.</p>
+        </div>
+      </div>
+    </div>
+    ${footerInterno(4)}
+  </section>`
+}
+
+/* ------------------------------------------------------------------ */
+/* PÁGINA 5 — COMO VAI SER (ETAPAS)                                   */
+/* ------------------------------------------------------------------ */
+function pagina5(d: DadosV2): string {
+  const quemClass: Record<string, string> = { VOCE: 'voce', ECOSOLAR: 'eco', CONCESS: 'conc' }
+  const quemLabel: Record<string, string> = {
+    VOCE: 'Você',
+    ECOSOLAR: 'Ecosolar',
+    CONCESS: 'Concessionária',
+  }
+  const cartoes = d.etapas
+    .map(
+      (e) => `<div class="pv-etapa${e.destaque ? ' hl' : ''}">
+        <div class="topo"><div class="num">${esc(e.n)}</div><span class="quem ${quemClass[e.quem] || 'eco'}">${esc(quemLabel[e.quem] || 'Ecosolar')}</span></div>
+        <h4>${esc(e.titulo)}</h4>
+        <p>${esc(e.texto)}</p>
+      </div>`,
+    )
+    .join('')
+
+  return `<section class="pv-page">
+    ${headerInterno(d)}
+    <div class="pv-page-inner pv-pad">
+      <div style="margin-top:6mm;">
+        <span class="pv-sec-tag">3 • Como vai ser</span>
+        <h2 class="pv-sec-title" style="margin-top:3mm;">Do "sim" até a usina ligada</h2>
+        <p class="pv-sub" style="margin-top:2mm;">Cuidamos de toda a burocracia com a concessionária. Você só participa de duas etapas.</p>
+      </div>
+
+      <div class="pv-etapas" style="margin-top:5mm;">${cartoes}</div>
+
+      <div class="pv-grid2" style="margin-top:5mm;">
+        <div class="pv-card">
+          <h3>Garantias</h3>
+          <div class="pv-li"><span class="bola v"></span><span>Painéis ${esc(d.marcaPainel || 'do kit')}: garantia de desempenho linear de 30 anos do fabricante.</span></div>
+          <div class="pv-li"><span class="bola v"></span><span>Inversor ${esc(d.marcaInversor || 'do kit')}: ${esc(d.garantiaInversorTxt)}.</span></div>
+          <div class="pv-li"><span class="bola v"></span><span>Instalação: ${esc(d.garantiaInstalacaoTxt)} e suporte técnico pós-venda.</span></div>
+          <div class="pv-li"><span class="bola v"></span><span>Projeto: assinado por engenheiro eletricista, com ART registrada no CREA.</span></div>
+        </div>
+        <div class="pv-card">
+          <h3>Já está incluso no valor</h3>
+          <div class="pv-li"><span class="bola v"></span><span>Todos os equipamentos e a estrutura de fixação</span></div>
+          <div class="pv-li"><span class="bola v"></span><span>Projeto, ART e homologação na concessionária</span></div>
+          <div class="pv-li"><span class="bola v"></span><span>Mão de obra de instalação e frete do material</span></div>
+          <div class="pv-li"><span class="bola v"></span><span>Configuração do monitoramento no seu celular</span></div>
+          <div style="margin-top:3mm;padding-top:2.5mm;border-top:1px dashed #dfe5f0;">
+            <h3>Não incluso</h3>
+            <div class="pv-li"><span class="bola c"></span><span>Adequações no padrão de entrada ou quadro, se a concessionária exigir — avaliadas na vistoria e orçadas à parte, antes de qualquer serviço.</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:5mm;">
+        <div style="font-family:Montserrat;font-weight:800;font-size:9pt;color:#1d4290;letter-spacing:1.2px;">FORMAS DE PAGAMENTO</div>
+        <div class="pv-pagtos" style="margin-top:3mm;">
+          ${d.formasPagamento
+            .map(
+              (f) => `<div class="pv-pagto"><h4>${esc(f.titulo)}</h4><p>${esc(f.texto)}</p></div>`,
+            )
+            .join('')}
+        </div>
+      </div>
+    </div>
+    ${footerInterno(5)}
+  </section>`
+}
+
+/* ------------------------------------------------------------------ */
+/* PÁGINA 6 — OBRAS + FAQ + ACEITE                                    */
+/* ------------------------------------------------------------------ */
+function pagina6(d: DadosV2, fotos: FotoProposta[], linkPublico: string, urlBase?: string): string {
+  const faqHtml = d.faq
+    .map((f) => `<div><div class="q">${esc(f.p)}</div><div class="a">${esc(f.r)}</div></div>`)
+    .join('')
+
+  const aceiteTela = `<div class="pv-aceite-tela pv-somente-tela" data-proposta-aceite>
+    <button type="button" class="pv-btn-aceite" data-acao-aceite>✓ Aceitar esta proposta agora</button>
+    <a class="pv-link-aceite" href="${esc(linkPublico)}">Ou use o link de aceite: ${esc(linkPublico)}</a>
+  </div>`
+
+  const linkImpressao = `<span class="mono pv-somente-impressao">${esc(
+    urlBase ? `${urlBase}${linkPublico}` : linkPublico,
+  )}</span>`
+
+  return `<section class="pv-page">
+    ${headerInterno(d)}
+    <div class="pv-page-inner pv-pad">
+      <div style="margin-top:6mm;">
+        <span class="pv-sec-tag">4 • Quem faz</span>
+        <h2 class="pv-sec-title" style="margin-top:3mm;">Obras reais, feitas pela nossa equipe</h2>
+      </div>
+
+      <div class="pv-mosaico" style="margin-top:4mm;">
+        ${fotoHtml(fotos[0] || fotos[1] || fotos[2] || fotos[3] || fotos[4] || null, 'grande')}
+        ${fotoHtml(fotos[1] || fotos[0] || null, '')}
+        ${fotoHtml(fotos[2] || fotos[0] || null, '')}
+        ${fotoHtml(fotos[3] || fotos[0] || null, '')}
+        ${fotoHtml(fotos[4] || fotos[0] || null, '')}
+      </div>
+
+      <div class="pv-depo" style="margin-top:4mm;">
+        <div class="aspas">"</div>
+        <div>
+          <div class="txt">${esc(d.depoimento.texto)}</div>
+          <div class="autor">${esc(d.depoimento.autor)}</div>
+        </div>
+      </div>
+
+      <div style="margin-top:5mm;">
+        <div style="font-family:Montserrat;font-weight:800;font-size:9pt;color:#1d4290;letter-spacing:1.2px;">PERGUNTAS FREQUENTES</div>
+        <div class="pv-faq" style="margin-top:3mm;">${faqHtml}</div>
+      </div>
+
+      <div class="pv-aceite" style="margin-top:5mm;">
+        <div style="font-family:Montserrat;font-weight:800;font-size:10pt;color:#0b1f4d;">Aceite online — rápido e seguro, sem cartório</div>
+        <p style="font-size:8.4pt;color:#5b6782;margin-top:1.5mm;">Válida até <strong style="color:#0b1f4d;">${esc(d.validadeBR)}</strong>. Os valores desta proposta ficam garantidos até a data de validade. Para aceitar, use o link abaixo ou responda no WhatsApp ${esc(d.whatsapp)}.</p>
+        ${linkImpressao}
+        ${aceiteTela}
+      </div>
+
+      <div class="pv-assina">
+        <div class="campo"><b>${esc(d.consultorNome)}</b><span>Ecosolar Energy • Consultor Técnico</span></div>
+        <div class="campo"><b>${esc(d.clienteNome)}</b><span>Cliente contratante</span></div>
+      </div>
+    </div>
+    <footer class="pv-footer">
+      <span><strong>Ecosolar Energy</strong> • Seringueiras – RO • hernandes43210@gmail.com</span>
+      <span class="pv-pgnum">Página 6</span>
+    </footer>
+  </section>`
+}
+
+/* ------------------------------------------------------------------ */
+/* HTML completo                                                      */
+/* ------------------------------------------------------------------ */
+export function generateProposalPrintHTML(
+  data: ProposalPDFData,
+  opts?: { fotos?: FotoProposta[]; urlBase?: string; linkPublico?: string },
+): string {
+  const d = montarDadosV2(data)
+  const fotos = fotosPropostaDe(data, opts?.fotos)
+  const linkPublico =
+    opts?.linkPublico ||
+    (data.token_publico ? `/proposta/${data.token_publico}` : `/proposta/${data.id || ''}`)
+  const urlBase = opts?.urlBase
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Proposta Comercial Nº ${proposalCode} — ${data.cliente.nome} | Ecosolar Energy</title>
-  <style>
-    @page {
-      size: A4 portrait;
-      margin: 10mm 12mm;
-    }
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    }
-    body {
-      color: #0f172a;
-      background: #ffffff;
-      font-size: 11px;
-      line-height: 1.45;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-
-    /* Capa de Página Inteira (Página 1 do PDF) */
-    .cover-page {
-      width: 100%;
-      min-height: 277mm;
-      box-sizing: border-box;
-      background: linear-gradient(145deg, #060F1E 0%, #0A192F 35%, #0F284E 75%, #163868 100%);
-      color: #ffffff;
-      border-radius: 12px;
-      padding: 36px 36px 28px 36px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      position: relative;
-      overflow: hidden;
-      page-break-after: always;
-      break-after: page;
-      border: 1px solid rgba(234, 179, 8, 0.35);
-      box-shadow: 0 10px 30px rgba(10, 25, 47, 0.25);
-    }
-
-    /* Padrão geométrico de fundo evocando painéis solares / energia */
-    .cover-bg-grid {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      opacity: 0.14;
-      background-size: 38px 38px;
-      background-image:
-        linear-gradient(to right, rgba(250, 204, 21, 0.4) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(250, 204, 21, 0.4) 1px, transparent 1px);
-    }
-    .cover-bg-accent-1 {
-      position: absolute;
-      top: -90px;
-      right: -90px;
-      width: 320px;
-      height: 320px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(234, 179, 8, 0.22) 0%, rgba(234, 179, 8, 0) 70%);
-      pointer-events: none;
-    }
-    .cover-bg-accent-2 {
-      position: absolute;
-      bottom: 80px;
-      left: -60px;
-      width: 260px;
-      height: 260px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(59, 130, 246, 0.18) 0%, rgba(59, 130, 246, 0) 70%);
-      pointer-events: none;
-    }
-    .cover-bg-solar-cells {
-      position: absolute;
-      right: 28px;
-      top: 140px;
-      width: 180px;
-      height: 180px;
-      opacity: 0.18;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 5px;
-      transform: rotate(12deg);
-      pointer-events: none;
-    }
-    .cover-solar-cell {
-      border: 1.5px solid #FACC15;
-      border-radius: 3px;
-      background: rgba(250, 204, 21, 0.05);
-    }
-
-    .cover-header {
-      position: relative;
-      z-index: 2;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-      padding-bottom: 20px;
-    }
-    .cover-brand-wrap {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-    .cover-logo-img {
-      height: 68px;
-      width: auto;
-      object-fit: contain;
-      background: #ffffff;
-      border-radius: 10px;
-      padding: 6px 10px;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-    }
-    .cover-brand-title {
-      font-size: 24px;
-      font-weight: 900;
-      letter-spacing: -0.5px;
-      color: #ffffff;
-      line-height: 1.1;
-    }
-    .cover-brand-title span {
-      color: #FACC15;
-    }
-    .cover-brand-sub {
-      font-size: 10px;
-      color: #93C5FD;
-      font-weight: 700;
-      letter-spacing: 0.6px;
-      margin-top: 3px;
-      text-transform: uppercase;
-    }
-    .cover-badge-num {
-      text-align: right;
-    }
-    .cover-badge-pill {
-      display: inline-block;
-      background: rgba(234, 179, 8, 0.18);
-      border: 1.5px solid #EAB308;
-      color: #FACC15;
-      padding: 4px 12px;
-      border-radius: 9999px;
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
-
-    .cover-body {
-      position: relative;
-      z-index: 2;
-      margin: auto 0;
-      padding: 30px 0;
-    }
-    .cover-pretitle {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 11px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 1.2px;
-      color: #FACC15;
-      background: rgba(250, 204, 21, 0.12);
-      padding: 4px 12px;
-      border-radius: 4px;
-      margin-bottom: 14px;
-    }
-    .cover-pretitle::before {
-      content: "☀";
-      font-size: 13px;
-    }
-    .cover-main-title {
-      font-size: 34px;
-      font-weight: 900;
-      letter-spacing: -0.8px;
-      line-height: 1.15;
-      color: #ffffff;
-      margin-bottom: 18px;
-      max-width: 580px;
-    }
-    .cover-main-title .highlight-yellow {
-      color: #FACC15;
-      display: inline;
-    }
-    .cover-gold-bar {
-      width: 72px;
-      height: 4px;
-      background: linear-gradient(90deg, #FACC15 0%, #EAB308 100%);
-      border-radius: 2px;
-      margin-bottom: 26px;
-    }
-
-    /* Caixa em destaque do cliente */
-    .cover-client-card {
-      background: rgba(255, 255, 255, 0.06);
-      border: 1.5px solid rgba(250, 204, 21, 0.4);
-      border-left: 6px solid #FACC15;
-      border-radius: 10px;
-      padding: 16px 20px;
-      margin-bottom: 24px;
-      backdrop-filter: blur(4px);
-    }
-    .cover-client-label {
-      font-size: 9.5px;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: #93C5FD;
-      font-weight: 800;
-    }
-    .cover-client-name {
-      font-size: 22px;
-      font-weight: 900;
-      color: #ffffff;
-      margin-top: 4px;
-      letter-spacing: -0.3px;
-    }
-    .cover-client-location {
-      font-size: 12px;
-      color: #CBD5E1;
-      margin-top: 4px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-weight: 600;
-    }
-
-    /* Grid de Metadados da Capa */
-    .cover-meta-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-    }
-    .cover-meta-item {
-      background: rgba(10, 25, 47, 0.7);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 8px;
-      padding: 10px 14px;
-    }
-    .cover-meta-label {
-      font-size: 9px;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      color: #94A3B8;
-      font-weight: 700;
-    }
-    .cover-meta-val {
-      font-size: 12.5px;
-      font-weight: 800;
-      color: #ffffff;
-      margin-top: 3px;
-    }
-    .cover-meta-val.accent {
-      color: #FACC15;
-    }
-
-    /* Rodapé da Capa */
-    .cover-footer {
-      position: relative;
-      z-index: 2;
-      border-top: 1px solid rgba(255, 255, 255, 0.15);
-      padding-top: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 9.5px;
-      color: #CBD5E1;
-    }
-    .cover-footer-left strong {
-      color: #ffffff;
-      font-size: 10.5px;
-      display: block;
-      margin-bottom: 2px;
-    }
-    .cover-footer-contacts {
-      text-align: right;
-      line-height: 1.5;
-    }
-    .cover-footer-contacts span {
-      margin-left: 10px;
-    }
-
-    /* 1. Header Institucional Azul-Marinho (a partir da página 2) */
-    .header {
-      background: linear-gradient(135deg, #0A192F 0%, #0F284E 50%, #163868 100%);
-      color: #ffffff;
-      border-radius: 8px;
-      padding: 14px 18px;
-      margin-bottom: 12px;
-      border-bottom: 3px solid #EAB308;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 2px 8px rgba(10, 25, 47, 0.12);
-      page-break-inside: avoid;
-    }
-    .brand-box {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .brand-logo-img {
-      height: 52px;
-      width: auto;
-      object-fit: contain;
-      background: #ffffff;
-      border-radius: 8px;
-      padding: 4px;
-    }
-    .brand-title {
-      font-size: 19px;
-      font-weight: 900;
-      letter-spacing: -0.5px;
-      color: #ffffff;
-      line-height: 1.1;
-    }
-    .brand-title span {
-      color: #FACC15;
-    }
-    .brand-sub {
-      font-size: 9px;
-      color: #93C5FD;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      margin-top: 2px;
-      text-transform: uppercase;
-    }
-    .header-meta {
-      text-align: right;
-      font-size: 10.5px;
-      color: #CBD5E1;
-      line-height: 1.4;
-    }
-    .header-meta strong {
-      color: #ffffff;
-    }
-    .badge-status {
-      display: inline-block;
-      margin-top: 4px;
-      padding: 2px 8px;
-      border-radius: 9999px;
-      font-size: 9.5px;
-      font-weight: 800;
-      text-transform: uppercase;
-      background: ${data.status === 'Aceita' ? '#22C55E' : '#EAB308'};
-      color: ${data.status === 'Aceita' ? '#ffffff' : '#0A192F'};
-    }
-
-    /* 2. Sumário Executivo Comercial */
-    .hero-summary {
-      background: #F8FAFC;
-      border: 1px solid #CBD5E1;
-      border-left: 5px solid #0A192F;
-      border-radius: 8px;
-      padding: 12px 16px;
-      margin-bottom: 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-    }
-    .hero-left h2 {
-      font-size: 16px;
-      font-weight: 900;
-      color: #0A192F;
-      letter-spacing: -0.3px;
-    }
-    .hero-left p {
-      font-size: 11px;
-      color: #334155;
-      margin-top: 3px;
-    }
-    .hero-badges {
-      display: flex;
-      gap: 8px;
-      margin-top: 6px;
-      font-size: 9.5px;
-      font-weight: 700;
-    }
-    .hero-badge-item {
-      background: #0A192F;
-      color: #FACC15;
-      padding: 2px 8px;
-      border-radius: 4px;
-    }
-    .hero-price-box {
-      text-align: right;
-      background: linear-gradient(135deg, #0A192F 0%, #163868 100%);
-      color: #ffffff;
-      padding: 10px 16px;
-      border-radius: 8px;
-      border: 1px solid #EAB308;
-      min-width: 190px;
-      flex-shrink: 0;
-    }
-    .hero-price-box .price-label {
-      font-size: 9.5px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #93C5FD;
-      font-weight: 700;
-    }
-    .hero-price-box .price-amount {
-      font-size: 23px;
-      font-weight: 900;
-      color: #FACC15;
-      letter-spacing: -0.5px;
-      margin: 2px 0;
-    }
-    .hero-price-box .price-sub {
-      font-size: 9px;
-      color: #E2E8F0;
-    }
-
-    /* Grid 2 Colunas */
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 12px;
-      page-break-inside: avoid;
-    }
-    .card {
-      border: 1px solid #E2E8F0;
-      border-radius: 6px;
-      padding: 10px 12px;
-      background: #FFFFFF;
-    }
-    .card-title {
-      font-size: 10px;
-      font-weight: 800;
-      text-transform: uppercase;
-      color: #0A192F;
-      letter-spacing: 0.5px;
-      margin-bottom: 6px;
-      border-bottom: 2px solid #E2E8F0;
-      padding-bottom: 4px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .card-title span.accent {
-      color: #EAB308;
-    }
-    .card-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 3.5px;
-      font-size: 10.5px;
-    }
-    .card-row .label {
-      color: #64748B;
-    }
-    .card-row .value {
-      font-weight: 700;
-      color: #0F172A;
-      text-align: right;
-    }
-
-    /* KPIs de Retorno Comercial */
-    .kpi-row {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      margin-bottom: 12px;
-      page-break-inside: avoid;
-    }
-    .kpi-card {
-      border: 1px solid #CBD5E1;
-      border-radius: 6px;
-      padding: 8px 10px;
-      background: #F8FAFC;
-      text-align: center;
-    }
-    .kpi-card.highlight {
-      border: 1.5px solid #0A192F;
-      background: #EFF6FF;
-    }
-    .kpi-label {
-      font-size: 9px;
-      font-weight: 800;
-      color: #475569;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-    }
-    .kpi-card.highlight .kpi-label {
-      color: #1E3A8A;
-    }
-    .kpi-val {
-      font-size: 15px;
-      font-weight: 900;
-      color: #0A192F;
-      margin-top: 2px;
-    }
-    .kpi-card.highlight .kpi-val {
-      color: #0F284E;
-    }
-    .kpi-sub {
-      font-size: 8.5px;
-      color: #64748B;
-      margin-top: 2px;
-    }
-
-    /* 3. Seção Técnica Organizada: Tabela Item a Item */
-    .section-title {
-      font-size: 11px;
-      font-weight: 800;
-      text-transform: uppercase;
-      color: #0A192F;
-      letter-spacing: 0.5px;
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .section-title::before {
-      content: "";
-      display: inline-block;
-      width: 4px;
-      height: 12px;
-      background: #EAB308;
-      border-radius: 2px;
-    }
-    .table-container {
-      margin-bottom: 12px;
-      border: 1px solid #CBD5E1;
-      border-radius: 6px;
-      overflow: hidden;
-      page-break-inside: avoid;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 10px;
-    }
-    th {
-      background: #0A192F;
-      color: #ffffff;
-      text-align: left;
-      padding: 6px 8px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-      font-size: 9px;
-    }
-    th.text-center {
-      text-align: center;
-    }
-    th.text-right {
-      text-align: right;
-    }
-    td {
-      padding: 5.5px 8px;
-      border-bottom: 1px solid #E2E8F0;
-      color: #1E293B;
-    }
-    tr:nth-child(even) td {
-      background: #F8FAFC;
-    }
-    .td-qty {
-      text-align: center;
-      font-weight: 800;
-      color: #0A192F;
-      font-size: 11px;
-    }
-    .td-status {
-      text-align: right;
-      font-weight: 800;
-      color: #15803D;
-    }
-
-    /* Faixa de resumo técnico (Potência, Geração e Área) */
-    .tech-summary-bar {
-      background: #F1F5F9;
-      border: 1px solid #CBD5E1;
-      border-radius: 6px;
-      padding: 8px 12px;
-      margin-bottom: 12px;
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      font-size: 10.5px;
-    }
-    .tech-item {
-      text-align: center;
-    }
-    .tech-item .label {
-      font-size: 8.5px;
-      color: #64748B;
-      font-weight: 700;
-      text-transform: uppercase;
-    }
-    .tech-item .val {
-      font-size: 13px;
-      font-weight: 900;
-      color: #0A192F;
-    }
-
-    /* 4. Apresentação Financeira e Relatório de 30 Anos */
-    .comp-section {
-      border: 1px solid #CBD5E1;
-      border-radius: 6px;
-      padding: 10px 12px;
-      background: #FFFFFF;
-      margin-bottom: 12px;
-      page-break-inside: avoid;
-    }
-    .comp-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 6px;
-      border-bottom: 1px solid #E2E8F0;
-      padding-bottom: 4px;
-    }
-    .comp-header h3 {
-      font-size: 11px;
-      font-weight: 900;
-      color: #0A192F;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-    }
-    .comp-kpis {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-      margin-bottom: 8px;
-    }
-    .comp-kpi-card {
-      border: 1px solid #E2E8F0;
-      border-radius: 4px;
-      padding: 6px 8px;
-      background: #F8FAFC;
-    }
-    .comp-kpi-card.winner {
-      border: 1.5px solid #0A192F;
-      background: #EFF6FF;
-    }
-    .comp-kpi-title {
-      font-size: 8.5px;
-      font-weight: 800;
-      text-transform: uppercase;
-      color: #64748B;
-    }
-    .comp-kpi-card.winner .comp-kpi-title {
-      color: #1E3A8A;
-    }
-    .comp-kpi-val {
-      font-size: 13px;
-      font-weight: 900;
-      color: #0F172A;
-    }
-    .comp-kpi-card.winner .comp-kpi-val {
-      color: #0A192F;
-    }
-    .comp-kpi-sub {
-      font-size: 8px;
-      color: #64748B;
-    }
-    .comp-kpi-card.winner .comp-kpi-sub {
-      color: #15803D;
-      font-weight: 700;
-    }
-    .comp-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 9.5px;
-      margin-bottom: 6px;
-    }
-    .comp-table th {
-      background: #F1F5F9;
-      color: #334155;
-      padding: 4px 6px;
-      font-weight: 700;
-      border-bottom: 1px solid #CBD5E1;
-      font-size: 8.5px;
-    }
-    .comp-table td {
-      padding: 4px 6px;
-      border-bottom: 1px solid #E2E8F0;
-    }
-    .comp-table tr.highlight-30 td {
-      background: #EFF6FF;
-      font-weight: 800;
-      color: #1E3A8A;
-    }
-    .comp-notes {
-      font-size: 8px;
-      color: #64748B;
-      line-height: 1.3;
-      border-top: 1px dashed #E2E8F0;
-      padding-top: 4px;
-    }
-
-    /* 5. Prova Social — Galeria de Obras Reais */
-    .social-proof {
-      border: 1px solid #CBD5E1;
-      border-radius: 8px;
-      padding: 10px 12px;
-      background: #F8FAFC;
-      margin-bottom: 12px;
-      page-break-inside: avoid;
-      box-shadow: 0 1px 3px rgba(10, 25, 47, 0.05);
-    }
-    .social-proof-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 4px;
-      border-bottom: 1px solid #E2E8F0;
-      padding-bottom: 4px;
-    }
-    .social-proof-badge {
-      background: #0A192F;
-      color: #FACC15;
-      font-size: 8px;
-      font-weight: 800;
-      padding: 2px 7px;
-      border-radius: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .photos-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 7px;
-      margin-top: 6px;
-    }
-    .photo-card {
-      border-radius: 5px;
-      overflow: hidden;
-      border: 1px solid #CBD5E1;
-      background: #ffffff;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-      display: flex;
-      flex-direction: column;
-      page-break-inside: avoid;
-    }
-    .photo-thumb {
-      aspect-ratio: 16/10;
-      width: 100%;
-      overflow: hidden;
-      background: #0A192F;
-      position: relative;
-    }
-    .photo-thumb img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-    .photo-tag {
-      position: absolute;
-      top: 3px;
-      left: 3px;
-      background: rgba(10, 25, 47, 0.9);
-      color: #FACC15;
-      font-size: 7px;
-      font-weight: 800;
-      padding: 1px 4px;
-      border-radius: 3px;
-      border: 1px solid rgba(250, 204, 21, 0.4);
-      text-transform: uppercase;
-    }
-    .photo-caption {
-      padding: 5px 6px;
-      background: #ffffff;
-      border-top: 1px solid #F1F5F9;
-    }
-    .photo-caption strong {
-      display: block;
-      font-size: 8.5px;
-      color: #0A192F;
-      font-weight: 800;
-      line-height: 1.15;
-    }
-    .photo-caption span {
-      display: block;
-      font-size: 7px;
-      color: #64748B;
-      margin-top: 1px;
-      line-height: 1.15;
-    }
-
-    /* 6. Fechamento & Aceite */
-    .acceptance-box {
-      border: 2px dashed #0A192F;
-      border-radius: 6px;
-      padding: 10px 14px;
-      background: #F0F9FF;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-      page-break-inside: avoid;
-    }
-    .acceptance-box h4 {
-      font-size: 11px;
-      font-weight: 900;
-      color: #0A192F;
-    }
-    .acceptance-box p {
-      font-size: 9.5px;
-      color: #1E3A8A;
-      margin-top: 1px;
-    }
-    .acceptance-link {
-      font-size: 9px;
-      font-family: monospace;
-      color: #0A192F;
-      font-weight: 700;
-      word-break: break-all;
-    }
-
-    .signature-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 36px;
-      margin-top: 24px;
-      padding-top: 6px;
-      page-break-inside: avoid;
-    }
-    .signature-line {
-      border-top: 1px solid #94A3B8;
-      text-align: center;
-      padding-top: 4px;
-      font-size: 10px;
-      color: #475569;
-    }
-    .signature-line strong {
-      color: #0A192F;
-      display: block;
-    }
-
-    /* Footer */
-    .footer {
-      margin-top: 16px;
-      border-top: 1px solid #E2E8F0;
-      padding-top: 6px;
-      display: flex;
-      justify-content: space-between;
-      font-size: 8.5px;
-      color: #94A3B8;
-    }
-  </style>
+  <meta charset="UTF-8" />
+  <title>Proposta Comercial Nº ${esc(d.numero)} — ${esc(d.clienteNome)} | Ecosolar Energy</title>
+  ${propostaHeadHtml()}
 </head>
 <body>
-  <!-- ========================================== -->
-  <!-- FOLHA 1: CAPA DE PÁGINA INTEIRA EXECUTIVA -->
-  <!-- ========================================== -->
-  <div class="cover-page">
-    <div class="cover-bg-grid"></div>
-    <div class="cover-bg-accent-1"></div>
-    <div class="cover-bg-accent-2"></div>
-    <div class="cover-bg-solar-cells">
-      <div class="cover-solar-cell"></div>
-      <div class="cover-solar-cell"></div>
-      <div class="cover-solar-cell"></div>
-      <div class="cover-solar-cell"></div>
-      <div class="cover-solar-cell"></div>
-      <div class="cover-solar-cell"></div>
-      <div class="cover-solar-cell"></div>
-      <div class="cover-solar-cell"></div>
-      <div class="cover-solar-cell"></div>
-    </div>
-
-    <!-- Header da Capa -->
-    <div class="cover-header">
-      <div class="cover-brand-wrap">
-        <img src="${officialLogoPng}" alt="Ecosolar Energy" class="cover-logo-img" />
-        <div>
-          <div class="cover-brand-title">ECO<span>SOLAR</span> ENERGY</div>
-          <div class="cover-brand-sub">A energia do futuro, hoje! • Engenharia Fotovoltaica</div>
-        </div>
-      </div>
-      <div class="cover-badge-num">
-        <span class="cover-badge-pill">Proposta Nº ${proposalCode}</span>
-      </div>
-    </div>
-
-    <!-- Corpo Central da Capa -->
-    <div class="cover-body">
-      <div class="cover-pretitle">Solução Personalizada em Geração Distribuída</div>
-      <h1 class="cover-main-title">
-        Proposta Comercial de <span class="highlight-yellow">Energia Solar</span>
-      </h1>
-      <div class="cover-gold-bar"></div>
-
-      <!-- Destaque do Cliente -->
-      <div class="cover-client-card">
-        <div class="cover-client-label">Proposta Preparada Especialmente Para</div>
-        <div class="cover-client-name">${data.cliente.nome}</div>
-        <div class="cover-client-location">
-          <span>📍 Localidade:</span>
-          <strong>${localCliente}</strong>
-          ${data.cliente.consumo_mensal_kwh ? `<span>• Consumo Médio: <strong>${data.cliente.consumo_mensal_kwh} kWh/mês</strong></span>` : ''}
-        </div>
-      </div>
-
-      <!-- Metadados da Capa em 3 Colunas -->
-      <div class="cover-meta-grid">
-        <div class="cover-meta-item">
-          <div class="cover-meta-label">Consultor Responsável</div>
-          <div class="cover-meta-val">${consultorNome}</div>
-        </div>
-        <div class="cover-meta-item">
-          <div class="cover-meta-label">Data de Emissão</div>
-          <div class="cover-meta-val">${emissaoFormatted}</div>
-        </div>
-        <div class="cover-meta-item">
-          <div class="cover-meta-label">Data de Validade (15 dias)</div>
-          <div class="cover-meta-val accent">${validadeFormatted}</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Rodapé da Capa -->
-    <div class="cover-footer">
-      <div class="cover-footer-left">
-        <strong>ECOSOLAR ENERGY SOLUÇÕES EM ENERGIA SOLAR</strong>
-        <span>Projetos de Engenharia • Homologação Chave na Mão • Instalação Homologada</span>
-      </div>
-      <div class="cover-footer-contacts">
-        <div>E-mail: <strong>${consultorEmail}</strong></div>
-        <div>WhatsApp / Suporte: <strong>${CONTATO_ECOSOLAR.telefoneExibicao}</strong></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========================================== -->
-  <!-- FOLHA 2 EM DIANTE: CONTEÚDO TÉCNICO & FINANCEIRO -->
-  <!-- ========================================== -->
-
-  <!-- 1. Header Institucional Azul-Marinho -->
-  <div class="header">
-    <div class="brand-box">
-      <img src="${officialLogoPng}" alt="Ecosolar Energy" class="brand-logo-img" />
-      <div>
-        <div class="brand-title">ECO<span>SOLAR</span> ENERGY</div>
-        <div class="brand-sub">A energia do futuro, hoje! • Soluções em Engenharia Solar</div>
-      </div>
-    </div>
-    <div class="header-meta">
-      <div><strong>PROPOSTA COMERCIAL Nº ${proposalCode}</strong></div>
-      <div>Emissão: <strong>${emissaoFormatted}</strong></div>
-      <div>Validade até: <strong>${validadeFormatted}</strong></div>
-      <div><span class="badge-status">${data.status === 'Aceita' ? '✓ Proposta Aceita' : 'Aguardando Aceite'}</span></div>
-    </div>
-  </div>
-
-  <!-- 2. Apresentação Técnica do Projeto (Kit Solar Antes do Preço) -->
-  <div class="hero-summary">
-    <div class="hero-left" style="max-width: 100%;">
-      <h2>${data.kit_nome}</h2>
-      <p>Sistema Fotovoltaico de Alta Performance Chave na Mão dimensionado sob medida para suprir <strong>${consumoKwh} kWh/mês</strong> do cliente <strong>${data.cliente.nome}</strong> com geração e engenharia homologada.</p>
-      <div class="hero-badges">
-        <span class="hero-badge-item">Potência Total: ${specs.potenciaTotalFormatada}</span>
-        <span class="hero-badge-item">Módulos: ${specs.quantidadeModulosTotal ? `${specs.quantidadeModulosTotal} painéis` : '-'}</span>
-        <span class="hero-badge-item">Fabricantes: ${specs.fabricantesPrincipais}</span>
-        <span class="hero-badge-item">Geração Média: ~${geracaoEstimadaKwh} kWh/mês</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Dados do Cliente e do Consultor -->
-  <div class="grid-2">
-    <div class="card">
-      <div class="card-title">
-        <span>Dados do Cliente Contratante</span>
-        <span class="accent">👤</span>
-      </div>
-      <div class="card-row">
-        <span class="label">Nome Completo:</span>
-        <span class="value">${data.cliente.nome}</span>
-      </div>
-      <div class="card-row">
-        <span class="label">E-mail:</span>
-        <span class="value">${data.cliente.email || '-'}</span>
-      </div>
-      <div class="card-row">
-        <span class="label">Telefone / WhatsApp:</span>
-        <span class="value">${data.cliente.telefone || '-'}</span>
-      </div>
-      <div class="card-row">
-        <span class="label">Local da Instalação:</span>
-        <span class="value">${[data.cliente.cidade, data.cliente.estado].filter(Boolean).join(' - ') || 'Brasil'}</span>
-      </div>
-      ${
-        data.cliente.endereco
-          ? `
-      <div class="card-row">
-        <span class="label">Endereço:</span>
-        <span class="value">${data.cliente.endereco}</span>
-      </div>`
-          : ''
-      }
-    </div>
-
-    <div class="card">
-      <div class="card-title">
-        <span>Consultor Solar & Responsabilidade Técnica</span>
-        <span class="accent">⚡</span>
-      </div>
-      <div class="card-row">
-        <span class="label">Consultor Responsável:</span>
-        <span class="value">${data.vendedor?.name || 'Equipe Ecosolar Energy'}</span>
-      </div>
-      <div class="card-row">
-        <span class="label">Contato Comercial:</span>
-        <span class="value">${data.vendedor?.email || CONTATO_ECOSOLAR.email}</span>
-      </div>
-      <div class="card-row">
-        <span class="label">Consumo Atual Informado:</span>
-        <span class="value">${consumoKwh} kWh/mês</span>
-      </div>
-      <div class="card-row">
-        <span class="label">Geração Prevista:</span>
-        <span class="value">${geracaoEstimadaKwh} kWh/mês</span>
-      </div>
-      <div class="card-row">
-        <span class="label">Área Estimada Telhado:</span>
-        <span class="value">${specs.areaEstimadaM2 ? `~${specs.areaEstimadaM2} m²` : 'Sob Demanda'}</span>
-      </div>
-      <div class="card-row" style="border-top: 1px dashed #E2E8F0; padding-top: 5px; margin-top: 2px;">
-        <span class="label" style="font-size: 8.5px; color: #64748B;">Base do Cálculo:</span>
-        <span class="value" style="font-size: 8.5px; color: #475569; font-weight: normal;">Irradiação: ${IRRADIACAO_MEDIA_DIARIA_HORAS.toString().replace('.', ',')} h/dia | Perdas: ${Math.round((1 - FATOR_PERDAS_SISTEMA) * 100)}% (fator ${FATOR_PERDAS_SISTEMA.toFixed(2).replace('.', ',')})</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- 3. Seção Técnica Organizada: Tabela Item a Item com Quantidades Reais (KIT PRIMEIRO) -->
-  <div class="section-title">1. Composição do Kit Solar — Detalhamento Item a Item com Quantidades e Potências</div>
-  <div class="table-container">
-    <table>
-      <thead>
-        <tr>
-          <th style="width: 50px;" class="text-center">Qtd.</th>
-          <th>Componente / Equipamento</th>
-          <th>Fabricante / Modelo</th>
-          <th style="width: 100px; text-align: center;">Potência</th>
-          <th>Especificações Técnicas</th>
-          <th style="width: 65px;" class="text-right">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${specs.itens
-          .map(
-            (it) => `
-        <tr>
-          <td class="td-qty">${it.quantidade}${it.unidade !== 'un' ? ` ${it.unidade}` : 'x'}</td>
-          <td><strong>${it.nome}</strong></td>
-          <td>${it.fabricanteModelo}</td>
-          <td style="text-align: center; font-weight: 800; color: #0A192F;">
-            ${it.potenciaUnit ? `<span style="background: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 4px; padding: 2px 6px; font-size: 9.5px; font-family: monospace;">${it.potenciaUnit}</span>` : '<span style="color: #94A3B8;">-</span>'}
-          </td>
-          <td style="color: #64748B;">${it.especificacao || '-'}</td>
-          <td class="td-status">Incluso</td>
-        </tr>`,
-          )
-          .join('')}
-      </tbody>
-    </table>
-  </div>
-
-  <!-- 4. Dimensionamento & Geração de Energia -->
-  <div class="section-title">2. Dimensionamento Técnico & Estimativa de Geração</div>
-  <div class="tech-summary-bar">
-    <div class="tech-item">
-      <div class="label">Potência Total do Gerador</div>
-      <div class="val">${specs.potenciaTotalFormatada}</div>
-    </div>
-    <div class="tech-item">
-      <div class="label">Módulos Instalados</div>
-      <div class="val">${specs.quantidadeModulosTotal ? `${specs.quantidadeModulosTotal} painéis` : '-'}</div>
-    </div>
-    <div class="tech-item">
-      <div class="label">Geração Média Mensal</div>
-      <div class="val">~${geracaoEstimadaKwh} kWh/mês</div>
-      <div style="font-size: 7.5px; color: #64748B; margin-top: 2px;">Irradiação ${IRRADIACAO_MEDIA_DIARIA_HORAS.toString().replace('.', ',')} h/dia • Perdas ${Math.round((1 - FATOR_PERDAS_SISTEMA) * 100)}%</div>
-    </div>
-    <div class="tech-item">
-      <div class="label">Área Telhado Estimada</div>
-      <div class="val">${specs.areaEstimadaM2 ? `~${specs.areaEstimadaM2} m²` : '-'}</div>
-    </div>
-  </div>
-
-  <!-- 5. Investimento & Retorno Financeiro (DEPOIS DO KIT E DIMENSIONAMENTO) -->
-  <div class="section-title">3. Valor do Investimento & Economia Projetada</div>
-  <div style="background: linear-gradient(135deg, #0A192F 0%, #163868 100%); color: #ffffff; border-radius: 8px; padding: 12px 18px; margin-bottom: 12px; border: 1.5px solid #EAB308; display: flex; justify-content: space-between; align-items: center; page-break-inside: avoid;">
-    <div>
-      <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: #93C5FD; display: block;">Investimento Total Chave na Mão (tudo incluso: equipamentos, projeto, homologação e instalação)</span>
-      <h3 style="font-size: 14px; font-weight: 800; color: #ffffff; margin-top: 2px;">Solução Completa: Equipamentos + Homologação de Engenharia com ART + Instalação NR10/NR35</h3>
-    </div>
-    <div style="text-align: right; min-width: 180px;">
-      <span style="font-size: 9px; text-transform: uppercase; color: #E2E8F0; display: block; font-weight: 700;">Valor Total</span>
-      ${
-        data.desconto_percentual && data.desconto_percentual > 0
-          ? `
-        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 2px;">
-          <span style="text-decoration: line-through; font-size: 13px; color: #CBD5E1; font-family: monospace;">
-            ${formatBRL(data.valor_bruto || data.preco_venda)}
-          </span>
-          <span style="background: #10B981; color: #ffffff; font-size: 8.5px; font-weight: 900; padding: 1px 5px; border-radius: 3px; text-transform: uppercase;">
-            -${data.desconto_percentual}% OFF
-          </span>
-        </div>
-        <span style="font-size: 26px; font-weight: 900; color: #FACC15; font-family: monospace; letter-spacing: -0.5px; display: block; margin-top: 2px;">
-          ${formatBRL(data.preco_venda)}
-        </span>
-        <span style="font-size: 8.5px; color: #86EFAC; display: block;">
-          Desconto de ${formatBRL(data.valor_desconto || Math.max(0, (data.valor_bruto || data.preco_venda) - data.preco_venda))}
-        </span>
-      `
-          : `
-        <span style="font-size: 26px; font-weight: 900; color: #FACC15; font-family: monospace; letter-spacing: -0.5px;">${formatBRL(data.preco_venda)}</span>
-      `
-      }
-    </div>
-  </div>
-
-  <!-- KPIs de Retorno Financeiro -->
-  <div class="kpi-row">
-    <div class="kpi-card highlight">
-      <div class="kpi-label">Economia Mensal Est.</div>
-      <div class="kpi-val">${formatBRL(economiaMensal)}</div>
-      <div class="kpi-sub">Alívio imediato na fatura</div>
-    </div>
-    <div class="kpi-card highlight">
-      <div class="kpi-label">Economia Anual Est.</div>
-      <div class="kpi-val">${formatBRL(economiaAnual)}</div>
-      <div class="kpi-sub">Capital livre reinvestível</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Payback Estimado</div>
-      <div class="kpi-val">~${sim.paybackEstimadoAnos || 3} anos</div>
-      <div class="kpi-sub">Retorno do investimento</div>
-    </div>
-    <div class="kpi-card highlight">
-      <div class="kpi-label">Retorno em 30 Anos</div>
-      <div class="kpi-val">${formatBRL(sim.finalSolar)}</div>
-      <div class="kpi-sub">+${sim.ganhoSolarVsCdbPercent}% superior ao CDB</div>
-    </div>
-  </div>
-
-  <!-- 4. Apresentação Financeira e Comparativo em 30 Anos -->
-  <div class="comp-section">
-    <div class="comp-header">
-      <h3>Comparativo Financeiro em 30 Anos (Solar vs Poupança vs CDB Líquido)</h3>
-      <span style="font-size: 8.5px; font-weight: 800; color: #1E3A8A; background: #DBEAFE; padding: 2px 6px; border-radius: 4px;">
-        Relatório de Rentabilidade Financeira
-      </span>
-    </div>
-
-    <div class="comp-kpis">
-      <div class="comp-kpi-card">
-        <div class="comp-kpi-title">🪙 Poupança Tradicional (6,17% a.a.)</div>
-        <div class="comp-kpi-val">${formatBRL(sim.finalPoupanca)}</div>
-        <div class="comp-kpi-sub">Rendimento acumulado: ${formatBRL(sim.finalPoupanca - sim.valorInvestido)}</div>
-      </div>
-      <div class="comp-kpi-card">
-        <div class="comp-kpi-title">🏦 CDB (100% CDI Líq. de IR 15%)</div>
-        <div class="comp-kpi-val">${formatBRL(sim.finalCdb)}</div>
-        <div class="comp-kpi-sub">Líquido de imposto regressivo</div>
-      </div>
-      <div class="comp-kpi-card winner">
-        <div class="comp-kpi-title">☀ Energia Solar (Vencedor Absoluto)</div>
-        <div class="comp-kpi-val">${formatBRL(sim.finalSolar)}</div>
-        <div class="comp-kpi-sub">+${sim.ganhoSolarVsCdbPercent}% superior (+${formatBRL(sim.ganhoSolarVsCdbValor)})</div>
-      </div>
-    </div>
-
-    <table class="comp-table">
-      <thead>
-        <tr>
-          <th>Marco Temporal</th>
-          <th style="text-align: right;">Poupança (6,17% a.a.)</th>
-          <th style="text-align: right;">CDB 100% CDI Líquido</th>
-          <th style="text-align: right; background: #DBEAFE; color: #1E3A8A;">☀ Energia Solar</th>
-          <th style="text-align: right; background: #DBEAFE; color: #1E3A8A;">Vantagem Solar vs CDB</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${marcos
-          .map((ano) => {
-            const row = sim.series[ano]
-            if (!row) return ''
-            const diffCdb = row.solar - row.cdb
-            const isFinal = ano === 30
-            return `<tr class="${isFinal ? 'highlight-30' : ''}">
-              <td><strong>Ano ${ano}</strong></td>
-              <td style="text-align: right;">${formatBRL(row.poupanca)}</td>
-              <td style="text-align: right;">${formatBRL(row.cdb)}</td>
-              <td style="text-align: right; font-weight: 800; color: #0A192F;">${formatBRL(row.solar)}</td>
-              <td style="text-align: right; font-weight: 800; color: ${diffCdb >= 0 ? '#15803D' : '#64748B'};">
-                ${diffCdb >= 0 ? '+' : ''}${formatBRL(diffCdb)}
-              </td>
-            </tr>`
-          })
-          .join('')}
-      </tbody>
-    </table>
-
-    <div class="comp-notes">
-      <strong>Veredito Comercial:</strong> Investir em Energia Solar gera <strong>+${sim.ganhoSolarVsPoupancaPercent}% a mais que a poupança</strong> e <strong>+${sim.ganhoSolarVsCdbPercent}% a mais que o CDB</strong>, blindando sua residência/empresa contra reajustes tarifários da concessionária e valorizando imediatamente o patrimônio imobiliário em cerca de 6% a 8%.
-    </div>
-  </div>
-
-  <!-- 5. Prova Social — Fotos de Obras Concluídas -->
-  ${(() => {
-    // Processar fotos_selecionadas (se houver seleção explícita salva)
-    let parsedSel: Array<{
-      origem: 'lead' | 'institucional'
-      id: string
-      legenda?: string
-    }> | null = null
-    if (data.fotos_selecionadas) {
-      if (Array.isArray(data.fotos_selecionadas)) {
-        parsedSel = data.fotos_selecionadas
-      } else if (typeof data.fotos_selecionadas === 'string') {
-        try {
-          parsedSel = JSON.parse(data.fotos_selecionadas)
-        } catch (_) {
-          parsedSel = null
-        }
-      }
-    }
-
-    const fotosParaExibir: Array<{ url: string; legenda: string; tag: string; local?: string }> = []
-
-    if (parsedSel !== null) {
-      // O usuário fez uma seleção consciente (pode ser 0, 1 ou várias)
-      if (parsedSel.length === 0) {
-        // Nenhuma foto selecionada: omite a seção da proposta
-        return ''
-      }
-
-      parsedSel.forEach((sel, i) => {
-        if (sel.origem === 'lead') {
-          const leadPh = (data.fotos_obra || []).find((p) => p.id === sel.id)
-          const url = leadPh?.url || leadPh?.foto || ''
-          if (url) {
-            fotosParaExibir.push({
-              url,
-              legenda: sel.legenda || leadPh?.legenda || `Instalação do Cliente #${i + 1}`,
-              tag: 'Foto da Obra',
-              local: data.cliente.cidade
-                ? `${data.cliente.cidade} - ${data.cliente.estado || 'RO'}`
-                : 'Projeto Homologado Ecosolar',
-            })
-          }
-        } else {
-          // Institucional (estática ou salva no banco de fotos_institucionais)
-          const inst = INSTITUTIONAL_INSTALLATION_PHOTOS.find((p) => p.id === sel.id)
-          if (inst) {
-            fotosParaExibir.push({
-              url: inst.src,
-              legenda: sel.legenda || inst.legenda,
-              tag: inst.tag,
-              local: inst.local,
-            })
-          } else if (sel.id && sel.id.startsWith('kit_')) {
-            const kitId = sel.id.replace('kit_', '')
-            const kitImg = (data as any)?.kit?.imagem_ia
-            const url =
-              (data as any)?.kit?.imagem_ia_url ||
-              (kitImg && kitId ? `/api/files/kits/${kitId}/${kitImg}` : '')
-            if (url) {
-              fotosParaExibir.push({
-                url,
-                legenda: sel.legenda || `Simulação IA do ${data.kit_nome}`,
-                tag: 'IA • Kit',
-                local: 'Kit Homologado Ecosolar',
-              })
-            }
-          } else if (sel.id) {
-            // Pode ser um registro da coleção fotos_institucionais gerado por IA
-            // Se for ID do PocketBase (15 caracteres alfanuméricos)
-            const pbHost = window.location.origin
-            const url = `${pbHost}/api/files/fotos_institucionais/${sel.id}/${sel.id}.jpg`
-            fotosParaExibir.push({
-              url,
-              legenda: sel.legenda || 'Instalação Homologada Ecosolar',
-              tag: 'Instalação IA',
-              local: 'Engenharia Solar Ecosolar',
-            })
-          }
-        }
-      })
-    } else {
-      // Proposta legada sem o campo fotos_selecionadas: exibe o conjunto padrão
-      if (data.fotos_obra && data.fotos_obra.length > 0) {
-        data.fotos_obra.forEach((ph, i) => {
-          fotosParaExibir.push({
-            url: ph.url || ph.foto || '',
-            legenda: ph.legenda || `Instalação Concluída #${i + 1}`,
-            tag: 'Obra Executada',
-            local: 'Projeto Homologado Ecosolar',
-          })
-        })
-      }
-
-      INSTITUTIONAL_INSTALLATION_PHOTOS.forEach((inst) => {
-        if (
-          !fotosParaExibir.some((f) => f.legenda === inst.legenda) &&
-          fotosParaExibir.length < 6
-        ) {
-          fotosParaExibir.push({
-            url: inst.src,
-            legenda: inst.legenda,
-            tag: inst.tag,
-            local: inst.local,
-          })
-        }
-      })
-    }
-
-    if (fotosParaExibir.length === 0) {
-      return ''
-    }
-
-    return `
-  <div class="social-proof">
-    <div class="social-proof-header">
-      <div class="section-title" style="margin-bottom: 0;">Prova Social — Padrão de Engenharia em Obras Executadas</div>
-      <span class="social-proof-badge">✓ Fotos Reais de Obras Homologadas (${fotosParaExibir.length})</span>
-    </div>
-    <p style="font-size: 8.5px; color: #475569; margin-top: 2px; margin-bottom: 6px;">
-      Conheça o acabamento, a robustez das estruturas metálicas e a precisão do cabeamento técnico executados pelos engenheiros e instaladores da <strong>Ecosolar Energy</strong>:
-    </p>
-
-    <div class="photos-grid">
-      ${fotosParaExibir
-        .map(
-          (ph) => `
-        <div class="photo-card">
-          <div class="photo-thumb">
-            <span class="photo-tag">${ph.tag}</span>
-            <img src="${ph.url}" alt="${ph.legenda}" />
-          </div>
-          <div class="photo-caption">
-            <strong>${ph.legenda}</strong>
-            <span>${ph.local || 'Engenharia Ecosolar Energy'}</span>
-          </div>
-        </div>`,
-        )
-        .join('')}
-    </div>
-  </div>`
-  })()}
-
-  <!-- Condições de Pagamento e Observações -->
-  ${
-    data.condicoes_pagamento || data.observacoes
-      ? `
-  <div class="grid-2">
-    ${
-      data.condicoes_pagamento
-        ? `
-    <div class="card">
-      <div class="card-title">Condições de Pagamento</div>
-      <p style="font-size: 9.5px; color: #334155; line-height: 1.4; white-space: pre-line;">${sanitizarNomesInstituicoes(data.condicoes_pagamento)}</p>
-    </div>`
-        : ''
-    }
-    ${
-      data.observacoes
-        ? `
-    <div class="card">
-      <div class="card-title">Observações Técnicas & Contratuais</div>
-      <p style="font-size: 9.5px; color: #334155; line-height: 1.4; white-space: pre-line;">${data.observacoes}</p>
-    </div>`
-        : ''
-    }
-  </div>`
-      : ''
-  }
-
-  <!-- 6. Fechamento com CTA & Aceite Online -->
-  <div class="acceptance-box">
-    <div>
-      <h4>${data.status === 'Aceita' ? '✓ Proposta Formalmente Aceita' : 'Aceite Online Disponível e Seguro'}</h4>
-      <p>
-        ${
-          data.status === 'Aceita'
-            ? `Aceita formalmente por <strong>${data.aceito_por_nome || data.cliente.nome}</strong> em ${formatDateBR(data.data_aceite || data.created || new Date().toISOString())}.`
-            : 'Esta proposta pode ser aceita digitalmente através do link exclusivo abaixo, dispensando cartório.'
-        }
-      </p>
-      ${
-        data.token_publico
-          ? `
-      <div class="acceptance-link" style="margin-top: 3px;">
-        Link público: ${window.location.origin}/proposta/${data.token_publico}
-      </div>`
-          : ''
-      }
-    </div>
-    <div style="text-align: right;">
-      <span style="font-size: 10px; font-weight: 800; color: #0A192F;">Validade: ${validadeFormatted}</span>
-    </div>
-  </div>
-
-  <!-- Assinaturas -->
-  <div class="signature-grid">
-    <div class="signature-line">
-      <strong>${data.vendedor?.name || 'Ecosolar Energy Soluções em Energia'}</strong>
-      <span>Consultor Técnico Autorizado</span>
-    </div>
-    <div class="signature-line">
-      <strong>${data.aceito_por_nome || data.cliente.nome}</strong>
-      <span>Cliente Contratante</span>
-    </div>
-  </div>
-
-  <!-- Footer -->
-  <div class="footer">
-    <div>Ecosolar Energy — A energia do futuro, hoje! • Soluções em Engenharia Solar</div>
-    <div>Documento gerado eletronicamente em ${formatDateBR(new Date().toISOString())} • Proposta Nº ${proposalCode}</div>
+  <div class="prop-v2">
+    ${paginaCapa(d, fotos)}
+    ${pagina2(d)}
+    ${pagina3(d)}
+    ${pagina4(d)}
+    ${pagina5(d)}
+    ${pagina6(d, fotos, linkPublico, urlBase)}
   </div>
 </body>
 </html>`
 }
 
-export function openProposalPDFPrint(data: ProposalPDFData): void {
-  const html = generateProposalPrintHTML(data)
-  const printWindow = window.open('', '_blank')
-  if (!printWindow) {
-    alert('Por favor, permita pop-ups no navegador para visualizar e baixar o PDF da proposta.')
+/** Abre a janela de impressão/PDF: primeiro espera as fotos carregarem. */
+export async function openProposalPDFPrint(
+  data: ProposalPDFData,
+  opts?: { fotos?: FotoProposta[]; urlBase?: string; linkPublico?: string },
+): Promise<void> {
+  const fotos = fotosPropostaDe(data, opts?.fotos)
+  await preloadFotosProposta(fotos.map((f) => f.url))
+  const html = generateProposalPrintHTML(data, { ...opts, fotos })
+  const w = window.open('', '_blank', 'width=900,height=700')
+  if (!w) {
+    alert(
+      'Não foi possível abrir a janela de impressão. Libere os pop-ups do navegador e tente novamente.',
+    )
     return
   }
-
-  printWindow.document.open()
-  printWindow.document.write(html)
-  printWindow.document.close()
-
-  printWindow.focus()
-  setTimeout(() => {
+  w.document.open()
+  w.document.write(html)
+  w.document.close()
+  const disparar = () => {
     try {
-      printWindow.print()
+      w.focus()
+      w.print()
     } catch {
-      /* intentionally ignored */
+      /* usuário pode imprimir manualmente */
     }
-  }, 400)
+  }
+  if (w.document.readyState === 'complete') {
+    setTimeout(disparar, 400)
+  } else {
+    w.onload = () => setTimeout(disparar, 400)
+  }
 }

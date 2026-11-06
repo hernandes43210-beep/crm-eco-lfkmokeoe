@@ -263,10 +263,38 @@ export const PROPOSTA_V2_CSS = `
 .prop-v2 .pv-faq .a { font-size: 8pt; color: ${CORES_PROPOSTA.textoSec}; line-height: 1.5; margin-top: .8mm; }
 .prop-v2 .pv-aceite { border: 1.6px dashed ${CORES_PROPOSTA.navy3}; border-radius: 3mm; padding: 5mm; background: #f6f8fd; }
 .prop-v2 .pv-aceite .mono { font-family: 'Courier New', monospace; font-size: 8pt; background: #fff; border: 1px solid ${CORES_PROPOSTA.borda}; border-radius: 1.5mm; padding: 2mm 3mm; word-break: break-all; display: block; }
+.prop-v2 .pv-aceite-tela { display: flex; flex-direction: column; gap: 3mm; align-items: stretch; }
+.prop-v2 .pv-aceite-tela .pv-btn-aceite {
+  background: ${CORES_PROPOSTA.verde}; color: #fff; border: 0; border-radius: 999px;
+  font-family: 'Montserrat'; font-weight: 800; font-size: 10pt; padding: 3.5mm 6mm; cursor: pointer;
+}
+.prop-v2 .pv-aceite-tela .pv-btn-aceite:hover { filter: brightness(1.06); }
+.prop-v2 .pv-aceite-tela .pv-link-aceite { color: ${CORES_PROPOSTA.navy3}; font-size: 8.4pt; text-align: center; word-break: break-all; }
 .prop-v2 .pv-assina { display: flex; gap: 10mm; margin-top: 4mm; }
 .prop-v2 .pv-assina .campo { flex: 1; border-top: 1px solid ${CORES_PROPOSTA.texto}; padding-top: 1.6mm; font-size: 8pt; }
 .prop-v2 .pv-assina .campo b { display: block; font-size: 9pt; color: ${CORES_PROPOSTA.texto}; }
 .prop-v2 .pv-assina .campo span { color: ${CORES_PROPOSTA.textoSec}; font-size: 7.4pt; }
+
+/* Tela em celular: blocos empilhados, sem rolagem horizontal */
+@media screen and (max-width: 820px) {
+  .prop-v2 .pv-page { width: 100%; min-height: 0; box-shadow: 0 3px 14px rgba(11,31,77,.14); }
+  .prop-v2 .pv-capa { padding: 22px 18px; height: auto; }
+  .prop-v2 .pv-capa h1 { font-size: 21pt; }
+  .prop-v2 .pv-capa-foto { height: auto; aspect-ratio: 4 / 3; }
+  .prop-v2 .pv-header { padding: 12px 16px; flex-wrap: wrap; gap: 4px; }
+  .prop-v2 .pv-header-info { text-align: left; }
+  .prop-v2 .pv-minis, .prop-v2 .pv-grid4, .prop-v2 .pv-cards4 { grid-template-columns: repeat(2, 1fr); }
+  .prop-v2 .pv-etapas, .prop-v2 .pv-kits-fim { grid-template-columns: repeat(2, 1fr); }
+  .prop-v2 .pv-fluxo { flex-direction: column; }
+  .prop-v2 .pv-fluxo-arrow { transform: rotate(90deg); }
+  .prop-v2 .pv-mosaico { grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, 120px); }
+  .prop-v2 .pv-foto.grande { grid-row: auto; grid-column: span 2; }
+  .prop-v2 .pv-invest { flex-direction: column; }
+  .prop-v2 .pv-preco { text-align: left; }
+  .prop-v2 .pv-barras .linha { grid-template-columns: 26mm 1fr 14mm; }
+  .prop-v2 table.pv-tabela { font-size: 7.2pt; }
+  .prop-v2 .pv-assina { flex-direction: column; gap: 6mm; }
+}
 
 /* Impressão */
 @media print {
