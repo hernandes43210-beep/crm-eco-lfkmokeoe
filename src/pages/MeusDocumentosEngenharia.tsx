@@ -37,6 +37,7 @@ import {
 } from '@/utils/formatadorLocalizacao'
 import { KanbanHomologacao } from '@/components/KanbanHomologacao'
 import { PainelPagamentoProjetos } from '@/components/PainelPagamentoProjetos'
+import { PainelValoresAdmin } from '@/components/PainelValoresAdmin'
 import { EnviarArtModal } from '@/components/EnviarArtModal'
 import { FichaTrabalhoEngenheiroModal } from '@/components/FichaTrabalhoEngenheiroModal'
 import { AnexarComprovanteModal } from '@/components/AnexarComprovanteModal'
@@ -588,6 +589,16 @@ export default function MeusDocumentosEngenharia() {
         homologacoes={homologacoes}
         loading={loading}
         engenheirosMap={engenheirosMap}
+      />
+
+      {/* Painel de VALORES dos projetos — exclusivo Admin/CEO, oculto até o clique
+          (para engenheiro/supervisor o componente nem renderiza nada). */}
+      <PainelValoresAdmin
+        homologacoes={homologacoes}
+        loading={loading}
+        onHomologacaoUpdated={(atualizada) =>
+          setHomologacoes((prev) => prev.map((h) => (h.id === atualizada.id ? atualizada : h)))
+        }
       />
 
       {/* Cards de Resumo */}

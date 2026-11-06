@@ -53,6 +53,15 @@ export interface ProjetoPagoResponse {
   faltam?: number
 }
 
+export interface ValorPagoResponse {
+  success: boolean
+  message: string
+  homologacao_id?: string
+  valor_pago?: number
+  valor_pago_em?: string | null
+  valor_pago_por?: string
+}
+
 export interface MoverStatusResponse {
   success: boolean
   message: string
@@ -516,6 +525,21 @@ export const HomologacaoService = {
       body: {
         homologacaoId,
         observacao,
+      },
+    })
+  },
+
+  /**
+   * Define (ou limpa) o VALOR PAGO do projeto — exclusivo Admin/CEO.
+   * O backend esconde valor_pago* de qualquer papel que não seja Admin
+   * (endpoint 403 para não-Admin; campos ocultos em toda resposta da API).
+   */
+  async definirValorPago(homologacaoId: string, valor: number | null): Promise<ValorPagoResponse> {
+    return await pb.send<ValorPagoResponse>('/backend/v1/homologacao/definir-valor-pago', {
+      method: 'POST',
+      body: {
+        homologacaoId,
+        valor: valor === null || valor === undefined ? '' : valor,
       },
     })
   },

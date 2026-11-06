@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-05T23:26:29.435Z",
+  "generatedAt": "2026-11-06T11:36:18.503Z",
   "collections": [
     {
       "name": "users",
@@ -2558,6 +2558,25 @@
           "type": "json",
           "required": false,
           "system": false
+        },
+        {
+          "name": "valor_pago",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_pago_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_pago_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
         }
       ],
       "indexes": [

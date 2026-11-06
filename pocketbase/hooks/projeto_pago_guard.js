@@ -31,6 +31,9 @@ onRecordUpdate((e) => {
     'projeto_pago_por',
     'projeto_pago_confirmacoes',
     'projeto_pago_reversoes',
+    'valor_pago',
+    'valor_pago_em',
+    'valor_pago_por',
   ]
 
   const original = record.original()

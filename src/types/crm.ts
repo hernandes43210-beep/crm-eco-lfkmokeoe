@@ -133,6 +133,10 @@ export interface HomologacaoLead extends RecordModel {
   projeto_pago_por?: string
   projeto_pago_confirmacoes?: ProjetoPagoConfirmacaoItem[]
   projeto_pago_reversoes?: ProjetoPagoConfirmacaoItem[]
+  // Valor pago (exclusivo Admin/CEO — escondido no backend para outros papéis)
+  valor_pago?: number
+  valor_pago_em?: string
+  valor_pago_por?: string
   comprovante_projeto_arquivo?: string
   comprovante_projeto_anexado_em?: string
   comprovante_projeto_anexado_por?: string
@@ -167,6 +171,7 @@ export interface HomologacaoLead extends RecordModel {
     comprovante_art_anexado_por?: User
     comprovante_projeto_anexado_por?: User
     projeto_pago_por?: User
+    valor_pago_por?: User
     dossie?: DossieTecnicoEngenharia
   }
 }
