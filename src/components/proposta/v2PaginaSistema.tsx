@@ -98,7 +98,7 @@ export function PaginaSistema({ d }: { d: DadosV2 }) {
             {d.itensKit.map((it, i) => (
               <tr key={i}>
                 <td className="qtd">{it.qtd}×</td>
-                <td className="item">{it.nome}</td>
+                <td className="item">{it.item}</td>
                 <td className="para">{it.para}</td>
                 <td className="pv-incluso">✓ Incluso</td>
               </tr>
@@ -119,7 +119,7 @@ export function PaginaSistema({ d }: { d: DadosV2 }) {
             >
               Área ocupada
             </div>
-            <div className="v">{d.areaFmt}</div>
+            <div className="v">{d.areaTelhadoM2 ? `${d.areaTelhadoM2} m²` : '—'}</div>
             <div className="n">no telhado ({d.tipoTelhado.toLowerCase()})</div>
           </div>
           <div className="pv-card">

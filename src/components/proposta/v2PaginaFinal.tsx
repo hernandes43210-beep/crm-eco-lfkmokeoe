@@ -10,10 +10,12 @@ import { CabecalhoInterno, RodapeInterno, FotoV2, LiV2 } from './v2Bits'
 export function PaginaFinal({
   d,
   fotos,
+  linkPublico,
   children,
 }: {
   d: DadosV2
   fotos: FotoProposta[]
+  linkPublico?: string
   /** Slot do aceite online da tela (botão + link), fornecido pela PropostaPublica. */
   children?: React.ReactNode
 }) {
@@ -92,7 +94,7 @@ export function PaginaFinal({
             botão abaixo ou copie o link público:
           </p>
           <code className="mono" style={{ marginTop: '2.5mm' }}>
-            {d.linkPublico}
+            {linkPublico || ''}
           </code>
           {children && <div className="pv-aceite-tela">{children}</div>}
           <div className="pv-assina">

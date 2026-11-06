@@ -12,6 +12,8 @@ const QUEM_TXT: Record<string, string> = {
   CONCESS: 'Concessionária',
 }
 
+const ICONES_PAGTO = ['💰', '🏦', '💳']
+
 export function PaginaComoVaiSer({ d }: { d: DadosV2 }) {
   return (
     <section className="pv-page">
@@ -79,32 +81,15 @@ export function PaginaComoVaiSer({ d }: { d: DadosV2 }) {
             FORMAS DE PAGAMENTO
           </div>
           <div className="pv-pagtos" style={{ marginTop: '3mm' }}>
-            <div className="pv-pagto">
-              <h4>💰 À vista (PIX/TED)</h4>
-              <p>
-                Melhor condição. {d.precoFinalRS} com desconto já aplicado, programação imediata da
-                obra.
-              </p>
-            </div>
-            <div className="pv-pagto">
-              <h4>🏦 Financiamento bancário</h4>
-              <p>
-                Até 84× com carência de 90 dias: você só começa a pagar quando o sistema já está
-                gerando economia.
-              </p>
-            </div>
-            <div className="pv-pagto">
-              <h4>💳 Cartão de crédito</h4>
-              <p>
-                Em até 24× conforme a bandeira. Parcelas que cabem no bolso e a obra já é agendada.
-              </p>
-            </div>
+            {d.formasPagamento.map((f, i) => (
+              <div className="pv-pagto" key={i}>
+                <h4>
+                  {ICONES_PAGTO[i] || '💳'} {f.titulo}
+                </h4>
+                <p>{f.texto}</p>
+              </div>
+            ))}
           </div>
-          {d.condPagamento && (
-            <p style={{ fontSize: '7.6pt', color: '#5b6782', marginTop: '2.5mm' }}>
-              {d.condPagamento}
-            </p>
-          )}
         </div>
       </div>
       <RodapeInterno pagina={5} />

@@ -5,7 +5,7 @@
 import type { DadosV2 } from '@/lib/proposalDadosV2'
 import { CabecalhoInterno, RodapeInterno, LiV2 } from './v2Bits'
 
-export function PaginaInvestimento({ d }: { d: DadosV2 }) {
+export function PaginaInvestimento({ d, kitNome = '' }: { d: DadosV2; kitNome?: string }) {
   const barras = [
     { nome: 'Poupança', pct: 6.17, cor: '#aab4c9', pctTxt: '6,17%' },
     { nome: 'CDB (~liquido)', pct: 10, cor: '#1d4290', pctTxt: '10%' },
@@ -13,7 +13,7 @@ export function PaginaInvestimento({ d }: { d: DadosV2 }) {
       nome: 'Energia solar',
       pct: d.calc.rendimentoSolarPct,
       cor: '#11845b',
-      pctTxt: `${d.solarPctFmt}%`,
+      pctTxt: `${d.rendimentoSolarInt}%`,
       solar: true,
     },
   ]
@@ -32,16 +32,16 @@ export function PaginaInvestimento({ d }: { d: DadosV2 }) {
             <div className="lbl">Investimento total</div>
             <h3>Sistema {d.kwpFmt} kWp completo</h3>
             <p>
-              {d.kitNome}
+              {kitNome || 'Kit solar homologado'}
               <br />
               Projeto + ART + homologação + instalação + monitoramento, tudo incluso.
             </p>
           </div>
           <div className="pv-preco">
-            {d.descontoPctNum > 0 && (
+            {d.descontoPct > 0 && (
               <>
                 <span className="cheio">{d.precoCheioRS}</span>
-                <span className="off">-{d.descontoPctFmt}% OFF</span>
+                <span className="off">-{d.descontoPct}% OFF</span>
               </>
             )}
             <div className="final">{d.precoFinalRS}</div>
@@ -67,7 +67,7 @@ export function PaginaInvestimento({ d }: { d: DadosV2 }) {
           </div>
           <div className="pv-inv-card">
             <div className="k">Em 25 anos</div>
-            <div className="v">{d.economia25RS}</div>
+            <div className="v">R$ {d.economia25Txt}</div>
             <div className="n">já descontado o desgaste de 0,4% ao ano</div>
           </div>
         </div>
@@ -112,7 +112,7 @@ export function PaginaInvestimento({ d }: { d: DadosV2 }) {
             mais do que o sistema entrega.
           </LiV2>
           <LiV2 cor="v">
-            Geração × tarifa atual ({d.tarifaFmt}/kWh) = economia mensal. A conta de hoje (
+            Geração × tarifa atual ({d.tarifaRS}/kWh) = economia mensal. A conta de hoje (
             {d.contaHojeRS}) serve de referência.
           </LiV2>
           <LiV2 cor="c">
@@ -125,7 +125,7 @@ export function PaginaInvestimento({ d }: { d: DadosV2 }) {
           <h4>O que continua aparecendo na sua conta</h4>
           <p>
             <strong>
-              Fio B ({d.fioBPct}% em {d.anoEmissao}):
+              Fio B ({d.fioB}% em {d.anoEmissao}):
             </strong>{' '}
             parte da tarifa que paga a rede da {d.concessionaria} mesmo gerando energia própria —
             sobe até 90% em 2028. Também continuam a iluminação pública e a taxa mínima da
