@@ -50,6 +50,13 @@ import {
 } from '@/lib/quickKitUtils'
 import { useKitFilters } from '@/hooks/useKitFilters'
 import { KitFilterBar } from '@/components/KitFilterBar'
+import {
+  KitGeradorService,
+  parseItens,
+  parsePainelJson,
+  parseInversorJson,
+  type KitGerado,
+} from '@/services/kitGerador'
 import { ESTADOS_BRASILEIROS, obterEnderecoPorEstado } from '@/hooks/useEnderecoAutocomplete'
 import { MapPin } from 'lucide-react'
 
@@ -89,6 +96,10 @@ export function GerarPropostaModal({
 
   // Form states
   const [selectedKitId, setSelectedKitId] = useState<string>('')
+  const [kitsGerados, setKitsGerados] = useState<KitGerado[]>([])
+  const [loadingKitsGerados, setLoadingKitsGerados] = useState(false)
+  const [selectedKitGeradoId, setSelectedKitGeradoId] = useState<string>('')
+  const [kitGeradoDescricao, setKitGeradoDescricao] = useState('')
   const [kitNome, setKitNome] = useState('')
   const [kitPotenciaKw, setKitPotenciaKw] = useState<number | string>('')
   const [kitFabricante, setKitFabricante] = useState('')
@@ -137,8 +148,25 @@ export function GerarPropostaModal({
   useEffect(() => {
     if (open) {
       loadKits()
+      loadKitsGerados()
     }
   }, [open])
+
+  const loadKitsGerados = async () => {
+    try {
+      setLoadingKitsGerados(true)
+      const data = await KitGeradorService.listarKits()
+      setKitsGerados(data)
+    } catch (err) {
+      console.error('Erro ao carregar kits salvos do gerador:', err)
+      toast({
+        title: 'Erro ao carregar kits salvos do Gerador de Kit Solar',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoadingKitsGerados(false)
+    }
+  }
 
   const loadKits = async () => {
     try {
@@ -210,7 +238,105 @@ export function GerarPropostaModal({
     return sugerirFabricanteKit(technicalValues.marcaPaineis, technicalValues.marcaInversor)
   }, [technicalValues.marcaPaineis, technicalValues.marcaInversor])
 
+  /** Mapeia o tipo de instalação livre do gerador para o select da proposta. */
+  const mapearTipoEstrutura = (
+    tipoInstalacao: string,
+  ): KitTechnicalSelectorsValues['tipoEstrutura'] => {
+    const t = (tipoInstalacao || '').toLowerCase()
+    if (t.includes('fibro')) return 'fibrocimento'
+    if (t.includes('solo')) return 'solo_monoposte'
+    if (t.includes('trilho') || t.includes('ceram') || t.includes('cerâm')) return 'mini_trilho'
+    return 'outro'
+  }
+
+  const fmtNum = (n: number) =>
+    new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(n)
+
+  /** Preenche o formulário com um kit salvo no Gerador de Kit Solar. */
+  const applyKitGerado = (k: KitGerado) => {
+    const painel = parsePainelJson(k.painel)
+    const inversor = parseInversorJson(k.inversor)
+    setSelectedKitGeradoId(k.id)
+    setSelectedKitId('')
+    setKitNome(k.nome)
+    setKitPotenciaKw(k.potencia_kwp)
+    setKitFabricante(
+      [painel?.marca, inversor?.marca].filter(Boolean).join(' / ') || k.distribuidora || '',
+    )
+    setCusto(k.custo)
+    // Margem coerente com o preço cheio gravado (custo → preco_venda)
+    const margemPct = k.preco_venda > 0 ? ((k.preco_venda - k.custo) / k.preco_venda) * 100 : 0
+    setMargem(Math.round(margemPct * 100) / 100)
+    setValorBruto(k.preco_venda)
+
+    // Desconto: pode ter sido gravado em % ou em R$
+    const pctDesconto =
+      k.desconto_tipo === '%'
+        ? k.desconto_valor
+        : k.preco_venda > 0
+          ? (k.desconto_rs / k.preco_venda) * 100
+          : 0
+    setDescontoPercentualStr(pctDesconto > 0 ? String(Math.round(pctDesconto * 100) / 100) : '')
+    setPrecoVenda(k.preco_final > 0 ? k.preco_final : k.preco_venda)
+
+    // Componentes a partir dos JSONs gravados
+    setTechnicalValues({
+      qtdPaineis:
+        painel?.qtd ||
+        (painel?.potencia_w ? Math.round((k.potencia_kwp * 1000) / painel.potencia_w) : 10),
+      potenciaPainelW: painel?.potencia_w || 630,
+      marcaPaineis: painel?.marca || 'TSUN POWER',
+      qtdInversores: inversor?.qtd || 1,
+      marcaInversor: inversor?.marca || 'Sungrow',
+      potenciaInversorKw: inversor?.potencia_kw || 5,
+      tipoEstrutura: mapearTipoEstrutura(k.tipo_instalacao),
+      stringBox: '',
+    })
+
+    // Descrição técnica: módulos, inversor (com modelo), área e itens do kit
+    const linhas: string[] = []
+    if (painel) {
+      linhas.push(
+        `${painel.qtd || ''}× ${painel.marca} ${painel.modelo || ''} ${painel.potencia_w} W`.replace(
+          /\s+/g,
+          ' ',
+        ),
+      )
+    }
+    if (inversor) {
+      linhas.push(
+        `${inversor.qtd || 1}× ${inversor.marca} ${inversor.modelo || ''} ${inversor.potencia_kw} kW`.replace(
+          /\s+/g,
+          ' ',
+        ),
+      )
+    }
+    if (k.area_m2) {
+      linhas.push(`Área estimada: ${fmtNum(k.area_m2)} m²`)
+    }
+    if (k.tipo_instalacao) {
+      linhas.push(`Instalação: ${k.tipo_instalacao}`)
+    }
+    const itens = parseItens(k.itens)
+    if (itens.length > 0) {
+      linhas.push(`Itens inclusos: ${itens.map((i) => `${i.qtd}× ${i.nome}`).join(', ')}`)
+    }
+    setKitGeradoDescricao(linhas.join(' • '))
+  }
+
+  const handleKitGeradoSelect = (id: string) => {
+    if (!id) {
+      setSelectedKitGeradoId('')
+      setKitGeradoDescricao('')
+      return
+    }
+    const k = kitsGerados.find((kg) => kg.id === id)
+    if (k) applyKitGerado(k)
+  }
+
   const applyKit = (kit: Kit) => {
+    setSelectedKitGeradoId('')
+    setKitGeradoDescricao('')
     setSelectedKitId(kit.id)
     setKitNome(kit.nome)
     setKitPotenciaKw(kit.potencia_kw)
@@ -251,6 +377,8 @@ export function GerarPropostaModal({
   const handleKitSelect = (kitId: string) => {
     if (kitId === 'custom') {
       setSelectedKitId('custom')
+      setSelectedKitGeradoId('')
+      setKitGeradoDescricao('')
 
       const consumo = lead.consumo_mensal_kwh || 400
       const kwpEstimado = Math.max(1, Math.round((consumo / 120) * 10) / 10)
@@ -493,7 +621,7 @@ export function GerarPropostaModal({
         kit_potencia_painel_w: Number(technicalValues.potenciaPainelW) || undefined,
         kit_potencia_inversor_kw: Number(technicalValues.potenciaInversorKw) || undefined,
         kit_string_box: technicalValues.stringBox?.trim() || undefined,
-        kit_descricao: descGerada || undefined,
+        kit_descricao: kitGeradoDescricao || descGerada || undefined,
         fotos_selecionadas: fotosSelecionadas,
         status: 'Enviada',
         formato,
@@ -591,6 +719,45 @@ export function GerarPropostaModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          {/* Escolher Kit Salvo no Gerador de Kit Solar */}
+          <div className="p-3.5 rounded-lg bg-sky-50/60 border border-sky-100 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
+                <Boxes className="w-3.5 h-3.5 text-sky-600" />
+                <span>Escolher Kit Salvo (Gerador de Kit Solar)</span>
+              </Label>
+              {loadingKitsGerados && (
+                <span className="text-[11px] text-sky-700 flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Carregando...
+                </span>
+              )}
+            </div>
+
+            <Select value={selectedKitGeradoId} onValueChange={handleKitGeradoSelect}>
+              <SelectTrigger className="h-10 text-xs bg-white border-sky-200 focus:ring-[#0B7A5B]">
+                <SelectValue placeholder="Escolher kit salvo no gerador (opcional)..." />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {kitsGerados.length === 0 ? (
+                  <div className="p-3 text-center text-xs text-slate-500">
+                    <Boxes className="w-4 h-4 mx-auto mb-1 text-slate-400" />
+                    <span>Nenhum kit salvo no Gerador de Kit Solar</span>
+                  </div>
+                ) : (
+                  kitsGerados.map((k) => (
+                    <SelectItem key={k.id} value={k.id} className="text-xs">
+                      {k.nome} — {k.potencia_kwp} kWp • Final: {formatBRL(k.preco_final)}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-sky-800">
+              Ao escolher, módulos, inversor, telhado, itens e preços são preenchidos com os dados
+              gravados no gerador — e permanecem editáveis.
+            </p>
+          </div>
+
           {/* Selecionar Kit do Catálogo com Filtros Idênticos à aba Kits Solares */}
           <div className="p-3.5 rounded-lg bg-emerald-50/50 border border-emerald-100 space-y-2.5">
             <div className="flex items-center justify-between">

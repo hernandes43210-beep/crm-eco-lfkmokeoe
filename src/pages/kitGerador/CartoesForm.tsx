@@ -29,6 +29,7 @@ import {
   type TipoInstalacao,
 } from './logica'
 import type {
+  ItemListaKit,
   PainelCatalogoRow,
   InversorCatalogoRow,
   DistribuidoraRow,
@@ -53,13 +54,6 @@ export interface InversorSelecao {
   modelo: string
   potenciaKw: number
   tipo: string
-}
-
-export interface ItemListaKit {
-  nome: string
-  qtd: number
-  incluido: boolean
-  padrao: boolean
 }
 
 export interface EstadoForm {

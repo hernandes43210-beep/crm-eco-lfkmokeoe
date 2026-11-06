@@ -20,13 +20,16 @@ import {
   MENSAGENS_RELACAO,
   type TipoInstalacao,
 } from './logica'
-import type {
-  PainelCatalogoRow,
-  InversorCatalogoRow,
-  DistribuidoraRow,
-  KitGeradoRow,
+import {
+  parsePainelJson,
+  parseInversorJson,
+  type PainelCatalogoRow,
+  type InversorCatalogoRow,
+  type DistribuidoraRow,
+  type KitGerado,
+  type ItemListaKit,
 } from '@/services/kitGerador'
-import type { EstadoForm, ItemListaKit } from './CartoesForm'
+import type { EstadoForm } from './CartoesForm'
 import { TIPOS_INVERSOR } from './logica'
 
 const CORES = {
@@ -314,7 +317,7 @@ export function AbaCatalogo({
       marca: novoInversor.marca.trim(),
       modelo: novoInversor.modelo.trim(),
       potencia_kw: potenciaKw,
-      tipo: novoInversor.tipo,
+      tipo: novoInversor.tipo as (typeof TIPOS_INVERSOR)[number],
     })
     setNovoInversor({ marca: '', modelo: '', potenciaKw: '', tipo: 'Monofásico' })
   }
@@ -589,7 +592,7 @@ export function AbaKitsSalvos({
   onExcluir,
   carregando,
 }: {
-  kits: KitGeradoRow[]
+  kits: KitGerado[]
   onAbrir: (id: string) => void
   onExcluir: (id: string) => void
   carregando: boolean
@@ -600,11 +603,13 @@ export function AbaKitsSalvos({
   const kitsFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase()
     return kits.filter((k) => {
+      const painelJson = parsePainelJson(k.painel)
+      const inversorJson = parseInversorJson(k.inversor)
       const okBusca =
         !termo ||
         k.nome.toLowerCase().includes(termo) ||
-        (k.painel?.marca || '').toLowerCase().includes(termo) ||
-        (k.inversor?.marca || '').toLowerCase().includes(termo)
+        (painelJson?.marca || '').toLowerCase().includes(termo) ||
+        (inversorJson?.marca || '').toLowerCase().includes(termo)
       const okDist = !filtroDistribuidora || k.distribuidora === filtroDistribuidora
       return okBusca && okDist
     })
@@ -659,14 +664,16 @@ export function AbaKitsSalvos({
                 </td>
                 <td className="py-2 pr-2">{fmt(k.potencia_kwp)}</td>
                 <td className="py-2 pr-2">
-                  {k.painel
-                    ? `${k.painel.qtd}× ${k.painel.marca} ${fmtInt(k.painel.potencia_w)} W`
-                    : '—'}
+                  {(() => {
+                    const p = parsePainelJson(k.painel)
+                    return p ? `${p.qtd}× ${p.marca} ${fmtInt(p.potencia_w)} W` : '—'
+                  })()}
                 </td>
                 <td className="py-2 pr-2">
-                  {k.inversor
-                    ? `${k.inversor.qtd}× ${k.inversor.marca} ${fmt(k.inversor.potencia_kw)} kW`
-                    : '—'}
+                  {(() => {
+                    const inv = parseInversorJson(k.inversor)
+                    return inv ? `${inv.qtd}× ${inv.marca} ${fmt(inv.potencia_kw)} kW` : '—'
+                  })()}
                 </td>
                 <td className="py-2 pr-2 text-[#3c4a63]">{k.tipo_instalacao}</td>
                 <td className="py-2 pr-2 text-[#3c4a63]">{k.distribuidora || '—'}</td>

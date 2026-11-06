@@ -22,6 +22,8 @@ import {
   fmtBRL,
   fmtInt,
   type Ligacao,
+  type EstadoCalculo,
+  type Precificacao,
 } from './kitGerador/logica'
 import {
   estadoInicial,
@@ -34,8 +36,8 @@ import {
   BlocoQuantidadeInversor,
   CardNumero,
   type EstadoForm,
-} from './CartoesForm'
-import { ResumoKit, AbaKitsSalvos, AbaCatalogo } from './CartoesResumo'
+} from './kitGerador/CartoesForm'
+import { ResumoKit, AbaKitsSalvos, AbaCatalogo } from './kitGerador/CartoesResumo'
 
 const AREA_PAINEL_PADRAO = 2.79
 
@@ -72,7 +74,6 @@ export default function KitGeradorPage() {
             }
           : f,
       )
-      etSetCarregadoSafe()
     } catch (err) {
       console.error('Erro ao carregar catálogo do gerador:', err)
       toast({
@@ -83,8 +84,6 @@ export default function KitGeradorPage() {
     }
     setCarregado(true)
   }
-
-  const etSetCarregadoSafe = () => {}
 
   useEffect(() => {
     carregarTudo()
@@ -585,15 +584,30 @@ export default function KitGeradorPage() {
               {/* Resumo sticky à direita */}
               <div className="lg:sticky lg:top-4 lg:self-start">
                 <ResumoKit
-                  form={form}
-                  calc={calc}
-                  relacao={relacao}
-                  corRelacao={corRelacao}
-                  preco={preco}
-                  temCusto={custo > 0}
-                  distribuidoraFinal={distribuidoraFinal}
-                  kitEditandoId={kitEditandoId}
-                  onSalvar={() => salvarKitAtual(kitEditandoId || undefined)}
+                  dados={{
+                    nome: form.nomeKit,
+                    kwp: calc.kwp,
+                    linhaPainel:
+                      `${form.qtdPaineis}× ${form.painel.marca} ${form.painel.modelo}`.trim(),
+                    geracaoMensal: calc.geracaoMensal,
+                    coberturaPct: consumo > 0 ? (calc.geracaoMensal / consumo) * 100 : null,
+                    linhaInversor:
+                      `${form.qtdInversores}× ${form.inversor.marca} ${form.inversor.modelo}`.trim(),
+                    kwCa: form.inversor.potenciaKw * form.qtdInversores,
+                    areaM2: calc.areaM2,
+                    tipoInstalacao: form.tipoInstalacao,
+                    relacao: relacao > 0 ? relacao : null,
+                    sobrecargaPct: sobrecarga,
+                    itens: form.itens.filter((i) => i.incluido && i.nome.trim()),
+                    distribuidora: distribuidoraFinal,
+                    custo,
+                    precoVenda: custo > 0 ? preco.precoVenda : null,
+                    descontoRs: preco.descontoRs,
+                    precoFinal: custo > 0 ? preco.precoFinal : null,
+                    lucro: preco.lucro,
+                    margemPct: preco.margemPct,
+                  }}
+                  onSalvar={() => void salvarKitAtual(kitEditandoId || undefined)}
                   onCopiar={() => {
                     const linhas = [
                       form.nomeKit,
@@ -615,6 +629,7 @@ export default function KitGeradorPage() {
                     )
                   }}
                   onLimpar={limparForm}
+                  salvando={gravando}
                 />
               </div>
             </div>
@@ -623,15 +638,19 @@ export default function KitGeradorPage() {
           <TabsContent value="salvos" className="mt-4">
             <AbaKitsSalvos
               kits={kitsSalvos}
-              onAbrir={(kit) => {
-                abrirKit(kit)
-                document.querySelector<HTMLButtonElement>('[value="montar"]')?.click()
+              carregando={gravando}
+              onAbrir={(id) => {
+                const kit = kitsSalvos.find((k) => k.id === id)
+                if (kit) {
+                  abrirKit(kit)
+                  document.querySelector<HTMLButtonElement>('[value="montar"]')?.click()
+                }
               }}
-              onExcluir={async (kit) => {
+              onExcluir={async (id) => {
                 try {
-                  await KitGeradorService.desativarKit(kit.id)
-                  setKitsSalvos((l) => l.filter((k) => k.id !== kit.id))
-                  if (kitEditandoId === kit.id) setKitEditandoId(null)
+                  await KitGeradorService.desativarKit(id)
+                  setKitsSalvos((l) => l.filter((k) => k.id !== id))
+                  if (kitEditandoId === id) setKitEditandoId(null)
                   toast({ title: 'Kit excluído', description: 'Ele não aparece mais na lista.' })
                 } catch {
                   toast({ title: 'Erro ao excluir o kit', variant: 'destructive' })
@@ -645,6 +664,7 @@ export default function KitGeradorPage() {
               paineis={painelLista}
               inversores={inversorLista}
               distribuidoras={distribuidoras}
+              carregando={gravando}
               onAddPainel={async (p) => {
                 try {
                   const novo = await KitGeradorService.gravarPainel({

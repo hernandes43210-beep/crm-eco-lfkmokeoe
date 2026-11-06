@@ -97,6 +97,7 @@ export interface KitGerado {
   preco_final: number
   lucro: number
   margem_pct: number
+  ativo?: boolean
   criado_por: string
   created: string
   expand?: Record<string, unknown>
