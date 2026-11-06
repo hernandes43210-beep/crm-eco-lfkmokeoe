@@ -44,16 +44,8 @@ export function PaginaComoVaiSer({ d }: { d: DadosV2 }) {
             <h3>🛡 Garantias</h3>
             <div style={{ marginTop: '2.5mm' }}>
               <LiV2 cor="v">Painéis — 30 anos de garantia de desempenho (produtor).</LiV2>
-              {d.garantiaInversorAnos && (
-                <LiV2 cor="v">
-                  Inversor — {d.garantiaInversorAnos} anos de garantia do fabricante.
-                </LiV2>
-              )}
-              {d.garantiaInstalacaoAnos && (
-                <LiV2 cor="v">
-                  Instalação — {d.garantiaInstalacaoAnos} anos de garantia de serviço Ecosolar.
-                </LiV2>
-              )}
+              <LiV2 cor="v">Inversor — {d.garantiaInversorTxt}.</LiV2>
+              <LiV2 cor="v">Instalação — {d.garantiaInstalacaoTxt}.</LiV2>
               <LiV2 cor="c">
                 Suporte e monitoramento acompanhados pela equipe durante toda a vida útil.
               </LiV2>
