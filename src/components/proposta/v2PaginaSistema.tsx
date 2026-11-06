@@ -1,11 +1,13 @@
 /**
  * Página 3 — SEU SISTEMA: conta visual, barra de cobertura, tabela do kit
- * (espelha pagina3 de proposalPdf.ts).
+ * (espelha pagina3 de proposalPdf.ts — mesma estrutura e mesmos textos do PDF).
  */
 import type { DadosV2 } from '@/lib/proposalDadosV2'
-import { CabecalhoInterno, RodapeInterno, LiV2 } from './v2Bits'
+import { CabecalhoInterno, RodapeInterno } from './v2Bits'
 
 export function PaginaSistema({ d }: { d: DadosV2 }) {
+  const ger = Math.round(d.calc.geracaoMensalKwh)
+
   return (
     <section className="pv-page">
       <CabecalhoInterno d={d} />
@@ -13,151 +15,122 @@ export function PaginaSistema({ d }: { d: DadosV2 }) {
         <div style={{ marginTop: '6mm' }}>
           <span className="pv-sec-tag">1 • Seu sistema</span>
           <h2 className="pv-sec-title" style={{ marginTop: '3mm' }}>
-            O que você recebe e como chegamos nele
+            Kit solar {d.kwpFmt} kWp — {d.marcaPainel || 'painéis de alta eficiência'} +{' '}
+            {d.marcaInversor || 'inversor homologado'}
           </h2>
           <p className="pv-sub" style={{ marginTop: '2mm' }}>
-            O tamanho do sistema não é chute: ele sai do seu consumo real e do sol da sua região.
+            Como chegamos a esse tamanho: partimos do seu consumo e da quantidade de sol da região.
           </p>
         </div>
 
         <div className="pv-conta" style={{ marginTop: '5mm' }}>
-          <span className="op">{d.kwpFmt} kWp</span> <span className="op">×</span>{' '}
-          <span className="op">{d.calc.irradiacaoHoras.toLocaleString('pt-BR')} h/dia de sol</span>{' '}
-          <span className="op">×</span> <span className="op">30 dias</span>{' '}
-          <span className="op">×</span> <span className="op">80% (perdas)</span>{' '}
-          <span className="op">=</span>{' '}
-          <span className="res">~{Math.round(d.calc.geracaoMensalKwh)} kWh/mês</span>
+          {d.kwpFmt} kWp <span className="op">×</span>{' '}
+          {String(d.calc.irradiacaoHoras).replace('.', ',')} h de sol/dia
+          <span className="op">×</span> 30 dias <span className="op">×</span> 80% aproveitamento
+          real
+          <span className="op">=</span> <span className="res">~{ger} kWh/mês</span>
         </div>
-        <p style={{ fontSize: '7.6pt', color: '#5b6782', marginTop: '1.5mm', textAlign: 'center' }}>
-          h/dia de sol: média diária de sol útil na sua região. 80%: perdas normais do sistema real
-          (poeira, calor, cabos).
-        </p>
 
-        <div className="pv-card" style={{ marginTop: '5mm' }}>
-          <h3 style={{ marginBottom: '2.5mm' }}>
-            Sua conta de luz hoje ({d.consumoKwh || '—'} kWh/mês)
-          </h3>
-          <div className="pv-barra">
-            <div className="g" style={{ width: `${Math.min(100, d.calc.coberturaPct)}%` }}>
-              {d.calc.coberturaPct >= 8 ? `Gerado ${d.calc.coberturaPct}%` : ''}
-            </div>
-            <div className="r" style={{ width: `${Math.max(0, 100 - d.calc.coberturaPct)}%` }}>
-              {d.calc.coberturaPct <= 92
-                ? `Restante na rede ${Math.max(0, 100 - d.calc.coberturaPct)}%`
-                : ''}
-            </div>
+        <div style={{ marginTop: '5mm' }}>
+          <div style={{ fontWeight: 800, fontSize: '9pt', color: '#0b1f4d' }}>
+            Quanto do seu consumo o sistema cobre: {d.calc.coberturaPct}%
           </div>
-          <div
-            style={{
-              display: 'flex',
-              gap: '6mm',
-              marginTop: '2mm',
-              fontSize: '7.6pt',
-              color: '#5b6782',
-            }}
-          >
-            <span>
-              <span style={{ color: '#11845b', fontWeight: 900 }}>■</span> Gerado pelo seu sistema (
-              {Math.round(d.calc.geracaoMensalKwh)} kWh)
-            </span>
-            <span>
-              <span style={{ color: '#aab4c9', fontWeight: 900 }}>■</span> Continua vindo da rede (
-              {Math.round(d.calc.restanteRedeKwh)} kWh)
-            </span>
+          <div className="pv-barra" style={{ marginTop: '2mm' }}>
+            <div className="g" style={{ width: `${d.calc.coberturaPct}%` }}>
+              Gerado pelo sistema: ~{ger} kWh
+            </div>
+            <div className="r" style={{ width: `${100 - d.calc.coberturaPct}%` }}>
+              Restante da rede: ~{d.calc.restanteRedeKwh} kWh
+            </div>
           </div>
         </div>
 
         <div className="pv-info-azul" style={{ marginTop: '5mm' }}>
-          <strong>Por que considerar 20% de perdas?</strong> Nenhum sistema converte 100% da luz em
-          energia: há perdas normais com o calor dos painéis, o comprimento dos cabos, o próprio
-          inversor e a sujeira na superfície do vidro. A Ecosolar prefere prometer menos e entregar
-          mais — por isso os números desta proposta já descontam essas perdas.
+          <strong>Por que considerar 20% de perdas?</strong> Painel no calor, cabos, sujeira e o
+          próprio inversor consomem uma parte da energia. Usamos esse desconto para que a geração
+          prometida seja realista — preferimos que você se surpreenda para mais, não para menos.
         </div>
 
-        <h3
-          style={{
-            fontFamily: 'Montserrat, sans-serif',
-            fontWeight: 900,
-            fontSize: '11.5pt',
-            color: '#0b1f4d',
-            marginTop: '6mm',
-          }}
-        >
-          O QUE VEM NO SEU KIT — E PARA QUE SERVE CADA ITEM
-        </h3>
-        <table className="pv-tabela" style={{ marginTop: '3mm' }}>
-          <thead>
-            <tr>
-              <th style={{ width: '14mm' }}>Qtd.</th>
-              <th>Item</th>
-              <th>Para que serve</th>
-              <th style={{ width: '24mm' }}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {d.itensKit.map((it, i) => (
-              <tr key={i}>
-                <td className="qtd">{it.qtd}×</td>
-                <td className="item">{it.item}</td>
-                <td className="para">{it.para}</td>
-                <td className="pv-incluso">✓ Incluso</td>
+        <div style={{ marginTop: '6mm' }}>
+          <div
+            style={{
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 800,
+              fontSize: '9pt',
+              color: '#1d4290',
+              letterSpacing: '1.2px',
+            }}
+          >
+            O QUE VEM NO SEU KIT — E PARA QUE SERVE CADA ITEM
+          </div>
+          <table className="pv-tabela" style={{ marginTop: '3mm' }}>
+            <thead>
+              <tr>
+                <th style={{ width: '14mm' }}>Qtd.</th>
+                <th>Item</th>
+                <th>Para que serve</th>
+                <th style={{ width: '18mm' }}>Incluso</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {d.itensKit.map((it, i) => (
+                <tr key={i}>
+                  <td className="qtd">{it.qtd}</td>
+                  <td className="item">{it.item}</td>
+                  <td className="para">{it.para}</td>
+                  <td className="pv-incluso">✓ Incluso</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-        <div className="pv-kits-fim" style={{ marginTop: '5mm' }}>
+        <div className="pv-kits-fim" style={{ marginTop: 'auto', paddingTop: '5mm' }}>
           <div className="pv-card">
             <div
               style={{
-                fontSize: '7.4pt',
-                color: '#5b6782',
-                textTransform: 'uppercase',
+                fontSize: '7.2pt',
                 letterSpacing: '.8px',
+                textTransform: 'uppercase',
+                color: '#5b6782',
                 fontWeight: 700,
               }}
             >
-              Área ocupada
+              Área no telhado
             </div>
-            <div className="v">{d.areaTelhadoM2 ? `${d.areaTelhadoM2} m²` : '—'}</div>
-            <div className="n">no telhado ({d.tipoTelhado.toLowerCase()})</div>
+            <div className="v">{d.areaTelhadoM2 ? `~${d.areaTelhadoM2} m²` : '—'}</div>
+            <div className="n">estimativa com os painéis deste kit</div>
           </div>
           <div className="pv-card">
             <div
               style={{
-                fontSize: '7.4pt',
-                color: '#5b6782',
-                textTransform: 'uppercase',
+                fontSize: '7.2pt',
                 letterSpacing: '.8px',
+                textTransform: 'uppercase',
+                color: '#5b6782',
                 fontWeight: 700,
               }}
             >
-              Telhado
+              Tipo de telhado
             </div>
             <div className="v">{d.tipoTelhado}</div>
-            <div className="n">estrutura própria para cada tipo</div>
+            <div className="n">estrutura própria inclusa</div>
           </div>
           <div className="pv-card">
             <div
               style={{
-                fontSize: '7.4pt',
-                color: '#5b6782',
-                textTransform: 'uppercase',
+                fontSize: '7.2pt',
                 letterSpacing: '.8px',
+                textTransform: 'uppercase',
+                color: '#5b6782',
                 fontWeight: 700,
               }}
             >
               Monitoramento
             </div>
-            <div className="v">24h</div>
-            <div className="n">app no celular, geração e economia em tempo real</div>
+            <div className="v">24 h</div>
+            <div className="n">acompanhamento no celular</div>
           </div>
-        </div>
-
-        <div style={{ marginTop: '4mm' }}>
-          <LiV2 cor="v">
-            Projeto elétrico, ART e homologação na {d.concessionaria} — já inclusos.
-          </LiV2>
         </div>
       </div>
       <RodapeInterno pagina={3} />

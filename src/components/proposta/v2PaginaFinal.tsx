@@ -1,11 +1,11 @@
 /**
- * Página 6 — QUEM FAZ + FAQ + ACEITE: mosaico de fotos, depoimento configurável,
- * FAQ 2 colunas, caixa de aceite (link público + botão online) e assinaturas
- * (espelha pagina6 de proposalPdf.ts; o botão de aceite online aqui é o MESMO
- * usado pela versão clássica atual — ver integracao em PropostaPublica.tsx).
+ * Página 6 — QUEM FAZ + FAQ + ACEITE: mosaico de fotos, depoimento, FAQ 2 colunas,
+ * caixa de aceite (link público + slot do aceite online) e assinaturas
+ * (espelha pagina6 de proposalPdf.ts; o card de aceite online é fornecido pela
+ * PropostaPublica como children — mantém aceite/status/assinaturas do clássico).
  */
 import type { DadosV2, FotoProposta } from '@/lib/proposalDadosV2'
-import { CabecalhoInterno, RodapeInterno, FotoV2, LiV2 } from './v2Bits'
+import { CabecalhoInterno, RodapeInterno, FotoV2 } from './v2Bits'
 
 export function PaginaFinal({
   d,
@@ -16,17 +16,9 @@ export function PaginaFinal({
   d: DadosV2
   fotos: FotoProposta[]
   linkPublico?: string
-  /** Slot do aceite online da tela (botão + link), fornecido pela PropostaPublica. */
+  /** Card de aceite online da tela (formulário + link), fornecido pela PropostaPublica. */
   children?: React.ReactNode
 }) {
-  const [g1, g2, g3, g4, g5] = [
-    fotos[0] || null,
-    fotos[1] || null,
-    fotos[2] || null,
-    fotos[3] || null,
-    fotos[4] || null,
-  ]
-
   return (
     <section className="pv-page">
       <CabecalhoInterno d={d} />
@@ -34,27 +26,28 @@ export function PaginaFinal({
         <div style={{ marginTop: '6mm' }}>
           <span className="pv-sec-tag">4 • Quem faz</span>
           <h2 className="pv-sec-title" style={{ marginTop: '3mm' }}>
-            Obras reais, clientes reais
+            Obras reais, feitas pela nossa equipe
           </h2>
         </div>
 
         <div className="pv-mosaico" style={{ marginTop: '4mm' }}>
-          <FotoV2 foto={g1} classe="grande" />
-          <FotoV2 foto={g2} />
-          <FotoV2 foto={g3} />
-          <FotoV2 foto={g4} />
-          <FotoV2 foto={g5} />
+          <FotoV2
+            foto={fotos[0] || fotos[1] || fotos[2] || fotos[3] || fotos[4] || null}
+            classe="grande"
+          />
+          <FotoV2 foto={fotos[1] || fotos[0] || null} />
+          <FotoV2 foto={fotos[2] || fotos[0] || null} />
+          <FotoV2 foto={fotos[3] || fotos[0] || null} />
+          <FotoV2 foto={fotos[4] || fotos[0] || null} />
         </div>
 
-        {d.depoimento && (
-          <div className="pv-depo" style={{ marginTop: '4mm' }}>
-            <div className="aspas">“</div>
-            <div>
-              <div className="txt">{d.depoimento.texto}</div>
-              <div className="autor">— {d.depoimento.autor}</div>
-            </div>
+        <div className="pv-depo" style={{ marginTop: '4mm' }}>
+          <div className="aspas">"</div>
+          <div>
+            <div className="txt">{d.depoimento.texto}</div>
+            <div className="autor">{d.depoimento.autor}</div>
           </div>
-        )}
+        </div>
 
         <div style={{ marginTop: '5mm' }}>
           <div
@@ -79,32 +72,32 @@ export function PaginaFinal({
         </div>
 
         <div className="pv-aceite" style={{ marginTop: '5mm' }}>
-          <h3
+          <div
             style={{
               fontFamily: 'Montserrat, sans-serif',
-              fontWeight: 900,
-              fontSize: '11pt',
+              fontWeight: 800,
+              fontSize: '10pt',
               color: '#0b1f4d',
             }}
           >
-            ✓ ACEITAR ESTA PROPOSTA
-          </h3>
-          <p style={{ fontSize: '8.2pt', color: '#5b6782', marginTop: '1.5mm' }}>
-            Esta proposta é válida até <strong>{d.validadeBR}</strong>. Para aceitar online, use o
-            botão abaixo ou copie o link público:
+            Aceite online — rápido e seguro, sem cartório
+          </div>
+          <p style={{ fontSize: '8.4pt', color: '#5b6782', marginTop: '1.5mm' }}>
+            Válida até <strong style={{ color: '#0b1f4d' }}>{d.validadeBR}</strong>. Os valores
+            desta proposta ficam garantidos até a data de validade. Para aceitar, use o link abaixo
+            ou responda no WhatsApp {d.whatsapp}.
           </p>
-          <code className="mono" style={{ marginTop: '2.5mm' }}>
-            {linkPublico || ''}
-          </code>
+          <span className="mono">{linkPublico || ''}</span>
           {children && <div className="pv-aceite-tela">{children}</div>}
+
           <div className="pv-assina">
             <div className="campo">
-              <b>_______________________________</b>
-              <span>Consultor Ecosolar Energy — {d.consultorNome}</span>
+              <b>{d.consultorNome}</b>
+              <span>Ecosolar Energy • Consultor Técnico</span>
             </div>
             <div className="campo">
-              <b>_______________________________</b>
-              <span>Cliente — {d.clienteNome}</span>
+              <b>{d.clienteNome}</b>
+              <span>Cliente contratante</span>
             </div>
           </div>
         </div>
