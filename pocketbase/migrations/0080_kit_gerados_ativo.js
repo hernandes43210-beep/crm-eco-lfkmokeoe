@@ -4,11 +4,13 @@ migrate(
   (app) => {
     const col = app.findCollectionByNameOrId('kit_gerados')
     if (!col.fields.getByName('ativo')) {
-      col.fields.add(new Field({ name: 'ativo', type: 'bool' }))
-      col.save()
-      // kits existentes (se houver) continuam visíveis
-      const recs = app.findRecordsByFilter('kit_gerados', 'ativo != true', '', 500, 0)
-      for (const r of recs) {
+      col.fields.add(new BoolField({ name: 'ativo' }))
+      app.save(col)
+    }
+    // kits existentes (se houver) continuam visíveis — preenche o campo
+    const recs = app.findRecordsByFilter('kit_gerados', '', '', 500, 0)
+    for (const r of recs) {
+      if (!r.getBool('ativo')) {
         r.set('ativo', true)
         app.save(r)
       }
@@ -18,7 +20,7 @@ migrate(
     const col = app.findCollectionByNameOrId('kit_gerados')
     if (col.fields.getByName('ativo')) {
       col.fields.removeByName('ativo')
-      col.save()
+      app.save(col)
     }
   },
 )
