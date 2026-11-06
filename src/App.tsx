@@ -17,6 +17,7 @@ import LeadDetail from '@/pages/LeadDetail'
 import LeadImport from '@/pages/LeadImport'
 import FunilVendas from '@/pages/FunilVendas'
 import KitsSolares from '@/pages/KitsSolares'
+import KitGeradorPage from '@/pages/KitGeradorPage'
 import Equipe from '@/pages/Equipe'
 import WhatsAppPage from '@/pages/WhatsApp'
 import IntegracoesPage from '@/pages/Integracoes'
@@ -116,6 +117,14 @@ const App = () => (
               element={
                 <ProtectedRoute blockEngenheiro>
                   <KitsSolares />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/gerador-kits"
+              element={
+                <ProtectedRoute blockEngenheiro>
+                  <KitGeradorPage />
                 </ProtectedRoute>
               }
             />

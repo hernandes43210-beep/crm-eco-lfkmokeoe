@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-06T15:48:42.008Z",
+  "generatedAt": "2026-11-06T18:48:34.946Z",
   "collections": [
     {
       "name": "users",
@@ -2702,6 +2702,343 @@
         "CREATE INDEX idx_arq_eng_lead ON arquivos_engenharia (lead)",
         "CREATE INDEX idx_arq_eng_categoria ON arquivos_engenharia (categoria)",
         "CREATE INDEX idx_arq_eng_created ON arquivos_engenharia (created DESC)"
+      ]
+    },
+    {
+      "name": "kit_paineis",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "view": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "create": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "update": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "delete": "@request.auth.id != '' && @request.auth.role = 'Admin'"
+      },
+      "fields": [
+        {
+          "name": "marca",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "modelo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "potencia_w",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "area_m2",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origem",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["inicial", "cadastrado"]
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_kit_paineis_marca ON kit_paineis (marca)",
+        "CREATE INDEX idx_kit_paineis_ativo ON kit_paineis (ativo)"
+      ]
+    },
+    {
+      "name": "kit_inversores",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "view": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "create": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "update": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "delete": "@request.auth.id != '' && @request.auth.role = 'Admin'"
+      },
+      "fields": [
+        {
+          "name": "marca",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "modelo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "potencia_kw",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Monofásico",
+            "Trifásico",
+            "Híbrido monofásico",
+            "Híbrido trifásico",
+            "Eco-híbrido / off-grid",
+            "Microinversor"
+          ]
+        },
+        {
+          "name": "origem",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["inicial", "cadastrado"]
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_kit_inversores_marca ON kit_inversores (marca)",
+        "CREATE INDEX idx_kit_inversores_ativo ON kit_inversores (ativo)"
+      ]
+    },
+    {
+      "name": "kit_distribuidoras",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "view": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "create": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "update": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "delete": "@request.auth.id != '' && @request.auth.role = 'Admin'"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_kit_distribuidoras_ativo ON kit_distribuidoras (ativo)"]
+    },
+    {
+      "name": "kit_gerados",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "view": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "create": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "update": "@request.auth.id != '' && @request.auth.role != 'Engenheiro'",
+        "delete": "@request.auth.id != '' && @request.auth.role = 'Admin'"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "potencia_kwp",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "geracao_kwh",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "area_m2",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_instalacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ligacao",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Monofásica", "Bifásica", "Trifásica"]
+        },
+        {
+          "name": "distribuidora",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "painel",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "inversor",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itens",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "acrescimo_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "preco_venda",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "desconto_tipo",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["%", "R$"]
+        },
+        {
+          "name": "desconto_valor",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "desconto_rs",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "preco_final",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lucro",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "margem_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_por",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_kit_gerados_created ON kit_gerados (created)",
+        "CREATE INDEX idx_kit_gerados_distribuidora ON kit_gerados (distribuidora)"
       ]
     }
   ]

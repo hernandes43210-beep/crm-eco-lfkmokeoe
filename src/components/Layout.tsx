@@ -7,6 +7,7 @@ import {
   GitBranch,
   FileText,
   Boxes,
+  Package,
   MessageSquare,
   ShieldCheck,
   Plus,
@@ -79,6 +80,7 @@ export default function Layout() {
         { label: 'Importar Leads', path: '/leads/importar', icon: FileSpreadsheet },
         { label: 'Funil de Vendas', path: '/funil', icon: GitBranch },
         { label: 'Propostas', path: '/propostas', icon: FileText },
+        { label: 'Kits', path: '/gerador-kits', icon: Package },
         { label: 'Kits Solares', path: '/kits', icon: Boxes },
         { label: 'WhatsApp', path: '/whatsapp', icon: MessageSquare },
         ...(isAdmin
@@ -101,6 +103,7 @@ export default function Layout() {
     if (path.startsWith('/leads/')) return 'Detalhes do Lead'
     if (path === '/funil') return 'Funil de Vendas Solar'
     if (path === '/propostas') return 'Gestão de Propostas Comerciais'
+    if (path === '/gerador-kits') return 'Gerador de Kit Solar'
     if (path === '/kits') return 'Catálogo de Kits Solares'
     if (path === '/whatsapp') return 'WhatsApp & Atendimento Solar'
     if (path === '/engenharia')
