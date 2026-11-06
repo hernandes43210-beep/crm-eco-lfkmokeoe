@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { CheckCircle2, Clock, Inbox, Loader2, Wallet } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { CheckCircle2, ChevronDown, Clock, Inbox, Loader2, Wallet } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { HomologacaoLead } from '@/types/crm'
@@ -87,12 +87,17 @@ function ItemProjeto({
  * Pendentes mostram há quantos dias o projeto aguarda (desde o envio para a
  * engenharia); pagos mostram a data da marcação do pagamento.
  * A visibilidade dos projetos já vem filtrada do pai (mesma regra da engenharia).
+ * Abre recolhido (apenas o resumo com os contadores) e expande/recolhe a lista
+ * completa ao clicar no cabeçalho, com transição suave.
  */
 export function PainelPagamentoProjetos({
   homologacoes,
   loading = false,
   engenheirosMap = {},
 }: PainelPagamentoProjetosProps) {
+  // Estado inicial: recolhido — mostra só o resumo "N pagos · N pendentes".
+  const [expandido, setExpandido] = useState(false)
+
   const { pagos, pendentes } = useMemo(
     () => separarProjetosPorPagamento(homologacoes),
     [homologacoes],
@@ -116,7 +121,21 @@ export function PainelPagamentoProjetos({
 
   return (
     <Card className="border-slate-200/90 shadow-2xs bg-white overflow-hidden">
-      <CardHeader className="py-3.5 px-4 border-b border-slate-100 bg-gradient-to-r from-emerald-50/70 via-white to-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <CardHeader
+        onClick={() => setExpandido((v) => !v)}
+        role="button"
+        tabIndex={0}
+        aria-expanded={expandido}
+        aria-controls="painel-pagamento-projetos-lista"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            setExpandido((v) => !v)
+          }
+        }}
+        title={expandido ? 'Clique para recolher a lista' : 'Clique para ver a lista de projetos'}
+        className="py-3.5 px-4 border-b border-slate-100 bg-gradient-to-r from-emerald-50/70 via-white to-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 cursor-pointer select-none hover:from-emerald-100/80 hover:to-slate-100/70 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+      >
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-emerald-100 text-[#0B7A5B] flex items-center justify-center shrink-0">
             <Wallet className="w-5 h-5" />
@@ -154,78 +173,104 @@ export function PainelPagamentoProjetos({
               {pendentes.length} pendente{pendentes.length === 1 ? '' : 's'}
             </span>
           </Badge>
+          <button
+            type="button"
+            aria-expanded={expandido}
+            aria-controls="painel-pagamento-projetos-lista"
+            onClick={(e) => {
+              e.stopPropagation()
+              setExpandido((v) => !v)
+            }}
+            className="flex items-center gap-1 text-[11px] font-bold text-[#0B7A5B] bg-white border border-emerald-200 rounded-lg px-2 py-1.5 hover:bg-emerald-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+            title={expandido ? 'Recolher lista' : 'Ver lista de projetos'}
+          >
+            <span>{expandido ? 'Recolher' : 'Ver lista'}</span>
+            <ChevronDown
+              className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                expandido ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
         </div>
       </CardHeader>
 
-      <CardContent className="p-0">
-        {loading ? (
-          <div className="flex items-center justify-center gap-2 py-10 text-slate-400 text-xs font-medium">
-            <Loader2 className="w-4 h-4 animate-spin text-[#0B7A5B]" />
-            <span>Carregando situação dos pagamentos...</span>
-          </div>
-        ) : pagos.length === 0 && pendentes.length === 0 ? (
-          <div className="py-10 text-center space-y-1.5 px-4">
-            <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-              <Inbox className="w-5 h-5" />
-            </div>
-            <p className="text-sm font-bold text-slate-700">Nenhum projeto no painel ainda</p>
-            <p className="text-xs text-slate-500 max-w-md mx-auto">
-              Assim que um projeto for enviado para a engenharia e marcado como pago, ele aparecerá
-              aqui.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
-            {/* Pagamento Pendente */}
-            <section>
-              <div className="px-3 py-2 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between gap-2">
-                <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Pagamento Pendente</span>
-                </h4>
-                <span className="text-[10px] text-slate-400 font-medium">
-                  dias desde o envio p/ engenharia
-                </span>
+      <div
+        id="painel-pagamento-projetos-lista"
+        className="grid transition-all duration-200 ease-in-out"
+        style={{ gridTemplateRows: expandido ? '1fr' : '0fr' }}
+      >
+        <div className="overflow-hidden min-h-0">
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 py-10 text-slate-400 text-xs font-medium">
+                <Loader2 className="w-4 h-4 animate-spin text-[#0B7A5B]" />
+                <span>Carregando situação dos pagamentos...</span>
               </div>
-              {pendentesComEng.length === 0 ? (
-                <p className="px-3 py-6 text-xs text-slate-500 text-center">
-                  Nenhum projeto pendente de pagamento 🎉
+            ) : pagos.length === 0 && pendentes.length === 0 ? (
+              <div className="py-10 text-center space-y-1.5 px-4">
+                <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                  <Inbox className="w-5 h-5" />
+                </div>
+                <p className="text-sm font-bold text-slate-700">Nenhum projeto no painel ainda</p>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  Assim que um projeto for enviado para a engenharia e marcado como pago, ele
+                  aparecerá aqui.
                 </p>
-              ) : (
-                <ul className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
-                  {pendentesComEng.map((item) => (
-                    <ItemProjeto key={item.id} item={item} engenheirosMap={engenheirosMap} />
-                  ))}
-                </ul>
-              )}
-            </section>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+                {/* Pagamento Pendente */}
+                <section>
+                  <div className="px-3 py-2 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between gap-2">
+                    <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Pagamento Pendente</span>
+                    </h4>
+                    <span className="text-[10px] text-slate-400 font-medium">
+                      dias desde o envio p/ engenharia
+                    </span>
+                  </div>
+                  {pendentesComEng.length === 0 ? (
+                    <p className="px-3 py-6 text-xs text-slate-500 text-center">
+                      Nenhum projeto pendente de pagamento 🎉
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
+                      {pendentesComEng.map((item) => (
+                        <ItemProjeto key={item.id} item={item} engenheirosMap={engenheirosMap} />
+                      ))}
+                    </ul>
+                  )}
+                </section>
 
-            {/* Projetos Pagos */}
-            <section>
-              <div className="px-3 py-2 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between gap-2">
-                <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Projetos Pagos</span>
-                </h4>
-                <span className="text-[10px] text-slate-400 font-medium">
-                  do pagamento mais recente para o mais antigo
-                </span>
+                {/* Projetos Pagos */}
+                <section>
+                  <div className="px-3 py-2 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between gap-2">
+                    <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Projetos Pagos</span>
+                    </h4>
+                    <span className="text-[10px] text-slate-400 font-medium">
+                      do pagamento mais recente para o mais antigo
+                    </span>
+                  </div>
+                  {pagosComEng.length === 0 ? (
+                    <p className="px-3 py-6 text-xs text-slate-500 text-center">
+                      Nenhum projeto pago ainda.
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
+                      {pagosComEng.map((item) => (
+                        <ItemProjeto key={item.id} item={item} engenheirosMap={engenheirosMap} />
+                      ))}
+                    </ul>
+                  )}
+                </section>
               </div>
-              {pagosComEng.length === 0 ? (
-                <p className="px-3 py-6 text-xs text-slate-500 text-center">
-                  Nenhum projeto pago ainda.
-                </p>
-              ) : (
-                <ul className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
-                  {pagosComEng.map((item) => (
-                    <ItemProjeto key={item.id} item={item} engenheirosMap={engenheirosMap} />
-                  ))}
-                </ul>
-              )}
-            </section>
-          </div>
-        )}
-      </CardContent>
+            )}
+          </CardContent>
+        </div>
+      </div>
     </Card>
   )
 }
