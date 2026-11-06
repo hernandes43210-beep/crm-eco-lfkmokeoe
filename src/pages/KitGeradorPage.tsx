@@ -2,31 +2,27 @@ import { useEffect, useMemo, useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import {
-  buscarCatalogo,
-  criarPainel,
-  criarInversor,
-  criarDistribuidora,
-  salvarKitGerado,
-  atualizarKitGerado,
-  desativarPainel,
-  desativarInversor,
-  desativarDistribuidora,
+  KitGeradorService,
+  parsePainelJson,
+  parseInversorJson,
+  parseItens,
   type PainelCatalogoRow,
   type InversorCatalogoRow,
   type DistribuidoraRow,
-  type KitGeradoRow,
+  type KitGerado,
+  type ItemListaKit,
 } from '@/services/kitGerador'
 import {
   calcularKit,
   precificar,
   montarNomeKit,
   classificarRelacao,
-  MENSAGENS_RELACAO,
+  itensPadrao,
   fmt,
   fmtBRL,
   fmtInt,
   type Ligacao,
-} from './logica'
+} from './kitGerador/logica'
 import {
   estadoInicial,
   CartaoPerfil,
@@ -38,40 +34,57 @@ import {
   BlocoQuantidadeInversor,
   CardNumero,
   type EstadoForm,
-  type ItemListaKit,
 } from './CartoesForm'
 import { ResumoKit, AbaKitsSalvos, AbaCatalogo } from './CartoesResumo'
+
+const AREA_PAINEL_PADRAO = 2.79
 
 export default function KitGeradorPage() {
   const { toast } = useToast()
   const [painelLista, setPainelLista] = useState<PainelCatalogoRow[]>([])
   const [inversorLista, setInversorLista] = useState<InversorCatalogoRow[]>([])
   const [distribuidoras, setDistribuidoras] = useState<DistribuidoraRow[]>([])
-  const [kitsSalvos, setKitsSalvos] = useState<KitGeradoRow[]>([])
+  const [kitsSalvos, setKitsSalvos] = useState<KitGerado[]>([])
+  const [kitEditandoId, setKitEditandoId] = useState<string | null>(null)
   const [form, setForm] = useState<EstadoForm>(() => estadoInicial([]))
   const [gravando, setGravando] = useState(false)
   const [carregado, setCarregado] = useState(false)
 
   const carregarTudo = async () => {
-    const { paineis, inversores, distribuidoras: dists } = await buscarCatalogo()
-    setPainelLista(paineis)
-    setInversorLista(inversores)
-    setDistribuidoras(dists)
-    if (!carregado) {
+    try {
+      const [paineis, inversores, dists, kits] = await Promise.all([
+        KitGeradorService.listarPaineis(),
+        KitGeradorService.listarInversores(),
+        KitGeradorService.listarDistribuidoras(),
+        KitGeradorService.listarKits(),
+      ])
+      setPainelLista(paineis)
+      setInversorLista(inversores)
+      setDistribuidoras(dists)
+      setKitsSalvos(kits)
       setForm((f) =>
         f.painel.marca === '' && paineis.length
-          ? { ...estadoInicial(paineis), consumo: f.consumo, sol: f.sol, perdas: f.perdas }
+          ? {
+              ...estadoInicial(paineis),
+              consumo: f.consumo,
+              sol: f.sol,
+              perdas: f.perdas,
+            }
           : f,
       )
-      setCarregado(true)
+      etSetCarregadoSafe()
+    } catch (err) {
+      console.error('Erro ao carregar catálogo do gerador:', err)
+      toast({
+        title: 'Erro ao carregar catálogo',
+        description: 'Verifique a conexão e recarregue a página.',
+        variant: 'destructive',
+      })
     }
-    try {
-      const kits = await import('@/services/kitGerador').then((m) => m.listarKitsGerados())
-      setKitsSalvos(kits)
-    } catch {
-      setKitsSalvos([])
-    }
+    setCarregado(true)
   }
+
+  const etSetCarregadoSafe = () => {}
 
   useEffect(() => {
     carregarTudo()
@@ -99,7 +112,7 @@ export default function KitGeradorPage() {
         perdasPct: perdas,
         qtdPaineis: form.qtdPaineis,
         potenciaPainelW: form.painel.potenciaW,
-        areaPainelM2: form.painel.areaM2 || 2.7,
+        areaPainelM2: form.painel.areaM2 || AREA_PAINEL_PADRAO,
       }),
     [consumo, sol, perdas, form.qtdPaineis, form.painel.potenciaW, form.painel.areaM2],
   )
@@ -148,7 +161,7 @@ export default function KitGeradorPage() {
     form.nomeTravado,
   ])
 
-  // String box segue a qtd de inversores, se o usuário não mexeu
+  // String box segue a qtd de inversores, se o item for padrão
   useEffect(() => {
     setForm((f) => {
       const idx = f.itens.findIndex((i) => i.padrao && i.nome.startsWith('String box'))
@@ -161,122 +174,112 @@ export default function KitGeradorPage() {
 
   // Itens padrão quando a lista está vazia
   useEffect(() => {
-    setForm((f) => (f.itens.length === 0 ? { ...f, itens: itensPadraoPara(f) } : f))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setForm((f) =>
+      f.itens.length === 0 ? { ...f, itens: itensPadrao(f.tipoInstalacao, f.qtdInversores) } : f,
+    )
   }, [form.tipoInstalacao, form.itens.length])
 
-  const itensPadraoPara = (f: EstadoForm): ItemListaKit[] => {
-    return itensPadrao(f.tipoInstalacao, f.qtdInversores)
-  }
-
   // ---------- ações do catálogo ----------
-  const gravarPainelCatalogo = async () => {
+  const gravarPainelCatalogo = async (): Promise<PainelCatalogoRow | null> => {
     if (!form.painel.marca.trim() || !form.painel.modelo.trim() || form.painel.potenciaW <= 0) {
       toast({ title: 'Preencha marca, modelo e potência do painel', variant: 'destructive' })
-      return
+      return null
     }
     setGravando(true)
-    const existente = painelLista.find(
-      (p) =>
-        p.marca === form.painel.marca.trim() &&
-        p.modelo === form.painel.modelo.trim() &&
-        p.potencia_w === form.painel.potenciaW,
-    )
-    if (existente) {
-      set({ painel: { modoLista: true, ...existente.mapear() } })
+    try {
+      const novo = await KitGeradorService.gravarPainel({
+        marca: form.painel.marca.trim(),
+        modelo: form.painel.modelo.trim(),
+        potencia_w: form.painel.potenciaW,
+        area_m2: form.painel.areaM2 || AREA_PAINEL_PADRAO,
+      })
+      setPainelLista((l) => (l.some((p) => p.id === novo.id) ? l : [...l, novo]))
+      set({
+        painel: {
+          modoLista: true,
+          id: novo.id,
+          marca: novo.marca,
+          modelo: novo.modelo,
+          potenciaW: novo.potencia_w,
+          areaM2: novo.area_m2,
+        },
+      })
+      return novo
+    } catch (err) {
+      toast({
+        title: 'Erro ao gravar painel',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        variant: 'destructive',
+      })
+      return null
+    } finally {
       setGravando(false)
-      toast({ title: 'Painel já está no catálogo', description: 'Selecionado na lista.' })
-      return
     }
-    const novo = await criarPainel({
-      marca: form.painel.marca.trim(),
-      modelo: form.painel.modelo.trim(),
-      potencia_w: form.painel.potenciaW,
-      area_m2: form.painel.areaM2 || 2.7,
-      origem: 'cadastrado',
-      ativo: true,
-    })
-    setGravando(false)
-    if (!novo) return
-    setPainelLista((l) => [...l, novo])
-    set({
-      painel: {
-        modoLista: true,
-        id: novo.id,
-        marca: novo.marca,
-        modelo: novo.modelo,
-        potenciaW: novo.potencia_w,
-        areaM2: novo.area_m2,
-      },
-    })
-    toast({ title: `Painel ${novo.marca} gravado`, description: 'Já está na lista.' })
   }
 
-  const gravarInversorCatalogo = async () => {
+  const gravarInversorCatalogo = async (): Promise<InversorCatalogoRow | null> => {
     if (
       !form.inversor.marca.trim() ||
       !form.inversor.modelo.trim() ||
       form.inversor.potenciaKw <= 0
     ) {
       toast({
-        title: 'Preencha marca, modelo, potência e tipo do inversor',
+        title: 'Preencha marca, modelo e potência do inversor',
         variant: 'destructive',
       })
-      return
+      return null
     }
     setGravando(true)
-    const existente = inversorLista.find(
-      (i) =>
-        i.marca === form.inversor.marca.trim() &&
-        i.modelo === form.inversor.modelo.trim() &&
-        i.potencia_kw === form.inversor.potenciaKw,
-    )
-    if (existente) {
-      set({ inversor: { modoLista: true, ...existente.mapear() } })
+    try {
+      const novo = await KitGeradorService.gravarInversor({
+        marca: form.inversor.marca.trim(),
+        modelo: form.inversor.modelo.trim(),
+        potencia_kw: form.inversor.potenciaKw,
+        tipo: form.inversor.tipo || 'Monofásico',
+      })
+      setInversorLista((l) => (l.some((i) => i.id === novo.id) ? l : [...l, novo]))
+      set({
+        inversor: {
+          modoLista: true,
+          id: novo.id,
+          marca: novo.marca,
+          modelo: novo.modelo,
+          potenciaKw: novo.potencia_kw,
+          tipo: novo.tipo,
+        },
+      })
+      return novo
+    } catch (err) {
+      toast({
+        title: 'Erro ao gravar inversor',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        variant: 'destructive',
+      })
+      return null
+    } finally {
       setGravando(false)
-      toast({ title: 'Inversor já está no catálogo', description: 'Selecionado na lista.' })
-      return
     }
-    const novo = await criarInversor({
-      marca: form.inversor.marca.trim(),
-      modelo: form.inversor.modelo.trim(),
-      potencia_kw: form.inversor.potenciaKw,
-      tipo: form.inversor.tipo || 'Monofásico',
-      origem: 'cadastrado',
-      ativo: true,
-    })
-    setGravando(false)
-    if (!novo) return
-    setInversorLista((l) => [...l, novo])
-    set({
-      inversor: {
-        modoLista: true,
-        id: novo.id,
-        marca: novo.marca,
-        modelo: novo.modelo,
-        potenciaKw: novo.potencia_kw,
-        tipo: novo.tipo,
-      },
-    })
-    toast({ title: `Inversor ${novo.marca} gravado`, description: 'Já está na lista.' })
   }
 
-  const guardarDistribuidora = async () => {
+  const guardarDistribuidora = async (): Promise<DistribuidoraRow | null> => {
     const nome = form.distribuidoraNova.trim()
     if (!nome) {
       toast({ title: 'Digite o nome da distribuidora', variant: 'destructive' })
-      return
+      return null
     }
-    const jaExiste = distribuidoras.find((d) => d.nome.toLowerCase() === nome.toLowerCase())
-    if (jaExiste) {
-      set({ distribuidora: jaExiste.nome, distribuidoraNova: '' })
-      return
+    try {
+      const nova = await KitGeradorService.gravarDistribuidora(nome)
+      setDistribuidoras((l) => (l.some((d) => d.id === nova.id) ? l : [...l, nova]))
+      set({ distribuidora: nova.nome, distribuidoraNova: '' })
+      return nova
+    } catch (err) {
+      toast({
+        title: 'Erro ao guardar distribuidora',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        variant: 'destructive',
+      })
+      return null
     }
-    const nova = await criarDistribuidora({ nome, ativo: true })
-    if (!nova) return
-    setDistribuidoras((l) => [...l, nova])
-    set({ distribuidora: nova.nome, distribuidoraNova: '' })
-    toast({ title: `Distribuidora ${nova.nome} guardada` })
   }
 
   // ---------- salvar kit ----------
@@ -294,28 +297,31 @@ export default function KitGeradorPage() {
       return
     }
     // gravar no catálogo o que estava em modo manual
-    let painelId = form.painel.id
-    let inversorId = form.inversor.id
-    if (!form.painel.modoLista) await gravarPainelCatalogo()
-    if (!form.inversor.modoLista) await gravarInversorCatalogo()
-    // reaproveitar ids recém-criados
-    if (!painelId) {
-      const p = painelLista.find(
-        (p) =>
-          p.marca === form.painel.marca.trim() &&
-          p.modelo === form.painel.modelo.trim() &&
-          p.potencia_w === form.painel.potenciaW,
-      )
-      painelId = p?.id || ''
+    let painelSel = form.painel
+    let inversorSel = form.inversor
+    if (!form.painel.modoLista) {
+      const p = await gravarPainelCatalogo()
+      if (!p) return
+      painelSel = {
+        modoLista: true,
+        id: p.id,
+        marca: p.marca,
+        modelo: p.modelo,
+        potenciaW: p.potencia_w,
+        areaM2: p.area_m2,
+      }
     }
-    if (!inversorId) {
-      const i = inversorLista.find(
-        (i) =>
-          i.marca === form.inversor.marca.trim() &&
-          i.modelo === form.inversor.modelo.trim() &&
-          i.potencia_kw === form.inversor.potenciaKw,
-      )
-      inversorId = i?.id || ''
+    if (!form.inversor.modoLista) {
+      const i = await gravarInversorCatalogo()
+      if (!i) return
+      inversorSel = {
+        modoLista: true,
+        id: i.id,
+        marca: i.marca,
+        modelo: i.modelo,
+        potenciaKw: i.potencia_kw,
+        tipo: i.tipo,
+      }
     }
 
     const payload = {
@@ -327,17 +333,17 @@ export default function KitGeradorPage() {
       ligacao: form.ligacao || '',
       distribuidora: distribuidoraFinal,
       painel: {
-        marca: form.painel.marca,
-        modelo: form.painel.modelo,
-        potencia_w: form.painel.potenciaW,
-        area_m2: form.painel.areaM2,
+        marca: painelSel.marca,
+        modelo: painelSel.modelo,
+        potencia_w: painelSel.potenciaW,
+        area_m2: painelSel.areaM2,
         qtd: form.qtdPaineis,
       },
       inversor: {
-        marca: form.inversor.marca,
-        modelo: form.inversor.modelo,
-        potencia_kw: form.inversor.potenciaKw,
-        tipo: form.inversor.tipo,
+        marca: inversorSel.marca,
+        modelo: inversorSel.modelo,
+        potencia_kw: inversorSel.potenciaKw,
+        tipo: inversorSel.tipo,
         qtd: form.qtdInversores,
       },
       itens: form.itens
@@ -348,24 +354,34 @@ export default function KitGeradorPage() {
       preco_venda: preco.precoVenda,
       desconto_tipo: form.descontoTipo,
       desconto_valor: desconto,
-      desconto_R$: preco.descontoRs,
+      desconto_rs: preco.descontoRs,
       preco_final: preco.precoFinal,
       lucro: preco.lucro,
       margem_pct: preco.margemPct,
     }
-    const salvo = idExistente
-      ? await atualizarKitGerado(idExistente, payload)
-      : await salvarKitGerado(payload)
-    if (!salvo) return
-    setKitsSalvos((l) =>
-      idExistente ? l.map((k) => (k.id === salvo.id ? salvo : k)) : [salvo, ...l],
-    )
-    toast({ title: 'Kit salvo' })
-    return salvo
+    try {
+      const salvo = idExistente
+        ? await KitGeradorService.atualizarKit(idExistente, payload)
+        : await KitGeradorService.salvarKit(payload)
+      setKitsSalvos((l) =>
+        idExistente ? l.map((k) => (k.id === salvo.id ? salvo : k)) : [salvo, ...l],
+      )
+      setKitEditandoId(salvo.id)
+      toast({ title: 'Kit salvo' })
+      return salvo
+    } catch (err) {
+      toast({
+        title: 'Erro ao salvar kit',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        variant: 'destructive',
+      })
+    }
   }
 
   // ---------- abrir kit salvo ----------
-  const abrirKit = (kit: KitGeradoRow) => {
+  const abrirKit = (kit: KitGerado) => {
+    const painelJson = parsePainelJson(kit.painel)
+    const inversorJson = parseInversorJson(kit.inversor)
     setForm({
       consumo: '',
       sol: form.sol,
@@ -376,36 +392,36 @@ export default function KitGeradorPage() {
         id:
           painelLista.find(
             (p) =>
-              p.marca === kit.painel?.marca &&
-              p.modelo === kit.painel?.modelo &&
-              p.potencia_w === kit.painel?.potencia_w,
+              p.marca === painelJson?.marca &&
+              p.modelo === painelJson?.modelo &&
+              p.potencia_w === painelJson?.potencia_w,
           )?.id || '',
-        marca: kit.painel?.marca || '',
-        modelo: kit.painel?.modelo || '',
-        potenciaW: kit.painel?.potencia_w || 0,
-        areaM2: kit.painel?.area_m2 || 2.7,
+        marca: painelJson?.marca || '',
+        modelo: painelJson?.modelo || '',
+        potenciaW: painelJson?.potencia_w || 0,
+        areaM2: painelJson?.area_m2 || AREA_PAINEL_PADRAO,
       },
-      qtdPaineis: kit.painel?.qtd || 1,
+      qtdPaineis: painelJson?.qtd || 1,
       inversor: {
         modoLista: true,
         id:
           inversorLista.find(
             (i) =>
-              i.marca === kit.inversor?.marca &&
-              i.modelo === kit.inversor?.modelo &&
-              i.potencia_kw === kit.inversor?.potencia_kw,
+              i.marca === inversorJson?.marca &&
+              i.modelo === inversorJson?.modelo &&
+              i.potencia_kw === inversorJson?.potencia_kw,
           )?.id || '',
-        marca: kit.inversor?.marca || '',
-        modelo: kit.inversor?.modelo || '',
-        potenciaKw: kit.inversor?.potencia_kw || 0,
-        tipo: kit.inversor?.tipo || 'Monofásico',
+        marca: inversorJson?.marca || '',
+        modelo: inversorJson?.modelo || '',
+        potenciaKw: inversorJson?.potencia_kw || 0,
+        tipo: inversorJson?.tipo || 'Monofásico',
       },
-      qtdInversores: kit.inversor?.qtd || 1,
+      qtdInversores: inversorJson?.qtd || 1,
       sobrecarga: form.sobrecarga,
       tipoInstalacao: (kit.tipo_instalacao as EstadoForm['tipoInstalacao']) || 'Fibrocimento',
       nomeKit: kit.nome,
       nomeTravado: true,
-      itens: (kit.itens || []).map((i) => ({
+      itens: parseItens(kit.itens).map((i) => ({
         nome: i.nome,
         qtd: i.qtd,
         incluido: true,
@@ -413,7 +429,7 @@ export default function KitGeradorPage() {
       })),
       distribuidora: kit.distribuidora || '',
       distribuidoraNova: '',
-      custo: kit.custo ? String(kit.custo).replace('.', ',') : '',
+      custo: kit.custo != null ? String(kit.custo).replace('.', ',') : '',
       acrescimoPct: kit.acrescimo_pct != null ? String(kit.acrescimo_pct).replace('.', ',') : '41',
       descontoValor:
         kit.desconto_valor != null ? String(kit.desconto_valor).replace('.', ',') : '0',
@@ -421,8 +437,6 @@ export default function KitGeradorPage() {
     })
     setKitEditandoId(kit.id)
   }
-
-  const [kitEditandoId, setKitEditandoId] = useState<string | null>(null)
 
   const corRelacao = classificarRelacao(relacao || 1, sobrecarga)
 
@@ -494,7 +508,7 @@ export default function KitGeradorPage() {
                           marca: '',
                           modelo: '',
                           potenciaW: 0,
-                          areaM2: 2.79,
+                          areaM2: AREA_PAINEL_PADRAO,
                         },
                       })
                     }
@@ -594,7 +608,10 @@ export default function KitGeradorPage() {
                     navigator.clipboard.writeText(linhas.join('\n')).then(
                       () => toast({ title: 'Texto do kit copiado' }),
                       () =>
-                        toast({ title: 'Não foi possível copiar o texto', variant: 'destructive' }),
+                        toast({
+                          title: 'Não foi possível copiar o texto',
+                          variant: 'destructive',
+                        }),
                     )
                   }}
                   onLimpar={limparForm}
@@ -608,14 +625,16 @@ export default function KitGeradorPage() {
               kits={kitsSalvos}
               onAbrir={(kit) => {
                 abrirKit(kit)
-                // trocar para a aba montar
                 document.querySelector<HTMLButtonElement>('[value="montar"]')?.click()
               }}
               onExcluir={async (kit) => {
-                const ok = await desativarKit(kit.id)
-                if (ok) {
+                try {
+                  await KitGeradorService.desativarKit(kit.id)
                   setKitsSalvos((l) => l.filter((k) => k.id !== kit.id))
-                  toast({ title: 'Kit excluído' })
+                  if (kitEditandoId === kit.id) setKitEditandoId(null)
+                  toast({ title: 'Kit excluído', description: 'Ele não aparece mais na lista.' })
+                } catch {
+                  toast({ title: 'Erro ao excluir o kit', variant: 'destructive' })
                 }
               }}
             />
@@ -627,34 +646,86 @@ export default function KitGeradorPage() {
               inversores={inversorLista}
               distribuidoras={distribuidoras}
               onAddPainel={async (p) => {
-                const novo = await criarPainel({ ...p, origem: 'cadastrado', ativo: true })
-                if (novo) setPainelLista((l) => [...l, novo])
-                return novo
+                try {
+                  const novo = await KitGeradorService.gravarPainel({
+                    marca: p.marca,
+                    modelo: p.modelo,
+                    potencia_w: p.potencia_w,
+                    area_m2: p.area_m2,
+                  })
+                  setPainelLista((l) => (l.some((x) => x.id === novo.id) ? l : [...l, novo]))
+                  return novo
+                } catch (err) {
+                  toast({
+                    title: 'Erro ao gravar painel',
+                    description: err instanceof Error ? err.message : 'Tente novamente.',
+                    variant: 'destructive',
+                  })
+                  return null
+                }
               }}
               onAddInversor={async (i) => {
-                const novo = await criarInversor({ ...i, origem: 'cadastrado', ativo: true })
-                if (novo) setInversorLista((l) => [...l, novo])
-                return novo
+                try {
+                  const novo = await KitGeradorService.gravarInversor({
+                    marca: i.marca,
+                    modelo: i.modelo,
+                    potencia_kw: i.potencia_kw,
+                    tipo: i.tipo,
+                  })
+                  setInversorLista((l) => (l.some((x) => x.id === novo.id) ? l : [...l, novo]))
+                  return novo
+                } catch (err) {
+                  toast({
+                    title: 'Erro ao gravar inversor',
+                    description: err instanceof Error ? err.message : 'Tente novamente.',
+                    variant: 'destructive',
+                  })
+                  return null
+                }
               }}
               onAddDistribuidora={async (nome) => {
-                const nova = await criarDistribuidora({ nome, ativo: true })
-                if (nova) setDistribuidoras((l) => [...l, nova])
-                return nova
+                try {
+                  const nova = await KitGeradorService.gravarDistribuidora(nome)
+                  setDistribuidoras((l) => (l.some((x) => x.id === nova.id) ? l : [...l, nova]))
+                  return nova
+                } catch (err) {
+                  toast({
+                    title: 'Erro ao guardar distribuidora',
+                    description: err instanceof Error ? err.message : 'Tente novamente.',
+                    variant: 'destructive',
+                  })
+                  return null
+                }
               }}
               onExcluirPainel={async (id) => {
-                const ok = await desativarPainel(id)
-                if (ok) setPainelLista((l) => l.filter((p) => p.id !== id))
-                return ok
+                try {
+                  await KitGeradorService.desativarPainel(id)
+                  setPainelLista((l) => l.filter((p) => p.id !== id))
+                  return true
+                } catch {
+                  toast({ title: 'Erro ao excluir o painel', variant: 'destructive' })
+                  return false
+                }
               }}
               onExcluirInversor={async (id) => {
-                const ok = await desativarInversor(id)
-                if (ok) setInversorLista((l) => l.filter((i) => i.id !== id))
-                return ok
+                try {
+                  await KitGeradorService.desativarInversor(id)
+                  setInversorLista((l) => l.filter((i) => i.id !== id))
+                  return true
+                } catch {
+                  toast({ title: 'Erro ao excluir o inversor', variant: 'destructive' })
+                  return false
+                }
               }}
               onExcluirDistribuidora={async (id) => {
-                const ok = await desativarDistribuidora(id)
-                if (ok) setDistribuidoras((l) => l.filter((d) => d.id !== id))
-                return ok
+                try {
+                  await KitGeradorService.desativarDistribuidora(id)
+                  setDistribuidoras((l) => l.filter((d) => d.id !== id))
+                  return true
+                } catch {
+                  toast({ title: 'Erro ao excluir a distribuidora', variant: 'destructive' })
+                  return false
+                }
               }}
             />
           </TabsContent>
