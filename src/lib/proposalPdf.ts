@@ -81,10 +81,11 @@ export interface ProposalPDFData {
 }
 
 export function generateProposalPrintHTML(data: ProposalPDFData): string {
-  const validadeFormatted = data.data_validade ? formatDateBR(data.data_validade) : '15 dias'
-  const emissaoFormatted = data.created
-    ? formatDateBR(data.created)
-    : formatDateBR(new Date().toISOString())
+  // Validade = data de emissão + 15 dias (regra comercial)
+  const dataEmissao = data.created ? new Date(data.created) : new Date()
+  const dataValidade = new Date(dataEmissao.getTime() + 15 * 24 * 60 * 60 * 1000)
+  const validadeFormatted = formatDateBR(dataValidade.toISOString())
+  const emissaoFormatted = formatDateBR(dataEmissao.toISOString())
 
   // Decompor o kit com os itens reais cadastrados no sistema
   const specs = parseKitDetailedItems({
