@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-06T20:09:12.561Z",
+  "generatedAt": "2026-11-07T01:19:12.797Z",
   "collections": [
     {
       "name": "users",
@@ -507,6 +507,12 @@
         },
         {
           "name": "imagem_ia_prompt",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origem_kits",
           "type": "text",
           "required": false,
           "system": false

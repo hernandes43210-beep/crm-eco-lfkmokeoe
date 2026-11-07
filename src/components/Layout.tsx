@@ -6,7 +6,6 @@ import {
   FileSpreadsheet,
   GitBranch,
   FileText,
-  Boxes,
   Package,
   MessageSquare,
   ShieldCheck,
@@ -81,7 +80,6 @@ export default function Layout() {
         { label: 'Funil de Vendas', path: '/funil', icon: GitBranch },
         { label: 'Propostas', path: '/propostas', icon: FileText },
         { label: 'Kits', path: '/gerador-kits', icon: Package },
-        { label: 'Kits Solares', path: '/kits', icon: Boxes },
         { label: 'WhatsApp', path: '/whatsapp', icon: MessageSquare },
         ...(isAdmin
           ? [
@@ -104,7 +102,6 @@ export default function Layout() {
     if (path === '/funil') return 'Funil de Vendas Solar'
     if (path === '/propostas') return 'Gestão de Propostas Comerciais'
     if (path === '/gerador-kits') return 'Gerador de Kit Solar'
-    if (path === '/kits') return 'Catálogo de Kits Solares'
     if (path === '/whatsapp') return 'WhatsApp & Atendimento Solar'
     if (path === '/engenharia')
       return isAdmin ? 'Área de Engenharia & Homologação' : 'Meus Documentos Recebidos'

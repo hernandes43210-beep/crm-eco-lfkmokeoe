@@ -16,7 +16,6 @@ import LeadForm from '@/pages/LeadForm'
 import LeadDetail from '@/pages/LeadDetail'
 import LeadImport from '@/pages/LeadImport'
 import FunilVendas from '@/pages/FunilVendas'
-import KitsSolares from '@/pages/KitsSolares'
 import KitGeradorPage from '@/pages/KitGeradorPage'
 import Equipe from '@/pages/Equipe'
 import WhatsAppPage from '@/pages/WhatsApp'
@@ -109,14 +108,6 @@ const App = () => (
               element={
                 <ProtectedRoute blockEngenheiro>
                   <PropostasList />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/kits"
-              element={
-                <ProtectedRoute blockEngenheiro>
-                  <KitsSolares />
                 </ProtectedRoute>
               }
             />
