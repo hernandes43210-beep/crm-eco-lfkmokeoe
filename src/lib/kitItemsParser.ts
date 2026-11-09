@@ -33,6 +33,8 @@ export interface KitDetailedItemsResult {
   itens: ItemDetalhadoKit[]
   quantidadeModulosTotal: number
   potenciaTotalKwp: number
+  potenciaTotalFormatada: string
+  geracaoMensalEstimadaKwh: number
   fabricantesPrincipais: string
 }
 
@@ -227,6 +229,7 @@ export function parseKitDetailedItems(input: KitDetailedItemsInput): KitDetailed
   }
   const fabricantesPrincipais = fabricantes.filter(Boolean).join(' / ')
 
+  const potenciaModuloW = wPainel > 0 ? wPainel : 630
   const potenciaTotalW = qtdModulos * potenciaModuloW
   const potenciaTotalFormatada =
     potenciaTotalW >= 1000

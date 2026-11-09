@@ -1,4 +1,4 @@
-import { Search, InvertColors, Zap, Building2, X } from 'lucide-react'
+import { Search, Contrast, Zap, Building2, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -70,7 +70,7 @@ export function KitFilterBar({
         <Select value={selectedMarcaInversor} onValueChange={onMarcaInversorChange}>
           <SelectTrigger className="h-9 text-xs bg-white">
             <div className="flex items-center gap-1.5 min-w-0">
-              <InvertColors className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <Contrast className="w-3.5 h-3.5 text-amber-500 shrink-0" />
               <SelectValue placeholder="Marca do inversor (todas)" />
             </div>
           </SelectTrigger>

@@ -128,7 +128,14 @@ export type KitComponentesInput = Partial<{
 
 function parseNum(v: unknown): number {
   if (v === undefined || v === null || v === '') return 0
-  const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/[^\d.,]/g, '').replace(',', '.'))
+  const n =
+    typeof v === 'number'
+      ? v
+      : parseFloat(
+          String(v)
+            .replace(/[^\d.,]/g, '')
+            .replace(',', '.'),
+        )
   return isNaN(n) ? 0 : n
 }
 
@@ -137,9 +144,7 @@ function parseNum(v: unknown): number {
  * combinando os campos estruturados com a decomposição do texto de descrição/nome
  * (formato "22x Módulo fotovoltaico 610 W (BYD) ... 1x Inversor solar 10 kW PHB ...").
  */
-export function extrairComponentesKit(
-  kit: KitComponentesInput | null | undefined,
-): ComponentesKit {
+export function extrairComponentesKit(kit: KitComponentesInput | null | undefined): ComponentesKit {
   if (!kit) return {}
 
   const resultado: ComponentesKit = {}
@@ -178,7 +183,9 @@ export function extrairComponentesKit(
 
   // Fallback de quantidade pela potência total
   if (!resultado.qtdPaineis && resultado.potenciaPainelW && parseNum(kit.potencia_kw) > 0) {
-    resultado.qtdPaineis = Math.round((parseNum(kit.potencia_kw) * 1000) / resultado.potenciaPainelW)
+    resultado.qtdPaineis = Math.round(
+      (parseNum(kit.potencia_kw) * 1000) / resultado.potenciaPainelW,
+    )
   }
 
   // --- Inversor ---

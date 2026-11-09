@@ -164,7 +164,7 @@ export function PropostaStoryViewer({
     proposta.kit?.potencia_painel_w ||
     (moduloItem?.potenciaUnit ? parseInt(moduloItem.potenciaUnit.replace(/\D/g, ''), 10) : 0) ||
     (proposta.kit_potencia_kw && quantidadeModulos
-      ? Math.round((proposta.kit_potencia_kw * 1000) / quantidadeModulos)
+      ? Math.round((Number(proposta.kit_potencia_kw) * 1000) / Number(quantidadeModulos))
       : 630)
 
   const potenciaPainelFormatada = `${potenciaPainelW}W`
