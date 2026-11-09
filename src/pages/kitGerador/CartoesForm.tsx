@@ -1,4 +1,5 @@
 // Cartões do formulário "Montar kit" — Abas 1 a 5.
+import { useEffect, useState } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -177,6 +178,56 @@ function InputNum({
   )
 }
 
+// Campo editável do meio do stepper: clica e digita o número pelo teclado.
+// Aceita só dígitos; aplica no blur/Enter; vazio ou inválido restaura o valor anterior.
+function QtdInput({ qtd, setQtd, min }: { qtd: number; setQtd: (n: number) => void; min: number }) {
+  const [texto, setTexto] = useState(String(qtd))
+  const [editando, setEditando] = useState(false)
+
+  useEffect(() => {
+    if (!editando) setTexto(String(qtd))
+  }, [qtd, editando])
+
+  const aplicar = () => {
+    setEditando(false)
+    const n = parseInt(texto, 10)
+    if (!Number.isFinite(n) || n < min) {
+      setTexto(String(qtd))
+      return
+    }
+    setTexto(String(n))
+    setQtd(n)
+  }
+
+  return (
+    <Input
+      inputMode="numeric"
+      value={editando ? texto : String(qtd)}
+      onFocus={() => {
+        setTexto(String(qtd))
+        setEditando(true)
+      }}
+      onChange={(e) => {
+        const digitos = e.target.value.replace(/\D/g, '')
+        setTexto(digitos)
+      }}
+      onBlur={aplicar}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          ;(e.target as HTMLInputElement).blur()
+        } else if (e.key === 'Escape') {
+          setTexto(String(qtd))
+          setEditando(false)
+          ;(e.target as HTMLInputElement).blur()
+        }
+      }}
+      className="h-9 w-10 rounded-md border border-transparent bg-transparent px-1 text-center font-montserrat text-base font-bold text-[#0b1f4d] shadow-none hover:border-[#dfe5f0] focus-visible:border-[#dfe5f0] focus-visible:ring-0"
+      aria-label="Quantidade (digite para editar)"
+    />
+  )
+}
+
 function QtdStepper({
   qtd,
   setQtd,
@@ -198,9 +249,7 @@ function QtdStepper({
       >
         −
       </Button>
-      <span className="w-10 text-center font-montserrat text-base font-bold text-[#0b1f4d]">
-        {qtd}
-      </span>
+      <QtdInput qtd={qtd} setQtd={setQtd} min={min} />
       <Button
         type="button"
         variant="outline"
