@@ -20,7 +20,9 @@ import { CONTATO_ECOSOLAR } from '@/constants/empresa'
 import { openProposalPDFPrint } from '@/lib/proposalPdf'
 import { parseKitDetailedItems } from '@/lib/kitItemsParser'
 import { PropostaStoryViewer } from '@/components/PropostaStoryViewer'
-import { PROPOSTA_V2_CSS } from '@/lib/proposalPdfCss'
+import { PROPOSTA_V2_CSS, FONTS_PROPOSTA_LINK } from '@/lib/proposalPdfCss'
+import { PropostaViewerErrorBoundary } from '@/components/PropostaViewerErrorBoundary'
+import { CabecalhoDoc, PropostaPapel } from '@/components/proposta/DocumentoViewer'
 import { proposalDataDePublica, resolverFotosTela } from '@/components/proposta/v2Helpers'
 import { montarDadosV2 } from '@/lib/proposalDadosV2'
 import { PaginaCapa } from '@/components/proposta/v2PaginaCapa'
@@ -511,276 +513,240 @@ export default function PropostaPublica() {
       : `/proposta/${proposta.token_publico}`
 
   return (
-    <div className="min-h-screen bg-[#F4F6F9] text-slate-900 pb-20">
-      {/* CSS do modelo v2 (mesmo usado pela versão de impressão/PDF) */}
+    <PropostaViewerErrorBoundary
+      alternativeLabel="Ver Formato Story"
+      onAlternative={() => setVisualizacaoFormato('story')}
+    >
+      {/* Fontes do documento + CSS do modelo v2 (mesmo usado pela versão de impressão/PDF) */}
+      <link rel="stylesheet" href={FONTS_PROPOSTA_LINK} />
       <style>{PROPOSTA_V2_CSS}</style>
 
-      {/* 1. Top Navigation Bar — Acesso rápido e ações */}
-      <header className="sticky top-0 z-30 bg-[#0A192F] text-white border-b-2 border-amber-400 px-4 sm:px-8 py-3.5 shadow-md">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-white rounded-xl p-1 shadow-sm border border-slate-200/90 flex items-center justify-center">
-              <img src={officialLogoPng} alt="Ecosolar Energy" className="w-8 h-8 object-contain" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-black text-base text-white tracking-tight">
-                  ECO<span className="text-[#F5C518] border-b border-[#F5C518]">SOLAR</span> ENERGY
-                </span>
-                <span className="hidden sm:inline-block text-[10px] bg-amber-400/20 text-amber-300 font-bold px-2 py-0.5 rounded">
-                  Engenharia Solar
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-300 font-medium">
-                Proposta Comercial Nº <strong className="text-white">{proposalNumber}</strong> •
-                Emissão: {formatDateBR(proposta.created)}
-              </p>
-            </div>
-          </div>
+      {/* Leitor estilo PDF: folha A4 centralizada sobre fundo cinza, com barra de ações */}
+      <div className="proposta-doc-viewer min-h-screen bg-slate-200/70 pb-16">
+        <CabecalhoDoc
+          numeroProposta={proposalNumber}
+          emissao={formatDateBR(proposta.created)}
+          onImprimir={() => window.print()}
+        />
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setVisualizacaoFormato('story')}
-              className="text-xs font-bold gap-1.5 h-8.5 bg-white/10 hover:bg-white/20 text-amber-300 border-amber-400/40"
-              title="Visualizar no formato Story interativo"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">Ver Formato Story</span>
-              <span className="sm:hidden">Story</span>
-            </Button>
-            {isInternalViewer && proposta.lead?.id && (
-              <Link to={`/leads/${proposta.lead.id}`}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs font-semibold gap-1.5 h-8.5 bg-white/10 hover:bg-white/20 text-white border-white/20"
-                >
-                  <ArrowRight className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Ver Ficha no CRM</span>
-                  <span className="sm:hidden">CRM</span>
-                </Button>
-              </Link>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownloadPDF}
-              className="text-xs font-bold gap-1.5 h-8.5 bg-amber-400 hover:bg-amber-300 text-slate-950 border-amber-400 shadow-sm"
-            >
-              <FileDown className="w-4 h-4 stroke-[2.5]" />
-              <span className="hidden sm:inline">Baixar em PDF</span>
-              <span className="sm:hidden">PDF</span>
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Top Banner para usuário autenticado do CRM ou modo preview */}
-      {isInternalViewer && (
-        <div className="bg-slate-950 text-white text-xs px-4 py-2 border-b border-slate-800">
-          <div className="max-w-6xl mx-auto flex items-center justify-between">
-            <span className="text-slate-300 flex items-center gap-1.5">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>
-                <strong>Modo Pré-visualização da Equipe:</strong> este acesso não é contabilizado no
-                rastreamento de visualizações do cliente.
-              </span>
-            </span>
-            {proposta.lead?.id && (
-              <Link
-                to={`/leads/${proposta.lead.id}`}
-                className="font-bold text-amber-400 hover:underline flex items-center gap-1"
+        {/* Ações do consultor (fora da folha, não imprimem) */}
+        <div className="proposta-doc-acoes max-w-[900px] mx-auto px-4 pt-3 flex flex-wrap items-center justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setVisualizacaoFormato('story')}
+            className="text-xs font-bold gap-1.5 h-8.5 bg-white/80 hover:bg-white text-[#0A192F] border-slate-300"
+            title="Visualizar no formato Story interativo"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            <span className="hidden sm:inline">Ver Formato Story</span>
+            <span className="sm:hidden">Story</span>
+          </Button>
+          {isInternalViewer && proposta.lead?.id && (
+            <Link to={`/leads/${proposta.lead.id}`}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs font-semibold gap-1.5 h-8.5 bg-white/80 hover:bg-white text-[#0A192F] border-slate-300"
               >
-                Voltar ao Lead &rarr;
-              </Link>
-            )}
-          </div>
+                <ArrowRight className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Ver Ficha no CRM</span>
+                <span className="sm:hidden">CRM</span>
+              </Button>
+            </Link>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadPDF}
+            className="text-xs font-bold gap-1.5 h-8.5 bg-[#0A192F] hover:bg-[#163868] text-amber-300 border-[#0A192F]"
+          >
+            <FileDown className="w-4 h-4 stroke-[2.5]" />
+            <span className="hidden sm:inline">Baixar em PDF</span>
+            <span className="sm:hidden">PDF</span>
+          </Button>
         </div>
-      )}
 
-      <main id="detalhes-proposta" className="w-full pt-6 space-y-6">
-        {/* Banner de Aceite Concluído */}
-        {acceptedSuccess && (
-          <div className="max-w-[820px] mx-auto px-4">
-            <div className="p-5 rounded-2xl bg-emerald-600 text-white shadow-lg flex items-start sm:items-center gap-4 border border-emerald-500">
-              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                <CheckCircle2 className="w-7 h-7 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-black text-lg sm:text-xl">
-                  ✓ Proposta Formalmente Aceita com Sucesso!
-                </h3>
-                <p className="text-xs sm:text-sm text-emerald-100 mt-0.5 leading-relaxed">
-                  Parabéns, {proposta.aceito_por_nome || proposta.lead?.nome}! Seu aceite digital
-                  foi registrado eletronicamente no sistema. Nossa equipe técnica de engenharia já
-                  recebeu a notificação e está iniciando a elaboração da ART e projeto de
-                  homologação na concessionária.
+        {/* Banner para usuário autenticado do CRM ou modo preview */}
+        {isInternalViewer && (
+          <div className="proposta-doc-aviso max-w-[900px] mx-auto px-4 pt-3">
+            <div className="bg-slate-950 text-white text-xs px-4 py-2 rounded-lg border border-slate-800 flex items-center justify-between gap-3">
+              <span className="text-slate-300 flex items-center gap-1.5 min-w-0">
+                <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                <span className="truncate">
+                  <strong>Modo Pré-visualização da Equipe:</strong> não contabiliza visualização do
+                  cliente.
+                </span>
+              </span>
+              {proposta.lead?.id && (
+                <Link
+                  to={`/leads/${proposta.lead.id}`}
+                  className="font-bold text-amber-400 hover:underline shrink-0"
+                >
+                  Voltar ao Lead &rarr;
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
+        <main id="detalhes-proposta" className="pt-4">
+          {/* Avisos acima do documento */}
+          <div className="proposta-doc-avisos max-w-[900px] mx-auto px-4 space-y-3">
+            {acceptedSuccess && (
+              <div className="p-4 rounded-xl bg-emerald-600 text-white shadow-lg flex items-start sm:items-center gap-3 border border-emerald-500">
+                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-6 h-6 text-white" />
+                </div>
+                <p className="text-xs sm:text-sm font-bold leading-relaxed">
+                  ✓ Proposta Formalmente Aceita — aceite digital registrado em{' '}
+                  {formatDateTimeBR(proposta.data_aceite || new Date().toISOString())} por{' '}
+                  {proposta.aceito_por_nome || proposta.lead?.nome}.
                 </p>
               </div>
-            </div>
-          </div>
-        )}
-
-        {isExpirada && (
-          <div className="max-w-[820px] mx-auto px-4">
-            <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
-              <p className="text-xs leading-relaxed">
-                <strong>Atenção:</strong> O prazo original de validade desta proposta expirou em{' '}
-                {formatDateBR(proposta.data_validade)}. Entre em contato com seu consultor solar
-                para confirmar a validade dos valores e condições comerciais.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Página 1 — Capa */}
-        <PaginaCapa d={dadosV2} fotos={fotosV2} />
-
-        {/* Página 2 — Apresentação */}
-        <PaginaApresentacao d={dadosV2} />
-
-        {/* Página 3 — Seu sistema */}
-        <PaginaSistema d={dadosV2} />
-
-        {/* Página 4 — Investimento e retorno (nome do kit vem do cadastro da proposta) */}
-        <PaginaInvestimento d={dadosV2} kitNome={proposta.kit_nome || ''} />
-
-        {/* Página 5 — Como vai ser */}
-        <PaginaComoVaiSer d={dadosV2} />
-
-        {/* Página 6 — Quem faz + FAQ + Aceite e assinaturas */}
-        <PaginaFinal d={dadosV2} fotos={fotosV2} linkPublico={linkPublicoProposta}>
-          {/* Card de Aceite Online com Assinatura Digital (mantido do formato clássico) */}
-          <Card
-            id="secao-assinatura-classica"
-            className={`border-2 shadow-lg transition-all text-left ${
-              acceptedSuccess
-                ? 'border-emerald-500 bg-emerald-50/50'
-                : 'border-[#0A192F] bg-gradient-to-b from-slate-50 to-white'
-            }`}
-          >
-            <CardHeader className="pb-3 border-b border-slate-200 bg-[#0A192F] text-white rounded-t-xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-amber-400" />
-                  <CardTitle className="text-base font-bold text-white">
-                    {acceptedSuccess
-                      ? 'Proposta Aceita Formalmente'
-                      : 'Aceite Digital Online da Proposta'}
-                  </CardTitle>
-                </div>
-                <Badge
-                  className={
-                    acceptedSuccess
-                      ? 'bg-emerald-500 text-white font-bold text-xs'
-                      : 'bg-amber-400 text-slate-950 font-black text-xs uppercase'
-                  }
-                >
-                  {acceptedSuccess ? 'Concluído' : 'Aguardando Aceite'}
-                </Badge>
+            )}
+            {isExpirada && (
+              <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                <p className="text-xs leading-relaxed">
+                  <strong>Atenção:</strong> O prazo original de validade desta proposta expirou em{' '}
+                  {formatDateBR(proposta.data_validade)}. Entre em contato com seu consultor solar
+                  para confirmar a validade dos valores e condições comerciais.
+                </p>
               </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              {acceptedSuccess ? (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-emerald-800 text-sm font-bold">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                    <span>
-                      Aceita digitalmente por{' '}
-                      <strong className="text-slate-900">
-                        {proposta.aceito_por_nome || proposta.lead?.nome}
-                      </strong>{' '}
-                      em {formatDateTimeBR(proposta.data_aceite || new Date().toISOString())}.
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    O registro eletrônico do seu aceite foi gravado no sistema com IP e data/hora.
-                    Você pode baixar o documento oficial assinado em PDF a qualquer momento pelo
-                    botão abaixo.
-                  </p>
-                  <div className="pt-2">
-                    <Button
-                      onClick={handleDownloadPDF}
-                      className="bg-[#0A192F] hover:bg-[#163868] text-white text-xs font-bold gap-2 shadow-sm"
+            )}
+          </div>
+
+          {/* Folha(s) do documento */}
+          <div className="prop-v2 pt-2">
+            <PaginaCapa d={dadosV2} fotos={fotosV2} />
+            <PaginaApresentacao d={dadosV2} />
+            <PaginaSistema d={dadosV2} />
+            <PaginaInvestimento d={dadosV2} kitNome={proposta.kit_nome || ''} />
+            <PaginaComoVaiSer d={dadosV2} />
+            <PaginaFinal d={dadosV2} fotos={fotosV2} linkPublico={linkPublicoProposta}>
+              {/* Card de Aceite Online com Assinatura Digital (mantido do formato clássico) */}
+              <Card
+                id="secao-assinatura-classica"
+                className={`border-2 shadow-lg transition-all text-left ${
+                  acceptedSuccess
+                    ? 'border-emerald-500 bg-emerald-50/50'
+                    : 'border-[#0A192F] bg-gradient-to-b from-slate-50 to-white'
+                }`}
+              >
+                <CardHeader className="pb-3 border-b border-slate-200 bg-[#0A192F] text-white rounded-t-xl">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-amber-400" />
+                      <CardTitle className="text-base font-bold text-white">
+                        {acceptedSuccess
+                          ? 'Proposta Aceita Formalmente'
+                          : 'Aceite Digital Online da Proposta'}
+                      </CardTitle>
+                    </div>
+                    <Badge
+                      className={
+                        acceptedSuccess
+                          ? 'bg-emerald-500 text-white font-bold text-xs'
+                          : 'bg-amber-400 text-slate-950 font-black text-xs uppercase'
+                      }
                     >
-                      <FileDown className="w-4 h-4 text-amber-400" />
-                      <span>Baixar Documento Oficial em PDF</span>
-                    </Button>
+                      {acceptedSuccess ? 'Concluído' : 'Aguardando Aceite'}
+                    </Badge>
                   </div>
-                </div>
-              ) : (
-                <form onSubmit={handleAcceptProposal} className="space-y-4">
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Ao clicar em <strong>&quot;Aceitar Proposta Agora&quot;</strong>, você concorda
-                    com o valor de investimento de{' '}
-                    <strong>{formatBRL(proposta.preco_venda)}</strong> e o escopo técnico com os
-                    itens discriminados. O projeto avançará automaticamente para o início dos
-                    trâmites de engenharia e homologação.
-                  </p>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="nomeAceite" className="text-xs font-bold text-slate-800">
-                        Nome Completo do Cliente Contratante (para assinatura eletrônica)
-                      </Label>
-                      <Input
-                        id="nomeAceite"
-                        value={nomeConfirmacao}
-                        onChange={(e) => setNomeConfirmacao(e.target.value)}
-                        placeholder="Ex: João da Silva"
-                        required
-                        className="h-10 text-xs bg-white border-slate-300 font-semibold"
-                      />
+                </CardHeader>
+                <CardContent className="p-6">
+                  {acceptedSuccess ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-emerald-800 text-sm font-bold">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                        <span>
+                          Aceita digitalmente por{' '}
+                          <strong className="text-slate-900">
+                            {proposta.aceito_por_nome || proposta.lead?.nome}
+                          </strong>{' '}
+                          em {formatDateTimeBR(proposta.data_aceite || new Date().toISOString())}.
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        O registro eletrônico do seu aceite foi gravado no sistema com IP e
+                        data/hora. Você pode baixar o documento oficial assinado em PDF a qualquer
+                        momento pelo botão abaixo.
+                      </p>
+                      <div className="pt-2">
+                        <Button
+                          onClick={handleDownloadPDF}
+                          className="bg-[#0A192F] hover:bg-[#163868] text-white text-xs font-bold gap-2 shadow-sm"
+                        >
+                          <FileDown className="w-4 h-4 text-amber-400" />
+                          <span>Baixar Documento Oficial em PDF</span>
+                        </Button>
+                      </div>
                     </div>
+                  ) : (
+                    <form onSubmit={handleAcceptProposal} className="space-y-4">
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Ao clicar em <strong>&quot;Aceitar Proposta Agora&quot;</strong>, você
+                        concorda com o valor de investimento de{' '}
+                        <strong>{formatBRL(proposta.preco_venda)}</strong> e o escopo técnico com os
+                        itens discriminados. O projeto avançará automaticamente para o início dos
+                        trâmites de engenharia e homologação.
+                      </p>
 
-                    <div className="flex items-end">
-                      <Button
-                        type="submit"
-                        disabled={accepting || isExpirada}
-                        className="w-full h-10 bg-[#0A192F] hover:bg-[#163868] text-amber-400 hover:text-amber-300 font-black text-sm shadow-md gap-2 border border-amber-400/50"
-                      >
-                        {accepting ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
-                            <span>Registrando Assinatura Eletrônica...</span>
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle2 className="w-4 h-4 text-amber-400 stroke-[2.5]" />
-                            <span>Aceitar Proposta Agora</span>
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="nomeAceite" className="text-xs font-bold text-slate-800">
+                            Nome Completo do Cliente Contratante (para assinatura eletrônica)
+                          </Label>
+                          <Input
+                            id="nomeAceite"
+                            value={nomeConfirmacao}
+                            onChange={(e) => setNomeConfirmacao(e.target.value)}
+                            placeholder="Ex: João da Silva"
+                            required
+                            className="h-10 text-xs bg-white border-slate-300 font-semibold"
+                          />
+                        </div>
 
-                  <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-200">
-                    <span>
-                      Validade das condições garantida até: {formatDateBR(proposta.data_validade)}
-                    </span>
-                    <span className="flex items-center gap-1 text-slate-500 font-medium">
-                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                      Ambiente seguro e auditável com registro de IP
-                    </span>
-                  </div>
-                </form>
-              )}
-            </CardContent>
-          </Card>
-        </PaginaFinal>
-      </main>
+                        <div className="flex items-end">
+                          <Button
+                            type="submit"
+                            disabled={accepting || isExpirada}
+                            className="w-full h-10 bg-[#0A192F] hover:bg-[#163868] text-amber-400 hover:text-amber-300 font-black text-sm shadow-md gap-2 border border-amber-400/50"
+                          >
+                            {accepting ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                                <span>Registrando Assinatura Eletrônica...</span>
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="w-4 h-4 text-amber-400 stroke-[2.5]" />
+                                <span>Aceitar Proposta Agora</span>
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
 
-      {/* Footer Institucional */}
-      <footer className="max-w-6xl mx-auto px-4 sm:px-6 mt-12 text-center text-xs text-slate-500 border-t border-slate-200 pt-6 space-y-1">
-        <p className="font-bold text-slate-800">ECOSOLAR ENERGY — A energia do futuro, hoje!</p>
-        <p>
-          Soluções em Engenharia Solar Fotovoltaica e Eficiência Energética • Todos os direitos
-          reservados.
-        </p>
-      </footer>
-    </div>
+                      <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-200">
+                        <span>
+                          Validade das condições garantida até:{' '}
+                          {formatDateBR(proposta.data_validade)}
+                        </span>
+                        <span className="flex items-center gap-1 text-slate-500 font-medium">
+                          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                          Ambiente seguro e auditável com registro de IP
+                        </span>
+                      </div>
+                    </form>
+                  )}
+                </CardContent>
+              </Card>
+            </PaginaFinal>
+          </div>
+        </main>
+      </div>
+    </PropostaViewerErrorBoundary>
   )
 }
