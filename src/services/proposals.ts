@@ -53,12 +53,17 @@ export const ProposalsService = {
     return generateRandomToken(32)
   },
 
-  getPublicUrl(token: string, options?: { preview?: boolean }): string {
+  // O formato padrão ao abrir a proposta pelo CRM é o clássico (documento estilo PDF).
+  // O formato Story continua disponível via ?formato=story ou pelo botão dentro do leitor.
+  getPublicUrl(
+    token: string,
+    options?: { preview?: boolean; formato?: 'story' | 'classica' },
+  ): string {
     const baseUrl = `${window.location.origin}/proposta/${token}`
-    if (options?.preview) {
-      return `${baseUrl}?preview=true`
-    }
-    return baseUrl
+    const params: string[] = []
+    if (options?.preview) params.push('preview=true')
+    params.push(`formato=${options?.formato ?? 'classica'}`)
+    return `${baseUrl}?${params.join('&')}`
   },
 
   async getAllPropostas(params: GetPropostasParams = {}) {

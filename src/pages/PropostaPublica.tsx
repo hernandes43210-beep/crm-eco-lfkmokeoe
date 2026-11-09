@@ -22,7 +22,7 @@ import { parseKitDetailedItems } from '@/lib/kitItemsParser'
 import { PropostaStoryViewer } from '@/components/PropostaStoryViewer'
 import { PROPOSTA_V2_CSS, FONTS_PROPOSTA_LINK } from '@/lib/proposalPdfCss'
 import { PropostaViewerErrorBoundary } from '@/components/PropostaViewerErrorBoundary'
-import { CabecalhoDoc, PropostaPapel } from '@/components/proposta/DocumentoViewer'
+import { CabecalhoDoc } from '@/components/proposta/DocumentoViewer'
 import { proposalDataDePublica, resolverFotosTela } from '@/components/proposta/v2Helpers'
 import { montarDadosV2 } from '@/lib/proposalDadosV2'
 import { PaginaCapa } from '@/components/proposta/v2PaginaCapa'
@@ -152,7 +152,9 @@ export default function PropostaPublica() {
       if (formatQuery === 'classica' || formatQuery === 'story') {
         setVisualizacaoFormato(formatQuery)
       } else {
-        setVisualizacaoFormato(data.formato || 'story')
+        // Padrão: documento clássico estilo PDF (o Story continua disponível pelo
+        // botão "Ver Formato Story" dentro do leitor ou via ?formato=story)
+        setVisualizacaoFormato('classica')
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Proposta não encontrada ou expirada.'
@@ -343,7 +345,7 @@ export default function PropostaPublica() {
   )}`
 
   // Se o formato escolhido for "story" (padrão) e a proposta não estiver expirada
-  const isStoryFormat = (visualizacaoFormato || proposta.formato || 'story') === 'story'
+  const isStoryFormat = (visualizacaoFormato || proposta.formato || 'classica') === 'story'
 
   if (!isExpirada && isStoryFormat) {
     return (
@@ -520,6 +522,38 @@ export default function PropostaPublica() {
       {/* Fontes do documento + CSS do modelo v2 (mesmo usado pela versão de impressão/PDF) */}
       <link rel="stylesheet" href={FONTS_PROPOSTA_LINK} />
       <style>{PROPOSTA_V2_CSS}</style>
+      <style>{`
+        /* Impressão: sai apenas o documento (folhas A4), sem as barras do leitor */
+        @media print {
+          .proposta-doc-topbar,
+          .proposta-doc-acoes,
+          .proposta-doc-aviso,
+          .proposta-doc-avisos {
+            display: none !important;
+          }
+          .proposta-doc-viewer {
+            background: #fff !important;
+            min-height: 0 !important;
+            padding: 0 !important;
+          }
+          main[id='detalhes-proposta'] {
+            padding: 0 !important;
+          }
+          .prop-v2 {
+            padding: 0 !important;
+            background: #fff !important;
+          }
+          .prop-v2 .pv-page {
+            box-shadow: none !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            width: 210mm !important;
+            height: 297mm !important;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+        }
+      `}</style>
 
       {/* Leitor estilo PDF: folha A4 centralizada sobre fundo cinza, com barra de ações */}
       <div className="proposta-doc-viewer min-h-screen bg-slate-200/70 pb-16">
