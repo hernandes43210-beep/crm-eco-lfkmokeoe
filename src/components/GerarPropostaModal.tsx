@@ -65,6 +65,8 @@ interface GerarPropostaModalProps {
   onOpenChange: (open: boolean) => void
   lead: Lead
   onProposalCreated: (proposta: Proposta) => void
+  /** Kit salvo no Gerador a pré-selecionar (abre já preenchido com ele). */
+  kitGeradoInicial?: KitGerado
 }
 
 export function GerarPropostaModal({
@@ -72,6 +74,7 @@ export function GerarPropostaModal({
   onOpenChange,
   lead,
   onProposalCreated,
+  kitGeradoInicial,
 }: GerarPropostaModalProps) {
   const { user } = useAuth()
   const [kits, setKits] = useState<Kit[]>([])
@@ -175,7 +178,8 @@ export function GerarPropostaModal({
       setKits(data)
 
       // Se o lead tem consumo informado, tentar sugerir o kit mais próximo
-      if (data.length > 0) {
+      // (não sugere quando um kit do Gerador foi passado explicitamente)
+      if (data.length > 0 && !kitGeradoInicial) {
         const consumo = lead.consumo_mensal_kwh || 400
         // Regra solar padrão no Brasil: 1 kWp gera ~120 kWh/mês
         const kwpNecessario = consumo / 120
@@ -333,6 +337,12 @@ export function GerarPropostaModal({
     const k = kitsGerados.find((kg) => kg.id === id)
     if (k) applyKitGerado(k)
   }
+
+  // Pré-seleciona o kit salvo recebido (fluxo "Gerar proposta" da pré-proposta)
+  useEffect(() => {
+    if (open && kitGeradoInicial) applyKitGerado(kitGeradoInicial)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, kitGeradoInicial])
 
   const applyKit = (kit: Kit) => {
     setSelectedKitGeradoId('')

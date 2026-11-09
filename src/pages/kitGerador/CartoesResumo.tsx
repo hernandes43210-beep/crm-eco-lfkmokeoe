@@ -33,6 +33,7 @@ import {
   type ItemListaKit,
 } from '@/services/kitGerador'
 import type { EstadoForm } from './CartoesForm'
+import { PrePropostaKit } from './PrePropostaKit'
 import { TIPOS_INVERSOR } from './logica'
 
 const CORES = {
@@ -689,17 +690,18 @@ export function AbaCatalogo({
 
 export function AbaKitsSalvos({
   kits,
-  onAbrir,
+  onEditar,
   onExcluir,
   carregando,
 }: {
   kits: KitGerado[]
-  onAbrir: (id: string) => void
+  onEditar: (id: string) => void
   onExcluir: (id: string) => void
   carregando: boolean
 }) {
   const [busca, setBusca] = useState('')
   const [filtroDistribuidora, setFiltroDistribuidora] = useState('')
+  const [kitPreProposta, setKitPreProposta] = useState<KitGerado | null>(null)
 
   const kitsFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase()
@@ -785,7 +787,7 @@ export function AbaKitsSalvos({
                       variant="outline"
                       size="sm"
                       disabled={carregando}
-                      onClick={() => onAbrir(k.id)}
+                      onClick={() => setKitPreProposta(k)}
                       className="border-[#dfe5f0] text-[#0b1f4d]"
                     >
                       Abrir
@@ -816,6 +818,16 @@ export function AbaKitsSalvos({
           </tbody>
         </table>
       </div>
+      {kitPreProposta && (
+        <PrePropostaKit
+          kit={kitPreProposta}
+          onFechar={() => setKitPreProposta(null)}
+          onEditar={(k) => {
+            setKitPreProposta(null)
+            onEditar(k.id)
+          }}
+        />
+      )}
     </div>
   )
 }

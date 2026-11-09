@@ -639,7 +639,7 @@ export default function KitGeradorPage() {
             <AbaKitsSalvos
               kits={kitsSalvos}
               carregando={gravando}
-              onAbrir={(id) => {
+              onEditar={(id) => {
                 const kit = kitsSalvos.find((k) => k.id === id)
                 if (kit) {
                   abrirKit(kit)
