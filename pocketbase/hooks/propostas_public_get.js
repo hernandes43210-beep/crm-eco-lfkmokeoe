@@ -7,11 +7,6 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
   try {
     token = (e.request.pathValue('token') || '').trim()
   } catch (_) {}
-  if (!token) {
-    try {
-      token = (e.requestInfo().pathParams?.token || '').trim()
-    } catch (_) {}
-  }
 
   if (!token) {
     return e.json(400, { error: 'Token não fornecido' })
@@ -103,12 +98,8 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
       try {
         let clientIp = ''
         try {
-          clientIp = e.realIP() || e.remoteIP() || ''
-        } catch (_) {
-          try {
-            clientIp = e.requestInfo().remoteIP || ''
-          } catch (_) {}
-        }
+          clientIp = e.realIP() || ''
+        } catch (_) {}
 
         let userAgent = ''
         try {
@@ -396,6 +387,7 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
       kit_marca_inversor: proposta.getString('kit_marca_inversor') || undefined,
       kit_tipo_estrutura: proposta.getString('kit_tipo_estrutura') || undefined,
       kit_potencia_painel_w: proposta.getFloat('kit_potencia_painel_w') || undefined,
+      kit_qtd_inversores: proposta.getInt('kit_qtd_inversores') || undefined,
       kit_potencia_inversor_kw: proposta.getFloat('kit_potencia_inversor_kw') || undefined,
       kit_descricao: proposta.getString('kit_descricao') || undefined,
       kit_string_box: proposta.getString('kit_string_box') || undefined,

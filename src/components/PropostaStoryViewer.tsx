@@ -171,7 +171,16 @@ export function PropostaStoryViewer({
 
   // Dados técnicos específicos do inversor
   const inversorItem = specs.itens.find((it) => it.tipo === 'inversor')
-  const quantidadeInversores = inversorItem?.quantidade || 1
+  // Prioriza o snapshot da proposta (kit_qtd_inversores, ex.: 52 microinversores),
+  // depois o extraído da descrição do kit e, por último, o fallback 1.
+  const rawQtdInversoresProposta = Number(
+    (proposta as any)?.kit_qtd_inversores ?? proposta.kit?.qtd_inversores,
+  )
+  const qtdInversoresProposta =
+    Number.isFinite(rawQtdInversoresProposta) && rawQtdInversoresProposta > 0
+      ? Math.round(rawQtdInversoresProposta)
+      : 0
+  const quantidadeInversores = qtdInversoresProposta || Number(inversorItem?.quantidade) || 1
 
   const marcaInversor =
     (proposta as any)?.kit_marca_inversor ||
@@ -832,7 +841,9 @@ export function PropostaStoryViewer({
 
                   <div className="inline-flex items-center gap-2 mt-2 px-3 py-1 rounded-lg bg-blue-500/20 border border-blue-400/40 text-blue-200 text-xs font-bold">
                     <span>Quantidade:</span>
-                    <strong className="text-white text-sm">{quantidadeInversores} unidade</strong>
+                    <strong className="text-white text-sm">
+                      {quantidadeInversores} {quantidadeInversores === 1 ? 'unidade' : 'unidades'}
+                    </strong>
                     {isInversorDestaque && (
                       <span className="ml-1 text-[9px] bg-amber-400 text-slate-950 font-black px-1.5 py-0.5 rounded uppercase">
                         Líder Mundial

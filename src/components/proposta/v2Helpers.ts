@@ -94,8 +94,9 @@ export function resolverFotosTela(proposta: PublicProposta): FotoProposta[] {
       } else if (sel.id && sel.id.startsWith('kit_')) {
         push(urlImagemKitIa(proposta), sel.legenda || 'Simulação fotorrealista do kit homologado')
       } else if (sel.id) {
+        const backendUrl = (import.meta.env.VITE_POCKETBASE_URL || '').replace(/\/+$/, '')
         push(
-          `${window.location.origin}/api/files/fotos_institucionais/${sel.id}/${sel.id}.jpg`,
+          `${backendUrl}/api/files/fotos_institucionais/${sel.id}/${sel.id}.jpg`,
           sel.legenda || 'Instalação solar homologada',
         )
       }

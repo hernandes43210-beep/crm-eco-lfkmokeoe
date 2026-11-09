@@ -609,6 +609,7 @@ export interface Proposta extends RecordModel {
   kit_tipo_estrutura?: KitTipoEstrutura | ''
   kit_potencia_painel_w?: number
   kit_potencia_inversor_kw?: number
+  kit_qtd_inversores?: number
   kit_descricao?: string
   kit_string_box?: KitStringBox | ''
   fotos_selecionadas?: PropostaFotoSelecionada[] | string
@@ -694,6 +695,7 @@ export interface PublicProposta {
   kit_marca_inversor?: string
   kit_tipo_estrutura?: KitTipoEstrutura | ''
   kit_potencia_painel_w?: number
+  kit_qtd_inversores?: number
   kit_potencia_inversor_kw?: number
   kit_descricao?: string
   kit_string_box?: KitStringBox | ''
@@ -724,6 +726,7 @@ export interface PublicProposta {
     marca_painel?: string
     marca_inversor?: string
     potencia_painel_w?: number
+    qtd_inversores?: number
     potencia_inversor_kw?: number
     tipo_estrutura?: KitTipoEstrutura | ''
     imagem_ia?: string
