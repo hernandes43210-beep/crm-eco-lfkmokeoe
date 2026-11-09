@@ -7,17 +7,16 @@ import {
   Mail,
   Phone,
   MapPin,
-  Calendar,
   Clock,
   AlertTriangle,
   AlertCircle,
   CheckCircle2,
+  Calendar,
   FileText,
   Upload,
   ArrowRight,
   TrendingUp,
   User,
-  Zap,
   Building,
   Check,
   XCircle,
@@ -65,8 +64,8 @@ import { extractProposalTracking } from '@/lib/proposalTracking'
 import { calcularMargemReal } from '@/utils/marginUtils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { SecaoPainel } from '@/components/lead/SecaoPainel'
 import { Label } from '@/components/ui/label'
 import {
   Dialog,
@@ -1200,13 +1199,8 @@ export default function LeadDetail() {
         {/* Left Column (5 cols) */}
         <div className="lg:col-span-5 space-y-6">
           {/* Card 1: Contato & Endereço */}
-          <Card className="border-slate-200/80 shadow-xs bg-white">
-            <CardHeader className="pb-3 border-b border-slate-100">
-              <CardTitle className="text-sm font-bold text-slate-900 uppercase tracking-wider text-slate-500">
-                Informações de Contato
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 space-y-3.5 text-sm">
+          <SecaoPainel titulo="Informações de Contato">
+            <div className="space-y-3.5 text-sm">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                   <Mail className="w-4 h-4" />
@@ -1373,24 +1367,26 @@ export default function LeadDetail() {
                   </span>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </SecaoPainel>
 
           {/* Card: Próximo Contato & Lembretes Automáticos */}
-          <Card className="border-amber-200/80 shadow-xs bg-white overflow-hidden ring-1 ring-amber-100">
-            <CardHeader className="pb-3 border-b border-amber-100 bg-amber-50/50 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-bold text-amber-950 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-amber-600" />
-                <span>Próximo Contato & Lembretes</span>
-              </CardTitle>
-              {proximoContatoSaved && (
+          <SecaoPainel
+            titulo="Próximo Contato & Lembretes"
+            extra={
+              proximoContatoSaved ? (
                 <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1 animate-fade-in">
                   <Check className="w-3 h-3 stroke-[2.5]" />
                   <span>Salvo!</span>
                 </span>
-              )}
-            </CardHeader>
-            <CardContent className="p-4 space-y-4">
+              ) : lead.proximo_contato_data ? (
+                <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-mono-numbers">
+                  {formatDateTimeBR(lead.proximo_contato_data)}
+                </span>
+              ) : null
+            }
+          >
+            <div className="space-y-4">
               <p className="text-xs text-slate-600 leading-relaxed">
                 Agende a <strong>data e horário</strong> do próximo retorno com este cliente. O
                 servidor enviará e-mails automáticos para{' '}
@@ -1582,18 +1578,21 @@ export default function LeadDetail() {
                   </Button>
                 </div>
               </form>
-            </CardContent>
-          </Card>
+            </div>
+          </SecaoPainel>
 
           {/* Card 2: Consumo & Economia Estimada */}
-          <Card className="border-slate-200/80 shadow-xs bg-white overflow-hidden">
-            <CardHeader className="pb-3 border-b border-slate-100 bg-emerald-50/40">
-              <CardTitle className="text-sm font-bold text-emerald-900 flex items-center gap-2">
-                <Zap className="w-4 h-4 text-emerald-600" />
-                <span>Dimensionamento Solar & Economia</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 space-y-4">
+          <SecaoPainel
+            titulo="Dimensionamento Solar & Economia"
+            extra={
+              lead.consumo_mensal_kwh ? (
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-mono-numbers">
+                  {lead.consumo_mensal_kwh} kWh/mês
+                </span>
+              ) : null
+            }
+          >
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 text-center">
                 <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
                   <p className="text-xs text-slate-400 font-semibold uppercase">Consumo Mensal</p>
@@ -1624,32 +1623,29 @@ export default function LeadDetail() {
                 </strong>
                 .
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </SecaoPainel>
         </div>
 
         {/* Right Column (7 cols) */}
         <div className="lg:col-span-7 space-y-6">
           {/* Card 3: SLA Countdown Bar & Urgência */}
-          <Card
-            className={`border shadow-xs bg-white ${
+          <SecaoPainel
+            titulo="Controle de Prazo SLA"
+            className={
               sla.isOverdue
                 ? 'border-red-300 ring-2 ring-red-100'
                 : sla.state === 'warning'
                   ? 'border-amber-300'
-                  : 'border-slate-200/80'
-            }`}
-          >
-            <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-[#0B7A5B]" />
-                <span>Controle de Prazo SLA</span>
-              </CardTitle>
+                  : undefined
+            }
+            extra={
               <span className={`text-xs px-2.5 py-0.5 rounded-full border ${sla.chipClass}`}>
                 {sla.label}
               </span>
-            </CardHeader>
-            <CardContent className="p-4 space-y-4">
+            }
+          >
+            <div className="space-y-4">
               {/* Visual Countdown Bar */}
               <div>
                 <div className="flex justify-between text-xs font-semibold text-slate-600 mb-1.5">
@@ -1704,20 +1700,19 @@ export default function LeadDetail() {
                   </span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </SecaoPainel>
 
           {/* Card 4: Histórico de Atividades & Timeline */}
-          <Card className="border-slate-200/80 shadow-xs bg-white">
-            <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-bold text-slate-900 uppercase tracking-wider text-slate-500">
-                Histórico & Timeline de Eventos
-              </CardTitle>
+          <SecaoPainel
+            titulo="Histórico & Timeline de Eventos"
+            extra={
               <Badge variant="outline" className="text-xs">
                 {normalizedHistorico.length} registros
               </Badge>
-            </CardHeader>
-            <CardContent className="p-4 space-y-4">
+            }
+          >
+            <div className="space-y-4">
               {/* Timeline Items */}
               <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
                 {normalizedHistorico.length === 0 ? (
@@ -1814,18 +1809,13 @@ export default function LeadDetail() {
                   <span>Salvar</span>
                 </Button>
               </form>
-            </CardContent>
-          </Card>
+            </div>
+          </SecaoPainel>
 
           {/* Card 5: Painel de Conversas WhatsApp do Lead */}
-          <Card className="border-slate-200/80 shadow-xs bg-white">
-            <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-[#0B7A5B]" />
-                <CardTitle className="text-sm font-bold text-slate-900">
-                  Conversas no WhatsApp
-                </CardTitle>
-              </div>
+          <SecaoPainel
+            titulo="Conversas no WhatsApp"
+            extra={
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-xs">
                   {waMessages.length} mensagens
@@ -1840,8 +1830,9 @@ export default function LeadDetail() {
                   <ExternalLink className="w-3 h-3" />
                 </Button>
               </div>
-            </CardHeader>
-            <CardContent className="p-4 space-y-3">
+            }
+          >
+            <div className="space-y-3">
               {/* Mensagens do Lead */}
               <div className="space-y-2.5 max-h-64 overflow-y-auto p-2 bg-slate-50/70 rounded-lg border border-slate-100">
                 {loadingWa ? (
@@ -1921,53 +1912,59 @@ export default function LeadDetail() {
                   <span>{sendingWa ? 'Enviando...' : 'Enviar'}</span>
                 </Button>
               </form>
-            </CardContent>
-          </Card>
+            </div>
+          </SecaoPainel>
         </div>
       </div>
 
       {/* Seção Homologação na Engenharia & Status da ART */}
       {!isEngenheiro && (
-        <LeadHomologacaoSection
-          homologacao={homologacao}
-          loading={loadingHomologacao}
-          isAdmin={isAdmin}
-          isVendedor={!isEngenheiro}
-          onHomologacaoUpdated={(updatedHom) => {
-            setHomologacao(updatedHom)
-            fetchLead()
-          }}
-        />
+        <SecaoPainel titulo="Homologação na Engenharia & Status da ART">
+          <LeadHomologacaoSection
+            homologacao={homologacao}
+            loading={loadingHomologacao}
+            isAdmin={isAdmin}
+            isVendedor={!isEngenheiro}
+            onHomologacaoUpdated={(updatedHom) => {
+              setHomologacao(updatedHom)
+              fetchLead()
+            }}
+          />
+        </SecaoPainel>
       )}
 
       {/* Nova Seção: Documentos do Lead para Engenharia (Documentos Pessoais, Conta, Datasheet, Procuração) */}
-      <LeadDocumentosSection
-        lead={lead}
-        propostas={propostas}
-        isAdmin={isAdmin}
-        currentUserId={user?.id}
-        isEngenheiro={isEngenheiro}
-        onDocumentosChanged={() => {
-          fetchLead()
-          if (lead?.id) fetchHomologacao(lead.id)
-        }}
-      />
-
-      {/* Etapa de Formalização Contratual & Energisa (Visível em Fechado Ganho com aviso explicativo quando em outras etapas) */}
-      {lead.status === 'Fechado Ganho' ? (
-        <LeadFormalizacaoSection
+      <SecaoPainel titulo="Documento Engenharia">
+        <LeadDocumentosSection
           lead={lead}
           propostas={propostas}
           isAdmin={isAdmin}
           currentUserId={user?.id}
-          onLeadUpdated={() => {
+          isEngenheiro={isEngenheiro}
+          onDocumentosChanged={() => {
             fetchLead()
-            if (lead?.id) fetchPropostas(lead.id)
+            if (lead?.id) fetchHomologacao(lead.id)
           }}
         />
+      </SecaoPainel>
+
+      {/* Etapa de Formalização Contratual & Energisa (Visível em Fechado Ganho com aviso explicativo quando em outras etapas) */}
+      {lead.status === 'Fechado Ganho' ? (
+        <SecaoPainel titulo="Formalização Contratual & Assinatura Digital (Clicksign)">
+          <LeadFormalizacaoSection
+            lead={lead}
+            propostas={propostas}
+            isAdmin={isAdmin}
+            currentUserId={user?.id}
+            onLeadUpdated={() => {
+              fetchLead()
+              if (lead?.id) fetchPropostas(lead.id)
+            }}
+          />
+        </SecaoPainel>
       ) : (
-        <Card className="border-amber-200 bg-amber-50/40 shadow-xs">
-          <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <SecaoPainel titulo="Formalização Contratual & Assinatura Digital (Clicksign)">
+          <div className="p-2 sm:p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-300 text-amber-800 flex items-center justify-center shrink-0">
                 <FileCheck className="w-5 h-5 text-amber-700" />
@@ -2002,46 +1999,37 @@ export default function LeadDetail() {
               <Check className="w-3.5 h-3.5 stroke-[2.5]" />
               <span>Avançar para Fechado Ganho</span>
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </SecaoPainel>
       )}
 
       {/* Seção Fotos da Instalação & Montagem Promocional (Apenas em Fechado Ganho) */}
       {lead.status === 'Fechado Ganho' && (
-        <LeadInstallationPhotos
-          lead={lead}
-          propostas={propostas}
-          isAdmin={isAdmin}
-          currentUserId={user?.id}
-        />
+        <SecaoPainel titulo="Fotos da Instalação & Montagem Promocional">
+          <LeadInstallationPhotos
+            lead={lead}
+            propostas={propostas}
+            isAdmin={isAdmin}
+            currentUserId={user?.id}
+          />
+        </SecaoPainel>
       )}
-
       {/* Nova Seção: Propostas Comerciais Geradas com Link Público (Oculta para Engenheiro) */}
       {!isEngenheiro && (
-        <Card className="border-slate-200/80 shadow-xs bg-white">
-          <CardHeader className="pb-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <CardTitle className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-[#0B7A5B]" />
-                <span>Propostas Geradas & Link Público do Cliente</span>
-              </CardTitle>
-              <p className="text-xs text-slate-500">
-                Propostas com link exclusivo para envio no WhatsApp, aceite digital automático e
-                download em PDF
-              </p>
-            </div>
-
+        <SecaoPainel
+          titulo="Propostas Geradas & Link Público do Cliente"
+          extra={
             <Button
               onClick={() => setShowGerarPropostaModal(true)}
               size="sm"
-              className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold gap-1.5 h-8.5 shadow-xs shrink-0"
+              className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold gap-1.5 h-8 shadow-xs shrink-0"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
               <span>+ Gerar Nova Proposta</span>
             </Button>
-          </CardHeader>
-
-          <CardContent className="p-4 sm:p-6 space-y-4">
+          }
+        >
+          <div className="space-y-4">
             {loadingPropostas ? (
               <div className="py-8 text-center text-slate-400">
                 <Loader2 className="w-6 h-6 animate-spin text-[#0B7A5B] mx-auto mb-2" />
@@ -2348,8 +2336,8 @@ export default function LeadDetail() {
                 })}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </SecaoPainel>
       )}
 
       {/* Modal de Confirmação de Exclusão de Proposta */}
@@ -2380,19 +2368,9 @@ export default function LeadDetail() {
         )}
 
       {/* Proposta Section (Ações do Funil) */}
-      <Card className="border-slate-200/80 shadow-xs bg-white">
-        <CardHeader className="pb-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <CardTitle className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <FileText className="w-5 h-5 text-[#0B7A5B]" />
-              <span>Ações do Funil & Anexo Avulso</span>
-            </CardTitle>
-            <p className="text-xs text-slate-500">
-              Movimente o lead no funil ou anexe arquivos externos de contratos
-            </p>
-          </div>
-
-          {/* Quick Stage Transitions */}
+      <SecaoPainel
+        titulo="Ações do Funil & Anexo Avulso"
+        extra={
           <div className="flex flex-wrap items-center gap-2">
             {prevStatus && (
               <Button
@@ -2438,105 +2416,103 @@ export default function LeadDetail() {
               </Button>
             )}
           </div>
-        </CardHeader>
+        }
+      >
+        <form onSubmit={handleSaveProposal} className="space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {/* Preço de Venda */}
+            <div className="space-y-1.5">
+              <Label htmlFor="propPreco" className="text-xs font-semibold text-slate-700">
+                Preço de Venda da Proposta (R$)
+              </Label>
+              <Input
+                id="propPreco"
+                type="number"
+                min="0"
+                step="0.01"
+                value={precoVenda}
+                onChange={(e) => setPrecoVenda(e.target.value)}
+                placeholder="Ex: 22500"
+                className="h-10 text-sm font-bold border-slate-200 focus-visible:ring-[#0B7A5B]"
+              />
+              <p className="text-[11px] text-slate-400">
+                Valor final negociado com o cliente para instalação.
+              </p>
+            </div>
 
-        <CardContent className="p-6">
-          <form onSubmit={handleSaveProposal} className="space-y-5">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-              {/* Preço de Venda */}
-              <div className="space-y-1.5">
-                <Label htmlFor="propPreco" className="text-xs font-semibold text-slate-700">
-                  Preço de Venda da Proposta (R$)
-                </Label>
-                <Input
-                  id="propPreco"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={precoVenda}
-                  onChange={(e) => setPrecoVenda(e.target.value)}
-                  placeholder="Ex: 22500"
-                  className="h-10 text-sm font-bold border-slate-200 focus-visible:ring-[#0B7A5B]"
-                />
-                <p className="text-[11px] text-slate-400">
-                  Valor final negociado com o cliente para instalação.
-                </p>
-              </div>
+            {/* Upload Proposta PDF */}
+            <div className="space-y-1.5">
+              <Label htmlFor="pdfFile" className="text-xs font-semibold text-slate-700">
+                Anexo da Proposta (.PDF)
+              </Label>
+              <Input
+                id="pdfFile"
+                type="file"
+                accept=".pdf"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) setSelectedFile(f)
+                }}
+                className="h-10 text-xs border-slate-200 cursor-pointer file:text-xs file:font-medium file:text-slate-700 file:bg-slate-100 file:border-0 file:rounded-md file:mr-2"
+              />
+              {pdfUrl ? (
+                <a
+                  href={pdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs text-[#0B7A5B] font-semibold hover:underline mt-1"
+                >
+                  <FileDown className="w-3.5 h-3.5" />
+                  <span>Visualizar PDF Atual Anexado</span>
+                </a>
+              ) : (
+                <p className="text-[11px] text-slate-400">Nenhum PDF anexado ainda.</p>
+              )}
+            </div>
 
-              {/* Upload Proposta PDF */}
-              <div className="space-y-1.5">
-                <Label htmlFor="pdfFile" className="text-xs font-semibold text-slate-700">
-                  Anexo da Proposta (.PDF)
-                </Label>
-                <Input
-                  id="pdfFile"
-                  type="file"
-                  accept=".pdf"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0]
-                    if (f) setSelectedFile(f)
-                  }}
-                  className="h-10 text-xs border-slate-200 cursor-pointer file:text-xs file:font-medium file:text-slate-700 file:bg-slate-100 file:border-0 file:rounded-md file:mr-2"
-                />
-                {pdfUrl ? (
-                  <a
-                    href={pdfUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs text-[#0B7A5B] font-semibold hover:underline mt-1"
-                  >
-                    <FileDown className="w-3.5 h-3.5" />
-                    <span>Visualizar PDF Atual Anexado</span>
-                  </a>
-                ) : (
-                  <p className="text-[11px] text-slate-400">Nenhum PDF anexado ainda.</p>
-                )}
-              </div>
-
-              {/* Toggle Proposta Assinada */}
-              <div className="space-y-1.5 flex flex-col justify-between">
-                <Label className="text-xs font-semibold text-slate-700">Status de Assinatura</Label>
-                <div className="p-2.5 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-bold text-slate-800 block">
-                      Proposta Assinada / Ganho?
-                    </span>
-                    <span className="text-[11px] text-slate-400">
-                      {prAssinada ? 'Contrato formalizado' : 'Aguardando assinatura'}
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={prAssinada}
-                    onChange={(e) => setPrAssinada(e.target.checked)}
-                    className="w-5 h-5 rounded text-[#0B7A5B] focus:ring-[#0B7A5B] cursor-pointer"
-                  />
+            {/* Toggle Proposta Assinada */}
+            <div className="space-y-1.5 flex flex-col justify-between">
+              <Label className="text-xs font-semibold text-slate-700">Status de Assinatura</Label>
+              <div className="p-2.5 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-slate-800 block">
+                    Proposta Assinada / Ganho?
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    {prAssinada ? 'Contrato formalizado' : 'Aguardando assinatura'}
+                  </span>
                 </div>
+                <input
+                  type="checkbox"
+                  checked={prAssinada}
+                  onChange={(e) => setPrAssinada(e.target.checked)}
+                  className="w-5 h-5 rounded text-[#0B7A5B] focus:ring-[#0B7A5B] cursor-pointer"
+                />
               </div>
             </div>
+          </div>
 
-            <div className="flex justify-end pt-3 border-t border-slate-100">
-              <Button
-                type="submit"
-                disabled={savingProposal}
-                className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold h-10 px-6 rounded-lg gap-2 shadow-sm"
-              >
-                {savingProposal ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Salvando Proposta...</span>
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4 stroke-[2.5]" />
-                    <span>Salvar Dados da Proposta</span>
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+          <div className="flex justify-end pt-3 border-t border-slate-100">
+            <Button
+              type="submit"
+              disabled={savingProposal}
+              className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold h-10 px-6 rounded-lg gap-2 shadow-sm"
+            >
+              {savingProposal ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Salvando Proposta...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 stroke-[2.5]" />
+                  <span>Salvar Dados da Proposta</span>
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </SecaoPainel>
 
       {/* Modal de Confirmação de Descarte */}
       <Dialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
