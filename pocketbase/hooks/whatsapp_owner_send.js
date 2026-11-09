@@ -15,7 +15,7 @@ routerAdd(
 
     let corpo = {}
     try {
-      corpo = e.request.body() || {}
+      corpo = e.requestInfo().body || {}
     } catch (_) {
       corpo = {}
     }
