@@ -1,5 +1,7 @@
 // Cartão "Resumo do kit" (direita), aba Catálogo e aba Kits salvos.
 import { useMemo, useState } from 'react'
+import { BarraFiltrosCatalogo, filtrarPaineis, filtrarInversores } from './filtrosCatalogo'
+import type { FiltroCatalogo } from './filtrosCatalogo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -296,6 +298,11 @@ export function AbaCatalogo({
     id: string
     nome: string
   } | null>(null)
+  const [filtroPainel, setFiltroPainel] = useState<FiltroCatalogo>({ marca: '', potencia: '' })
+  const [filtroInversor, setFiltroInversor] = useState<FiltroCatalogo>({ marca: '', potencia: '' })
+
+  const paineisFiltrados = filtrarPaineis(paineis, filtroPainel)
+  const inversoresFiltrados = filtrarInversores(inversores, filtroInversor)
 
   const addPainel = () => {
     if (!novoPainel.marca.trim() || !novoPainel.modelo.trim()) return
@@ -359,6 +366,12 @@ export function AbaCatalogo({
             + Adicionar painel
           </Button>
         </div>
+        <BarraFiltrosCatalogo
+          filtro={filtroPainel}
+          onChange={setFiltroPainel}
+          unidade="W"
+          exemploPotencia="615"
+        />
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -372,7 +385,7 @@ export function AbaCatalogo({
               </tr>
             </thead>
             <tbody>
-              {paineis.map((p) => (
+              {paineisFiltrados.map((p) => (
                 <tr key={p.id} className="border-b border-[#eef2f8]">
                   <td className="py-2 pr-2 font-semibold text-[#0b1f4d]">{p.marca}</td>
                   <td className="py-2 pr-2 text-[#3c4a63]">{p.modelo}</td>
@@ -403,10 +416,12 @@ export function AbaCatalogo({
                   </td>
                 </tr>
               ))}
-              {paineis.length === 0 && (
+              {paineisFiltrados.length === 0 && (
                 <tr>
                   <td colSpan={6} className="py-3 text-center text-xs text-[#8a94a8]">
-                    Nenhum painel no catálogo.
+                    {paineis.length === 0
+                      ? 'Nenhum painel no catálogo.'
+                      : 'Nenhum painel corresponde aos filtros.'}
                   </td>
                 </tr>
               )}
@@ -455,6 +470,12 @@ export function AbaCatalogo({
             + Adicionar inversor
           </Button>
         </div>
+        <BarraFiltrosCatalogo
+          filtro={filtroInversor}
+          onChange={setFiltroInversor}
+          unidade="kW"
+          exemploPotencia="8,5"
+        />
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -468,7 +489,7 @@ export function AbaCatalogo({
               </tr>
             </thead>
             <tbody>
-              {inversores.map((i) => (
+              {inversoresFiltrados.map((i) => (
                 <tr key={i.id} className="border-b border-[#eef2f8]">
                   <td className="py-2 pr-2 font-semibold text-[#0b1f4d]">{i.marca}</td>
                   <td className="py-2 pr-2 text-[#3c4a63]">{i.modelo}</td>
@@ -499,10 +520,12 @@ export function AbaCatalogo({
                   </td>
                 </tr>
               ))}
-              {inversores.length === 0 && (
+              {inversoresFiltrados.length === 0 && (
                 <tr>
                   <td colSpan={6} className="py-3 text-center text-xs text-[#8a94a8]">
-                    Nenhum inversor no catálogo.
+                    {inversores.length === 0
+                      ? 'Nenhum inversor no catálogo.'
+                      : 'Nenhum inversor corresponde aos filtros.'}
                   </td>
                 </tr>
               )}
