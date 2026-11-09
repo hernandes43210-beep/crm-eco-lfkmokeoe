@@ -59,6 +59,7 @@ export interface ProposalPDFData {
   kit_string_box?: string
   kit_marca_painel?: string
   kit_marca_inversor?: string
+  kit_qtd_inversores?: number
   kit_potencia_painel_w?: number
   kit_potencia_inversor_kw?: number
   kit_tipo_estrutura?: string
@@ -67,6 +68,7 @@ export interface ProposalPDFData {
     string_box?: string
     marca_painel?: string
     marca_inversor?: string
+    qtd_inversores?: number
     potencia_painel_w?: number
     potencia_inversor_kw?: number
     tipo_estrutura?: string
@@ -144,6 +146,7 @@ export interface DadosV2 {
   cdbNoPrimeiroAnoRS: string
   marcaPainel: string
   marcaInversor: string
+  qtdInversores: number
   potenciaPainelW: number
   potenciaInversorKw: number
   stringBox: string
@@ -194,6 +197,11 @@ export function montarDadosV2(data: ProposalPDFData): DadosV2 {
   const stringBox = data.kit_string_box || data.kit?.string_box || ''
   const tipoEstruturaTexto = data.kit_tipo_estrutura || data.kit?.tipo_estrutura || 'telhado'
 
+  // Quantidade de inversores: campo direto da proposta/kit; ausente ⇒ assume 1.
+  const qtdInversoresRaw = Number(data.kit_qtd_inversores ?? data.kit?.qtd_inversores ?? 1)
+  const qtdInversores =
+    Number.isFinite(qtdInversoresRaw) && qtdInversoresRaw > 0 ? Math.round(qtdInversoresRaw) : 1
+
   const qtdPaineis =
     potenciaPainelW > 0 && kwp > 0 ? Math.round((kwp * 1000) / potenciaPainelW) : null
   const areaTelhadoM2 = qtdPaineis ? Math.round(qtdPaineis * AREA_PAINEL_M2) : null
@@ -213,7 +221,7 @@ export function montarDadosV2(data: ProposalPDFData): DadosV2 {
       para: descricaoFuncaoItem(itemPaineis, tipoEstruturaTexto),
     },
     {
-      qtd: '1x',
+      qtd: `${qtdInversores}x`,
       item: itemInversor,
       para: descricaoFuncaoItem(itemInversor, tipoEstruturaTexto),
     },
@@ -303,6 +311,7 @@ export function montarDadosV2(data: ProposalPDFData): DadosV2 {
     cdbNoPrimeiroAnoRS: formatBRL(precoFinal * RENDIMENTO_CDB_LIQUIDO_AO_ANO),
     marcaPainel,
     marcaInversor,
+    qtdInversores,
     potenciaPainelW,
     potenciaInversorKw,
     stringBox,

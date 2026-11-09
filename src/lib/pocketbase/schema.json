@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-09T21:35:39.685Z",
+  "generatedAt": "2026-11-09T22:11:55.894Z",
   "collections": [
     {
       "name": "users",
@@ -1145,6 +1145,12 @@
         {
           "name": "historico_conclusoes",
           "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "kit_qtd_inversores",
+          "type": "number",
           "required": false,
           "system": false
         }

@@ -23,6 +23,7 @@ export interface CreatePropostaPayload {
   token_publico: string
   kit_marca_painel?: string
   kit_marca_inversor?: string
+  kit_qtd_inversores?: number
   kit_tipo_estrutura?: string
   kit_potencia_painel_w?: number
   kit_potencia_inversor_kw?: number

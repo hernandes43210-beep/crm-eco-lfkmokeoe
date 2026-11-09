@@ -627,6 +627,7 @@ export function GerarPropostaModal({
         observacoes: observacoes.trim(),
         kit_marca_painel: technicalValues.marcaPaineis?.trim() || undefined,
         kit_marca_inversor: technicalValues.marcaInversor?.trim() || undefined,
+        kit_qtd_inversores: Number(technicalValues.qtdInversores) || 1,
         kit_tipo_estrutura: technicalValues.tipoEstrutura?.trim() || undefined,
         kit_potencia_painel_w: Number(technicalValues.potenciaPainelW) || undefined,
         kit_potencia_inversor_kw: Number(technicalValues.potenciaInversorKw) || undefined,

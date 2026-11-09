@@ -34,6 +34,7 @@ export function proposalDataDePublica(proposta: PublicProposta): ProposalPDFData
     kit_string_box: proposta.kit_string_box || proposta.kit?.string_box || undefined,
     kit_marca_painel: proposta.kit_marca_painel || proposta.kit?.marca_painel || undefined,
     kit_marca_inversor: proposta.kit_marca_inversor || proposta.kit?.marca_inversor || undefined,
+    kit_qtd_inversores: proposta.kit_qtd_inversores ?? proposta.kit?.qtd_inversores ?? undefined,
     kit_potencia_painel_w:
       proposta.kit_potencia_painel_w || proposta.kit?.potencia_painel_w || undefined,
     kit_potencia_inversor_kw:
