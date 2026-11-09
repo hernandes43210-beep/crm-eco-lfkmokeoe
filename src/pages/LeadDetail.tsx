@@ -2356,15 +2356,31 @@ export default function LeadDetail() {
         (propostas.length > 0 ||
           Number(precoVenda) > 0 ||
           (lead.preco_venda && lead.preco_venda > 0)) && (
-          <InvestmentComparison
-            valorInvestido={
-              propostas[0]?.preco_venda || Number(precoVenda) || lead.preco_venda || 0
-            }
-            economiaMensal={estimatedSavings}
-            anos={30}
+          <SecaoPainel
             titulo="Comparativo de Investimento em 30 Anos (Argumento de Venda)"
-            subtitulo="Apresente ao cliente por que instalar energia solar rende muito mais do que deixar o dinheiro na Poupança ou no CDB"
-          />
+            descricao="Solar vs Poupança vs CDB — apresente por que a energia solar rende mais"
+            extra={
+              <Badge
+                variant="outline"
+                className="text-xs px-2 py-0.5 font-bold font-mono-numbers bg-amber-50 text-amber-800 border-amber-300"
+                title="Valor investido na simulação"
+              >
+                {formatBRL(
+                  propostas[0]?.preco_venda || Number(precoVenda) || lead.preco_venda || 0,
+                )}
+              </Badge>
+            }
+          >
+            <InvestmentComparison
+              valorInvestido={
+                propostas[0]?.preco_venda || Number(precoVenda) || lead.preco_venda || 0
+              }
+              economiaMensal={estimatedSavings}
+              anos={30}
+              titulo="Comparativo de Investimento em 30 Anos (Argumento de Venda)"
+              subtitulo="Apresente ao cliente por que instalar energia solar rende muito mais do que deixar o dinheiro na Poupança ou no CDB"
+            />
+          </SecaoPainel>
         )}
 
       {/* Proposta Section (Ações do Funil) */}
