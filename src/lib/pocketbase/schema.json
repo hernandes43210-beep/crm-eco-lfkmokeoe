@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-09T11:39:17.741Z",
+  "generatedAt": "2026-11-09T13:51:18.417Z",
   "collections": [
     {
       "name": "users",
@@ -1917,6 +1917,18 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "waba_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "phone_number_id",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_integracoes_config_chave ON integracoes_config (chave)"]

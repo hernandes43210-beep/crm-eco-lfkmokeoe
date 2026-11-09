@@ -1,6 +1,7 @@
 // POST /backend/v1/whatsapp/owner-send
-// Envia mensagem de texto pela CONTA DE WHATSAPP DO DONO do app via Skip
-// Connectors ($connectors.executeAsOwner). Sem Evolution API, sem QR code.
+// Envia mensagem de texto pela conta de WhatsApp do DONO do app.
+// PRIORIDADE: configuração manual (integracoes_config chave='whatsapp_manual',
+// API Cloud da Meta com token próprio, envio direto via $http) > Skip Connectors.
 // Corpo: { telefone: "55...", texto: "...", lead?: "id", phone_number_id?: "..." }
 // Toda a lógica fica inline no callback (o JSVM do PocketBase não compartilha
 // declarações de topo com os callbacks).
@@ -44,6 +45,111 @@ routerAdd(
     }
     const telefone = digits
 
+    // Registrar o envio no histórico (coleção whatsapp_messages) — igual no manual
+    // quanto no conector. Roda DEPOIS do envio real.
+    const registrar = function (waMessageId, phoneNumberIdUsado) {
+      let registroId = ''
+      if (!leadId) return registroId
+      try {
+        const registro = new Record($app.findCollectionByNameOrId('whatsapp_messages'))
+        registro.set('lead', leadId)
+        registro.set('phone_number', telefone)
+        registro.set('direction', 'out')
+        registro.set('content', texto)
+        registro.set('status', 'sent')
+        registro.set('unread', false)
+        if (waMessageId) registro.set('wa_message_id', waMessageId)
+        $app.save(registro)
+        registroId = registro.id
+      } catch (err) {
+        console.log('[whatsapp_owner_send] falha ao registrar mensagem: ' + err.message)
+      }
+      return registroId
+    }
+
+    // ---------- 1. Conexão manual (API Cloud da Meta) ----------
+    let manualConfig = null
+    try {
+      const rs = $app.findRecordsByFilter(
+        'integracoes_config',
+        "chave = 'whatsapp_manual'",
+        '-created',
+        1,
+        0,
+      )
+      if (rs && rs.length > 0) manualConfig = rs[0]
+    } catch (_) {}
+
+    if (manualConfig) {
+      const wabaId = (manualConfig.getString('waba_id') || '').trim()
+      const phoneNumberIdManual = (manualConfig.getString('phone_number_id') || '').trim()
+      const token = (manualConfig.getString('api_key') || '').trim()
+      const phoneNumberIdManualFinal = phoneNumberIdInformado || phoneNumberIdManual
+
+      if (wabaId && token && phoneNumberIdManualFinal) {
+        let httpRes = null
+        try {
+          httpRes = $http.send({
+            url: 'https://graph.facebook.com/v21.0/' + phoneNumberIdManualFinal + '/messages',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: 'Bearer ' + token,
+            },
+            body: JSON.stringify({
+              messaging_product: 'whatsapp',
+              recipient_type: 'individual',
+              to: telefone,
+              type: 'text',
+              text: { preview_url: false, body: texto },
+            }),
+            timeout: 20,
+          })
+        } catch (httpErr) {
+          return e.json(502, {
+            error:
+              'Falha ao conectar com a API da Meta (conexão manual): ' +
+              (httpErr && httpErr.message ? httpErr.message : 'tempo limite esgotado.'),
+          })
+        }
+
+        const statusCode = httpRes.statusCode
+        const dados = httpRes.json || {}
+
+        if (statusCode >= 200 && statusCode < 300) {
+          const mensagens = Array.isArray(dados.messages) ? dados.messages : []
+          const primeira =
+            mensagens.length > 0 && typeof mensagens[0] === 'object' ? mensagens[0] : {}
+          const waMessageId = typeof primeira.id === 'string' ? primeira.id : ''
+          const registroId = registrar(waMessageId, phoneNumberIdManualFinal)
+          return e.json(200, {
+            ok: true,
+            modo: 'manual',
+            wa_message_id: waMessageId,
+            registro_id: registroId,
+            para: telefone,
+            phone_number_id: phoneNumberIdManualFinal,
+          })
+        }
+
+        // Erro real da Meta: devolve o texto exato que ela retornou
+        let detail = ''
+        if (dados.error && typeof dados.error.message === 'string') detail = dados.error.message
+        const safe = detail
+          .replace(/EAAG[A-Za-z0-9_-]+/g, '[TOKEN_PROTEGIDO]')
+          .replace(/EAA[A-Za-z0-9_-]+/g, '[TOKEN_PROTEGIDO]')
+        void wabaId
+        return e.json(502, {
+          error:
+            'A API da Meta recusou o envio (HTTP ' +
+            statusCode +
+            ', conexão manual): ' +
+            (safe || 'resposta sem detalhe.'),
+        })
+      }
+    }
+
+    // ---------- 2. Fallback: Skip Connectors (conta do dono) ----------
     // Descobre o phone_number_id da conta do dono (ou usa o informado pelo frontend)
     let phoneNumberId = ''
     if (phoneNumberIdInformado) {
@@ -120,28 +226,11 @@ routerAdd(
     const primeira = mensagens.length > 0 && typeof mensagens[0] === 'object' ? mensagens[0] : {}
     const waMessageId = typeof primeira.id === 'string' ? primeira.id : ''
 
-    // Registro opcional do envio (coleção whatsapp_messages)
-    let registroId = ''
-    if (leadId) {
-      try {
-        const registro = new Record($app.findCollectionByNameOrId('whatsapp_messages'))
-        registro.set('lead', leadId)
-        registro.set('phone_number', telefone)
-        registro.set('direction', 'out')
-        registro.set('content', texto)
-        registro.set('status', 'sent')
-        registro.set('unread', false)
-        if (waMessageId) registro.set('wa_message_id', waMessageId)
-        $app.save(registro)
-        registroId = registro.id
-      } catch (err) {
-        // Envio OK, só o registro falhou: não falha a resposta, mas sinaliza
-        console.log('[whatsapp_owner_send] falha ao registrar mensagem: ' + err.message)
-      }
-    }
+    const registroId = registrar(waMessageId, phoneNumberId)
 
     return e.json(200, {
       ok: true,
+      modo: 'conector',
       wa_message_id: waMessageId,
       registro_id: registroId,
       para: telefone,
