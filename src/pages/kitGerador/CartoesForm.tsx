@@ -160,13 +160,25 @@ function InputNum({
   placeholder?: string
   suffix?: string
 }) {
+  // Enquanto o campo está em foco, mostra o texto bruto digitado (com vírgula),
+  // para o pai (que converte em número) não apagar a vírgula no meio da digitação.
+  const [focado, setFocado] = useState(false)
+  const [rascunho, setRascunho] = useState(value)
   return (
     <div className="relative">
       <Input
         inputMode="decimal"
-        value={value}
+        value={focado ? rascunho : value}
         placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => {
+          setRascunho(value)
+          setFocado(true)
+        }}
+        onBlur={() => setFocado(false)}
+        onChange={(e) => {
+          setRascunho(e.target.value)
+          onChange(e.target.value)
+        }}
         className="pr-10"
       />
       {suffix && (
@@ -485,7 +497,7 @@ export function SelecaoPainel({
             </Campo>
             <Campo label="Potência (W)">
               <InputNum
-                value={form.painel.potenciaW ? String(form.painel.potenciaW) : ''}
+                value={form.painel.potenciaW ? String(form.painel.potenciaW).replace('.', ',') : ''}
                 onChange={(v) =>
                   set({
                     painel: { ...form.painel, potenciaW: parseFloat(v.replace(',', '.')) || 0 },
