@@ -263,6 +263,47 @@ export function ResumoKit({
 
 // ---------- Aba CATÁLOGO ----------
 
+// Cabeçalho-clicável de uma seção do catálogo (Painéis/Inversores).
+// Quando a seção está recolhida, ele é o ÚNICO elemento renderizado —
+// sem cartão vazio, moldura ou espaço reservado em volta.
+function BotaoToggleSecao({
+  titulo,
+  contagem,
+  aberto,
+  onClick,
+  className,
+}: {
+  titulo: string
+  contagem: number
+  aberto: boolean
+  onClick: () => void
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={aberto}
+      className={cn(
+        'flex w-full items-center justify-between border border-[#dfe5f0] bg-white px-3 py-2.5 text-left transition-colors hover:border-[#0b1f4d] hover:bg-[#eef2f8]',
+        className,
+      )}
+    >
+      <span className="font-montserrat text-sm font-bold uppercase text-[#0b1f4d]">{titulo}</span>
+      <span className="flex items-center gap-2">
+        <span className="rounded-full bg-[#eef2f8] px-2 py-0.5 text-[11px] font-semibold text-[#8a94a8]">
+          {contagem} {contagem === 1 ? 'item' : 'itens'}
+        </span>
+        {aberto ? (
+          <ChevronUp className="h-4 w-4 text-[#0b1f4d]" />
+        ) : (
+          <ChevronDown className="h-4 w-4 text-[#0b1f4d]" />
+        )}
+      </span>
+    </button>
+  )
+}
+
 export function AbaCatalogo({
   paineis,
   inversores,
@@ -334,254 +375,242 @@ export function AbaCatalogo({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-[14px] border border-[#dfe5f0] bg-white p-4">
-        <button
-          type="button"
-          onClick={() => setMostrarPaineis((v) => !v)}
-          className="mb-3 flex w-full items-center justify-between rounded-[10px] border border-[#dfe5f0] px-3 py-2 text-left transition-colors hover:border-[#0b1f4d] hover:bg-[#eef2f8]"
-          aria-expanded={mostrarPaineis}
-        >
-          <span className="font-montserrat text-sm font-bold uppercase text-[#0b1f4d]">
-            Painéis disponíveis
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="rounded-full bg-[#eef2f8] px-2 py-0.5 text-[11px] font-semibold text-[#8a94a8]">
-              {paineis.length} {paineis.length === 1 ? 'item' : 'itens'}
-            </span>
-            {mostrarPaineis ? (
-              <ChevronUp className="h-4 w-4 text-[#0b1f4d]" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-[#0b1f4d]" />
-            )}
-          </span>
-        </button>
-        {mostrarPaineis && (
-          <>
-            <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
-              <Input
-                placeholder="Marca"
-                value={novoPainel.marca}
-                onChange={(e) => setNovoPainel({ ...novoPainel, marca: e.target.value })}
-              />
-              <Input
-                placeholder="Modelo"
-                value={novoPainel.modelo}
-                onChange={(e) => setNovoPainel({ ...novoPainel, modelo: e.target.value })}
-              />
-              <Input
-                placeholder="Potência W"
-                inputMode="decimal"
-                value={novoPainel.potenciaW}
-                onChange={(e) => setNovoPainel({ ...novoPainel, potenciaW: e.target.value })}
-              />
-              <Input
-                placeholder="Área m²"
-                inputMode="decimal"
-                value={novoPainel.areaM2}
-                onChange={(e) => setNovoPainel({ ...novoPainel, areaM2: e.target.value })}
-              />
-              <Button
-                onClick={addPainel}
-                disabled={carregando}
-                className="bg-[#ffd23f] font-bold text-[#0b1f4d] hover:bg-[#f5b800]"
-              >
-                + Adicionar painel
-              </Button>
-            </div>
-            <BarraFiltrosCatalogo
-              filtro={filtroPainel}
-              onChange={setFiltroPainel}
-              unidade="W"
-              exemploPotencia="615"
+      {mostrarPaineis && (
+        <div className="rounded-[14px] border border-[#dfe5f0] bg-white p-4">
+          <BotaoToggleSecao
+            titulo="Painéis disponíveis"
+            contagem={paineis.length}
+            aberto
+            onClick={() => setMostrarPaineis(false)}
+            className="mb-3 rounded-[10px]"
+          />
+          <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <Input
+              placeholder="Marca"
+              value={novoPainel.marca}
+              onChange={(e) => setNovoPainel({ ...novoPainel, marca: e.target.value })}
             />
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[#dfe5f0] text-left text-xs uppercase text-[#8a94a8]">
-                    <th className="py-2 pr-2">Marca</th>
-                    <th className="py-2 pr-2">Modelo</th>
-                    <th className="py-2 pr-2">Potência</th>
-                    <th className="py-2 pr-2">Área</th>
-                    <th className="py-2 pr-2">Origem</th>
-                    <th className="py-2" />
+            <Input
+              placeholder="Modelo"
+              value={novoPainel.modelo}
+              onChange={(e) => setNovoPainel({ ...novoPainel, modelo: e.target.value })}
+            />
+            <Input
+              placeholder="Potência W"
+              inputMode="decimal"
+              value={novoPainel.potenciaW}
+              onChange={(e) => setNovoPainel({ ...novoPainel, potenciaW: e.target.value })}
+            />
+            <Input
+              placeholder="Área m²"
+              inputMode="decimal"
+              value={novoPainel.areaM2}
+              onChange={(e) => setNovoPainel({ ...novoPainel, areaM2: e.target.value })}
+            />
+            <Button
+              onClick={addPainel}
+              disabled={carregando}
+              className="bg-[#ffd23f] font-bold text-[#0b1f4d] hover:bg-[#f5b800]"
+            >
+              + Adicionar painel
+            </Button>
+          </div>
+          <BarraFiltrosCatalogo
+            filtro={filtroPainel}
+            onChange={setFiltroPainel}
+            unidade="W"
+            exemploPotencia="615"
+          />
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[#dfe5f0] text-left text-xs uppercase text-[#8a94a8]">
+                  <th className="py-2 pr-2">Marca</th>
+                  <th className="py-2 pr-2">Modelo</th>
+                  <th className="py-2 pr-2">Potência</th>
+                  <th className="py-2 pr-2">Área</th>
+                  <th className="py-2 pr-2">Origem</th>
+                  <th className="py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {paineisFiltrados.map((p) => (
+                  <tr key={p.id} className="border-b border-[#eef2f8]">
+                    <td className="py-2 pr-2 font-semibold text-[#0b1f4d]">{p.marca}</td>
+                    <td className="py-2 pr-2 text-[#3c4a63]">{p.modelo}</td>
+                    <td className="py-2 pr-2">{fmtInt(p.potencia_w)} W</td>
+                    <td className="py-2 pr-2">{fmt(p.area_m2)} m²</td>
+                    <td className="py-2 pr-2">
+                      {p.origem === 'inicial' ? (
+                        <span className="rounded-full bg-[#eef2f8] px-2 py-0.5 text-[11px] text-[#8a94a8]">
+                          das suas propostas
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-[#fff9e0] px-2 py-0.5 text-[11px] font-semibold text-[#8a6d1a]">
+                          cadastrado
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setExcluir({ tipo: 'painel', id: p.id, nome: `${p.marca} ${p.modelo}` })
+                        }
+                        className="text-[#c0392b]"
+                      >
+                        Excluir
+                      </Button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {paineisFiltrados.map((p) => (
-                    <tr key={p.id} className="border-b border-[#eef2f8]">
-                      <td className="py-2 pr-2 font-semibold text-[#0b1f4d]">{p.marca}</td>
-                      <td className="py-2 pr-2 text-[#3c4a63]">{p.modelo}</td>
-                      <td className="py-2 pr-2">{fmtInt(p.potencia_w)} W</td>
-                      <td className="py-2 pr-2">{fmt(p.area_m2)} m²</td>
-                      <td className="py-2 pr-2">
-                        {p.origem === 'inicial' ? (
-                          <span className="rounded-full bg-[#eef2f8] px-2 py-0.5 text-[11px] text-[#8a94a8]">
-                            das suas propostas
-                          </span>
-                        ) : (
-                          <span className="rounded-full bg-[#fff9e0] px-2 py-0.5 text-[11px] font-semibold text-[#8a6d1a]">
-                            cadastrado
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setExcluir({ tipo: 'painel', id: p.id, nome: `${p.marca} ${p.modelo}` })
-                          }
-                          className="text-[#c0392b]"
-                        >
-                          Excluir
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                  {paineisFiltrados.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="py-3 text-center text-xs text-[#8a94a8]">
-                        {paineis.length === 0
-                          ? 'Nenhum painel no catálogo.'
-                          : 'Nenhum painel corresponde aos filtros.'}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </div>
-
-      <div className="rounded-[14px] border border-[#dfe5f0] bg-white p-4">
-        <button
-          type="button"
-          onClick={() => setMostrarInversores((v) => !v)}
-          className="mb-3 flex w-full items-center justify-between rounded-[10px] border border-[#dfe5f0] px-3 py-2 text-left transition-colors hover:border-[#0b1f4d] hover:bg-[#eef2f8]"
-          aria-expanded={mostrarInversores}
-        >
-          <span className="font-montserrat text-sm font-bold uppercase text-[#0b1f4d]">
-            Inversores disponíveis
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="rounded-full bg-[#eef2f8] px-2 py-0.5 text-[11px] font-semibold text-[#8a94a8]">
-              {inversores.length} {inversores.length === 1 ? 'item' : 'itens'}
-            </span>
-            {mostrarInversores ? (
-              <ChevronUp className="h-4 w-4 text-[#0b1f4d]" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-[#0b1f4d]" />
-            )}
-          </span>
-        </button>
-        {mostrarInversores && (
-          <>
-            <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
-              <Input
-                placeholder="Marca"
-                value={novoInversor.marca}
-                onChange={(e) => setNovoInversor({ ...novoInversor, marca: e.target.value })}
-              />
-              <Input
-                placeholder="Modelo"
-                value={novoInversor.modelo}
-                onChange={(e) => setNovoInversor({ ...novoInversor, modelo: e.target.value })}
-              />
-              <Input
-                placeholder="Potência kW"
-                inputMode="decimal"
-                value={novoInversor.potenciaKw}
-                onChange={(e) => setNovoInversor({ ...novoInversor, potenciaKw: e.target.value })}
-              />
-              <select
-                value={novoInversor.tipo}
-                onChange={(e) => setNovoInversor({ ...novoInversor, tipo: e.target.value })}
-                className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
-              >
-                {TIPOS_INVERSOR.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
                 ))}
-              </select>
-              <Button
-                onClick={addInversor}
-                disabled={carregando}
-                className="bg-[#ffd23f] font-bold text-[#0b1f4d] hover:bg-[#f5b800]"
-              >
-                + Adicionar inversor
-              </Button>
-            </div>
-            <BarraFiltrosCatalogo
-              filtro={filtroInversor}
-              onChange={setFiltroInversor}
-              unidade="kW"
-              exemploPotencia="8,5"
-            />
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[#dfe5f0] text-left text-xs uppercase text-[#8a94a8]">
-                    <th className="py-2 pr-2">Marca</th>
-                    <th className="py-2 pr-2">Modelo</th>
-                    <th className="py-2 pr-2">Potência</th>
-                    <th className="py-2 pr-2">Tipo</th>
-                    <th className="py-2 pr-2">Origem</th>
-                    <th className="py-2" />
+                {paineisFiltrados.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-3 text-center text-xs text-[#8a94a8]">
+                      {paineis.length === 0
+                        ? 'Nenhum painel no catálogo.'
+                        : 'Nenhum painel corresponde aos filtros.'}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {inversoresFiltrados.map((i) => (
-                    <tr key={i.id} className="border-b border-[#eef2f8]">
-                      <td className="py-2 pr-2 font-semibold text-[#0b1f4d]">{i.marca}</td>
-                      <td className="py-2 pr-2 text-[#3c4a63]">{i.modelo}</td>
-                      <td className="py-2 pr-2">{fmt(i.potencia_kw)} kW</td>
-                      <td className="py-2 pr-2 text-[#3c4a63]">{i.tipo}</td>
-                      <td className="py-2 pr-2">
-                        {i.origem === 'inicial' ? (
-                          <span className="rounded-full bg-[#eef2f8] px-2 py-0.5 text-[11px] text-[#8a94a8]">
-                            das suas propostas
-                          </span>
-                        ) : (
-                          <span className="rounded-full bg-[#fff9e0] px-2 py-0.5 text-[11px] font-semibold text-[#8a6d1a]">
-                            cadastrado
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setExcluir({
-                              tipo: 'inversor',
-                              id: i.id,
-                              nome: `${i.marca} ${i.modelo}`,
-                            })
-                          }
-                          className="text-[#c0392b]"
-                        >
-                          Excluir
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                  {inversoresFiltrados.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="py-3 text-center text-xs text-[#8a94a8]">
-                        {inversores.length === 0
-                          ? 'Nenhum inversor no catálogo.'
-                          : 'Nenhum inversor corresponde aos filtros.'}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </div>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      {!mostrarPaineis && (
+        <BotaoToggleSecao
+          titulo="Painéis disponíveis"
+          contagem={paineis.length}
+          aberto={false}
+          onClick={() => setMostrarPaineis(true)}
+          className="rounded-[14px] shadow-sm"
+        />
+      )}
+
+      {mostrarInversores && (
+        <div className="rounded-[14px] border border-[#dfe5f0] bg-white p-4">
+          <BotaoToggleSecao
+            titulo="Inversores disponíveis"
+            contagem={inversores.length}
+            aberto
+            onClick={() => setMostrarInversores(false)}
+            className="mb-3 rounded-[10px]"
+          />
+          <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <Input
+              placeholder="Marca"
+              value={novoInversor.marca}
+              onChange={(e) => setNovoInversor({ ...novoInversor, marca: e.target.value })}
+            />
+            <Input
+              placeholder="Modelo"
+              value={novoInversor.modelo}
+              onChange={(e) => setNovoInversor({ ...novoInversor, modelo: e.target.value })}
+            />
+            <Input
+              placeholder="Potência kW"
+              inputMode="decimal"
+              value={novoInversor.potenciaKw}
+              onChange={(e) => setNovoInversor({ ...novoInversor, potenciaKw: e.target.value })}
+            />
+            <select
+              value={novoInversor.tipo}
+              onChange={(e) => setNovoInversor({ ...novoInversor, tipo: e.target.value })}
+              className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+            >
+              {TIPOS_INVERSOR.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            <Button
+              onClick={addInversor}
+              disabled={carregando}
+              className="bg-[#ffd23f] font-bold text-[#0b1f4d] hover:bg-[#f5b800]"
+            >
+              + Adicionar inversor
+            </Button>
+          </div>
+          <BarraFiltrosCatalogo
+            filtro={filtroInversor}
+            onChange={setFiltroInversor}
+            unidade="kW"
+            exemploPotencia="8,5"
+          />
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[#dfe5f0] text-left text-xs uppercase text-[#8a94a8]">
+                  <th className="py-2 pr-2">Marca</th>
+                  <th className="py-2 pr-2">Modelo</th>
+                  <th className="py-2 pr-2">Potência</th>
+                  <th className="py-2 pr-2">Tipo</th>
+                  <th className="py-2 pr-2">Origem</th>
+                  <th className="py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {inversoresFiltrados.map((i) => (
+                  <tr key={i.id} className="border-b border-[#eef2f8]">
+                    <td className="py-2 pr-2 font-semibold text-[#0b1f4d]">{i.marca}</td>
+                    <td className="py-2 pr-2 text-[#3c4a63]">{i.modelo}</td>
+                    <td className="py-2 pr-2">{fmt(i.potencia_kw)} kW</td>
+                    <td className="py-2 pr-2 text-[#3c4a63]">{i.tipo}</td>
+                    <td className="py-2 pr-2">
+                      {i.origem === 'inicial' ? (
+                        <span className="rounded-full bg-[#eef2f8] px-2 py-0.5 text-[11px] text-[#8a94a8]">
+                          das suas propostas
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-[#fff9e0] px-2 py-0.5 text-[11px] font-semibold text-[#8a6d1a]">
+                          cadastrado
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setExcluir({
+                            tipo: 'inversor',
+                            id: i.id,
+                            nome: `${i.marca} ${i.modelo}`,
+                          })
+                        }
+                        className="text-[#c0392b]"
+                      >
+                        Excluir
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+                {inversoresFiltrados.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-3 text-center text-xs text-[#8a94a8]">
+                      {inversores.length === 0
+                        ? 'Nenhum inversor no catálogo.'
+                        : 'Nenhum inversor corresponde aos filtros.'}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      {!mostrarInversores && (
+        <BotaoToggleSecao
+          titulo="Inversores disponíveis"
+          contagem={inversores.length}
+          aberto={false}
+          onClick={() => setMostrarInversores(true)}
+          className="rounded-[14px] shadow-sm"
+        />
+      )}
 
       <div className="rounded-[14px] border border-[#dfe5f0] bg-white p-4">
         <h3 className="mb-3 font-montserrat text-sm font-bold uppercase text-[#0b1f4d]">
