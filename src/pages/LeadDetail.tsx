@@ -1236,12 +1236,16 @@ export default function LeadDetail() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => navigate('/whatsapp')}
-                    title="Abrir no WhatsApp CRM"
+                    onClick={() =>
+                      navigate(
+                        `/whatsapp?lead=${lead.id}&telefone=${encodeURIComponent(lead.telefone || '')}`,
+                      )
+                    }
+                    title="Enviar WhatsApp para este lead"
                     className="text-[#0B7A5B] hover:text-[#095C44] hover:bg-emerald-50 h-7 px-2 text-xs gap-1"
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
-                    <span>Inbox</span>
+                    <span>WhatsApp</span>
                   </Button>
                 )}
               </div>
