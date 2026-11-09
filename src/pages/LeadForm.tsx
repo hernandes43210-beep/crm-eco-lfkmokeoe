@@ -299,6 +299,8 @@ export default function LeadForm() {
         })
       } else {
         payload.proprietario = ownerId
+        // Lead criado no CRM já entra no funil (filtro funil_ativo): status_qualificacao explícito.
+        payload.status_qualificacao = 'qualificado'
         payload.historico = JSON.stringify([
           {
             data: new Date().toISOString(),

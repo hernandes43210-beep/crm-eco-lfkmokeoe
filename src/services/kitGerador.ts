@@ -340,6 +340,8 @@ export const KitGeradorService = {
       ...payload,
       itens: JSON.stringify(payload.itens),
       criado_por: pb.authStore.record?.id || '',
+      // Kit novo sempre nasce ativo — senão a aba "Kits salvos" (filtra ativo = true) o esconde.
+      ativo: true,
     })
   },
 
