@@ -55,5 +55,12 @@ describe('formControles - formatarNumeroPtBr e parseNumeroPtBr', () => {
       expect(parseNumeroPtBr('3,')).toBe(3)
       expect(parseNumeroPtBr('3.')).toBe(3)
     })
+
+    it('aceita formatos com separador de milhar e moeda', () => {
+      expect(parseNumeroPtBr('255.208,5')).toBe(255208.5)
+      expect(parseNumeroPtBr('255.208,50')).toBe(255208.5)
+      expect(parseNumeroPtBr('R$ 255.208,50')).toBe(255208.5)
+      expect(parseNumeroPtBr('25.000')).toBe(25000)
+    })
   })
 })

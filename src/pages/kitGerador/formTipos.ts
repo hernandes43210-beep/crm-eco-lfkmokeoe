@@ -136,7 +136,7 @@ export function estadoInicial(
     distribuidoraNova: '',
     itens: itensPadrao(),
     custo: '',
-    acrescimoPct: '40',
+    acrescimoPct: '41',
     descontoTipo: 'R$',
     descontoValor: '',
   }

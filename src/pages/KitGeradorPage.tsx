@@ -44,6 +44,7 @@ import {
   montarDadosResumo,
 } from './kitGerador/kitCalculos'
 import { qtdPaineisSugerida, fmt } from './kitGerador/logica'
+import { parseNumeroPtBr } from './kitGerador/formControles'
 
 export default function KitGeradorPage() {
   const { toast } = useToast()
@@ -148,15 +149,19 @@ export default function KitGeradorPage() {
 
   // Cálculos consolidados somando múltiplos módulos e múltiplos inversores
   const calc = useMemo(() => {
+    const custoNum = parseNumeroPtBr(form.custo) ?? 0
+    const margemNum = parseNumeroPtBr(form.acrescimoPct) ?? 41
+    const descValorNum = parseNumeroPtBr(form.descontoValor) ?? 0
+
     return calcularTudo({
       paineisLinhas: form.painelLinhas,
       inversoresLinhas: form.inversorLinhas,
-      sol: Number(form.sol) || 4.5,
-      perdas: Number(form.perdas) || 20,
-      custo: Number(form.custo) || 0,
-      acrescimoPct: Number(form.acrescimoPct) || 40,
+      sol: parseNumeroPtBr(form.sol) ?? 4.5,
+      perdas: parseNumeroPtBr(form.perdas) ?? 20,
+      custo: custoNum,
+      acrescimoPct: margemNum,
       descontoTipo: form.descontoTipo,
-      descontoValor: Number(form.descontoValor) || 0,
+      descontoValor: descValorNum,
       itens: form.itens,
     })
   }, [
@@ -188,9 +193,9 @@ export default function KitGeradorPage() {
   // Aplica quantidade sugerida no primeiro módulo com base no consumo do cliente
   const aplicarQtdSugeridaConsumo = useCallback(() => {
     const potW = form.painelLinhas[0]?.potenciaW || 550
-    const sol = Number(form.sol) || 4.5
-    const perdas = Number(form.perdas) || 20
-    const consumo = Number(form.consumo) || 600
+    const sol = parseNumeroPtBr(form.sol) ?? 4.5
+    const perdas = parseNumeroPtBr(form.perdas) ?? 20
+    const consumo = parseNumeroPtBr(form.consumo) ?? 600
     const geracaoPorKwpMes = sol * 30 * (1 - perdas / 100)
     const kwpNec = geracaoPorKwpMes > 0 ? consumo / geracaoPorKwpMes : 0
     const sugerida = qtdPaineisSugerida(kwpNec, potW)
@@ -311,11 +316,11 @@ export default function KitGeradorPage() {
         painel: payloadPainel as any,
         inversor: payloadInversor as any,
         itens: itensPayload,
-        custo: Number(form.custo) || 0,
-        acrescimo_pct: Number(form.acrescimoPct) || 0,
+        custo: parseNumeroPtBr(form.custo) ?? 0,
+        acrescimo_pct: parseNumeroPtBr(form.acrescimoPct) ?? 0,
         preco_venda: calc.precoFinal,
         desconto_tipo: form.descontoTipo,
-        desconto_valor: Number(form.descontoValor) || 0,
+        desconto_valor: parseNumeroPtBr(form.descontoValor) ?? 0,
         desconto_rs: 0,
         preco_final: calc.precoFinal,
         lucro: calc.lucro,
@@ -406,6 +411,13 @@ export default function KitGeradorPage() {
       distribuidora: k.distribuidora || prev.distribuidora,
       tipoInstalacao: (k.tipo_instalacao as any) || prev.tipoInstalacao,
       itens: itensRecuperados,
+      custo: k.custo ? String(k.custo).replace('.', ',') : '',
+      acrescimoPct:
+        k.acrescimo_pct !== undefined && k.acrescimo_pct !== null
+          ? String(k.acrescimo_pct).replace('.', ',')
+          : prev.acrescimoPct,
+      descontoTipo: k.desconto_tipo || 'R$',
+      descontoValor: k.desconto_valor ? String(k.desconto_valor).replace('.', ',') : '',
     }))
 
     setTabAtiva('montador')

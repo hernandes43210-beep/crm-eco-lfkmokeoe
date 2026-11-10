@@ -312,12 +312,12 @@ export function CartaoPreco({
           />
         </div>
         <div>
-          <Label className="text-xs">Acréscimo / Margem sobre o custo (%)</Label>
+          <Label className="text-xs">Margem sobre o custo (%)</Label>
           <Input
             value={form.acrescimoPct}
             onChange={(e) => set({ acrescimoPct: e.target.value })}
-            placeholder="40"
-            inputMode="numeric"
+            placeholder="41"
+            inputMode="decimal"
           />
         </div>
       </div>

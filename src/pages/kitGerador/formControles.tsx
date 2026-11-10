@@ -60,8 +60,43 @@ export function formatarNumeroPtBr(valor: number): string {
  * Retorna null se não for um número válido/finito.
  */
 export function parseNumeroPtBr(texto: string): number | null {
-  const limpo = texto.trim().replace(',', '.')
+  if (typeof texto !== 'string') return null
+  let limpo = texto.trim().replace(/R\$/gi, '').replace(/\s+/g, '')
   if (limpo === '') return null
+
+  const hasComma = limpo.includes(',')
+  const hasDot = limpo.includes('.')
+
+  if (hasComma && hasDot) {
+    const lastComma = limpo.lastIndexOf(',')
+    const lastDot = limpo.lastIndexOf('.')
+    if (lastComma > lastDot) {
+      // Formato pt-BR com milhares: 255.208,50 -> 255208.50
+      limpo = limpo.replace(/\./g, '').replace(',', '.')
+    } else {
+      // Formato americano com milhares: 255,208.50 -> 255208.50
+      limpo = limpo.replace(/,/g, '')
+    }
+  } else if (hasComma) {
+    // Apenas vírgula: 255208,50 ou múltiplos milhares
+    const parts = limpo.split(',')
+    if (parts.length > 2) {
+      limpo = parts.join('')
+    } else {
+      limpo = limpo.replace(',', '.')
+    }
+  } else if (hasDot) {
+    // Apenas ponto: 255.208.50 (milhares) vs 255208.50 (decimal) vs 25.000 (milhar inteiro)
+    const parts = limpo.split('.')
+    if (parts.length > 2) {
+      limpo = parts.join('')
+    } else if (parts.length === 2 && parts[1].length === 3 && parts[0].length >= 1) {
+      // Ex: 25.000 -> 25000 (milhar brasileiro sem vírgula)
+      limpo = parts.join('')
+    }
+  }
+
+  limpo = limpo.replace(/[^0-9.-]/g, '')
   const n = parseFloat(limpo)
   if (isNaN(n) || !isFinite(n)) return null
   return n
