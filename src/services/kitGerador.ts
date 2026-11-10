@@ -60,7 +60,8 @@ export type PainelCatalogoRow = PainelCatalogo
 export type InversorCatalogoRow = InversorCatalogo
 export type DistribuidoraRow = DistribuidoraItem
 
-export interface KitPainelJson {
+/** Uma linha de modelo de painel no kit (o kit pode ter várias). */
+export interface PainelLinha {
   marca: string
   modelo: string
   potencia_w: number
@@ -68,13 +69,32 @@ export interface KitPainelJson {
   qtd: number
 }
 
-export interface KitInversorJson {
+/** Uma linha de modelo de inversor no kit (o kit pode ter várias). */
+export interface InversorLinha {
   marca: string
   modelo: string
   potencia_kw: number
   tipo: string
   qtd: number
 }
+
+/** Formato legado: um único modelo por kit (objeto simples no campo JSON). */
+export type KitPainelJson = PainelLinha
+export type KitInversorJson = InversorLinha
+
+/** Formato novo: várias linhas de modelo + observações livres da seção. */
+export interface PainelListaJson {
+  linhas: PainelLinha[]
+  outrosDados?: string
+}
+
+export interface InversorListaJson {
+  linhas: InversorLinha[]
+  outrosDados?: string
+}
+
+export type PainelJsonValor = PainelLinha | PainelLinha[] | PainelListaJson | string | null
+export type InversorJsonValor = InversorLinha | InversorLinha[] | InversorListaJson | string | null
 
 export interface KitGerado {
   id: string
@@ -85,8 +105,8 @@ export interface KitGerado {
   tipo_instalacao: string
   ligacao: string
   distribuidora: string
-  painel: KitPainelJson | string
-  inversor: KitInversorJson | string
+  painel: PainelJsonValor
+  inversor: InversorJsonValor
   itens: ItemKitGerado[] | string
   custo: number
   acrescimo_pct: number
@@ -111,8 +131,8 @@ export interface SalvarKitPayload {
   tipo_instalacao: string
   ligacao: string
   distribuidora: string
-  painel: KitPainelJson
-  inversor: KitInversorJson
+  painel: PainelLinha | PainelListaJson
+  inversor: InversorLinha | InversorListaJson
   itens: ItemKitGerado[]
   custo: number
   acrescimo_pct: number
@@ -125,30 +145,72 @@ export interface SalvarKitPayload {
   margem_pct: number
 }
 
-/** Normaliza o json "painel" que pode chegar como string (do PocketBase) ou objeto. */
-export function parsePainelJson(valor: KitGerado['painel']): KitPainelJson | null {
-  if (!valor) return null
-  if (typeof valor === 'string') {
-    try {
-      return JSON.parse(valor) as KitPainelJson
-    } catch {
-      return null
-    }
+/** Faz o parse do campo JSON que pode chegar como string (do PocketBase) ou objeto. */
+function parseCampoJson(valor: unknown): unknown {
+  if (typeof valor !== 'string') return valor
+  try {
+    return JSON.parse(valor)
+  } catch {
+    return null
   }
-  return valor
 }
 
-/** Normaliza o json "inversor". */
-export function parseInversorJson(valor: KitGerado['inversor']): KitInversorJson | null {
-  if (!valor) return null
-  if (typeof valor === 'string') {
-    try {
-      return JSON.parse(valor) as KitInversorJson
-    } catch {
-      return null
-    }
+function ehPainelLinha(v: unknown): v is PainelLinha {
+  return !!v && typeof v === 'object' && !Array.isArray(v) && 'marca' in (v as object)
+}
+
+function ehInversorLinha(v: unknown): v is InversorLinha {
+  return !!v && typeof v === 'object' && !Array.isArray(v) && 'marca' in (v as object)
+}
+
+/**
+ * Lê TODAS as linhas de painel do campo JSON — aceita o formato novo
+ * ({ linhas: [...] } ou [ ... ]) e o legado (objeto único com marca/modelo).
+ */
+export function parsePaineisLinhas(valor: PainelJsonValor): PainelLinha[] {
+  const v = parseCampoJson(valor)
+  if (Array.isArray(v)) return v.filter(ehPainelLinha)
+  if (v && typeof v === 'object') {
+    const obj = v as Record<string, unknown>
+    if (Array.isArray(obj.linhas)) return obj.linhas.filter(ehPainelLinha)
+    if (typeof obj.marca === 'string') return [obj as unknown as PainelLinha]
   }
-  return valor
+  return []
+}
+
+/** Igual ao anterior, para inversores. */
+export function parseInversoresLinhas(valor: InversorJsonValor): InversorLinha[] {
+  const v = parseCampoJson(valor)
+  if (Array.isArray(v)) return v.filter(ehInversorLinha)
+  if (v && typeof v === 'object') {
+    const obj = v as Record<string, unknown>
+    if (Array.isArray(obj.linhas)) return obj.linhas.filter(ehInversorLinha)
+    if (typeof obj.marca === 'string') return [obj as unknown as InversorLinha]
+  }
+  return []
+}
+
+/** Observações livres ("Outros dados") gravadas junto das linhas no campo JSON. */
+export function parseOutrosDados(valor: PainelJsonValor | InversorJsonValor): string {
+  const v = parseCampoJson(valor)
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    const outros = (v as Record<string, unknown>).outrosDados
+    if (typeof outros === 'string') return outros
+  }
+  return ''
+}
+
+/**
+ * Compatibilidade: primeiro modelo do kit (legado lia um único objeto).
+ * Continua funcionando para kits antigos e para o formato novo (1ª linha).
+ */
+export function parsePainelJson(valor: PainelJsonValor): KitPainelJson | null {
+  return parsePaineisLinhas(valor)[0] ?? null
+}
+
+/** Compatibilidade: primeiro modelo de inversor do kit. */
+export function parseInversorJson(valor: InversorJsonValor): KitInversorJson | null {
+  return parseInversoresLinhas(valor)[0] ?? null
 }
 
 /** Normaliza a lista de itens (json string ou array). */
