@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-10T10:34:31.618Z",
+  "generatedAt": "2026-11-10T11:07:15.270Z",
   "collections": [
     {
       "name": "users",
@@ -29,14 +29,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "cidade_atuacao",
@@ -55,7 +60,11 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["Admin", "Vendedor", "Engenheiro"]
+          "selectValues": [
+            "Admin",
+            "Vendedor",
+            "Engenheiro"
+          ]
         },
         {
           "name": "pode_supervisionar_engenharia",
@@ -109,7 +118,14 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["Indicação", "Site", "Redes Sociais", "Evento", "Parceria", "Outros"]
+          "selectValues": [
+            "Indicação",
+            "Site",
+            "Redes Sociais",
+            "Evento",
+            "Parceria",
+            "Outros"
+          ]
         },
         {
           "name": "consumo_mensal_kwh",
@@ -203,14 +219,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "luvik_deal_id",
@@ -235,7 +256,11 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["aguardando", "qualificado", "descartado"]
+          "selectValues": [
+            "aguardando",
+            "qualificado",
+            "descartado"
+          ]
         },
         {
           "name": "qualificado_em",
@@ -421,7 +446,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Residencial", "Comercial", "Rural"]
+          "selectValues": [
+            "Residencial",
+            "Comercial",
+            "Rural"
+          ]
         },
         {
           "name": "custo",
@@ -452,21 +481,30 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "string_box",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["1_entrada", "2_entradas", "3_entradas"]
+          "selectValues": [
+            "1_entrada",
+            "2_entradas",
+            "3_entradas"
+          ]
         },
         {
           "name": "marca_painel",
@@ -479,7 +517,12 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["solo_monoposte", "mini_trilho", "fibrocimento", "outro"]
+          "selectValues": [
+            "solo_monoposte",
+            "mini_trilho",
+            "fibrocimento",
+            "outro"
+          ]
         },
         {
           "name": "marca_inversor",
@@ -563,14 +606,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "email_enviado",
@@ -601,7 +649,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Admin", "Vendedor", "Engenheiro"]
+          "selectValues": [
+            "Admin",
+            "Vendedor",
+            "Engenheiro"
+          ]
         }
       ],
       "indexes": [
@@ -655,21 +707,30 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["disconnected", "connecting", "connected"]
+          "selectValues": [
+            "disconnected",
+            "connecting",
+            "connected"
+          ]
         },
         {
           "name": "created",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -711,7 +772,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["in", "out"]
+          "selectValues": [
+            "in",
+            "out"
+          ]
         },
         {
           "name": "content",
@@ -730,7 +794,13 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["pending", "sent", "received", "read", "error"]
+          "selectValues": [
+            "pending",
+            "sent",
+            "received",
+            "read",
+            "error"
+          ]
         },
         {
           "name": "unread",
@@ -743,14 +813,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -788,17 +863,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX idx_luvik_settings_token ON luvik_settings (webhook_token)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_luvik_settings_token ON luvik_settings (webhook_token)"
+      ]
     },
     {
       "name": "luvik_logs",
@@ -816,14 +898,23 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["negocio_criado", "negocio_ganho", "negocio_perdido", "desconhecido"]
+          "selectValues": [
+            "negocio_criado",
+            "negocio_ganho",
+            "negocio_perdido",
+            "desconhecido"
+          ]
         },
         {
           "name": "status_processamento",
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["sucesso", "ignorado", "erro"]
+          "selectValues": [
+            "sucesso",
+            "ignorado",
+            "erro"
+          ]
         },
         {
           "name": "lead_id",
@@ -860,14 +951,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -973,7 +1069,12 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Rascunho", "Enviada", "Aceita", "Recusada"]
+          "selectValues": [
+            "Rascunho",
+            "Enviada",
+            "Aceita",
+            "Recusada"
+          ]
         },
         {
           "name": "token_publico",
@@ -1004,14 +1105,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "visualizacoes_count",
@@ -1066,7 +1172,12 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["solo_monoposte", "mini_trilho", "fibrocimento", "outro"]
+          "selectValues": [
+            "solo_monoposte",
+            "mini_trilho",
+            "fibrocimento",
+            "outro"
+          ]
         },
         {
           "name": "kit_potencia_painel_w",
@@ -1091,7 +1202,11 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["1_entrada", "2_entradas", "3_entradas"]
+          "selectValues": [
+            "1_entrada",
+            "2_entradas",
+            "3_entradas"
+          ]
         },
         {
           "name": "desconto_percentual",
@@ -1128,7 +1243,10 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["story", "classica"]
+          "selectValues": [
+            "story",
+            "classica"
+          ]
         },
         {
           "name": "visualizacao_concluida_em",
@@ -1211,14 +1329,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -1261,14 +1384,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -1291,7 +1419,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["sucesso", "ignorado", "erro"]
+          "selectValues": [
+            "sucesso",
+            "ignorado",
+            "erro"
+          ]
         },
         {
           "name": "lead_id",
@@ -1328,14 +1460,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -1366,7 +1503,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["contrato", "procuracao"]
+          "selectValues": [
+            "contrato",
+            "procuracao"
+          ]
         },
         {
           "name": "titulo",
@@ -1404,14 +1544,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "conteudo_html",
@@ -1456,7 +1601,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["contrato", "procuracao"]
+          "selectValues": [
+            "contrato",
+            "procuracao"
+          ]
         },
         {
           "name": "clicksign_envelope_id",
@@ -1487,7 +1635,14 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["draft", "running", "signed", "canceled", "expired", "error"]
+          "selectValues": [
+            "draft",
+            "running",
+            "signed",
+            "canceled",
+            "expired",
+            "error"
+          ]
         },
         {
           "name": "nome_envelope",
@@ -1561,14 +1716,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "localizacao_cliente",
@@ -1613,7 +1773,10 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["producao", "sandbox"]
+          "selectValues": [
+            "producao",
+            "sandbox"
+          ]
         },
         {
           "name": "ativo",
@@ -1638,14 +1801,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": []
@@ -1728,14 +1896,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "tipo",
@@ -1835,14 +2008,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -1915,14 +2093,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "waba_id",
@@ -1937,7 +2120,9 @@
           "system": false
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX idx_integracoes_config_chave ON integracoes_config (chave)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_integracoes_config_chave ON integracoes_config (chave)"
+      ]
     },
     {
       "name": "documentos_lead",
@@ -2006,7 +2191,11 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["pendente", "enviado", "reenviado"]
+          "selectValues": [
+            "pendente",
+            "enviado",
+            "reenviado"
+          ]
         },
         {
           "name": "enviado_em",
@@ -2031,14 +2220,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -2188,7 +2382,11 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["telhado", "solo", "outro"]
+          "selectValues": [
+            "telhado",
+            "solo",
+            "outro"
+          ]
         },
         {
           "name": "tipo_estrutura_detalhe",
@@ -2225,14 +2423,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "visualizado_em",
@@ -2348,7 +2551,11 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["nenhuma", "enviada", "paga"]
+          "selectValues": [
+            "nenhuma",
+            "enviada",
+            "paga"
+          ]
         },
         {
           "name": "art_enviada_em",
@@ -2439,14 +2646,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "observacoes_etapas",
@@ -2694,14 +2906,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "categoria",
@@ -2768,7 +2985,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["inicial", "cadastrado"]
+          "selectValues": [
+            "inicial",
+            "cadastrado"
+          ]
         },
         {
           "name": "ativo",
@@ -2781,14 +3001,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -2844,7 +3069,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["inicial", "cadastrado"]
+          "selectValues": [
+            "inicial",
+            "cadastrado"
+          ]
         },
         {
           "name": "ativo",
@@ -2857,14 +3085,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -2900,17 +3133,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_kit_distribuidoras_ativo ON kit_distribuidoras (ativo)"]
+      "indexes": [
+        "CREATE INDEX idx_kit_distribuidoras_ativo ON kit_distribuidoras (ativo)"
+      ]
     },
     {
       "name": "kit_gerados",
@@ -2958,7 +3198,11 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["Monofásica", "Bifásica", "Trifásica"]
+          "selectValues": [
+            "Monofásica",
+            "Bifásica",
+            "Trifásica"
+          ]
         },
         {
           "name": "distribuidora",
@@ -3007,7 +3251,10 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["%", "R$"]
+          "selectValues": [
+            "%",
+            "R$"
+          ]
         },
         {
           "name": "desconto_valor",
@@ -3050,14 +3297,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "ativo",
