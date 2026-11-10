@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Loader2, Sparkles, Sun, Check, SlidersHorizontal, Boxes } from 'lucide-react'
+import { Loader2, Sparkles, Sun, Check, Boxes } from 'lucide-react'
 import { KitsService } from '@/services/kits'
 import { ProposalsService, type CreatePropostaPayload } from '@/services/proposals'
 import { toPortugueseErrorMessage } from '@/lib/errors'
@@ -36,18 +36,8 @@ import { calcularMargemReal } from '@/utils/marginUtils'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
 import { useAuth } from '@/context/AuthContext'
-import {
-  KitTechnicalSelectors,
-  type KitTechnicalSelectorsValues,
-} from '@/components/KitTechnicalSelectors'
-import {
-  calcularKwpPrePronto,
-  sugerirNomeKit,
-  sugerirFabricanteKit,
-  sugerirDescricaoTecnica,
-  aplicarEstruturaAoNomeKit,
-  extrairComponentesKit,
-} from '@/lib/quickKitUtils'
+import { type KitTechnicalSelectorsValues } from '@/components/KitTechnicalSelectors'
+import { aplicarEstruturaAoNomeKit, extrairComponentesKit } from '@/lib/quickKitUtils'
 import { useKitFilters } from '@/hooks/useKitFilters'
 import { KitFilterBar } from '@/components/KitFilterBar'
 import {
@@ -135,8 +125,7 @@ export function GerarPropostaModal({
     }
   }, [open, lead])
 
-  // Estados dos seletores técnicos do kit manual / selecionado
-  const [isManualQuickMode, setIsManualQuickMode] = useState(true)
+  // Estados dos seletores técnicos do kit selecionado
   const [technicalValues, setTechnicalValues] = useState<KitTechnicalSelectorsValues>({
     qtdPaineis: 10,
     potenciaPainelW: 630,
@@ -209,38 +198,9 @@ export function GerarPropostaModal({
     }
   }
 
-  const isCustomMode = selectedKitId === 'custom'
   const selectedKit = React.useMemo(() => {
     return kits.find((k) => k.id === selectedKitId)
   }, [kits, selectedKitId])
-
-  // Cálculo automático de potência pico (kWp) em tempo real da montagem pré-pronta manual
-  const manualKwpInfo = React.useMemo(() => {
-    return calcularKwpPrePronto(technicalValues.qtdPaineis, technicalValues.potenciaPainelW)
-  }, [technicalValues.qtdPaineis, technicalValues.potenciaPainelW])
-
-  // Sugestão de nome comercial padrão a partir dos componentes
-  const manualSuggestedName = React.useMemo(() => {
-    return sugerirNomeKit({
-      kwp: manualKwpInfo.kwp,
-      marcaPaineis: technicalValues.marcaPaineis,
-      marcaInversor: technicalValues.marcaInversor,
-      qtdPaineis: technicalValues.qtdPaineis,
-      potenciaPainelW: technicalValues.potenciaPainelW,
-      tipoEstrutura: technicalValues.tipoEstrutura,
-    })
-  }, [
-    manualKwpInfo.kwp,
-    technicalValues.marcaPaineis,
-    technicalValues.marcaInversor,
-    technicalValues.qtdPaineis,
-    technicalValues.potenciaPainelW,
-    technicalValues.tipoEstrutura,
-  ])
-
-  const manualSuggestedFab = React.useMemo(() => {
-    return sugerirFabricanteKit(technicalValues.marcaPaineis, technicalValues.marcaInversor)
-  }, [technicalValues.marcaPaineis, technicalValues.marcaInversor])
 
   /** Mapeia o tipo de instalação livre do gerador para o select da proposta. */
   const mapearTipoEstrutura = (
@@ -383,111 +343,9 @@ export function GerarPropostaModal({
   }
 
   const handleKitSelect = (kitId: string) => {
-    if (kitId === 'custom') {
-      setSelectedKitId('custom')
-      setSelectedKitGeradoId('')
-      setKitGeradoDescricao('')
-
-      const consumo = lead.consumo_mensal_kwh || 400
-      const kwpEstimado = Math.max(1, Math.round((consumo / 120) * 10) / 10)
-      // Estimar painéis de 630Wp
-      const qtdCalc = Math.max(2, Math.round((kwpEstimado * 1000) / 630))
-      const kwpReal = calcularKwpPrePronto(qtdCalc, 630).kwp
-      const invKw = Math.max(3, Math.round(kwpReal * 10) / 10)
-
-      const initialTech: KitTechnicalSelectorsValues = {
-        qtdPaineis: qtdCalc,
-        potenciaPainelW: 630,
-        marcaPaineis: 'TSUN POWER',
-        qtdInversores: 1,
-        marcaInversor: 'Sungrow',
-        potenciaInversorKw: invKw,
-        tipoEstrutura: 'fibrocimento',
-        stringBox: '',
-      }
-      setTechnicalValues(initialTech)
-      setIsManualQuickMode(true)
-
-      const suggestedInitialName = sugerirNomeKit({
-        kwp: kwpReal,
-        marcaPaineis: 'TSUN POWER',
-        marcaInversor: 'Sungrow',
-        qtdPaineis: qtdCalc,
-        potenciaPainelW: 630,
-        tipoEstrutura: 'fibrocimento',
-      })
-
-      setKitNome(
-        suggestedInitialName || `Kit Solar ${kwpReal} kWp — TSUN POWER + Sungrow — Fibrocimento`,
-      )
-      setKitPotenciaKw(kwpReal)
-      setKitFabricante('TSUN POWER / Sungrow')
-      setCusto(12000)
-      setMargem(25)
-      setValorBruto(16000)
-      const descPct = parseFloat(descontoPercentualStr.replace(',', '.')) || 0
-      if (descPct > 0 && descPct <= 90) {
-        const descVal = Math.round(((16000 * descPct) / 100) * 100) / 100
-        setPrecoVenda(Math.round((16000 - descVal) * 100) / 100)
-      } else {
-        setPrecoVenda(16000)
-      }
-      return
-    }
-
     const kit = kits.find((k) => k.id === kitId)
     if (kit) {
       applyKit(kit)
-    }
-  }
-
-  // Atualizar seletores técnicos no kit manual
-  const handleTechnicalValuesChange = (patch: Partial<KitTechnicalSelectorsValues>) => {
-    setTechnicalValues((prev) => {
-      const updated = { ...prev, ...patch }
-
-      // Se estiver no kit manual e no modo montagem rápida, atualiza nome, kWp e fabricante automaticamente
-      if (isCustomMode && isManualQuickMode) {
-        const novoKwp = calcularKwpPrePronto(updated.qtdPaineis, updated.potenciaPainelW).kwp
-        if (novoKwp > 0) {
-          setKitPotenciaKw(novoKwp)
-        }
-
-        const novoNome = sugerirNomeKit({
-          kwp: novoKwp,
-          marcaPaineis: updated.marcaPaineis,
-          marcaInversor: updated.marcaInversor,
-          qtdPaineis: updated.qtdPaineis,
-          potenciaPainelW: updated.potenciaPainelW,
-          tipoEstrutura: updated.tipoEstrutura,
-        })
-        if (novoNome) {
-          setKitNome(novoNome)
-        }
-
-        const novoFab = sugerirFabricanteKit(updated.marcaPaineis, updated.marcaInversor)
-        if (novoFab) {
-          setKitFabricante(novoFab)
-        }
-      } else if (patch.tipoEstrutura && kitNome) {
-        // Ao alterar apenas a estrutura mesmo com nome personalizado, permite ajustar o sufixo
-        const atualizado = aplicarEstruturaAoNomeKit(kitNome, patch.tipoEstrutura)
-        if (atualizado) setKitNome(atualizado)
-      }
-
-      return updated
-    })
-  }
-
-  const handleReapplyManualSuggestions = () => {
-    if (manualKwpInfo.kwp > 0) {
-      setKitPotenciaKw(manualKwpInfo.kwp)
-    }
-    if (manualSuggestedName) {
-      setKitNome(manualSuggestedName)
-    }
-    if (manualSuggestedFab) {
-      setKitFabricante(manualSuggestedFab)
     }
   }
 
@@ -591,28 +449,13 @@ export function GerarPropostaModal({
       validadeDate.setDate(validadeDate.getDate() + (Number(validadeDias) || 15))
       const validadeIso = validadeDate.toISOString().replace('T', ' ').substring(0, 19) + 'Z'
 
-      // Descrição técnica derivada da montagem manual se for kit customizado
-      const descGerada = isCustomMode
-        ? sugerirDescricaoTecnica({
-            qtdPaineis: technicalValues.qtdPaineis,
-            potenciaPainelW: technicalValues.potenciaPainelW,
-            marcaPaineis: technicalValues.marcaPaineis,
-            qtdInversores: technicalValues.qtdInversores,
-            marcaInversor: technicalValues.marcaInversor,
-            potenciaInversorKw: technicalValues.potenciaInversorKw,
-            kwp: parseFloat(String(kitPotenciaKw)) || manualKwpInfo.kwp,
-            stringBox: technicalValues.stringBox || '',
-            tipoEstrutura: technicalValues.tipoEstrutura,
-          })
-        : undefined
-
       const payload: CreatePropostaPayload = {
         lead: lead.id,
-        kit: selectedKitId && selectedKitId !== 'custom' ? selectedKitId : undefined,
+        kit: selectedKitId || undefined,
         criado_por: user?.id,
         kit_nome: kitNome.trim(),
-        kit_potencia_kw: parseFloat(String(kitPotenciaKw)) || manualKwpInfo.kwp || 0,
-        kit_fabricante: kitFabricante.trim() || manualSuggestedFab || undefined,
+        kit_potencia_kw: parseFloat(String(kitPotenciaKw)) || 0,
+        kit_fabricante: kitFabricante.trim() || undefined,
         custo: numCusto,
         margem: numMargem,
         preco_venda: numPrecoVenda,
@@ -630,7 +473,7 @@ export function GerarPropostaModal({
         kit_potencia_painel_w: Number(technicalValues.potenciaPainelW) || undefined,
         kit_potencia_inversor_kw: Number(technicalValues.potenciaInversorKw) || undefined,
         kit_string_box: technicalValues.stringBox?.trim() || undefined,
-        kit_descricao: kitGeradoDescricao || descGerada || undefined,
+        kit_descricao: kitGeradoDescricao || undefined,
         fotos_selecionadas: fotosSelecionadas,
         status: 'Enviada',
         formato,
@@ -801,12 +644,9 @@ export function GerarPropostaModal({
 
             <Select value={selectedKitId} onValueChange={handleKitSelect}>
               <SelectTrigger className="h-10 text-xs bg-white border-emerald-200 focus:ring-[#0B7A5B]">
-                <SelectValue placeholder="Selecione um kit ou personalize abaixo..." />
+                <SelectValue placeholder="Selecione um kit do catálogo..." />
               </SelectTrigger>
               <SelectContent className="max-h-72">
-                <SelectItem value="custom" className="text-xs font-semibold text-[#0B7A5B]">
-                  ★ Personalizado (Digitar dados manualmente)
-                </SelectItem>
                 {filteredKits.length === 0 ? (
                   <div className="p-3 text-center text-xs text-slate-500">
                     <Boxes className="w-4 h-4 mx-auto mb-1 text-slate-400" />
@@ -827,47 +667,6 @@ export function GerarPropostaModal({
               automaticamente e permanecem 100% editáveis para esta negociação.
             </p>
           </div>
-
-          {/* Seletor Rico para Kit Manual (exatamente como no gerador normal de Kits Solares) */}
-          {isCustomMode && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-1 bg-slate-100 rounded-lg border border-slate-200/80">
-                <button
-                  type="button"
-                  onClick={() => setIsManualQuickMode(true)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded-md text-xs font-semibold transition-all ${
-                    isManualQuickMode
-                      ? 'bg-white text-[#0B7A5B] shadow-xs border border-slate-200/70'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Montagem Rápida do Kit Manual</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsManualQuickMode(false)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded-md text-xs font-semibold transition-all ${
-                    !isManualQuickMode
-                      ? 'bg-white text-[#0B7A5B] shadow-xs border border-slate-200/70'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5" />
-                  <span>Edição Direta / Livre</span>
-                </button>
-              </div>
-
-              <KitTechnicalSelectors
-                values={technicalValues}
-                onChange={handleTechnicalValuesChange}
-                kwpCalculado={manualKwpInfo.kwp}
-                formattedKwpBR={manualKwpInfo.formattedBR}
-                showStringBox={true}
-                onReapplySuggestions={handleReapplyManualSuggestions}
-              />
-            </div>
-          )}
 
           {/* Dados do Kit (Nome, Potência e Fabricante) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
