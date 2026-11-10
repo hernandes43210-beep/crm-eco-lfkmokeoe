@@ -190,19 +190,27 @@ export function precoFinalReal(
   descontoTipo: '%' | 'R$',
   descontoValor: number,
 ): number {
-  const precoVenda = custo * (1 + (acrescimoPct || 0) / 100)
+  if (custo <= 0) return 0
+  const margem = acrescimoPct || 0
+  // Margem igual ou maior que 100% é matematicamente inválida (divisão por zero ou negativa)
+  if (margem >= 100) return 0
+
+  // Fórmula correta de margem sobre o preço de venda: preço = custo ÷ (1 − margem/100)
+  const divisor = 1 - margem / 100
+  const precoVenda = Math.round((custo / divisor) * 100) / 100
   const descontoRs =
     descontoTipo === '%' ? (precoVenda * (descontoValor || 0)) / 100 : descontoValor || 0
-  return Math.max(0, precoVenda - descontoRs)
+  return Math.max(0, Math.round((precoVenda - descontoRs) * 100) / 100)
 }
 
 export function lucroReal(custo: number, precoFinal: number): number {
-  return precoFinal - custo
+  if (precoFinal <= 0) return 0
+  return Math.round((precoFinal - custo) * 100) / 100
 }
 
 export function margemReal(custo: number, precoFinal: number): number {
   if (precoFinal <= 0) return 0
-  return ((precoFinal - custo) / precoFinal) * 100
+  return Math.round(((precoFinal - custo) / precoFinal) * 100 * 100) / 100
 }
 
 export function tipoRelacao(relacao: number | null): 'sub' | 'ok' | 'sobre' | 'critica' {
@@ -220,13 +228,17 @@ export function precificar(opcoes: {
   descontoTipo: '%' | 'R$'
   kwp: number
 }): Precificacao {
-  const precoVenda = opcoes.custo * (1 + opcoes.acrescimoPct / 100)
+  const margem = opcoes.acrescimoPct || 0
+  const precoVenda =
+    margem < 100 && opcoes.custo > 0
+      ? Math.round((opcoes.custo / (1 - margem / 100)) * 100) / 100
+      : 0
   const descontoRs =
     opcoes.descontoTipo === '%' ? (precoVenda * opcoes.descontoValor) / 100 : opcoes.descontoValor
-  const precoFinal = precoVenda - descontoRs
-  const lucro = precoFinal - opcoes.custo
+  const precoFinal = Math.max(0, Math.round((precoVenda - descontoRs) * 100) / 100)
+  const lucro = precoFinal > 0 ? Math.round((precoFinal - opcoes.custo) * 100) / 100 : 0
   const margemPct = precoFinal > 0 ? (lucro / precoFinal) * 100 : 0
-  const precoPorWp = opcoes.kwp > 0 ? precoFinal / (opcoes.kwp * 1000) : null
+  const precoPorWp = opcoes.kwp > 0 && precoFinal > 0 ? precoFinal / (opcoes.kwp * 1000) : null
   return { precoVenda, descontoRs, precoFinal, lucro, margemPct, precoPorWp }
 }
 

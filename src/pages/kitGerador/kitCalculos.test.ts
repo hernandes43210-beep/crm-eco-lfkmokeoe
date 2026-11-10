@@ -2,34 +2,59 @@ import { describe, it, expect } from 'vitest'
 import { precoFinalReal, lucroReal, margemReal, precificar } from './logica'
 import { calcularTudo } from './kitCalculos'
 
-describe('Kit Solar - Margem sobre o custo do produto', () => {
-  it('calcula o preço final com margem sobre o custo exatamente: custo + (custo * margem/100)', () => {
-    // Exemplo do usuário: custo 255.208,50 e margem 41% -> 359.843,985 -> arredonda/precisão ~359.843,99
+describe('Kit Solar - Margem sobre o preço de venda', () => {
+  it('calcula o preço final com margem sobre a venda: preço = custo ÷ (1 − margem)', () => {
+    // Exemplo prescritivo do usuário:
+    // Custo: 255.208,50 / Margem: 41%
+    // Preço correto: 255.208,50 ÷ 0,59 = 432.556,78
+    // Lucro: 177.348,28 (exatamente 41% do preço de venda)
     const custo = 255208.5
     const margem = 41
     const preco = precoFinalReal(custo, margem, 'R$', 0)
-    expect(preco).toBeCloseTo(255208.5 * 1.41, 2)
-    expect(preco).toBeCloseTo(359843.985, 2)
+    expect(preco).toBe(432556.78)
+
+    const lucro = lucroReal(custo, preco)
+    expect(lucro).toBe(177348.28)
+    expect(margemReal(custo, preco)).toBeCloseTo(41, 1)
+
+    // Lucro de 177.348,28 é 41% de 432.556,78
+    expect(Math.round((lucro / preco) * 10000) / 100).toBeCloseTo(41, 1)
   })
 
-  it('aplica desconto em R$ por cima do preço de venda com margem', () => {
-    const custo = 10000
-    const margem = 40
-    // Preço de venda: 14.000, desconto R$ 500 -> 13.500
+  it('aplica desconto em R$ por cima do preço de venda calculado com margem', () => {
+    const custo = 6000
+    const margem = 40 // divisor 0.6 => precoVenda = 10.000
     const preco = precoFinalReal(custo, margem, 'R$', 500)
-    expect(preco).toBe(13500)
+    expect(preco).toBe(9500)
     expect(lucroReal(custo, preco)).toBe(3500)
   })
 
-  it('aplica desconto em % por cima do preço de venda com margem', () => {
-    const custo = 10000
-    const margem = 40
-    // Preço de venda: 14.000, desconto 10% (1.400) -> 12.600
+  it('aplica desconto em % por cima do preço de venda calculado com margem', () => {
+    const custo = 6000
+    const margem = 40 // divisor 0.6 => precoVenda = 10.000
     const preco = precoFinalReal(custo, margem, '%', 10)
-    expect(preco).toBe(12600)
+    // 10.000 - 10% (1.000) = 9.000
+    expect(preco).toBe(9000)
   })
 
-  it('calcularTudo calcula precoFinal e soma custo dos itens adicionais se houver', () => {
+  it('bloqueia ou retorna 0 para margem igual ou superior a 100%', () => {
+    const custo = 10000
+    expect(precoFinalReal(custo, 100, 'R$', 0)).toBe(0)
+    expect(precoFinalReal(custo, 120, 'R$', 0)).toBe(0)
+
+    const prec = precificar({
+      custo: 10000,
+      acrescimoPct: 100,
+      descontoValor: 0,
+      descontoTipo: 'R$',
+      kwp: 5,
+    })
+    expect(prec.precoVenda).toBe(0)
+    expect(prec.precoFinal).toBe(0)
+    expect(prec.lucro).toBe(0)
+  })
+
+  it('calcularTudo calcula precoFinal e lucro usando a fórmula correta', () => {
     const res = calcularTudo({
       paineisLinhas: [
         {
@@ -62,7 +87,23 @@ describe('Kit Solar - Margem sobre o custo do produto', () => {
       itens: [],
     })
 
-    expect(res.precoFinal).toBeCloseTo(359843.985, 2)
-    expect(res.lucro).toBeCloseTo(359843.985 - 255208.5, 2)
+    expect(res.precoFinal).toBe(432556.78)
+    expect(res.lucro).toBe(177348.28)
+    expect(res.margemPct).toBeCloseTo(41, 1)
+  })
+
+  it('precificar calcula lucro e margemPct sobre o preço de venda para exemplo oficial', () => {
+    const p = precificar({
+      custo: 255208.5,
+      acrescimoPct: 41,
+      descontoValor: 0,
+      descontoTipo: 'R$',
+      kwp: 5.5,
+    })
+
+    expect(p.precoVenda).toBe(432556.78)
+    expect(p.precoFinal).toBe(432556.78)
+    expect(p.lucro).toBe(177348.28)
+    expect(p.margemPct).toBeCloseTo(41, 1)
   })
 })

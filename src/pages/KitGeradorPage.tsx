@@ -290,6 +290,16 @@ export default function KitGeradorPage() {
       return
     }
 
+    const margemNum = parseNumeroPtBr(form.acrescimoPct) ?? 0
+    if (margemNum >= 100) {
+      toast({
+        title: 'Margem inválida',
+        description: 'A margem deve ser menor que 100% para o cálculo do preço de venda.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     setSalvandoKit(true)
     try {
       const payloadPainel = montarPayloadPaineis(form.painelLinhas, form.outrosDadosPaineis)

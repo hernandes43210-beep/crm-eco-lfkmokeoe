@@ -5,7 +5,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { TIPOS_INSTALACAO, LIGACOES, type TipoInstalacao, type Ligacao } from './logica'
 import { ROTULO_INSTALACAO } from './itensPadrao'
-import { InputNum } from './formControles'
+import { InputNum, parseNumeroPtBr } from './formControles'
+import { AlertCircle } from 'lucide-react'
 import type { EstadoForm } from './formTipos'
 import type { EstadoCalculo } from './kitCalculos'
 import type { DistribuidoraRow } from '@/services/kitGerador'
@@ -312,13 +313,24 @@ export function CartaoPreco({
           />
         </div>
         <div>
-          <Label className="text-xs">Margem sobre o custo (%)</Label>
+          <Label className="text-xs">Margem sobre o preço de venda (%)</Label>
           <Input
             value={form.acrescimoPct}
             onChange={(e) => set({ acrescimoPct: e.target.value })}
             placeholder="41"
             inputMode="decimal"
+            className={
+              (parseNumeroPtBr(form.acrescimoPct) ?? 0) >= 100
+                ? 'border-red-500 focus-visible:ring-red-500'
+                : ''
+            }
           />
+          {(parseNumeroPtBr(form.acrescimoPct) ?? 0) >= 100 && (
+            <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-red-600">
+              <AlertCircle className="h-3 w-3 shrink-0" />
+              A margem deve ser menor que 100% (divisão por zero ou valor negativo).
+            </p>
+          )}
         </div>
       </div>
 
