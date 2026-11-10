@@ -1,304 +1,360 @@
-import { useEffect, useState } from 'react'
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { useState, useMemo } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Search, X, UserCheck } from 'lucide-react'
-import { LeadsService } from '@/services/leads'
-import { GerarPropostaModal } from '@/components/GerarPropostaModal'
+import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
-  parsePainelJson,
-  parseInversorJson,
-  parseItens,
+  Sun,
+  Zap,
+  Building,
+  DollarSign,
+  Plus,
+  Trash2,
+  BookmarkCheck,
+  RotateCcw,
+} from 'lucide-react'
+import {
+  parsePaineisLinhas,
+  parseInversoresLinhas,
+  parseOutrosDados,
   type KitGerado,
+  type PainelLinha,
+  type InversorLinha,
 } from '@/services/kitGerador'
-import type { Lead } from '@/types/crm'
-import { fmt, fmtBRL, fmtInt } from './logica'
+import { fmt } from './logica'
 
-/** Converte número vindo do banco (pode chegar como string) em number seguro. */
-const num = (v: unknown): number => {
-  const x = typeof v === 'string' ? parseFloat(v.replace(',', '.')) : Number(v)
-  return Number.isFinite(x) ? x : 0
+export interface PrePropostaKitProps {
+  kit: KitGerado
+  distribuidora?: string
+  tipoInstalacao?: string
+  potenciaKwp?: number
+  precoSugerido?: number
+  onAplicar?: (kit: KitGerado) => void
+  aplicado?: boolean
 }
 
-/** Busca e escolha de um lead existente do CRM. */
-function BuscaCliente({
-  lead,
-  onSelecionar,
-}: {
-  lead: Lead | null
-  onSelecionar: (l: Lead | null) => void
-}) {
-  const [termo, setTermo] = useState('')
-  const [resultados, setResultados] = useState<Lead[]>([])
-  const [buscando, setBuscando] = useState(false)
+export function PrePropostaKit({
+  kit,
+  distribuidora,
+  tipoInstalacao,
+  potenciaKwp,
+  precoSugerido,
+  onAplicar,
+  aplicado,
+}: PrePropostaKitProps) {
+  // Extrai listas de modelos usando os parsers universais
+  const paineisLinhasIniciais = useMemo(() => parsePaineisLinhas(kit.painel), [kit.painel])
+  const inversoresLinhasIniciais = useMemo(() => parseInversoresLinhas(kit.inversor), [kit.inversor])
+  const outrosPaineisInicial = useMemo(() => parseOutrosDados(kit.painel), [kit.painel])
+  const outrosInversoresInicial = useMemo(() => parseOutrosDados(kit.inversor), [kit.inversor])
 
-  useEffect(() => {
-    const t = termo.trim().replace(/["\\]/g, '')
-    if (t.length < 2) {
-      setResultados([])
-      setBuscando(false)
-      return
-    }
-    let ativo = true
-    setBuscando(true)
-    const timer = setTimeout(async () => {
-      try {
-        const r = await LeadsService.getLeads({
-          search: t,
-          perPage: 8,
-          statusQualificacao: 'all',
-          sort: 'nome',
-        })
-        if (ativo) setResultados(r.items)
-      } catch {
-        if (ativo) setResultados([])
-      } finally {
-        if (ativo) setBuscando(false)
-      }
-    }, 300)
-    return () => {
-      ativo = false
-      clearTimeout(timer)
-    }
-  }, [termo])
+  const [paineis, setPaineis] = useState<PainelLinha[]>(paineisLinhasIniciais)
+  const [inversores, setInversores] = useState<InversorLinha[]>(inversoresLinhasIniciais)
+  const [outrosPaineis, setOutrosPaineis] = useState(outrosPaineisInicial)
+  const [outrosInversores, setOutrosInversores] = useState(outrosInversoresInicial)
 
-  if (lead) {
-    return (
-      <div className="flex items-center justify-between gap-3 rounded-[10px] border border-[#cfe8dc] bg-[#f0faf5] p-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <UserCheck className="h-4 w-4 shrink-0 text-[#0b7a5b]" />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-[#0b1f4d]">{lead.nome}</p>
-            <p className="text-xs text-[#3c4a63]">{lead.telefone || 'Sem telefone cadastrado'}</p>
-          </div>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onSelecionar(null)}
-          className="text-[#c0392b]"
-          aria-label="Remover cliente"
-        >
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-    )
+  // Totais calculados
+  const totalPaineisQtd = paineis.reduce((acc, p) => acc + (p.qtd || 0), 0)
+  const totalInversoresQtd = inversores.reduce((acc, i) => acc + (i.qtd || 0), 0)
+
+  const potenciaEfetivaKwp = useMemo(() => {
+    if (paineis.length > 0) {
+      const somaW = paineis.reduce((acc, p) => acc + (p.qtd || 0) * (p.potencia_w || 0), 0)
+      if (somaW > 0) return somaW / 1000
+    }
+    return potenciaKwp ?? kit.potencia_kwp ?? 0
+  }, [paineis, potenciaKwp, kit.potencia_kwp])
+
+  const potenciaInversoresKw = useMemo(() => {
+    return inversores.reduce((acc, i) => acc + (i.qtd || 0) * (i.potencia_kw || 0), 0)
+  }, [inversores])
+
+  const handleAddPainel = () => {
+    setPaineis((prev) => [
+      ...prev,
+      { marca: 'Genérico', modelo: 'Novo Módulo', potencia_w: 550, qtd: 1, area_m2: 2.79 },
+    ])
+  }
+
+  const handleRemovePainel = (idx: number) => {
+    if (paineis.length <= 1) return
+    setPaineis((prev) => prev.filter((_, i) => i !== idx))
+  }
+
+  const handleUpdatePainel = (idx: number, campo: keyof PainelLinha, valor: any) => {
+    setPaineis((prev) => {
+      const copy = [...prev]
+      copy[idx] = { ...copy[idx], [campo]: valor }
+      return copy
+    })
+  }
+
+  const handleAddInversor = () => {
+    setInversores((prev) => [
+      ...prev,
+      { marca: 'Genérico', modelo: 'Novo Inversor', potencia_kw: 5, qtd: 1, tipo: 'Monofásico' },
+    ])
+  }
+
+  const handleRemoveInversor = (idx: number) => {
+    if (inversores.length <= 1) return
+    setInversores((prev) => prev.filter((_, i) => i !== idx))
+  }
+
+  const handleUpdateInversor = (idx: number, campo: keyof InversorLinha, valor: any) => {
+    setInversores((prev) => {
+      const copy = [...prev]
+      copy[idx] = { ...copy[idx], [campo]: valor }
+      return copy
+    })
+  }
+
+  const handleReset = () => {
+    setPaineis(paineisLinhasIniciais)
+    setInversores(inversoresLinhasIniciais)
+    setOutrosPaineis(outrosPaineisInicial)
+    setOutrosInversores(outrosInversoresInicial)
+  }
+
+  const handleAplicar = () => {
+    if (!onAplicar) return
+    // Serializa de volta no formato moderno com listas e outros_dados
+    const novoKit: KitGerado = {
+      ...kit,
+      painel: JSON.stringify({
+        linhas: paineis,
+        outros_dados: outrosPaineis.trim(),
+      }),
+      inversor: JSON.stringify({
+        linhas: inversores,
+        outros_dados: outrosInversores.trim(),
+      }),
+      potencia_kwp: potenciaEfetivaKwp,
+    }
+    onAplicar(novoKit)
   }
 
   return (
-    <div className="space-y-2">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-[#8a94a8]" />
-        <Input
-          value={termo}
-          onChange={(e) => setTermo(e.target.value)}
-          placeholder="Buscar cliente por nome, telefone ou e-mail…"
-          className="pl-8"
-        />
-      </div>
-      {buscando && <p className="text-xs text-[#8a94a8]">Buscando…</p>}
-      {!buscando && termo.trim().length >= 2 && resultados.length === 0 && (
-        <p className="text-xs text-[#8a94a8]">Nenhum cliente encontrado.</p>
-      )}
-      {resultados.length > 0 && (
-        <ul className="max-h-48 divide-y divide-[#eef2f8] overflow-y-auto rounded-[10px] border border-[#dfe5f0]">
-          {resultados.map((l) => (
-            <li key={l.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  onSelecionar(l)
-                  setTermo('')
-                  setResultados([])
-                }}
-                className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-[#eef2f8]"
-              >
-                <span className="text-sm font-semibold text-[#0b1f4d]">{l.nome}</span>
-                <span className="text-xs text-[#3c4a63]">
-                  {l.telefone || 'Sem telefone'}
-                  {l.cidade ? ` · ${l.cidade}` : ''}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
-
-function Linha({ rotulo, valor }: { rotulo: string; valor: React.ReactNode }) {
-  return (
-    <div className="flex justify-between gap-4 border-b border-[#eef2f8] py-1.5 text-sm">
-      <span className="text-[#8a94a8]">{rotulo}</span>
-      <span className="text-right font-medium text-[#0b1f4d]">{valor}</span>
-    </div>
-  )
-}
-
-function Secao({ titulo, children }: { titulo: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-[12px] border border-[#dfe5f0] bg-white p-4">
-      <h3 className="mb-2 text-xs font-bold uppercase tracking-[0.15em] text-[#0b1f4d]">
-        {titulo}
-      </h3>
-      {children}
-    </section>
-  )
-}
-
-/**
- * Pré-proposta de um kit salvo: resumo visual do kit, vínculo opcional com um
- * cliente do CRM e ações "Gerar proposta" (reaproveita o GerarPropostaModal já
- * preenchido com este kit) e "Editar kit" (carrega no formulário do gerador).
- */
-export function PrePropostaKit({
-  kit,
-  onFechar,
-  onEditar,
-}: {
-  kit: KitGerado
-  onFechar: () => void
-  onEditar: (kit: KitGerado) => void
-}) {
-  const [lead, setLead] = useState<Lead | null>(null)
-  const [gerarAberto, setGerarAberto] = useState(false)
-
-  const painel = parsePainelJson(kit.painel)
-  const inversor = parseInversorJson(kit.inversor)
-  const itens = parseItens(kit.itens)
-
-  const potenciaKwp = num(kit.potencia_kwp)
-  const geracao = num(kit.geracao_kwh)
-  const area = num(kit.area_m2)
-  const custo = num(kit.custo)
-  const margem = num(kit.margem_pct)
-  const precoVenda = num(kit.preco_venda)
-  const precoFinal = num(kit.preco_final)
-  const descontoRs = num(kit.desconto_rs)
-  const descontoValor = num(kit.desconto_valor)
-
-  const descontoTexto =
-    descontoRs > 0
-      ? kit.desconto_tipo === '%'
-        ? `${fmt(descontoValor)}% (${fmtBRL(descontoRs)})`
-        : fmtBRL(descontoRs)
-      : null
-
-  return (
-    <>
-      <Dialog open={!gerarAberto} onOpenChange={(o) => !o && onFechar()}>
-        <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto border-0 bg-[#eef2f8] p-0">
-          <div className="border-b-4 border-[#ffd23f] bg-[#0b1f4d] px-6 py-4 text-white">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-[#c6d2ea]">
-              Pré-proposta · Kit Solar
+    <Card className="border-[#dfe5f0] shadow-sm">
+      <CardHeader className="bg-[#f8fafc] border-b border-[#dfe5f0] pb-3">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <CardTitle className="text-base text-[#0b1f4d] flex items-center gap-2">
+              <Sun className="h-5 w-5 text-[#f1c40f]" />
+              {kit.nome || 'Kit Fotovoltaico'}
+            </CardTitle>
+            <p className="text-xs text-[#8a94a8]">
+              {distribuidora || kit.distribuidora || 'Distribuidora'} • {tipoInstalacao || kit.tipo_instalacao || 'Telhado'}
             </p>
-            <DialogTitle className="text-xl font-bold text-white">{kit.nome}</DialogTitle>
-            <DialogDescription className="mt-1 text-sm text-[#c6d2ea]">
-              Cliente: {lead ? lead.nome : 'não vinculado'}
-            </DialogDescription>
           </div>
+          <Badge className="bg-[#0b1f4d] text-[#f1c40f] text-xs font-bold px-2.5 py-1">
+            {fmt(potenciaEfetivaKwp)} kWp
+          </Badge>
+        </div>
+      </CardHeader>
 
-          <div className="space-y-4 p-6">
-            <Secao titulo="Cliente">
-              <BuscaCliente lead={lead} onSelecionar={setLead} />
-            </Secao>
-
-            <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-[12px] bg-[#0b1f4d] p-3 text-center text-white">
-                <p className="text-[11px] uppercase text-[#c6d2ea]">Potência</p>
-                <p className="text-lg font-bold">{fmt(potenciaKwp)} kWp</p>
-              </div>
-              <div className="rounded-[12px] bg-[#0b1f4d] p-3 text-center text-white">
-                <p className="text-[11px] uppercase text-[#c6d2ea]">Geração</p>
-                <p className="text-lg font-bold">{fmtInt(geracao)} kWh/mês</p>
-              </div>
-              <div className="rounded-[12px] bg-[#0b1f4d] p-3 text-center text-white">
-                <p className="text-[11px] uppercase text-[#c6d2ea]">Área</p>
-                <p className="text-lg font-bold">{fmtInt(area)} m²</p>
-              </div>
-            </div>
-
-            <Secao titulo="Equipamentos">
-              <Linha
-                rotulo="Painéis"
-                valor={
-                  painel
-                    ? `${painel.qtd}× ${painel.marca} ${painel.modelo} ${fmtInt(num(painel.potencia_w))} W`
-                    : '—'
-                }
-              />
-              <Linha
-                rotulo="Inversor"
-                valor={
-                  inversor
-                    ? `${inversor.qtd}× ${inversor.marca} ${inversor.modelo} ${fmt(num(inversor.potencia_kw))} kW`
-                    : '—'
-                }
-              />
-              <Linha rotulo="Tipo de instalação" valor={kit.tipo_instalacao || '—'} />
-              <Linha rotulo="Distribuidora" valor={kit.distribuidora || '—'} />
-            </Secao>
-
-            {itens.length > 0 && (
-              <Secao titulo="Itens inclusos">
-                <ul className="space-y-1 text-sm text-[#3c4a63]">
-                  {itens.map((i, idx) => (
-                    <li key={`${i.nome}-${idx}`}>
-                      {num(i.qtd)}× {i.nome}
-                    </li>
-                  ))}
-                </ul>
-              </Secao>
-            )}
-
-            <Secao titulo="Investimento">
-              <Linha rotulo="Preço de venda" valor={fmtBRL(precoVenda)} />
-              {descontoTexto && <Linha rotulo="Desconto" valor={descontoTexto} />}
-              <div className="mt-2 flex items-center justify-between rounded-[10px] bg-[#ffd23f]/30 px-3 py-2">
-                <span className="text-sm font-semibold text-[#0b1f4d]">Preço final</span>
-                <span className="text-xl font-bold text-[#0b1f4d]">{fmtBRL(precoFinal)}</span>
-              </div>
-              <div className="mt-3 border-t border-dashed border-[#dfe5f0] pt-2">
-                <p className="mb-1 text-[11px] uppercase text-[#8a94a8]">Interno</p>
-                <Linha rotulo="Custo" valor={fmtBRL(custo)} />
-                <Linha rotulo="Margem" valor={`${fmt(margem)}%`} />
-              </div>
-            </Secao>
-          </div>
-
-          <div className="flex flex-col-reverse gap-2 border-t border-[#dfe5f0] bg-white px-6 py-4 sm:flex-row sm:justify-end">
-            <Button variant="outline" onClick={onFechar}>
-              Fechar
-            </Button>
+      <CardContent className="p-4 space-y-4">
+        {/* Painéis */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-bold text-[#0b1f4d] flex items-center gap-1.5">
+              <Sun className="h-4 w-4 text-[#f1c40f]" /> Módulos Fotovoltaicos ({totalPaineisQtd} un)
+            </Label>
             <Button
+              type="button"
               variant="outline"
-              onClick={() => onEditar(kit)}
-              className="border-[#dfe5f0] text-[#0b1f4d]"
+              size="sm"
+              onClick={handleAddPainel}
+              className="h-7 text-xs border-[#0b1f4d] text-[#0b1f4d]"
             >
-              Editar kit
-            </Button>
-            <Button
-              disabled={!lead}
-              title={lead ? undefined : 'Escolha um cliente para gerar a proposta'}
-              onClick={() => setGerarAberto(true)}
-              className="bg-[#0b1f4d] text-white hover:bg-[#13306b]"
-            >
-              Gerar proposta
+              <Plus className="h-3 w-3 mr-1" /> Adicionar Modelo
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
 
-      {lead && (
-        <GerarPropostaModal
-          open={gerarAberto}
-          onOpenChange={(o) => setGerarAberto(o)}
-          lead={lead}
-          kitGeradoInicial={kit}
-          onProposalCreated={() => onFechar()}
-        />
-      )}
-    </>
+          <div className="space-y-2">
+            {paineis.map((p, idx) => (
+              <div
+                key={idx}
+                className="flex items-center gap-2 rounded border border-[#dfe5f0] bg-[#f8fafc] p-2 text-xs"
+              >
+                <input
+                  type="number"
+                  min="1"
+                  value={p.qtd}
+                  onChange={(e) => handleUpdatePainel(idx, 'qtd', Number(e.target.value))}
+                  className="w-12 h-7 rounded border border-[#dfe5f0] bg-white text-center font-bold text-[#0b1f4d]"
+                />
+                <span className="text-[#8a94a8]">×</span>
+                <input
+                  type="text"
+                  placeholder="Marca"
+                  value={p.marca}
+                  onChange={(e) => handleUpdatePainel(idx, 'marca', e.target.value)}
+                  className="flex-1 h-7 rounded border border-[#dfe5f0] bg-white px-2 text-xs"
+                />
+                <input
+                  type="text"
+                  placeholder="Modelo"
+                  value={p.modelo}
+                  onChange={(e) => handleUpdatePainel(idx, 'modelo', e.target.value)}
+                  className="flex-1 h-7 rounded border border-[#dfe5f0] bg-white px-2 text-xs"
+                />
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    value={p.potencia_w}
+                    onChange={(e) => handleUpdatePainel(idx, 'potencia_w', Number(e.target.value))}
+                    className="w-16 h-7 rounded border border-[#dfe5f0] bg-white text-right px-1 text-xs"
+                  />
+                  <span className="text-[11px] text-[#8a94a8]">W</span>
+                </div>
+                {paineis.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemovePainel(idx)}
+                    className="h-7 w-7 p-0 text-[#c0392b] hover:bg-red-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Outros dados módulos */}
+          <div className="pt-1">
+            <Textarea
+              placeholder="Outros dados / observações dos painéis..."
+              value={outrosPaineis}
+              onChange={(e) => setOutrosPaineis(e.target.value)}
+              rows={1}
+              className="resize-none text-xs bg-white h-7 py-1"
+            />
+          </div>
+        </div>
+
+        {/* Inversores */}
+        <div className="space-y-2 pt-2 border-t border-[#dfe5f0]">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-bold text-[#0b1f4d] flex items-center gap-1.5">
+              <Zap className="h-4 w-4 text-[#0b1f4d]" /> Inversores ({totalInversoresQtd} un — {fmt(potenciaInversoresKw)} kW)
+            </Label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAddInversor}
+              className="h-7 text-xs border-[#0b1f4d] text-[#0b1f4d]"
+            >
+              <Plus className="h-3 w-3 mr-1" /> Adicionar Modelo
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            {inversores.map((inv, idx) => (
+              <div
+                key={idx}
+                className="flex items-center gap-2 rounded border border-[#dfe5f0] bg-[#f8fafc] p-2 text-xs"
+              >
+                <input
+                  type="number"
+                  min="1"
+                  value={inv.qtd}
+                  onChange={(e) => handleUpdateInversor(idx, 'qtd', Number(e.target.value))}
+                  className="w-12 h-7 rounded border border-[#dfe5f0] bg-white text-center font-bold text-[#0b1f4d]"
+                />
+                <span className="text-[#8a94a8]">×</span>
+                <input
+                  type="text"
+                  placeholder="Marca"
+                  value={inv.marca}
+                  onChange={(e) => handleUpdateInversor(idx, 'marca', e.target.value)}
+                  className="flex-1 h-7 rounded border border-[#dfe5f0] bg-white px-2 text-xs"
+                />
+                <input
+                  type="text"
+                  placeholder="Modelo"
+                  value={inv.modelo}
+                  onChange={(e) => handleUpdateInversor(idx, 'modelo', e.target.value)}
+                  className="flex-1 h-7 rounded border border-[#dfe5f0] bg-white px-2 text-xs"
+                />
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={inv.potencia_kw}
+                    onChange={(e) => handleUpdateInversor(idx, 'potencia_kw', Number(e.target.value))}
+                    className="w-16 h-7 rounded border border-[#dfe5f0] bg-white text-right px-1 text-xs"
+                  />
+                  <span className="text-[11px] text-[#8a94a8]">kW</span>
+                </div>
+                {inversores.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveInversor(idx)}
+                    className="h-7 w-7 p-0 text-[#c0392b] hover:bg-red-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Outros dados inversores */}
+          <div className="pt-1">
+            <Textarea
+              placeholder="Outros dados / observações dos inversores..."
+              value={outrosInversores}
+              onChange={(e) => setOutrosInversores(e.target.value)}
+              rows={1}
+              className="resize-none text-xs bg-white h-7 py-1"
+            />
+          </div>
+        </div>
+
+        {/* Rodapé Comercial e Botões */}
+        <div className="pt-3 border-t border-[#dfe5f0] flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <span className="text-[11px] text-[#8a94a8] block">Preço Final Estimado</span>
+            <span className="font-bold text-sm text-[#0b1f4d]">
+              R$ {(precoSugerido ?? kit.preco_final ?? 0).toLocaleString('pt-BR')}
+            </span>
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleReset}
+              className="h-8 text-xs text-[#8a94a8]"
+            >
+              <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reverter
+            </Button>
+            {onAplicar && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleAplicar}
+                className={
+                  aplicado
+                    ? 'h-8 bg-emerald-600 text-white text-xs'
+                    : 'h-8 bg-[#0b1f4d] text-white text-xs hover:bg-[#122e6f]'
+                }
+              >
+                <BookmarkCheck className="h-3.5 w-3.5 mr-1" />
+                {aplicado ? 'Aplicado' : 'Aplicar na Proposta'}
+              </Button>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

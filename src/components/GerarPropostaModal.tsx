@@ -283,7 +283,7 @@ export function GerarPropostaModal({
     setDescontoPercentualStr(pctDesconto > 0 ? String(Math.round(pctDesconto * 100) / 100) : '')
     setPrecoVenda(k.preco_final > 0 ? k.preco_final : k.preco_venda)
 
-    // Componentes a partir dos JSONs gravados
+    // Componentes a partir dos JSONs gravados (suporta múltiplos modelos com fallback para o 1º)
     setTechnicalValues({
       qtdPaineis:
         painel?.qtd ||
@@ -301,18 +301,18 @@ export function GerarPropostaModal({
     const linhas: string[] = []
     if (painel) {
       linhas.push(
-        `${painel.qtd || ''}× ${painel.marca} ${painel.modelo || ''} ${painel.potencia_w} W`.replace(
+        `${painel.qtd ? `${painel.qtd}× ` : ''}${painel.marca} ${painel.modelo || ''} ${painel.potencia_w ? `${painel.potencia_w} W` : ''}`.replace(
           /\s+/g,
           ' ',
-        ),
+        ).trim(),
       )
     }
     if (inversor) {
       linhas.push(
-        `${inversor.qtd || 1}× ${inversor.marca} ${inversor.modelo || ''} ${inversor.potencia_kw} kW`.replace(
+        `${inversor.qtd ? `${inversor.qtd}× ` : '1× '}${inversor.marca} ${inversor.modelo || ''} ${inversor.potencia_kw ? `${inversor.potencia_kw} kW` : ''}`.replace(
           /\s+/g,
           ' ',
-        ),
+        ).trim(),
       )
     }
     if (k.area_m2) {

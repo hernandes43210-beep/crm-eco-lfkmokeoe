@@ -1,72 +1,59 @@
-// Cartão "Resumo do kit" (direita), aba Catálogo e aba Kits salvos.
-import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
-import { BarraFiltrosCatalogo, filtrarPaineis, filtrarInversores } from './filtrosCatalogo'
-import type { FiltroCatalogo } from './filtrosCatalogo'
+// Resumo do kit gerado, Catálogo de equipamentos e Lista de kits salvos
+import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { cn } from '@/lib/utils'
+  Zap,
+  RotateCcw,
+  Copy,
+  Plus,
+  Trash2,
+  FolderOpen,
+  Sparkles,
+} from 'lucide-react'
+import { fmt, TIPOS_INVERSOR, type TipoInstalacao } from './logica'
+import { ROTULO_INSTALACAO } from './itensPadrao'
 import {
-  fmt,
-  fmtInt,
-  fmtBRL,
-  classificarRelacao,
-  MENSAGENS_RELACAO,
-  type TipoInstalacao,
-} from './logica'
+  filtrarPaineis,
+  filtrarInversores,
+  BarraFiltrosCatalogo,
+  type FiltroCatalogo,
+  filtroCatalogoVazio,
+} from './filtrosCatalogo'
 import {
-  parsePainelJson,
-  parseInversorJson,
-  type PainelCatalogoRow,
-  type InversorCatalogoRow,
-  type DistribuidoraRow,
+  parsePaineisLinhas,
+  parseInversoresLinhas,
+  parseOutrosDados,
+  type PainelCatalogo,
+  type InversorCatalogo,
+  type DistribuidoraItem,
   type KitGerado,
-  type ItemListaKit,
 } from '@/services/kitGerador'
-import type { EstadoForm } from './CartoesForm'
-import { PrePropostaKit } from './PrePropostaKit'
-import { TIPOS_INVERSOR } from './logica'
+import type { DadosResumo } from './resumoTipos'
 
-const CORES = {
-  azul: '#0b1f4d',
-  amarelo: '#ffd23f',
-  amareloEscuro: '#f5b800',
-  verde: '#11845b',
-  vermelho: '#c0392b',
+export type { DadosResumo, TipoInstalacao }
+
+export function LabelResumo({
+  label,
+  valor,
+  destaque = false,
+}: {
+  label: string
+  valor: string | number
+  destaque?: boolean
+}) {
+  return (
+    <div className="flex items-center justify-between text-xs py-1 border-b border-[#eef2f8] last:border-b-0">
+      <span className="text-[#8a94a8]">{label}</span>
+      <span className={destaque ? 'font-bold text-[#0b1f4d]' : 'font-medium text-[#3c4a63]'}>
+        {valor}
+      </span>
+    </div>
+  )
 }
 
-// ---------- Cartão RESUMO DO KIT ----------
-
-export interface DadosResumo {
-  nome: string
-  kwp: number
-  linhaPainel: string
-  geracaoMensal: number | null
-  coberturaPct: number | null
-  linhaInversor: string
-  kwCa: number
-  areaM2: number
-  tipoInstalacao: string
-  relacao: number | null
-  sobrecargaPct: number
-  itens: ItemListaKit[]
-  distribuidora: string
-  custo: number
-  precoVenda: number | null
-  descontoRs: number
-  precoFinal: number | null
-  lucro: number
-  margemPct: number
-}
+// ---------- CARTÃO 6: RESUMO TÉCNICO E COMERCIAL ----------
 
 export function ResumoKit({
   dados,
@@ -81,229 +68,197 @@ export function ResumoKit({
   onLimpar: () => void
   salvando: boolean
 }) {
-  const cls = dados.relacao !== null ? classificarRelacao(dados.relacao, dados.sobrecargaPct) : null
-  const corBarra =
-    cls === 'verde' ? CORES.verde : cls === 'vermelho' ? CORES.vermelho : CORES.amareloEscuro
-  const pctBarra =
-    dados.relacao !== null ? Math.min(100, Math.max(4, (dados.relacao / 2) * 100)) : 0
+  const paineisLinhas = dados.paineisLinhas || []
+  const inversoresLinhas = dados.inversoresLinhas || []
+  const qtdPaineisTotal = paineisLinhas.reduce((acc, p) => acc + (p.qtd || 0), 0)
+  const qtdInversoresTotal = inversoresLinhas.reduce((acc, i) => acc + (i.qtd || 0), 0)
 
   return (
-    <div className="overflow-hidden rounded-[14px] border border-[#dfe5f0] bg-[#0b1f4d] text-white shadow-lg">
-      <div className="h-1 w-full bg-[#ffd23f]" />
-      <div className="p-4">
-        <p className="font-montserrat text-xs font-bold uppercase tracking-widest text-[#ffd23f]">
-          Resumo do kit
-        </p>
-        <h2 className="mt-1 font-montserrat text-lg font-bold leading-snug">
-          {dados.nome.split(' kWp')[0] && dados.kwp > 0 ? (
-            <>
-              {dados.nome.split(/(\d+,\d+ kWp)/).map((parte, i) =>
-                /\d+,\d+ kWp/.test(parte) ? (
-                  <span key={i} className="text-[#ffd23f]">
-                    {parte}
-                  </span>
-                ) : (
-                  <span key={i}>{parte}</span>
-                ),
-              )}
-            </>
-          ) : (
-            dados.nome || 'Kit sem nome'
-          )}
-        </h2>
-
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <div className="rounded-[10px] bg-[#13306b] p-2.5">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-[#9fb0d8]">Potência</p>
-            <p className="font-montserrat text-xl font-bold text-[#ffd23f]">{fmt(dados.kwp)} kWp</p>
-            <p className="truncate text-[11px] text-[#c8d4ef]">{dados.linhaPainel}</p>
-          </div>
-          <div className="rounded-[10px] bg-[#13306b] p-2.5">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-[#9fb0d8]">Geração</p>
-            <p className="font-montserrat text-xl font-bold text-[#ffd23f]">
-              {dados.geracaoMensal !== null ? `~${fmtInt(dados.geracaoMensal)} kWh` : '—'}
-            </p>
-            <p className="truncate text-[11px] text-[#c8d4ef]">
-              {dados.coberturaPct !== null
-                ? `cobre ${fmtInt(dados.coberturaPct)}% do consumo`
-                : 'por mês'}
-            </p>
-          </div>
-          <div className="rounded-[10px] bg-[#13306b] p-2.5">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-[#9fb0d8]">Inversor</p>
-            <p className="font-montserrat text-xl font-bold text-[#ffd23f]">
-              {fmt(dados.kwCa)} kW CA
-            </p>
-            <p className="truncate text-[11px] text-[#c8d4ef]">{dados.linhaInversor}</p>
-          </div>
-          <div className="rounded-[10px] bg-[#13306b] p-2.5">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-[#9fb0d8]">Área</p>
-            <p className="font-montserrat text-xl font-bold text-[#ffd23f]">
-              ~{fmtInt(dados.areaM2)} m²
-            </p>
-            <p className="truncate text-[11px] text-[#c8d4ef]">{dados.tipoInstalacao}</p>
-          </div>
+    <div className="rounded-[14px] border border-[#dfe5f0] bg-white p-5 shadow-sm space-y-5">
+      <div className="flex items-center justify-between border-b border-[#dfe5f0] pb-3">
+        <div className="flex items-center gap-2">
+          <Zap className="h-5 w-5 text-[#f1c40f]" />
+          <h2 className="font-montserrat text-base font-bold text-[#0b1f4d]">Resumo do Kit</h2>
         </div>
+        <span className="rounded-full bg-[#f1c40f]/20 px-2.5 py-0.5 text-xs font-bold text-[#b78103]">
+          {fmt(dados.kwp)} kWp
+        </span>
+      </div>
 
-        {dados.relacao !== null && cls && (
-          <div className="mt-4 rounded-[10px] bg-[#13306b] p-3">
-            <div className="flex items-baseline justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-[#9fb0d8]">
-                Relação painéis ÷ inversor
-              </p>
-              <p className="font-montserrat text-lg font-bold text-[#ffd23f]">
-                {fmt(dados.relacao)}×
-                <span className="ml-1 text-xs">
-                  ({dados.relacao >= 1 ? '+' : '−'}
-                  {fmtInt(Math.abs((dados.relacao - 1) * 100))}%)
+      {/* Bloco de Potência e Geração */}
+      <div className="rounded-[10px] bg-[#f8fafc] p-3 border border-[#dfe5f0] space-y-1.5">
+        <LabelResumo label="Potência total CC" valor={`${fmt(dados.kwp)} kWp`} destaque />
+        <LabelResumo label="Potência total CA" valor={`${fmt(dados.kwCa)} kW`} />
+        {dados.relacao !== null && dados.relacao > 0 && (
+          <LabelResumo
+            label="FDR (Sobrecarga / Overpower)"
+            valor={`${Math.round((dados.relacao - 1) * 100)}%`}
+            destaque
+          />
+        )}
+        {dados.geracaoMensal && (
+          <LabelResumo
+            label="Geração mensal estimada"
+            valor={`~${dados.geracaoMensal} kWh/mês`}
+            destaque
+          />
+        )}
+        {dados.areaM2 > 0 && (
+          <LabelResumo label="Área de telhado necessária" valor={`~${fmt(dados.areaM2)} m²`} />
+        )}
+      </div>
+
+      {/* Modelos de Painéis */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-[#8a94a8]">
+            Módulos fotovoltaicos
+          </span>
+          <span className="text-xs font-semibold text-[#0b1f4d]">
+            Total: {qtdPaineisTotal} un
+          </span>
+        </div>
+        <div className="space-y-1">
+          {paineisLinhas.map((p, idx) => (
+            <div
+              key={idx}
+              className="flex items-center justify-between rounded border border-[#dfe5f0] bg-[#f8fafc] px-2.5 py-1.5 text-xs"
+            >
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="font-bold text-[#0b1f4d]">{p.qtd}×</span>
+                <span className="truncate text-[#3c4a63]">
+                  {p.marca} {p.modelo || ''}
                 </span>
-              </p>
+              </div>
+              <span className="shrink-0 font-semibold text-[#0b1f4d] ml-2">
+                {p.potencia_w} W
+              </span>
             </div>
-            <div className="mt-2 h-2 w-full rounded-full bg-[#0b1f4d]">
-              <div
-                className="h-2 rounded-full transition-all"
-                style={{ width: `${pctBarra}%`, backgroundColor: corBarra }}
-              />
-            </div>
-            <p className="mt-2 text-[11px] leading-snug text-[#c8d4ef]">{MENSAGENS_RELACAO[cls]}</p>
+          ))}
+          {paineisLinhas.length === 0 && (
+            <p className="text-xs text-[#8a94a8] italic">Nenhum módulo selecionado</p>
+          )}
+        </div>
+        {dados.outrosDadosPaineis && (
+          <div className="rounded bg-[#fffbeb] border border-[#fef3c7] p-2 text-[11px] text-[#92400e]">
+            <span className="font-semibold">Obs painéis: </span>
+            {dados.outrosDadosPaineis}
           </div>
         )}
+      </div>
 
-        <div className="mt-4 rounded-[10px] bg-white p-3 text-[#0b1f4d]">
-          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-[#8a94a8]">
-            Itens incluídos
-          </p>
-          <ul className="space-y-1">
-            {dados.itens.length === 0 && (
-              <li className="text-xs text-[#8a94a8]">Nenhum item incluído.</li>
-            )}
-            {dados.itens.map((item, i) => (
-              <li key={i} className="flex items-baseline justify-between gap-2 text-xs">
-                <span className="truncate">{item.nome}</span>
-                <span className="shrink-0 font-semibold">{item.qtd}x</span>
-              </li>
-            ))}
-          </ul>
-          {dados.distribuidora && (
-            <p className="mt-2 border-t border-[#dfe5f0] pt-2 text-xs">
-              <span className="text-[#8a94a8]">Distribuidora:</span>{' '}
-              <span className="font-semibold">{dados.distribuidora}</span>
-            </p>
-          )}
-          {dados.custo > 0 && dados.precoFinal !== null && (
-            <div className="mt-2 space-y-0.5 border-t border-[#dfe5f0] pt-2 text-xs">
-              <p className="flex justify-between">
-                <span className="text-[#8a94a8]">Custo do kit</span>
-                <span>{fmtBRL(dados.custo)}</span>
-              </p>
-              {dados.descontoRs > 0 && (
-                <p className="flex justify-between">
-                  <span className="text-[#8a94a8]">Venda</span>
-                  <span className={cn(dados.descontoRs > 0 && 'text-[#8a94a8] line-through')}>
-                    {fmtBRL(dados.precoVenda ?? 0)}
-                  </span>
-                </p>
-              )}
-              {dados.descontoRs > 0 && (
-                <p className="flex justify-between font-semibold text-[#11845b]">
-                  <span>Desconto</span>
-                  <span>− {fmtBRL(dados.descontoRs)}</span>
-                </p>
-              )}
-              <p className="flex justify-between text-base font-bold">
-                <span>Preço final</span>
-                <span className="text-[#c0392b]">R$ {fmtBRL(dados.precoFinal)}</span>
-              </p>
-              <p
-                className={cn(
-                  'flex justify-between font-semibold',
-                  dados.lucro >= 0 ? 'text-[#11845b]' : 'text-[#c0392b]',
-                )}
-              >
-                <span>Lucro</span>
-                <span>
-                  {fmtBRL(dados.lucro)} • {fmt(dados.margemPct, 1)}%
+      {/* Modelos de Inversores */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-[#8a94a8]">
+            Inversores
+          </span>
+          <span className="text-xs font-semibold text-[#0b1f4d]">
+            Total: {qtdInversoresTotal} un
+          </span>
+        </div>
+        <div className="space-y-1">
+          {inversoresLinhas.map((inv, idx) => (
+            <div
+              key={idx}
+              className="flex items-center justify-between rounded border border-[#dfe5f0] bg-[#f8fafc] px-2.5 py-1.5 text-xs"
+            >
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="font-bold text-[#0b1f4d]">{inv.qtd}×</span>
+                <span className="truncate text-[#3c4a63]">
+                  {inv.marca} {inv.modelo || ''}
                 </span>
-              </p>
+              </div>
+              <span className="shrink-0 font-semibold text-[#0b1f4d] ml-2">
+                {fmt(inv.potencia_kw)} kW
+              </span>
             </div>
+          ))}
+          {inversoresLinhas.length === 0 && (
+            <p className="text-xs text-[#8a94a8] italic">Nenhum inversor selecionado</p>
           )}
         </div>
+        {dados.outrosDadosInversores && (
+          <div className="rounded bg-[#fffbeb] border border-[#fef3c7] p-2 text-[11px] text-[#92400e]">
+            <span className="font-semibold">Obs inversores: </span>
+            {dados.outrosDadosInversores}
+          </div>
+        )}
+      </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-2">
+      {/* Estrutura e Fornecedor */}
+      <div className="rounded-[10px] bg-[#f8fafc] p-3 border border-[#dfe5f0] space-y-1">
+        <LabelResumo
+          label="Estrutura de fixação"
+          valor={ROTULO_INSTALACAO[dados.tipoInstalacao] || dados.tipoInstalacao}
+        />
+        {dados.distribuidora && (
+          <LabelResumo label="Fornecedor / Distribuidora" valor={dados.distribuidora} />
+        )}
+      </div>
+
+      {/* Bloco Comercial / Preço */}
+      <div className="rounded-[10px] bg-[#0b1f4d] p-3.5 text-white space-y-2">
+        <div className="flex items-center justify-between text-xs text-[#dfe5f0]">
+          <span>Preço final sugerido</span>
+          {dados.precoFinal !== null && (
+            <span className="text-[11px] font-medium text-[#f1c40f]">
+              {fmt(dados.precoFinal / (dados.kwp || 1))} R$/Wp
+            </span>
+          )}
+        </div>
+        <div className="font-montserrat text-2xl font-bold text-[#f1c40f]">
+          {dados.precoFinal !== null ? `R$ ${dados.precoFinal.toLocaleString('pt-BR')}` : 'R$ 0,00'}
+        </div>
+
+        {dados.lucro !== null && (
+          <div className="pt-2 border-t border-white/10 flex items-center justify-between text-xs text-[#dfe5f0]">
+            <span>Lucro bruto:</span>
+            <span className="font-semibold text-emerald-300">
+              R$ {dados.lucro.toLocaleString('pt-BR')} ({Math.round(dados.margemPct || 0)}%)
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Ações */}
+      <div className="space-y-2 pt-1">
+        <Button
+          type="button"
+          onClick={onSalvar}
+          disabled={salvando}
+          className="w-full bg-[#0b1f4d] text-white hover:bg-[#122e6f] font-semibold"
+        >
+          <Sparkles className="h-4 w-4 mr-1.5 text-[#f1c40f]" />
+          Salvar Kit para Propostas
+        </Button>
+
+        <div className="flex gap-2">
           <Button
             type="button"
-            onClick={onSalvar}
-            disabled={salvando}
-            className="bg-[#ffd23f] font-bold text-[#0b1f4d] hover:bg-[#f5b800]"
+            variant="outline"
+            onClick={onCopiar}
+            className="flex-1 text-xs border-[#dfe5f0]"
           >
-            {salvando ? 'Salvando…' : 'Salvar kit'}
+            <Copy className="h-3.5 w-3.5 mr-1 text-[#0b1f4d]" />
+            Copiar Resumo
           </Button>
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCopiar}
-              className="border-[#13306b] bg-transparent text-white hover:bg-[#13306b]"
-            >
-              Copiar texto
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onLimpar}
-              className="border-[#13306b] bg-transparent text-white hover:bg-[#13306b]"
-            >
-              Limpar
-            </Button>
-          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onLimpar}
+            className="text-xs text-[#8a94a8] hover:text-[#c0392b]"
+          >
+            <RotateCcw className="h-3.5 w-3.5 mr-1" />
+            Limpar
+          </Button>
         </div>
       </div>
     </div>
   )
 }
 
-// ---------- Aba CATÁLOGO ----------
-
-// Cabeçalho-clicável de uma seção do catálogo (Painéis/Inversores).
-// Quando a seção está recolhida, ele é o ÚNICO elemento renderizado —
-// sem cartão vazio, moldura ou espaço reservado em volta.
-function BotaoToggleSecao({
-  titulo,
-  contagem,
-  aberto,
-  onClick,
-  className,
-}: {
-  titulo: string
-  contagem: number
-  aberto: boolean
-  onClick: () => void
-  className?: string
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-expanded={aberto}
-      className={cn(
-        'flex w-full items-center justify-between border border-[#dfe5f0] bg-white px-3 py-2.5 text-left transition-colors hover:border-[#0b1f4d] hover:bg-[#eef2f8]',
-        className,
-      )}
-    >
-      <span className="font-montserrat text-sm font-bold uppercase text-[#0b1f4d]">{titulo}</span>
-      <span className="flex items-center gap-2">
-        <span className="rounded-full bg-[#eef2f8] px-2 py-0.5 text-[11px] font-semibold text-[#8a94a8]">
-          {contagem} {contagem === 1 ? 'item' : 'itens'}
-        </span>
-        {aberto ? (
-          <ChevronUp className="h-4 w-4 text-[#0b1f4d]" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-[#0b1f4d]" />
-        )}
-      </span>
-    </button>
-  )
-}
+// ---------- ABA CATÁLOGO GERAL ----------
 
 export function AbaCatalogo({
   paineis,
@@ -315,163 +270,166 @@ export function AbaCatalogo({
   onExcluirPainel,
   onExcluirInversor,
   onExcluirDistribuidora,
-  carregando,
+  carregando: _carregando,
 }: {
-  paineis: PainelCatalogoRow[]
-  inversores: InversorCatalogoRow[]
-  distribuidoras: DistribuidoraRow[]
-  onAddPainel: (p: Omit<PainelCatalogoRow, 'id' | 'origem' | 'ativo'>) => void
-  onAddInversor: (i: Omit<InversorCatalogoRow, 'id' | 'origem' | 'ativo'>) => void
-  onAddDistribuidora: (nome: string) => void
-  onExcluirPainel: (id: string) => void
-  onExcluirInversor: (id: string) => void
-  onExcluirDistribuidora: (id: string) => void
+  paineis: PainelCatalogo[]
+  inversores: InversorCatalogo[]
+  distribuidoras: DistribuidoraItem[]
+  onAddPainel: (p: { marca: string; modelo: string; potencia_w: number; area_m2: number }) => Promise<void>
+  onAddInversor: (i: { marca: string; modelo: string; potencia_kw: number; tipo: InversorCatalogo['tipo'] }) => Promise<void>
+  onAddDistribuidora: (nome: string) => Promise<void>
+  onExcluirPainel: (id: string) => Promise<void>
+  onExcluirInversor: (id: string) => Promise<void>
+  onExcluirDistribuidora: (id: string) => Promise<void>
   carregando: boolean
 }) {
-  const [novoPainel, setNovoPainel] = useState({ marca: '', modelo: '', potenciaW: '', areaM2: '' })
+  const [subAba, setSubAba] = useState<'paineis' | 'inversores' | 'distribuidoras'>('paineis')
+
+  // Filtros de busca
+  const [filtroPaineis, setFiltroPaineis] = useState<FiltroCatalogo>(filtroCatalogoVazio)
+  const [filtroInversores, setFiltroInversores] = useState<FiltroCatalogo>(filtroCatalogoVazio)
+
+  // Modais de novo item rápido
+  const [novoPainel, setNovoPainel] = useState({ marca: '', modelo: '', potencia_w: 550, area_m2: 2.79 })
   const [novoInversor, setNovoInversor] = useState({
     marca: '',
     modelo: '',
-    potenciaKw: '',
-    tipo: 'Monofásico',
+    potencia_kw: 5,
+    tipo: 'Monofásico' as InversorCatalogo['tipo'],
   })
   const [novaDistribuidora, setNovaDistribuidora] = useState('')
-  const [excluir, setExcluir] = useState<{
-    tipo: 'painel' | 'inversor' | 'distribuidora'
-    id: string
-    nome: string
-  } | null>(null)
-  const [filtroPainel, setFiltroPainel] = useState<FiltroCatalogo>({ marca: '', potencia: '' })
-  const [filtroInversor, setFiltroInversor] = useState<FiltroCatalogo>({ marca: '', potencia: '' })
-  const [mostrarPaineis, setMostrarPaineis] = useState(true)
-  const [mostrarInversores, setMostrarInversores] = useState(true)
 
-  const paineisFiltrados = filtrarPaineis(paineis, filtroPainel)
-  const inversoresFiltrados = filtrarInversores(inversores, filtroInversor)
-
-  const addPainel = () => {
-    if (!novoPainel.marca.trim() || !novoPainel.modelo.trim()) return
-    const potenciaW = parseFloat(novoPainel.potenciaW.replace(',', '.')) || 0
-    const areaM2 = parseFloat(novoPainel.areaM2.replace(',', '.')) || 2.7
-    onAddPainel({
-      marca: novoPainel.marca.trim(),
-      modelo: novoPainel.modelo.trim(),
-      potencia_w: potenciaW,
-      area_m2: areaM2,
-    })
-    setNovoPainel({ marca: '', modelo: '', potenciaW: '', areaM2: '' })
-  }
-
-  const addInversor = () => {
-    if (!novoInversor.marca.trim() || !novoInversor.modelo.trim()) return
-    const potenciaKw = parseFloat(novoInversor.potenciaKw.replace(',', '.')) || 0
-    onAddInversor({
-      marca: novoInversor.marca.trim(),
-      modelo: novoInversor.modelo.trim(),
-      potencia_kw: potenciaKw,
-      tipo: novoInversor.tipo as (typeof TIPOS_INVERSOR)[number],
-    })
-    setNovoInversor({ marca: '', modelo: '', potenciaKw: '', tipo: 'Monofásico' })
-  }
+  const paineisFiltrados = useMemo(
+    () => filtrarPaineis(paineis, filtroPaineis),
+    [paineis, filtroPaineis],
+  )
+  const inversoresFiltrados = useMemo(
+    () => filtrarInversores(inversores, filtroInversores),
+    [inversores, filtroInversores],
+  )
 
   return (
-    <div className="space-y-4">
-      {mostrarPaineis && (
-        <div className="rounded-[14px] border border-[#dfe5f0] bg-white p-4">
-          <BotaoToggleSecao
-            titulo="Painéis disponíveis"
-            contagem={paineis.length}
-            aberto
-            onClick={() => setMostrarPaineis(false)}
-            className="mb-3 rounded-[10px]"
+    <div className="rounded-[14px] border border-[#dfe5f0] bg-white p-5 shadow-sm space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#dfe5f0] pb-3">
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant={subAba === 'paineis' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setSubAba('paineis')}
+            className={subAba === 'paineis' ? 'bg-[#0b1f4d] text-white' : ''}
+          >
+            Painéis ({paineis.length})
+          </Button>
+          <Button
+            type="button"
+            variant={subAba === 'inversores' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setSubAba('inversores')}
+            className={subAba === 'inversores' ? 'bg-[#0b1f4d] text-white' : ''}
+          >
+            Inversores ({inversores.length})
+          </Button>
+          <Button
+            type="button"
+            variant={subAba === 'distribuidoras' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setSubAba('distribuidoras')}
+            className={subAba === 'distribuidoras' ? 'bg-[#0b1f4d] text-white' : ''}
+          >
+            Distribuidoras ({distribuidoras.length})
+          </Button>
+        </div>
+      </div>
+
+      {subAba === 'paineis' && (
+        <div className="space-y-4">
+          <BarraFiltrosCatalogo
+            filtro={filtroPaineis}
+            onChange={setFiltroPaineis}
+            unidade="W"
+            exemploPotencia="Ex.: 550"
           />
-          <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
-            <Input
-              placeholder="Marca"
-              value={novoPainel.marca}
-              onChange={(e) => setNovoPainel({ ...novoPainel, marca: e.target.value })}
-            />
-            <Input
-              placeholder="Modelo"
-              value={novoPainel.modelo}
-              onChange={(e) => setNovoPainel({ ...novoPainel, modelo: e.target.value })}
-            />
-            <Input
-              placeholder="Potência W"
-              inputMode="decimal"
-              value={novoPainel.potenciaW}
-              onChange={(e) => setNovoPainel({ ...novoPainel, potenciaW: e.target.value })}
-            />
-            <Input
-              placeholder="Área m²"
-              inputMode="decimal"
-              value={novoPainel.areaM2}
-              onChange={(e) => setNovoPainel({ ...novoPainel, areaM2: e.target.value })}
-            />
+
+          {/* Cadastro rápido */}
+          <div className="flex flex-wrap items-end gap-2 rounded-[10px] bg-[#f8fafc] p-3 border border-[#dfe5f0]">
+            <div className="flex-1 min-w-[120px]">
+              <Label className="text-[11px]">Marca</Label>
+              <Input
+                placeholder="Ex.: Canadian"
+                value={novoPainel.marca}
+                onChange={(e) => setNovoPainel((p) => ({ ...p, marca: e.target.value }))}
+                className="h-8 text-xs bg-white"
+              />
+            </div>
+            <div className="flex-1 min-w-[140px]">
+              <Label className="text-[11px]">Modelo</Label>
+              <Input
+                placeholder="Ex.: CS6W-550MS"
+                value={novoPainel.modelo}
+                onChange={(e) => setNovoPainel((p) => ({ ...p, modelo: e.target.value }))}
+                className="h-8 text-xs bg-white"
+              />
+            </div>
+            <div className="w-24">
+              <Label className="text-[11px]">Potência (W)</Label>
+              <Input
+                type="number"
+                value={novoPainel.potencia_w}
+                onChange={(e) => setNovoPainel((p) => ({ ...p, potencia_w: Number(e.target.value) }))}
+                className="h-8 text-xs bg-white"
+              />
+            </div>
             <Button
-              onClick={addPainel}
-              disabled={carregando}
-              className="bg-[#ffd23f] font-bold text-[#0b1f4d] hover:bg-[#f5b800]"
+              type="button"
+              size="sm"
+              onClick={() => {
+                if (!novoPainel.marca || !novoPainel.modelo) return
+                onAddPainel(novoPainel)
+                setNovoPainel({ marca: '', modelo: '', potencia_w: 550, area_m2: 2.79 })
+              }}
+              className="h-8 bg-[#0b1f4d] text-white text-xs"
             >
-              + Adicionar painel
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Adicionar
             </Button>
           </div>
-          <BarraFiltrosCatalogo
-            filtro={filtroPainel}
-            onChange={setFiltroPainel}
-            unidade="W"
-            exemploPotencia="615"
-          />
+
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[#dfe5f0] text-left text-xs uppercase text-[#8a94a8]">
-                  <th className="py-2 pr-2">Marca</th>
-                  <th className="py-2 pr-2">Modelo</th>
-                  <th className="py-2 pr-2">Potência</th>
-                  <th className="py-2 pr-2">Área</th>
-                  <th className="py-2 pr-2">Origem</th>
-                  <th className="py-2" />
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-[#dfe5f0] text-[#8a94a8]">
+                <tr>
+                  <th className="py-2">Marca</th>
+                  <th className="py-2">Modelo</th>
+                  <th className="py-2 text-right">Potência</th>
+                  <th className="py-2 text-right">Área</th>
+                  <th className="py-2 text-right">Ação</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-[#eef2f8]">
                 {paineisFiltrados.map((p) => (
-                  <tr key={p.id} className="border-b border-[#eef2f8]">
-                    <td className="py-2 pr-2 font-semibold text-[#0b1f4d]">{p.marca}</td>
-                    <td className="py-2 pr-2 text-[#3c4a63]">{p.modelo}</td>
-                    <td className="py-2 pr-2">{fmtInt(p.potencia_w)} W</td>
-                    <td className="py-2 pr-2">{fmt(p.area_m2)} m²</td>
-                    <td className="py-2 pr-2">
-                      {p.origem === 'inicial' ? (
-                        <span className="rounded-full bg-[#eef2f8] px-2 py-0.5 text-[11px] text-[#8a94a8]">
-                          das suas propostas
-                        </span>
-                      ) : (
-                        <span className="rounded-full bg-[#fff9e0] px-2 py-0.5 text-[11px] font-semibold text-[#8a6d1a]">
-                          cadastrado
-                        </span>
-                      )}
-                    </td>
+                  <tr key={p.id} className="hover:bg-[#f8fafc]">
+                    <td className="py-2 font-semibold text-[#0b1f4d]">{p.marca}</td>
+                    <td className="py-2 text-[#3c4a63]">{p.modelo}</td>
+                    <td className="py-2 text-right font-bold text-[#0b1f4d]">{p.potencia_w} W</td>
+                    <td className="py-2 text-right text-[#8a94a8]">{fmt(p.area_m2)} m²</td>
                     <td className="py-2 text-right">
                       <Button
+                        type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() =>
-                          setExcluir({ tipo: 'painel', id: p.id, nome: `${p.marca} ${p.modelo}` })
-                        }
-                        className="text-[#c0392b]"
+                        onClick={() => onExcluirPainel(p.id)}
+                        className="h-6 w-6 p-0 text-[#c0392b] hover:bg-red-50"
                       >
-                        Excluir
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </td>
                   </tr>
                 ))}
                 {paineisFiltrados.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-3 text-center text-xs text-[#8a94a8]">
-                      {paineis.length === 0
-                        ? 'Nenhum painel no catálogo.'
-                        : 'Nenhum painel corresponde aos filtros.'}
+                    <td colSpan={5} className="py-4 text-center text-[#8a94a8]">
+                      Nenhum painel cadastrado ou encontrado pelo filtro
                     </td>
                   </tr>
                 )}
@@ -480,121 +438,117 @@ export function AbaCatalogo({
           </div>
         </div>
       )}
-      {!mostrarPaineis && (
-        <BotaoToggleSecao
-          titulo="Painéis disponíveis"
-          contagem={paineis.length}
-          aberto={false}
-          onClick={() => setMostrarPaineis(true)}
-          className="rounded-[14px] shadow-sm"
-        />
-      )}
 
-      {mostrarInversores && (
-        <div className="rounded-[14px] border border-[#dfe5f0] bg-white p-4">
-          <BotaoToggleSecao
-            titulo="Inversores disponíveis"
-            contagem={inversores.length}
-            aberto
-            onClick={() => setMostrarInversores(false)}
-            className="mb-3 rounded-[10px]"
+      {subAba === 'inversores' && (
+        <div className="space-y-4">
+          <BarraFiltrosCatalogo
+            filtro={filtroInversores}
+            onChange={setFiltroInversores}
+            unidade="kW"
+            exemploPotencia="Ex.: 5"
           />
-          <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
-            <Input
-              placeholder="Marca"
-              value={novoInversor.marca}
-              onChange={(e) => setNovoInversor({ ...novoInversor, marca: e.target.value })}
-            />
-            <Input
-              placeholder="Modelo"
-              value={novoInversor.modelo}
-              onChange={(e) => setNovoInversor({ ...novoInversor, modelo: e.target.value })}
-            />
-            <Input
-              placeholder="Potência kW"
-              inputMode="decimal"
-              value={novoInversor.potenciaKw}
-              onChange={(e) => setNovoInversor({ ...novoInversor, potenciaKw: e.target.value })}
-            />
-            <select
-              value={novoInversor.tipo}
-              onChange={(e) => setNovoInversor({ ...novoInversor, tipo: e.target.value })}
-              className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
-            >
-              {TIPOS_INVERSOR.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+
+          {/* Cadastro rápido */}
+          <div className="flex flex-wrap items-end gap-2 rounded-[10px] bg-[#f8fafc] p-3 border border-[#dfe5f0]">
+            <div className="flex-1 min-w-[120px]">
+              <Label className="text-[11px]">Marca</Label>
+              <Input
+                placeholder="Ex.: Sungrow"
+                value={novoInversor.marca}
+                onChange={(e) => setNovoInversor((i) => ({ ...i, marca: e.target.value }))}
+                className="h-8 text-xs bg-white"
+              />
+            </div>
+            <div className="flex-1 min-w-[140px]">
+              <Label className="text-[11px]">Modelo</Label>
+              <Input
+                placeholder="Ex.: SG5.0RS"
+                value={novoInversor.modelo}
+                onChange={(e) => setNovoInversor((i) => ({ ...i, modelo: e.target.value }))}
+                className="h-8 text-xs bg-white"
+              />
+            </div>
+            <div className="w-24">
+              <Label className="text-[11px]">Potência (kW)</Label>
+              <Input
+                type="number"
+                step="0.1"
+                value={novoInversor.potencia_kw}
+                onChange={(e) => setNovoInversor((i) => ({ ...i, potencia_kw: Number(e.target.value) }))}
+                className="h-8 text-xs bg-white"
+              />
+            </div>
+            <div className="w-36">
+              <Label className="text-[11px]">Tipo</Label>
+              <select
+                value={novoInversor.tipo}
+                onChange={(e) =>
+                  setNovoInversor((i) => ({
+                    ...i,
+                    tipo: e.target.value as InversorCatalogo['tipo'],
+                  }))
+                }
+                className="h-8 w-full rounded border border-input bg-white px-2 text-xs"
+              >
+                {TIPOS_INVERSOR.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
             <Button
-              onClick={addInversor}
-              disabled={carregando}
-              className="bg-[#ffd23f] font-bold text-[#0b1f4d] hover:bg-[#f5b800]"
+              type="button"
+              size="sm"
+              onClick={() => {
+                if (!novoInversor.marca || !novoInversor.modelo) return
+                onAddInversor(novoInversor)
+                setNovoInversor({ marca: '', modelo: '', potencia_kw: 5, tipo: 'Monofásico' })
+              }}
+              className="h-8 bg-[#0b1f4d] text-white text-xs"
             >
-              + Adicionar inversor
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Adicionar
             </Button>
           </div>
-          <BarraFiltrosCatalogo
-            filtro={filtroInversor}
-            onChange={setFiltroInversor}
-            unidade="kW"
-            exemploPotencia="8,5"
-          />
+
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[#dfe5f0] text-left text-xs uppercase text-[#8a94a8]">
-                  <th className="py-2 pr-2">Marca</th>
-                  <th className="py-2 pr-2">Modelo</th>
-                  <th className="py-2 pr-2">Potência</th>
-                  <th className="py-2 pr-2">Tipo</th>
-                  <th className="py-2 pr-2">Origem</th>
-                  <th className="py-2" />
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-[#dfe5f0] text-[#8a94a8]">
+                <tr>
+                  <th className="py-2">Marca</th>
+                  <th className="py-2">Modelo</th>
+                  <th className="py-2">Tipo</th>
+                  <th className="py-2 text-right">Potência</th>
+                  <th className="py-2 text-right">Ação</th>
                 </tr>
               </thead>
-              <tbody>
-                {inversoresFiltrados.map((i) => (
-                  <tr key={i.id} className="border-b border-[#eef2f8]">
-                    <td className="py-2 pr-2 font-semibold text-[#0b1f4d]">{i.marca}</td>
-                    <td className="py-2 pr-2 text-[#3c4a63]">{i.modelo}</td>
-                    <td className="py-2 pr-2">{fmt(i.potencia_kw)} kW</td>
-                    <td className="py-2 pr-2 text-[#3c4a63]">{i.tipo}</td>
-                    <td className="py-2 pr-2">
-                      {i.origem === 'inicial' ? (
-                        <span className="rounded-full bg-[#eef2f8] px-2 py-0.5 text-[11px] text-[#8a94a8]">
-                          das suas propostas
-                        </span>
-                      ) : (
-                        <span className="rounded-full bg-[#fff9e0] px-2 py-0.5 text-[11px] font-semibold text-[#8a6d1a]">
-                          cadastrado
-                        </span>
-                      )}
+              <tbody className="divide-y divide-[#eef2f8]">
+                {inversoresFiltrados.map((inv) => (
+                  <tr key={inv.id} className="hover:bg-[#f8fafc]">
+                    <td className="py-2 font-semibold text-[#0b1f4d]">{inv.marca}</td>
+                    <td className="py-2 text-[#3c4a63]">{inv.modelo}</td>
+                    <td className="py-2 text-[#8a94a8]">{inv.tipo}</td>
+                    <td className="py-2 text-right font-bold text-[#0b1f4d]">
+                      {fmt(inv.potencia_kw)} kW
                     </td>
                     <td className="py-2 text-right">
                       <Button
+                        type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() =>
-                          setExcluir({
-                            tipo: 'inversor',
-                            id: i.id,
-                            nome: `${i.marca} ${i.modelo}`,
-                          })
-                        }
-                        className="text-[#c0392b]"
+                        onClick={() => onExcluirInversor(inv.id)}
+                        className="h-6 w-6 p-0 text-[#c0392b] hover:bg-red-50"
                       >
-                        Excluir
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </td>
                   </tr>
                 ))}
                 {inversoresFiltrados.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-3 text-center text-xs text-[#8a94a8]">
-                      {inversores.length === 0
-                        ? 'Nenhum inversor no catálogo.'
-                        : 'Nenhum inversor corresponde aos filtros.'}
+                    <td colSpan={5} className="py-4 text-center text-[#8a94a8]">
+                      Nenhum inversor cadastrado ou encontrado pelo filtro
                     </td>
                   </tr>
                 )}
@@ -603,96 +557,66 @@ export function AbaCatalogo({
           </div>
         </div>
       )}
-      {!mostrarInversores && (
-        <BotaoToggleSecao
-          titulo="Inversores disponíveis"
-          contagem={inversores.length}
-          aberto={false}
-          onClick={() => setMostrarInversores(true)}
-          className="rounded-[14px] shadow-sm"
-        />
-      )}
 
-      <div className="rounded-[14px] border border-[#dfe5f0] bg-white p-4">
-        <h3 className="mb-3 font-montserrat text-sm font-bold uppercase text-[#0b1f4d]">
-          Distribuidoras
-        </h3>
-        <div className="mb-3 flex gap-2">
-          <Input
-            placeholder="Nome da distribuidora"
-            value={novaDistribuidora}
-            onChange={(e) => setNovaDistribuidora(e.target.value)}
-          />
-          <Button
-            onClick={() => {
-              if (!novaDistribuidora.trim()) return
-              onAddDistribuidora(novaDistribuidora.trim())
-              setNovaDistribuidora('')
-            }}
-            disabled={carregando}
-            className="shrink-0 bg-[#ffd23f] font-bold text-[#0b1f4d] hover:bg-[#f5b800]"
-          >
-            + Adicionar
-          </Button>
-        </div>
-        <ul className="divide-y divide-[#eef2f8]">
-          {distribuidoras.map((d) => (
-            <li key={d.id} className="flex items-center justify-between py-2 text-sm">
-              <span className="font-semibold text-[#0b1f4d]">{d.nome}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setExcluir({ tipo: 'distribuidora', id: d.id, nome: d.nome })}
-                className="text-[#c0392b]"
-              >
-                Excluir
-              </Button>
-            </li>
-          ))}
-          {distribuidoras.length === 0 && (
-            <li className="py-2 text-xs text-[#8a94a8]">Nenhuma distribuidora cadastrada.</li>
-          )}
-        </ul>
-      </div>
-
-      <Dialog open={!!excluir} onOpenChange={(aberto) => !aberto && setExcluir(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Excluir {excluir?.nome}?</DialogTitle>
-            <DialogDescription>
-              O item será apenas desativado — continua nos kits antigos, mas some das listas.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setExcluir(null)}>
-              Cancelar
-            </Button>
+      {subAba === 'distribuidoras' && (
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Nome da distribuidora (ex: Fortlev Solar, Aldo, PHB...)"
+              value={novaDistribuidora}
+              onChange={(e) => setNovaDistribuidora(e.target.value)}
+              className="h-8 text-xs flex-1 max-w-sm"
+            />
             <Button
-              className="bg-[#c0392b] text-white hover:bg-[#a93226]"
+              type="button"
+              size="sm"
               onClick={() => {
-                if (!excluir) return
-                if (excluir.tipo === 'painel') onExcluirPainel(excluir.id)
-                else if (excluir.tipo === 'inversor') onExcluirInversor(excluir.id)
-                else onExcluirDistribuidora(excluir.id)
-                setExcluir(null)
+                if (!novaDistribuidora.trim()) return
+                onAddDistribuidora(novaDistribuidora.trim())
+                setNovaDistribuidora('')
               }}
+              className="h-8 bg-[#0b1f4d] text-white text-xs"
             >
-              Excluir
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Adicionar Distribuidora
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+
+          <div className="divide-y divide-[#eef2f8] rounded-[10px] border border-[#dfe5f0] bg-white">
+            {distribuidoras.map((d) => (
+              <div
+                key={d.id}
+                className="flex items-center justify-between p-2.5 text-xs hover:bg-[#f8fafc]"
+              >
+                <span className="font-semibold text-[#0b1f4d]">{d.nome}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onExcluirDistribuidora(d.id)}
+                  className="h-6 w-6 p-0 text-[#c0392b] hover:bg-red-50"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
+            {distribuidoras.length === 0 && (
+              <p className="p-4 text-center text-xs text-[#8a94a8]">Nenhuma distribuidora cadastrada</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-// ---------- Aba KITS SALVOS ----------
+// ---------- ABA KITS SALVOS ----------
 
 export function AbaKitsSalvos({
   kits,
   onEditar,
   onExcluir,
-  carregando,
+  carregando: _carregando,
 }: {
   kits: KitGerado[]
   onEditar: (id: string) => void
@@ -700,140 +624,140 @@ export function AbaKitsSalvos({
   carregando: boolean
 }) {
   const [busca, setBusca] = useState('')
-  const [filtroDistribuidora, setFiltroDistribuidora] = useState('')
-  const [kitPreProposta, setKitPreProposta] = useState<KitGerado | null>(null)
 
-  const kitsFiltrados = useMemo(() => {
-    const termo = busca.trim().toLowerCase()
-    return kits.filter((k) => {
-      const painelJson = parsePainelJson(k.painel)
-      const inversorJson = parseInversorJson(k.inversor)
-      const okBusca =
-        !termo ||
-        k.nome.toLowerCase().includes(termo) ||
-        (painelJson?.marca || '').toLowerCase().includes(termo) ||
-        (inversorJson?.marca || '').toLowerCase().includes(termo)
-      const okDist = !filtroDistribuidora || k.distribuidora === filtroDistribuidora
-      return okBusca && okDist
-    })
-  }, [kits, busca, filtroDistribuidora])
-
-  const distribuidorasUnicas = [...new Set(kits.map((k) => k.distribuidora).filter(Boolean))]
+  const kitsFiltrados = kits.filter((k) => {
+    if (!busca.trim()) return true
+    const b = busca.toLowerCase()
+    return (
+      k.nome?.toLowerCase().includes(b) ||
+      k.distribuidora?.toLowerCase().includes(b) ||
+      String(k.potencia_kwp).includes(b)
+    )
+  })
 
   return (
-    <div className="rounded-[14px] border border-[#dfe5f0] bg-white p-4">
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+    <div className="rounded-[14px] border border-[#dfe5f0] bg-white p-5 shadow-sm space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#dfe5f0] pb-3">
+        <div>
+          <h2 className="font-montserrat text-base font-bold text-[#0b1f4d]">Kits Salvos</h2>
+          <p className="text-xs text-[#8a94a8]">
+            Kits disponíveis para uso imediato em novas propostas comerciais.
+          </p>
+        </div>
         <Input
-          placeholder="Buscar por nome, painel, inversor…"
+          placeholder="Buscar por nome, distribuidora ou potência..."
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
+          className="h-8 text-xs max-w-xs"
         />
-        <select
-          value={filtroDistribuidora}
-          onChange={(e) => setFiltroDistribuidora(e.target.value)}
-          className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
-        >
-          <option value="">Todas as distribuidoras</option>
-          {distribuidorasUnicas.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-[#dfe5f0] text-left text-xs uppercase text-[#8a94a8]">
-              <th className="py-2 pr-2">Kit</th>
-              <th className="py-2 pr-2">kWp</th>
-              <th className="py-2 pr-2">Painéis</th>
-              <th className="py-2 pr-2">Inversor</th>
-              <th className="py-2 pr-2">Instalação</th>
-              <th className="py-2 pr-2">Distribuidora</th>
-              <th className="py-2 pr-2">Preço final</th>
-              <th className="py-2" />
-            </tr>
-          </thead>
-          <tbody>
-            {kitsFiltrados.map((k) => (
-              <tr key={k.id} className="border-b border-[#eef2f8]">
-                <td className="py-2 pr-2">
-                  <p className="font-semibold text-[#0b1f4d]">{k.nome}</p>
-                  <p className="text-[11px] text-[#8a94a8]">
-                    {new Date(k.created || '').toLocaleDateString('pt-BR')}
-                  </p>
-                </td>
-                <td className="py-2 pr-2">{fmt(k.potencia_kwp)}</td>
-                <td className="py-2 pr-2">
-                  {(() => {
-                    const p = parsePainelJson(k.painel)
-                    return p ? `${p.qtd}× ${p.marca} ${fmtInt(p.potencia_w)} W` : '—'
-                  })()}
-                </td>
-                <td className="py-2 pr-2">
-                  {(() => {
-                    const inv = parseInversorJson(k.inversor)
-                    return inv ? `${inv.qtd}× ${inv.marca} ${fmt(inv.potencia_kw)} kW` : '—'
-                  })()}
-                </td>
-                <td className="py-2 pr-2 text-[#3c4a63]">{k.tipo_instalacao}</td>
-                <td className="py-2 pr-2 text-[#3c4a63]">{k.distribuidora || '—'}</td>
-                <td className="py-2 pr-2 font-semibold text-[#0b1f4d]">{fmtBRL(k.preco_final)}</td>
-                <td className="py-2 text-right">
-                  <div className="flex justify-end gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={carregando}
-                      onClick={() => setKitPreProposta(k)}
-                      className="border-[#dfe5f0] text-[#0b1f4d]"
-                    >
-                      Abrir
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={carregando}
-                      onClick={() => onExcluir(k.id)}
-                      className="text-[#c0392b]"
-                      aria-label={`Excluir ${k.nome}`}
-                    >
-                      ✕
-                    </Button>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {kitsFiltrados.map((k) => {
+          const paineis = parsePaineisLinhas(k.painel)
+          const inversores = parseInversoresLinhas(k.inversor)
+          const outrosPaineis = parseOutrosDados(k.painel)
+          const outrosInversores = parseOutrosDados(k.inversor)
+
+          return (
+            <div
+              key={k.id}
+              className="rounded-[10px] border border-[#dfe5f0] bg-[#f8fafc] p-3.5 flex flex-col justify-between hover:border-[#0b1f4d]/40 transition-colors"
+            >
+              <div className="space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-montserrat text-sm font-bold text-[#0b1f4d] leading-snug">
+                    {k.nome}
+                  </h3>
+                  <span className="shrink-0 rounded-full bg-[#f1c40f]/20 px-2 py-0.5 text-xs font-bold text-[#b78103]">
+                    {fmt(k.potencia_kwp)} kWp
+                  </span>
+                </div>
+
+                <div className="text-[11px] text-[#3c4a63] space-y-1">
+                  {/* Painéis */}
+                  <div>
+                    <span className="font-semibold text-[#0b1f4d]">Painéis: </span>
+                    {paineis.length > 0 ? (
+                      paineis.map((p, idx) => (
+                        <span key={idx} className="block pl-2 text-[#5a6a85]">
+                          • {p.qtd}× {p.marca} {p.modelo || ''} ({p.potencia_w} W)
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-[#8a94a8]">Não informado</span>
+                    )}
                   </div>
-                </td>
-              </tr>
-            ))}
-            {kitsFiltrados.length === 0 && (
-              <tr>
-                <td colSpan={8} className="py-6 text-center text-sm text-[#8a94a8]">
-                  {kits.length === 0
-                    ? 'Nenhum kit salvo ainda. Monte um e clique em "Salvar kit".'
-                    : 'Nenhum kit encontrado com esse filtro.'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+
+                  {/* Inversores */}
+                  <div>
+                    <span className="font-semibold text-[#0b1f4d]">Inversores: </span>
+                    {inversores.length > 0 ? (
+                      inversores.map((inv, idx) => (
+                        <span key={idx} className="block pl-2 text-[#5a6a85]">
+                          • {inv.qtd}× {inv.marca} {inv.modelo || ''} ({fmt(inv.potencia_kw)} kW)
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-[#8a94a8]">Não informado</span>
+                    )}
+                  </div>
+
+                  {/* Outros dados se houver */}
+                  {(outrosPaineis || outrosInversores) && (
+                    <div className="rounded bg-[#fffbeb] border border-[#fef3c7] p-1.5 text-[10px] text-[#92400e]">
+                      {outrosPaineis && <div>Obs painéis: {outrosPaineis}</div>}
+                      {outrosInversores && <div>Obs inversores: {outrosInversores}</div>}
+                    </div>
+                  )}
+
+                  <div className="pt-1 text-[#8a94a8]">
+                    Telhado: {k.tipo_instalacao || 'Padrão'}
+                    {k.distribuidora ? ` • ${k.distribuidora}` : ''}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 pt-2.5 border-t border-[#dfe5f0] flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-[#8a94a8] block">Preço Final</span>
+                  <span className="font-bold text-xs text-[#0b1f4d]">
+                    R$ {(k.preco_final || 0).toLocaleString('pt-BR')}
+                  </span>
+                </div>
+
+                <div className="flex gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onEditar(k.id)}
+                    className="h-7 text-xs border-[#0b1f4d] text-[#0b1f4d]"
+                  >
+                    <FolderOpen className="h-3.5 w-3.5 mr-1" />
+                    Abrir no montador
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onExcluir(k.id)}
+                    className="h-7 w-7 p-0 text-[#c0392b] hover:bg-red-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+
+        {kitsFiltrados.length === 0 && (
+          <div className="col-span-full py-8 text-center text-xs text-[#8a94a8]">
+            Nenhum kit salvo encontrado
+          </div>
+        )}
       </div>
-      {kitPreProposta && (
-        <PrePropostaKit
-          kit={kitPreProposta}
-          onFechar={() => setKitPreProposta(null)}
-          onEditar={(k) => {
-            setKitPreProposta(null)
-            onEditar(k.id)
-          }}
-        />
-      )}
     </div>
   )
 }
-
-export function LabelResumo({ children }: { children: React.ReactNode }) {
-  return <Label className="text-xs font-semibold text-[#3c4a63]">{children}</Label>
-}
-
-export type { TipoInstalacao }

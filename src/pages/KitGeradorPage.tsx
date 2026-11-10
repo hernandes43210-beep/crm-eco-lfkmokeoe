@@ -1,756 +1,692 @@
-import { useEffect, useMemo, useState } from 'react'
+// Página Principal: Gerador de Kit Solar Ecosolar
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { Layout } from '@/components/Layout'
+import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import {
+  Zap,
+  RotateCcw,
+  Sparkles,
+  Layers,
+  ListOrdered,
+  FileSpreadsheet,
+} from 'lucide-react'
+import {
   KitGeradorService,
-  parsePainelJson,
-  parseInversorJson,
-  parseItens,
-  type PainelCatalogoRow,
-  type InversorCatalogoRow,
-  type DistribuidoraRow,
+  parsePaineisLinhas,
+  parseInversoresLinhas,
+  parseOutrosDados,
+  type PainelCatalogo,
+  type InversorCatalogo,
+  type DistribuidoraItem,
   type KitGerado,
-  type ItemListaKit,
+  type PainelLinha,
+  type InversorLinha,
 } from '@/services/kitGerador'
 import {
-  calcularKit,
-  precificar,
-  montarNomeKit,
-  classificarRelacao,
-  itensPadrao,
-  fmt,
-  fmtBRL,
-  fmtInt,
-  type Ligacao,
-  type EstadoCalculo,
-  type Precificacao,
-} from './kitGerador/logica'
-import {
-  estadoInicial,
+  CardNumero,
   CartaoPerfil,
-  SelecaoPainel,
-  SelecaoInversor,
   CartaoEstrutura,
   CartaoPreco,
   BlocoQuantidadePainel,
   BlocoQuantidadeInversor,
-  CardNumero,
-  type EstadoForm,
 } from './kitGerador/CartoesForm'
-import { ResumoKit, AbaKitsSalvos, AbaCatalogo } from './kitGerador/CartoesResumo'
-
-const AREA_PAINEL_PADRAO = 2.79
+import { BlocoPaineisMultiplos } from './kitGerador/BlocoPaineisMultiplos'
+import { BlocoInversoresMultiplos } from './kitGerador/BlocoInversoresMultiplos'
+import {
+  ResumoKit,
+  AbaCatalogo,
+  AbaKitsSalvos,
+} from './kitGerador/CartoesResumo'
+import { ModalSalvarKit } from './kitGerador/ModalSalvarKit'
+import {
+  estadoInicial,
+  linhaPainelInicial,
+  linhaInversorInicial,
+  type EstadoForm,
+  type PainelItemForm,
+  type InversorItemForm,
+} from './kitGerador/formTipos'
+import {
+  calcularTudo,
+  montarPayloadPaineis,
+  montarPayloadInversores,
+  montarDadosResumo,
+} from './kitGerador/kitCalculos'
+import { qtdPaineisSugerida, fmt } from './kitGerador/logica'
 
 export default function KitGeradorPage() {
   const { toast } = useToast()
-  const [painelLista, setPainelLista] = useState<PainelCatalogoRow[]>([])
-  const [inversorLista, setInversorLista] = useState<InversorCatalogoRow[]>([])
-  const [distribuidoras, setDistribuidoras] = useState<DistribuidoraRow[]>([])
-  const [kitsSalvos, setKitsSalvos] = useState<KitGerado[]>([])
-  const [kitEditandoId, setKitEditandoId] = useState<string | null>(null)
-  const [form, setForm] = useState<EstadoForm>(() => estadoInicial([]))
-  const [gravando, setGravando] = useState(false)
-  const [carregado, setCarregado] = useState(false)
 
-  const carregarTudo = async () => {
+  // Estados remotos
+  const [paineis, setPaineis] = useState<PainelCatalogo[]>([])
+  const [inversores, setInversores] = useState<InversorCatalogo[]>([])
+  const [distribuidoras, setDistribuidoras] = useState<DistribuidoraItem[]>([])
+  const [kitsSalvos, setKitsSalvos] = useState<KitGerado[]>([])
+  const [carregandoCatalogo, setCarregandoCatalogo] = useState(false)
+  const [gravandoCatalogo, setGravandoCatalogo] = useState(false)
+
+  // Estado do formulário
+  const [form, setForm] = useState<EstadoForm>(() => estadoInicial())
+  const [tabAtiva, setTabAtiva] = useState('montador')
+
+  // Modal de salvar kit
+  const [modalSalvarAberto, setModalSalvarAberto] = useState(false)
+  const [nomeKitSalvar, setNomeKitSalvar] = useState('')
+  const [salvandoKit, setSalvandoKit] = useState(false)
+
+  // Atualizador parcial do form
+  const setParcialForm = useCallback((parcial: Partial<EstadoForm>) => {
+    setForm((prev) => ({ ...prev, ...parcial }))
+  }, [])
+
+  // Carrega catálogos e kits salvos do PocketBase
+  const carregarDados = useCallback(async () => {
+    setCarregandoCatalogo(true)
     try {
-      const [paineis, inversores, dists, kits] = await Promise.all([
+      const [p, inv, dist, kits] = await Promise.all([
         KitGeradorService.listarPaineis(),
         KitGeradorService.listarInversores(),
         KitGeradorService.listarDistribuidoras(),
         KitGeradorService.listarKits(),
       ])
-      setPainelLista(paineis)
-      setInversorLista(inversores)
-      setDistribuidoras(dists)
+      setPaineis(p)
+      setInversores(inv)
+      setDistribuidoras(dist)
       setKitsSalvos(kits)
-      setForm((f) =>
-        f.painel.marca === '' && paineis.length
-          ? {
-              ...estadoInicial(paineis),
-              consumo: f.consumo,
-              sol: f.sol,
-              perdas: f.perdas,
-            }
-          : f,
-      )
-    } catch (err) {
-      console.error('Erro ao carregar catálogo do gerador:', err)
+
+      // Se o form ainda tiver valores vazios, preenche com o primeiro do catálogo se existir
+      setForm((prev) => {
+        const primeiraLinhaPainel = prev.painelLinhas[0]
+        const primeiraLinhaInversor = prev.inversorLinhas[0]
+
+        let mudou = false
+        const novoPaineis = [...prev.painelLinhas]
+        const novoInversores = [...prev.inversorLinhas]
+
+        if (p.length > 0 && (!primeiraLinhaPainel || !primeiraLinhaPainel.marca)) {
+          mudou = true
+          novoPaineis[0] = {
+            id: 'p-1',
+            modo: 'catalogo',
+            catalogoId: p[0].id,
+            marca: p[0].marca,
+            modelo: p[0].modelo,
+            potenciaW: p[0].potencia_w,
+            areaM2: p[0].area_m2,
+            qtd: 10,
+          }
+        }
+
+        if (inv.length > 0 && (!primeiraLinhaInversor || !primeiraLinhaInversor.marca)) {
+          mudou = true
+          novoInversores[0] = {
+            id: 'inv-1',
+            modo: 'catalogo',
+            catalogoId: inv[0].id,
+            marca: inv[0].marca,
+            modelo: inv[0].modelo,
+            potenciaKw: inv[0].potencia_kw,
+            tipo: inv[0].tipo,
+            qtd: 1,
+          }
+        }
+
+        if (!mudou) return prev
+        return {
+          ...prev,
+          painelLinhas: novoPaineis,
+          inversorLinhas: novoInversores,
+          distribuidora: prev.distribuidora || (dist[0]?.nome ?? ''),
+        }
+      })
+    } catch (e: any) {
+      console.error('Erro ao carregar catálogo:', e)
       toast({
-        title: 'Erro ao carregar catálogo',
-        description: 'Verifique a conexão e recarregue a página.',
+        title: 'Erro ao carregar equipamentos',
+        description: e?.message || 'Falha na conexão com o banco.',
         variant: 'destructive',
       })
-    }
-    setCarregado(true)
-  }
-
-  useEffect(() => {
-    carregarTudo()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const set = (p: Partial<EstadoForm>) => setForm((f) => ({ ...f, ...p }))
-
-  // ---------- derivados ----------
-  const parseNum = (s: string) => parseFloat(s.replace(',', '.')) || 0
-
-  const consumo = parseNum(form.consumo)
-  const sol = parseNum(form.sol) || 4.6
-  const perdas = parseNum(form.perdas)
-  const sobrecarga = parseNum(form.sobrecarga) || 50
-  const custo = parseNum(form.custo)
-  const acrescimo = parseNum(form.acrescimoPct)
-  const desconto = parseNum(form.descontoValor)
-
-  const calc = useMemo(
-    () =>
-      calcularKit({
-        consumoKwhMes: consumo,
-        solHoras: sol,
-        perdasPct: perdas,
-        qtdPaineis: form.qtdPaineis,
-        potenciaPainelW: form.painel.potenciaW,
-        areaPainelM2: form.painel.areaM2 || AREA_PAINEL_PADRAO,
-      }),
-    [consumo, sol, perdas, form.qtdPaineis, form.painel.potenciaW, form.painel.areaM2],
-  )
-
-  const relacao = useMemo(() => {
-    const kwCa = form.inversor.potenciaKw * form.qtdInversores
-    return kwCa > 0 ? calc.kwp / kwCa : 0
-  }, [calc.kwp, form.inversor.potenciaKw, form.qtdInversores])
-
-  const preco = useMemo(
-    () =>
-      precificar({
-        custo,
-        acrescimoPct: acrescimo,
-        descontoValor: desconto,
-        descontoTipo: form.descontoTipo,
-        kwp: calc.kwp,
-      }),
-    [custo, acrescimo, desconto, form.descontoTipo, calc.kwp],
-  )
-
-  // Nome automático
-  useEffect(() => {
-    if (form.nomeTravado) return
-    const nome = montarNomeKit({
-      kwp: calc.kwp,
-      marcaPainel: form.painel.marca,
-      potenciaPainelW: form.painel.potenciaW,
-      marcaInversor: form.inversor.marca,
-      potenciaInversorKw: form.inversor.potenciaKw,
-      qtdInversores: form.qtdInversores,
-      tipoInstalacao: form.tipoInstalacao,
-      distribuidora:
-        form.distribuidora && form.distribuidora !== '__outra__' ? form.distribuidora : '',
-    })
-    setForm((f) => (f.nomeKit === nome ? f : { ...f, nomeKit: nome }))
-  }, [
-    calc.kwp,
-    form.painel.marca,
-    form.painel.potenciaW,
-    form.inversor.marca,
-    form.inversor.potenciaKw,
-    form.qtdInversores,
-    form.tipoInstalacao,
-    form.distribuidora,
-    form.nomeTravado,
-  ])
-
-  // String box segue a qtd de inversores, se o item for padrão
-  useEffect(() => {
-    setForm((f) => {
-      const idx = f.itens.findIndex((i) => i.padrao && i.nome.startsWith('String box'))
-      if (idx === -1 || f.itens[idx].qtd === f.qtdInversores) return f
-      const itens = [...f.itens]
-      itens[idx] = { ...itens[idx], qtd: f.qtdInversores }
-      return { ...f, itens }
-    })
-  }, [form.qtdInversores])
-
-  // Itens padrão quando a lista está vazia
-  useEffect(() => {
-    setForm((f) =>
-      f.itens.length === 0 ? { ...f, itens: itensPadrao(f.tipoInstalacao, f.qtdInversores) } : f,
-    )
-  }, [form.tipoInstalacao, form.itens.length])
-
-  // ---------- ações do catálogo ----------
-  const gravarPainelCatalogo = async (): Promise<PainelCatalogoRow | null> => {
-    if (!form.painel.marca.trim() || !form.painel.modelo.trim() || form.painel.potenciaW <= 0) {
-      toast({ title: 'Preencha marca, modelo e potência do painel', variant: 'destructive' })
-      return null
-    }
-    setGravando(true)
-    try {
-      const novo = await KitGeradorService.gravarPainel({
-        marca: form.painel.marca.trim(),
-        modelo: form.painel.modelo.trim(),
-        potencia_w: form.painel.potenciaW,
-        area_m2: form.painel.areaM2 || AREA_PAINEL_PADRAO,
-      })
-      setPainelLista((l) => (l.some((p) => p.id === novo.id) ? l : [...l, novo]))
-      set({
-        painel: {
-          modoLista: true,
-          id: novo.id,
-          marca: novo.marca,
-          modelo: novo.modelo,
-          potenciaW: novo.potencia_w,
-          areaM2: novo.area_m2,
-        },
-      })
-      return novo
-    } catch (err) {
-      toast({
-        title: 'Erro ao gravar painel',
-        description: err instanceof Error ? err.message : 'Tente novamente.',
-        variant: 'destructive',
-      })
-      return null
     } finally {
-      setGravando(false)
+      setCarregandoCatalogo(false)
     }
-  }
+  }, [toast])
 
-  const gravarInversorCatalogo = async (): Promise<InversorCatalogoRow | null> => {
-    if (
-      !form.inversor.marca.trim() ||
-      !form.inversor.modelo.trim() ||
-      form.inversor.potenciaKw <= 0
-    ) {
-      toast({
-        title: 'Preencha marca, modelo e potência do inversor',
-        variant: 'destructive',
-      })
-      return null
-    }
-    setGravando(true)
-    try {
-      const novo = await KitGeradorService.gravarInversor({
-        marca: form.inversor.marca.trim(),
-        modelo: form.inversor.modelo.trim(),
-        potencia_kw: form.inversor.potenciaKw,
-        tipo: form.inversor.tipo || 'Monofásico',
-      })
-      setInversorLista((l) => (l.some((i) => i.id === novo.id) ? l : [...l, novo]))
-      set({
-        inversor: {
-          modoLista: true,
-          id: novo.id,
-          marca: novo.marca,
-          modelo: novo.modelo,
-          potenciaKw: novo.potencia_kw,
-          tipo: novo.tipo,
-        },
-      })
-      return novo
-    } catch (err) {
-      toast({
-        title: 'Erro ao gravar inversor',
-        description: err instanceof Error ? err.message : 'Tente novamente.',
-        variant: 'destructive',
-      })
-      return null
-    } finally {
-      setGravando(false)
-    }
-  }
+  useEffect(() => {
+    carregarDados()
+  }, [carregarDados])
 
-  const guardarDistribuidora = async (): Promise<DistribuidoraRow | null> => {
-    const nome = form.distribuidoraNova.trim()
-    if (!nome) {
-      toast({ title: 'Digite o nome da distribuidora', variant: 'destructive' })
-      return null
-    }
-    try {
-      const nova = await KitGeradorService.gravarDistribuidora(nome)
-      setDistribuidoras((l) => (l.some((d) => d.id === nova.id) ? l : [...l, nova]))
-      set({ distribuidora: nova.nome, distribuidoraNova: '' })
-      return nova
-    } catch (err) {
-      toast({
-        title: 'Erro ao guardar distribuidora',
-        description: err instanceof Error ? err.message : 'Tente novamente.',
-        variant: 'destructive',
-      })
-      return null
-    }
-  }
-
-  // ---------- salvar kit ----------
-  const distribuidoraFinal =
-    form.distribuidora === '__outra__' ? form.distribuidoraNova.trim() : form.distribuidora
-
-  const salvarKitAtual = async (idExistente?: string) => {
-    if (
-      !form.painel.marca ||
-      !form.painel.potenciaW ||
-      !form.inversor.marca ||
-      !form.inversor.potenciaKw
-    ) {
-      toast({ title: 'Escolha o painel e o inversor antes de salvar', variant: 'destructive' })
-      return
-    }
-    // gravar no catálogo o que estava em modo manual
-    let painelSel = form.painel
-    let inversorSel = form.inversor
-    if (!form.painel.modoLista) {
-      const p = await gravarPainelCatalogo()
-      if (!p) return
-      painelSel = {
-        modoLista: true,
-        id: p.id,
-        marca: p.marca,
-        modelo: p.modelo,
-        potenciaW: p.potencia_w,
-        areaM2: p.area_m2,
-      }
-    }
-    if (!form.inversor.modoLista) {
-      const i = await gravarInversorCatalogo()
-      if (!i) return
-      inversorSel = {
-        modoLista: true,
-        id: i.id,
-        marca: i.marca,
-        modelo: i.modelo,
-        potenciaKw: i.potencia_kw,
-        tipo: i.tipo,
-      }
-    }
-
-    const payload = {
-      nome: form.nomeKit.trim() || 'Kit Solar',
-      potencia_kwp: calc.kwp,
-      geracao_kwh: calc.geracaoMensal,
-      area_m2: calc.areaM2,
-      tipo_instalacao: form.tipoInstalacao,
-      ligacao: form.ligacao || '',
-      distribuidora: distribuidoraFinal,
-      painel: {
-        marca: painelSel.marca,
-        modelo: painelSel.modelo,
-        potencia_w: painelSel.potenciaW,
-        area_m2: painelSel.areaM2,
-        qtd: form.qtdPaineis,
-      },
-      inversor: {
-        marca: inversorSel.marca,
-        modelo: inversorSel.modelo,
-        potencia_kw: inversorSel.potenciaKw,
-        tipo: inversorSel.tipo,
-        qtd: form.qtdInversores,
-      },
-      itens: form.itens
-        .filter((i) => i.incluido && i.nome.trim())
-        .map((i) => ({ nome: i.nome, qtd: i.qtd })),
-      custo,
-      acrescimo_pct: acrescimo,
-      preco_venda: preco.precoVenda,
-      desconto_tipo: form.descontoTipo,
-      desconto_valor: desconto,
-      desconto_rs: preco.descontoRs,
-      preco_final: preco.precoFinal,
-      lucro: preco.lucro,
-      margem_pct: preco.margemPct,
-    }
-    try {
-      const salvo = idExistente
-        ? await KitGeradorService.atualizarKit(idExistente, payload)
-        : await KitGeradorService.salvarKit(payload)
-      setKitsSalvos((l) =>
-        idExistente ? l.map((k) => (k.id === salvo.id ? salvo : k)) : [salvo, ...l],
-      )
-      setKitEditandoId(salvo.id)
-      toast({ title: 'Kit salvo' })
-      return salvo
-    } catch (err) {
-      toast({
-        title: 'Erro ao salvar kit',
-        description: err instanceof Error ? err.message : 'Tente novamente.',
-        variant: 'destructive',
-      })
-    }
-  }
-
-  // ---------- abrir kit salvo ----------
-  const abrirKit = (kit: KitGerado) => {
-    const painelJson = parsePainelJson(kit.painel)
-    const inversorJson = parseInversorJson(kit.inversor)
-    setForm({
-      consumo: '',
+  // Cálculos consolidados somando múltiplos módulos e múltiplos inversores
+  const calc = useMemo(() => {
+    return calcularTudo({
+      paineisLinhas: form.painelLinhas,
+      inversoresLinhas: form.inversorLinhas,
       sol: form.sol,
       perdas: form.perdas,
-      ligacao: (kit.ligacao as Ligacao) || '',
-      painel: {
-        modoLista: true,
-        id:
-          painelLista.find(
-            (p) =>
-              p.marca === painelJson?.marca &&
-              p.modelo === painelJson?.modelo &&
-              p.potencia_w === painelJson?.potencia_w,
-          )?.id || '',
-        marca: painelJson?.marca || '',
-        modelo: painelJson?.modelo || '',
-        potenciaW: painelJson?.potencia_w || 0,
-        areaM2: painelJson?.area_m2 || AREA_PAINEL_PADRAO,
-      },
-      qtdPaineis: painelJson?.qtd || 1,
-      inversor: {
-        modoLista: true,
-        id:
-          inversorLista.find(
-            (i) =>
-              i.marca === inversorJson?.marca &&
-              i.modelo === inversorJson?.modelo &&
-              i.potencia_kw === inversorJson?.potencia_kw,
-          )?.id || '',
-        marca: inversorJson?.marca || '',
-        modelo: inversorJson?.modelo || '',
-        potenciaKw: inversorJson?.potencia_kw || 0,
-        tipo: inversorJson?.tipo || 'Monofásico',
-      },
-      qtdInversores: inversorJson?.qtd || 1,
-      sobrecarga: form.sobrecarga,
-      tipoInstalacao: (kit.tipo_instalacao as EstadoForm['tipoInstalacao']) || 'Fibrocimento',
-      nomeKit: kit.nome,
-      nomeTravado: true,
-      itens: parseItens(kit.itens).map((i) => ({
-        nome: i.nome,
-        qtd: i.qtd,
-        incluido: true,
-        padrao: false,
-      })),
-      distribuidora: kit.distribuidora || '',
-      distribuidoraNova: '',
-      custo: kit.custo != null ? String(kit.custo).replace('.', ',') : '',
-      acrescimoPct: kit.acrescimo_pct != null ? String(kit.acrescimo_pct).replace('.', ',') : '41',
-      descontoValor:
-        kit.desconto_valor != null ? String(kit.desconto_valor).replace('.', ',') : '0',
-      descontoTipo: (kit.desconto_tipo as '%' | 'R$') || '%',
+      custo: form.custo,
+      acrescimoPct: form.acrescimoPct,
+      descontoTipo: form.descontoTipo,
+      descontoValor: form.descontoValor,
+      itens: form.itens,
     })
-    setKitEditandoId(kit.id)
+  }, [
+    form.painelLinhas,
+    form.inversorLinhas,
+    form.sol,
+    form.perdas,
+    form.custo,
+    form.acrescimoPct,
+    form.descontoTipo,
+    form.descontoValor,
+    form.itens,
+  ])
+
+  // Dados consolidados para o Resumo
+  const dadosResumo = useMemo(() => {
+    return montarDadosResumo({
+      calc,
+      paineisLinhas: form.painelLinhas,
+      inversoresLinhas: form.inversorLinhas,
+      outrosDadosPaineis: form.outrosDadosPaineis,
+      outrosDadosInversores: form.outrosDadosInversores,
+      tipoInstalacao: form.tipoInstalacao,
+      distribuidora: form.distribuidora,
+      ligacao: form.ligacao,
+    })
+  }, [calc, form])
+
+  // Aplica quantidade sugerida no primeiro módulo com base no consumo do cliente
+  const aplicarQtdSugeridaConsumo = useCallback(() => {
+    const potW = form.painelLinhas[0]?.potenciaW || 550
+    const sugerida = qtdPaineisSugerida(form.consumo, potW, form.sol, form.perdas)
+    const novasLinhas = [...form.painelLinhas]
+    if (novasLinhas.length > 0) {
+      novasLinhas[0] = { ...novasLinhas[0], qtd: sugerida }
+      setParcialForm({ painelLinhas: novasLinhas })
+      toast({
+        title: 'Quantidade calculada!',
+        description: `Sugeridos ${sugerida} módulos de ${potW} W para cobrir ~${form.consumo} kWh/mês.`,
+      })
+    }
+  }, [form.consumo, form.painelLinhas, form.sol, form.perdas, setParcialForm, toast])
+
+  // Grava novo painel no PocketBase
+  const handleGravarPainelCatalogo = async (linha: PainelItemForm) => {
+    if (!linha.marca.trim() || !linha.modelo.trim()) {
+      toast({ title: 'Preencha marca e modelo', variant: 'destructive' })
+      return
+    }
+    setGravandoCatalogo(true)
+    try {
+      const novo = await KitGeradorService.gravarPainel({
+        marca: linha.marca.trim(),
+        modelo: linha.modelo.trim(),
+        potencia_w: Number(linha.potenciaW) || 550,
+        area_m2: Number(linha.areaM2) || 2.79,
+      })
+      setPaineis((prev) => [novo, ...prev])
+      toast({ title: 'Painel adicionado ao catálogo com sucesso!' })
+    } catch (e: any) {
+      toast({ title: 'Erro ao gravar painel', description: e.message, variant: 'destructive' })
+    } finally {
+      setGravandoCatalogo(false)
+    }
   }
 
-  const corRelacao = classificarRelacao(relacao || 1, sobrecarga)
-
-  const limparForm = () => {
-    setForm(estadoInicial(painelLista))
-    setKitEditandoId(null)
-    toast({ title: 'Formulário limpo' })
+  // Grava novo inversor no PocketBase
+  const handleGravarInversorCatalogo = async (linha: InversorItemForm) => {
+    if (!linha.marca.trim() || !linha.modelo.trim()) {
+      toast({ title: 'Preencha marca e modelo', variant: 'destructive' })
+      return
+    }
+    setGravandoCatalogo(true)
+    try {
+      const novo = await KitGeradorService.gravarInversor({
+        marca: linha.marca.trim(),
+        modelo: linha.modelo.trim(),
+        potencia_kw: Number(linha.potenciaKw) || 5,
+        tipo: linha.tipo || 'Monofásico',
+      })
+      setInversores((prev) => [novo, ...prev])
+      toast({ title: 'Inversor adicionado ao catálogo com sucesso!' })
+    } catch (e: any) {
+      toast({ title: 'Erro ao gravar inversor', description: e.message, variant: 'destructive' })
+    } finally {
+      setGravandoCatalogo(false)
+    }
   }
 
-  if (!carregado) {
-    return <div className="min-h-screen bg-[#eef2f8] p-8 text-[#3c4a63]">Carregando catálogo…</div>
+  // Itens extras no formulário
+  const handleSetItem = (idx: number, p: any) => {
+    const novos = [...form.itens]
+    novos[idx] = { ...novos[idx], ...p }
+    setParcialForm({ itens: novos })
   }
+
+  const handleAddItem = () => {
+    setParcialForm({
+      itens: [
+        ...form.itens,
+        { id: `it-${Date.now()}`, descricao: 'Novo item adicional', qtd: 1, custo: 0, selecionado: true },
+      ],
+    })
+  }
+
+  const handleRemoveItem = (idx: number) => {
+    setParcialForm({
+      itens: form.itens.filter((_, i) => i !== idx),
+    })
+  }
+
+  // Salvar Kit para propostas
+  const handleSalvarKit = async () => {
+    if (!nomeKitSalvar.trim()) {
+      toast({ title: 'Informe um nome para o kit', variant: 'destructive' })
+      return
+    }
+
+    setSalvandoKit(true)
+    try {
+      const payloadPainel = montarPayloadPaineis(form.painelLinhas, form.outrosDadosPaineis)
+      const payloadInversor = montarPayloadInversores(form.inversorLinhas, form.outrosDadosInversores)
+
+      const novo = await KitGeradorService.salvarKit({
+        nome: nomeKitSalvar.trim(),
+        potencia_kwp: calc.kwp,
+        tipo_instalacao: form.tipoInstalacao,
+        distribuidora: form.distribuidora,
+        painel: payloadPainel,
+        inversor: payloadInversor,
+        preco_final: calc.precoFinal,
+        itens: form.itens,
+      })
+
+      setKitsSalvos((prev) => [novo, ...prev])
+      setModalSalvarAberto(false)
+      setNomeKitSalvar('')
+      toast({
+        title: 'Kit solar salvo com sucesso!',
+        description: `Kit "${novo.nome}" (${fmt(novo.potencia_kwp)} kWp) salvo para propostas.`,
+      })
+    } catch (e: any) {
+      console.error('Erro ao salvar kit:', e)
+      toast({
+        title: 'Erro ao salvar kit',
+        description: e?.message || 'Falha ao salvar no banco.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSalvandoKit(false)
+    }
+  }
+
+  // Abrir Kit salvo no montador (restaura múltiplos módulos e múltiplos inversores com tolerância legado)
+  const handleAbrirKit = (id: string) => {
+    const k = kitsSalvos.find((kit) => kit.id === id)
+    if (!k) return
+
+    // Parsers universais compatíveis com v0.0.166 e anteriores
+    const paineisParsed: PainelLinha[] = parsePaineisLinhas(k.painel)
+    const inversoresParsed: InversorLinha[] = parseInversoresLinhas(k.inversor)
+    const outrosPaineisParsed = parseOutrosDados(k.painel)
+    const outrosInversoresParsed = parseOutrosDados(k.inversor)
+
+    // Converte para as linhas do form
+    const formPaineis: PainelItemForm[] =
+      paineisParsed.length > 0
+        ? paineisParsed.map((p, idx) => ({
+            id: `p-${idx}-${Date.now()}`,
+            modo: 'livre',
+            marca: p.marca || 'Padrão',
+            modelo: p.modelo || '',
+            potenciaW: Number(p.potencia_w) || 550,
+            areaM2: Number(p.area_m2) || 2.79,
+            qtd: Number(p.qtd) || 1,
+          }))
+        : [linhaPainelInicial()]
+
+    const formInversores: InversorItemForm[] =
+      inversoresParsed.length > 0
+        ? inversoresParsed.map((inv, idx) => ({
+            id: `inv-${idx}-${Date.now()}`,
+            modo: 'livre',
+            marca: inv.marca || 'Padrão',
+            modelo: inv.modelo || '',
+            potenciaKw: Number(inv.potencia_kw) || 5,
+            tipo: (inv.tipo as any) || 'Monofásico',
+            qtd: Number(inv.qtd) || 1,
+          }))
+        : [linhaInversorInicial()]
+
+    // Parseia itens extras salvos
+    let itensRecuperados = estadoInicial().itens
+    if (k.itens) {
+      try {
+        const arr = typeof k.itens === 'string' ? JSON.parse(k.itens) : k.itens
+        if (Array.isArray(arr) && arr.length > 0) {
+          itensRecuperados = arr.map((item: any, idx: number) => ({
+            id: item.id || `it-${idx}`,
+            descricao: item.descricao || item.nome || 'Item',
+            qtd: Number(item.qtd) || 1,
+            custo: Number(item.custo) || 0,
+            selecionado: item.selecionado !== false,
+          }))
+        }
+      } catch {
+        // mantém padrão
+      }
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      painelLinhas: formPaineis,
+      inversorLinhas: formInversores,
+      outrosDadosPaineis: outrosPaineisParsed,
+      outrosDadosInversores: outrosInversoresParsed,
+      distribuidora: k.distribuidora || prev.distribuidora,
+      tipoInstalacao: (k.tipo_instalacao as any) || prev.tipoInstalacao,
+      itens: itensRecuperados,
+    }))
+
+    setTabAtiva('montador')
+    toast({
+      title: 'Kit carregado no montador!',
+      description: `Kit "${k.nome}" com ${formPaineis.length} modelo(s) de módulos e ${formInversores.length} de inversores aberto para edição.`,
+    })
+  }
+
+  // Excluir kit salvo
+  const handleExcluirKit = async (id: string) => {
+    try {
+      await KitGeradorService.desativarKit(id)
+      setKitsSalvos((prev) => prev.filter((k) => k.id !== id))
+      toast({ title: 'Kit removido com sucesso!' })
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir kit', description: e.message, variant: 'destructive' })
+    }
+  }
+
+  // Copiar resumo
+  const handleCopiarResumo = () => {
+    const textoPaineis = form.painelLinhas
+      .map((p) => `• ${p.qtd}x ${p.marca} ${p.modelo} (${p.potenciaW} W)`)
+      .join('\n')
+    const textoInversores = form.inversorLinhas
+      .map((i) => `• ${i.qtd}x ${i.marca} ${i.modelo} (${fmt(i.potenciaKw)} kW)`)
+      .join('\n')
+
+    const texto = `☀️ KIT SOLAR ECOSOLAR
+Potência CC: ${fmt(calc.kwp)} kWp
+Potência CA: ${fmt(calc.kwCa)} kW
+Geração mensal estimada: ~${calc.geracaoMensal} kWh/mês
+
+MÓDULOS:
+${textoPaineis}
+${form.outrosDadosPaineis ? `Obs: ${form.outrosDadosPaineis}\n` : ''}
+INVERSORES:
+${textoInversores}
+${form.outrosDadosInversores ? `Obs: ${form.outrosDadosInversores}\n` : ''}
+Estrutura: ${form.tipoInstalacao}
+Fornecedor: ${form.distribuidora}
+
+Valor final sugerido: R$ ${calc.precoFinal.toLocaleString('pt-BR')}`
+
+    navigator.clipboard.writeText(texto)
+    toast({ title: 'Resumo copiado para a área de transferência!' })
+  }
+
+  const handleLimparTudo = () => {
+    setForm(estadoInicial(paineis, inversores, distribuidoras))
+    toast({ title: 'Montador redefinido para o padrão' })
+  }
+
+  // Sugestão de nome do kit ao abrir o modal
+  const sugestaoNomeKit = useMemo(() => {
+    const primeiroPainel = form.painelLinhas[0]
+    const primeiroInv = form.inversorLinhas[0]
+    const potKwp = fmt(calc.kwp)
+    return `Kit ${potKwp} kWp - ${primeiroPainel?.marca || 'Solar'} / ${primeiroInv?.marca || 'Inversor'}`
+  }, [form.painelLinhas, form.inversorLinhas, calc.kwp])
 
   return (
-    <div className="min-h-screen bg-[#eef2f8] pb-16">
-      {/* Cabeçalho azul com linha amarela */}
-      <header className="border-b-4 border-[#ffd23f] bg-[#0b1f4d] pb-4 pt-6 text-white">
-        <div className="mx-auto max-w-6xl px-4">
-          <p className="font-montserrat text-xl font-bold tracking-wide">
-            <span className="text-white">ECO</span>
-            <span className="text-[#ffd23f]">SOLAR</span>
-            <span className="ml-1 text-white">ENERGY</span>
-          </p>
-          <p className="mt-1 text-sm uppercase tracking-[0.2em] text-[#c6d2ea]">
-            Gerador de Kit Solar
-          </p>
-        </div>
-      </header>
+    <Layout>
+      <div className="container mx-auto max-w-7xl px-4 py-6 space-y-6">
+        {/* Cabeçalho da Página */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#dfe5f0] pb-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0b1f4d] text-[#f1c40f]">
+                <Zap className="h-5 w-5" />
+              </span>
+              <h1 className="font-montserrat text-2xl font-bold text-[#0b1f4d]">
+                Gerador de Kit Solar
+              </h1>
+            </div>
+            <p className="text-xs text-[#8a94a8]">
+              Dimensione e configure kits fotovoltaicos com múltiplos modelos de inversores e painéis.
+            </p>
+          </div>
 
-      <div className="mx-auto max-w-6xl px-4">
-        <Tabs defaultValue="montar" className="mt-4">
-          <TabsList className="grid w-full grid-cols-3 rounded-[14px] bg-white p-1">
-            <TabsTrigger
-              value="montar"
-              className="rounded-[10px] data-[state=active]:bg-[#ffd23f] data-[state=active]:text-[#0b1f4d]"
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleLimparTudo}
+              className="border-[#dfe5f0] text-[#3c4a63] text-xs"
             >
-              Montar kit
+              <RotateCcw className="h-3.5 w-3.5 mr-1" />
+              Novo Kit
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                setNomeKitSalvar(sugestaoNomeKit)
+                setModalSalvarAberto(true)
+              }}
+              className="bg-[#0b1f4d] text-white hover:bg-[#122e6f] text-xs font-semibold"
+            >
+              <Sparkles className="h-3.5 w-3.5 mr-1 text-[#f1c40f]" />
+              Salvar Kit
+            </Button>
+          </div>
+        </div>
+
+        {/* Abas Superiores */}
+        <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="space-y-6">
+          <TabsList className="bg-[#f0f4f9] p-1 border border-[#dfe5f0]">
+            <TabsTrigger
+              value="montador"
+              className="text-xs data-[state=active]:bg-[#0b1f4d] data-[state=active]:text-white flex items-center gap-1.5"
+            >
+              <Layers className="h-3.5 w-3.5" />
+              Montador de Kits
             </TabsTrigger>
             <TabsTrigger
               value="salvos"
-              className="rounded-[10px] data-[state=active]:bg-[#ffd23f] data-[state=active]:text-[#0b1f4d]"
+              className="text-xs data-[state=active]:bg-[#0b1f4d] data-[state=active]:text-white flex items-center gap-1.5"
             >
-              Kits salvos ({kitsSalvos.length})
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              Kits Salvos ({kitsSalvos.length})
             </TabsTrigger>
             <TabsTrigger
               value="catalogo"
-              className="rounded-[10px] data-[state=active]:bg-[#ffd23f] data-[state=active]:text-[#0b1f4d]"
+              className="text-xs data-[state=active]:bg-[#0b1f4d] data-[state=active]:text-white flex items-center gap-1.5"
             >
-              Catálogo
+              <ListOrdered className="h-3.5 w-3.5" />
+              Catálogo de Equipamentos
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="montar" className="mt-4">
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_380px]">
-              <div className="space-y-4">
-                <CartaoPerfil form={form} set={set} potenciaW={form.painel.potenciaW} />
-
-                <CardNumero numero={2} titulo="Painéis solares">
-                  <SelecaoPainel
-                    paineis={painelLista}
+          {/* ABA 1: MONTADOR DE KITS */}
+          <TabsContent value="montador" className="m-0 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Coluna da Esquerda: Formulários e Cartões de Configuração */}
+              <div className="lg:col-span-8 space-y-5">
+                {/* Cartão 1: Perfil de Consumo */}
+                <CardNumero numero={1} titulo="Consumo & Irradiação Solar">
+                  <CartaoPerfil
                     form={form}
-                    set={set}
-                    onGravar={gravarPainelCatalogo}
-                    onVoltar={() =>
-                      set({
-                        painel: {
-                          modoLista: true,
-                          id: '',
-                          marca: '',
-                          modelo: '',
-                          potenciaW: 0,
-                          areaM2: AREA_PAINEL_PADRAO,
-                        },
-                      })
-                    }
-                    gravando={gravando}
+                    set={setParcialForm}
+                    onAplicarQtdSugerida={aplicarQtdSugeridaConsumo}
                   />
-                  <div className="mt-4">
-                    <BlocoQuantidadePainel form={form} set={set} calc={calc} />
-                  </div>
                 </CardNumero>
 
-                <CardNumero numero={3} titulo="Inversor">
-                  <SelecaoInversor
-                    inversores={inversorLista}
-                    form={form}
-                    set={set}
-                    onGravar={gravarInversorCatalogo}
-                    onVoltar={() =>
-                      set({
-                        inversor: {
-                          modoLista: true,
-                          id: '',
-                          marca: '',
-                          modelo: '',
-                          potenciaKw: 0,
-                          tipo: 'Monofásico',
-                        },
-                      })
-                    }
-                    gravando={gravando}
+                {/* Cartão 2: Painéis Fotovoltaicos (Múltiplas Linhas de Modelos) */}
+                <CardNumero
+                  numero={2}
+                  titulo="Módulos Fotovoltaicos (Painéis) — Vários Modelos"
+                  subtitulo="Adicione um ou mais modelos de painéis. O sistema soma a potência de todos no dimensionamento."
+                >
+                  <BlocoPaineisMultiplos
+                    linhas={form.painelLinhas}
+                    paineis={paineis}
+                    onChangeLinhas={(novas) => setParcialForm({ painelLinhas: novas })}
+                    outrosDados={form.outrosDadosPaineis}
+                    onChangeOutrosDados={(texto) => setParcialForm({ outrosDadosPaineis: texto })}
+                    onGravarCatalogo={handleGravarPainelCatalogo}
+                    gravando={gravandoCatalogo}
                   />
-                  <div className="mt-4">
-                    <BlocoQuantidadeInversor
-                      form={form}
-                      set={set}
-                      calc={calc}
-                      inversores={inversorLista}
+
+                  {/* Informação rápida de quantidade */}
+                  <div className="pt-2 border-t border-[#dfe5f0]">
+                    <BlocoQuantidadePainel
+                      qtdTotal={calc.kwp > 0 ? form.painelLinhas.reduce((a, b) => a + (b.qtd || 0), 0) : 0}
+                      kwp={calc.kwp}
                     />
                   </div>
                 </CardNumero>
 
-                <CartaoEstrutura
-                  form={form}
-                  set={set}
-                  setItem={(idx, p) =>
-                    setForm((f) => {
-                      const itens = [...f.itens]
-                      itens[idx] = { ...itens[idx], ...p }
-                      return { ...f, itens }
-                    })
-                  }
-                  addItem={() =>
-                    setForm((f) => ({
-                      ...f,
-                      itens: [...f.itens, { nome: '', qtd: 1, incluido: true, padrao: false }],
-                    }))
-                  }
-                  removeItem={(idx) =>
-                    setForm((f) => ({ ...f, itens: f.itens.filter((_, i) => i !== idx) }))
-                  }
-                />
+                {/* Cartão 3: Inversores (Múltiplas Linhas de Modelos) */}
+                <CardNumero
+                  numero={3}
+                  titulo="Inversores — Vários Modelos"
+                  subtitulo="Adicione um ou mais modelos de inversores (ex: microinversores ou múltiplos inversores centrais)."
+                >
+                  <BlocoInversoresMultiplos
+                    linhas={form.inversorLinhas}
+                    inversores={inversores}
+                    onChangeLinhas={(novas) => setParcialForm({ inversorLinhas: novas })}
+                    outrosDados={form.outrosDadosInversores}
+                    onChangeOutrosDados={(texto) => setParcialForm({ outrosDadosInversores: texto })}
+                    onGravarCatalogo={handleGravarInversorCatalogo}
+                    gravando={gravandoCatalogo}
+                  />
 
-                <CartaoPreco
-                  form={form}
-                  set={set}
-                  distribuidoras={distribuidoras}
-                  onGuardarDistribuidora={guardarDistribuidora}
-                  preco={custo > 0 ? preco.precoVenda : null}
-                  descontoRs={preco.descontoRs}
-                  kwp={calc.kwp}
-                  custo={custo}
-                />
+                  {/* Informação rápida de potência e FDR */}
+                  <div className="pt-2 border-t border-[#dfe5f0]">
+                    <BlocoQuantidadeInversor
+                      qtdTotal={form.inversorLinhas.reduce((a, b) => a + (b.qtd || 0), 0)}
+                      kwCa={calc.kwCa}
+                      relacao={calc.relacao}
+                      relacaoTipo={calc.relacaoTipo}
+                    />
+                  </div>
+                </CardNumero>
+
+                {/* Cartão 4: Estrutura e Fornecedor */}
+                <CardNumero numero={4} titulo="Estrutura de Fixação & Fornecedor">
+                  <CartaoEstrutura
+                    form={form}
+                    set={setParcialForm}
+                    distribuidoras={distribuidoras}
+                  />
+                </CardNumero>
+
+                {/* Cartão 5: Custo, Margem e Preço */}
+                <CardNumero numero={5} titulo="Custo do Kit, Itens Adicionais e Margem">
+                  <CartaoPreco
+                    form={form}
+                    set={setParcialForm}
+                    setItem={handleSetItem}
+                    addItem={handleAddItem}
+                    removeItem={handleRemoveItem}
+                  />
+                </CardNumero>
               </div>
 
-              {/* Resumo sticky à direita */}
-              <div className="lg:sticky lg:top-4 lg:self-start">
+              {/* Coluna da Direita: Resumo do Kit Fixo */}
+              <div className="lg:col-span-4 sticky top-6">
                 <ResumoKit
-                  dados={{
-                    nome: form.nomeKit,
-                    kwp: calc.kwp,
-                    linhaPainel:
-                      `${form.qtdPaineis}× ${form.painel.marca} ${form.painel.modelo}`.trim(),
-                    geracaoMensal: calc.geracaoMensal,
-                    coberturaPct: consumo > 0 ? (calc.geracaoMensal / consumo) * 100 : null,
-                    linhaInversor:
-                      `${form.qtdInversores}× ${form.inversor.marca} ${form.inversor.modelo}`.trim(),
-                    kwCa: form.inversor.potenciaKw * form.qtdInversores,
-                    areaM2: calc.areaM2,
-                    tipoInstalacao: form.tipoInstalacao,
-                    relacao: relacao > 0 ? relacao : null,
-                    sobrecargaPct: sobrecarga,
-                    itens: form.itens.filter((i) => i.incluido && i.nome.trim()),
-                    distribuidora: distribuidoraFinal,
-                    custo,
-                    precoVenda: custo > 0 ? preco.precoVenda : null,
-                    descontoRs: preco.descontoRs,
-                    precoFinal: custo > 0 ? preco.precoFinal : null,
-                    lucro: preco.lucro,
-                    margemPct: preco.margemPct,
+                  dados={dadosResumo}
+                  onSalvar={() => {
+                    setNomeKitSalvar(sugestaoNomeKit)
+                    setModalSalvarAberto(true)
                   }}
-                  onSalvar={() => void salvarKitAtual(kitEditandoId || undefined)}
-                  onCopiar={() => {
-                    const linhas = [
-                      form.nomeKit,
-                      `• ${form.qtdPaineis}x Painel ${form.painel.marca} ${form.painel.modelo}`.trim(),
-                      `• ${form.qtdInversores}x Inversor ${form.inversor.marca} ${form.inversor.modelo} (${fmt(form.inversor.potenciaKw)} kW)`,
-                      ...form.itens
-                        .filter((i) => i.incluido && i.nome.trim())
-                        .map((i) => `• ${i.qtd}x ${i.nome}`),
-                      `Potência: ${fmt(calc.kwp)} kWp • Geração média: ~${fmtInt(calc.geracaoMensal)} kWh/mês • Área: ~${fmtInt(calc.areaM2)} m²`,
-                      `Valor: ${fmtBRL(preco.precoFinal)}`,
-                    ]
-                    navigator.clipboard.writeText(linhas.join('\n')).then(
-                      () => toast({ title: 'Texto do kit copiado' }),
-                      () =>
-                        toast({
-                          title: 'Não foi possível copiar o texto',
-                          variant: 'destructive',
-                        }),
-                    )
-                  }}
-                  onLimpar={limparForm}
-                  salvando={gravando}
+                  onCopiar={handleCopiarResumo}
+                  onLimpar={handleLimparTudo}
+                  salvando={salvandoKit}
                 />
               </div>
             </div>
           </TabsContent>
 
-          <TabsContent value="salvos" className="mt-4">
+          {/* ABA 2: KITS SALVOS */}
+          <TabsContent value="salvos" className="m-0">
             <AbaKitsSalvos
               kits={kitsSalvos}
-              carregando={gravando}
-              onEditar={(id) => {
-                const kit = kitsSalvos.find((k) => k.id === id)
-                if (kit) {
-                  abrirKit(kit)
-                  document.querySelector<HTMLButtonElement>('[value="montar"]')?.click()
-                }
-              }}
-              onExcluir={async (id) => {
-                try {
-                  await KitGeradorService.desativarKit(id)
-                  setKitsSalvos((l) => l.filter((k) => k.id !== id))
-                  if (kitEditandoId === id) setKitEditandoId(null)
-                  toast({ title: 'Kit excluído', description: 'Ele não aparece mais na lista.' })
-                } catch {
-                  toast({ title: 'Erro ao excluir o kit', variant: 'destructive' })
-                }
-              }}
+              onEditar={handleAbrirKit}
+              onExcluir={handleExcluirKit}
+              carregando={carregandoCatalogo}
             />
           </TabsContent>
 
-          <TabsContent value="catalogo" className="mt-4">
+          {/* ABA 3: CATÁLOGO GERAL */}
+          <TabsContent value="catalogo" className="m-0">
             <AbaCatalogo
-              paineis={painelLista}
-              inversores={inversorLista}
+              paineis={paineis}
+              inversores={inversores}
               distribuidoras={distribuidoras}
-              carregando={gravando}
               onAddPainel={async (p) => {
-                try {
-                  const novo = await KitGeradorService.gravarPainel({
-                    marca: p.marca,
-                    modelo: p.modelo,
-                    potencia_w: p.potencia_w,
-                    area_m2: p.area_m2,
-                  })
-                  setPainelLista((l) => (l.some((x) => x.id === novo.id) ? l : [...l, novo]))
-                  return novo
-                } catch (err) {
-                  toast({
-                    title: 'Erro ao gravar painel',
-                    description: err instanceof Error ? err.message : 'Tente novamente.',
-                    variant: 'destructive',
-                  })
-                  return null
-                }
+                const n = await KitGeradorService.gravarPainel(p)
+                setPaineis((prev) => [n, ...prev])
+                toast({ title: 'Painel cadastrado!' })
               }}
               onAddInversor={async (i) => {
-                try {
-                  const novo = await KitGeradorService.gravarInversor({
-                    marca: i.marca,
-                    modelo: i.modelo,
-                    potencia_kw: i.potencia_kw,
-                    tipo: i.tipo,
-                  })
-                  setInversorLista((l) => (l.some((x) => x.id === novo.id) ? l : [...l, novo]))
-                  return novo
-                } catch (err) {
-                  toast({
-                    title: 'Erro ao gravar inversor',
-                    description: err instanceof Error ? err.message : 'Tente novamente.',
-                    variant: 'destructive',
-                  })
-                  return null
-                }
+                const n = await KitGeradorService.gravarInversor(i)
+                setInversores((prev) => [n, ...prev])
+                toast({ title: 'Inversor cadastrado!' })
               }}
               onAddDistribuidora={async (nome) => {
-                try {
-                  const nova = await KitGeradorService.gravarDistribuidora(nome)
-                  setDistribuidoras((l) => (l.some((x) => x.id === nova.id) ? l : [...l, nova]))
-                  return nova
-                } catch (err) {
-                  toast({
-                    title: 'Erro ao guardar distribuidora',
-                    description: err instanceof Error ? err.message : 'Tente novamente.',
-                    variant: 'destructive',
-                  })
-                  return null
-                }
+                const n = await KitGeradorService.gravarDistribuidora(nome)
+                setDistribuidoras((prev) => [n, ...prev])
+                toast({ title: 'Distribuidora cadastrada!' })
               }}
               onExcluirPainel={async (id) => {
-                try {
-                  await KitGeradorService.desativarPainel(id)
-                  setPainelLista((l) => l.filter((p) => p.id !== id))
-                  return true
-                } catch {
-                  toast({ title: 'Erro ao excluir o painel', variant: 'destructive' })
-                  return false
-                }
+                await KitGeradorService.excluirPainel(id)
+                setPaineis((prev) => prev.filter((p) => p.id !== id))
+                toast({ title: 'Painel removido!' })
               }}
               onExcluirInversor={async (id) => {
-                try {
-                  await KitGeradorService.desativarInversor(id)
-                  setInversorLista((l) => l.filter((i) => i.id !== id))
-                  return true
-                } catch {
-                  toast({ title: 'Erro ao excluir o inversor', variant: 'destructive' })
-                  return false
-                }
+                await KitGeradorService.excluirInversor(id)
+                setInversores((prev) => prev.filter((i) => i !== id))
+                toast({ title: 'Inversor removido!' })
               }}
               onExcluirDistribuidora={async (id) => {
-                try {
-                  await KitGeradorService.desativarDistribuidora(id)
-                  setDistribuidoras((l) => l.filter((d) => d.id !== id))
-                  return true
-                } catch {
-                  toast({ title: 'Erro ao excluir a distribuidora', variant: 'destructive' })
-                  return false
-                }
+                await KitGeradorService.excluirDistribuidora(id)
+                setDistribuidoras((prev) => prev.filter((d) => d.id !== id))
+                toast({ title: 'Distribuidora removida!' })
               }}
+              carregando={carregandoCatalogo}
             />
           </TabsContent>
         </Tabs>
+
+        {/* Modal de Salvar Kit */}
+        <ModalSalvarKit
+          aberto={modalSalvarAberto}
+          onOpenChange={setModalSalvarAberto}
+          nomeKit={nomeKitSalvar}
+          setNomeKit={setNomeKitSalvar}
+          form={form}
+          calc={calc}
+          onConfirmar={handleSalvarKit}
+          salvando={salvandoKit}
+        />
       </div>
-    </div>
+    </Layout>
   )
 }
+export { KitGeradorPage }
