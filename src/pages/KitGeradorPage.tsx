@@ -1,6 +1,6 @@
 // Página Principal: Gerador de Kit Solar Ecosolar
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Layout } from '@/components/Layout'
+
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
@@ -188,12 +188,12 @@ export default function KitGeradorPage() {
   // Aplica quantidade sugerida no primeiro módulo com base no consumo do cliente
   const aplicarQtdSugeridaConsumo = useCallback(() => {
     const potW = form.painelLinhas[0]?.potenciaW || 550
-    const sugerida = qtdPaineisSugerida(
-      Number(form.consumo) || 600,
-      potW,
-      Number(form.sol) || 4.5,
-      Number(form.perdas) || 20,
-    )
+    const sol = Number(form.sol) || 4.5
+    const perdas = Number(form.perdas) || 20
+    const consumo = Number(form.consumo) || 600
+    const geracaoPorKwpMes = sol * 30 * (1 - perdas / 100)
+    const kwpNec = geracaoPorKwpMes > 0 ? consumo / geracaoPorKwpMes : 0
+    const sugerida = qtdPaineisSugerida(kwpNec, potW)
     const novasLinhas = [...form.painelLinhas]
     if (novasLinhas.length > 0) {
       novasLinhas[0] = { ...novasLinhas[0], qtd: sugerida }
@@ -263,11 +263,10 @@ export default function KitGeradorPage() {
       itens: [
         ...form.itens,
         {
-          id: `it-${Date.now()}`,
-          descricao: 'Novo item adicional',
+          nome: 'Novo item adicional',
           qtd: 1,
-          custo: 0,
-          selecionado: true,
+          incluido: true,
+          padrao: false,
         },
       ],
     })
@@ -386,12 +385,11 @@ export default function KitGeradorPage() {
       try {
         const arr = typeof k.itens === 'string' ? JSON.parse(k.itens) : k.itens
         if (Array.isArray(arr) && arr.length > 0) {
-          itensRecuperados = arr.map((item: any, idx: number) => ({
-            id: item.id || `it-${idx}`,
-            descricao: item.descricao || item.nome || 'Item',
+          itensRecuperados = arr.map((item: any) => ({
+            nome: item.nome || item.descricao || 'Item',
             qtd: Number(item.qtd) || 1,
-            custo: Number(item.custo) || 0,
-            selecionado: item.selecionado !== false,
+            incluido: item.incluido !== false && item.selecionado !== false,
+            padrao: !!item.padrao,
           }))
         }
       } catch {
@@ -471,248 +469,239 @@ Valor final sugerido: R$ ${calc.precoFinal.toLocaleString('pt-BR')}`
   }, [form.painelLinhas, form.inversorLinhas, calc.kwp])
 
   return (
-    <Layout>
-      <div className="container mx-auto max-w-7xl px-4 py-6 space-y-6">
-        {/* Cabeçalho da Página */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#dfe5f0] pb-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0b1f4d] text-[#f1c40f]">
-                <Zap className="h-5 w-5" />
-              </span>
-              <h1 className="font-montserrat text-2xl font-bold text-[#0b1f4d]">
-                Gerador de Kit Solar
-              </h1>
-            </div>
-            <p className="text-xs text-[#8a94a8]">
-              Dimensione e configure kits fotovoltaicos com múltiplos modelos de inversores e
-              painéis.
-            </p>
-          </div>
-
+    <div className="container mx-auto max-w-7xl px-4 py-6 space-y-6">
+      {/* Cabeçalho da Página */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#dfe5f0] pb-4">
+        <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleLimparTudo}
-              className="border-[#dfe5f0] text-[#3c4a63] text-xs"
-            >
-              <RotateCcw className="h-3.5 w-3.5 mr-1" />
-              Novo Kit
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => {
-                setNomeKitSalvar(sugestaoNomeKit)
-                setModalSalvarAberto(true)
-              }}
-              className="bg-[#0b1f4d] text-white hover:bg-[#122e6f] text-xs font-semibold"
-            >
-              <Sparkles className="h-3.5 w-3.5 mr-1 text-[#f1c40f]" />
-              Salvar Kit
-            </Button>
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0b1f4d] text-[#f1c40f]">
+              <Zap className="h-5 w-5" />
+            </span>
+            <h1 className="font-montserrat text-2xl font-bold text-[#0b1f4d]">
+              Gerador de Kit Solar
+            </h1>
           </div>
+          <p className="text-xs text-[#8a94a8]">
+            Dimensione e configure kits fotovoltaicos com múltiplos modelos de inversores e painéis.
+          </p>
         </div>
 
-        {/* Abas Superiores */}
-        <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="space-y-6">
-          <TabsList className="bg-[#f0f4f9] p-1 border border-[#dfe5f0]">
-            <TabsTrigger
-              value="montador"
-              className="text-xs data-[state=active]:bg-[#0b1f4d] data-[state=active]:text-white flex items-center gap-1.5"
-            >
-              <Layers className="h-3.5 w-3.5" />
-              Montador de Kits
-            </TabsTrigger>
-            <TabsTrigger
-              value="salvos"
-              className="text-xs data-[state=active]:bg-[#0b1f4d] data-[state=active]:text-white flex items-center gap-1.5"
-            >
-              <FileSpreadsheet className="h-3.5 w-3.5" />
-              Kits Salvos ({kitsSalvos.length})
-            </TabsTrigger>
-            <TabsTrigger
-              value="catalogo"
-              className="text-xs data-[state=active]:bg-[#0b1f4d] data-[state=active]:text-white flex items-center gap-1.5"
-            >
-              <ListOrdered className="h-3.5 w-3.5" />
-              Catálogo de Equipamentos
-            </TabsTrigger>
-          </TabsList>
-
-          {/* ABA 1: MONTADOR DE KITS */}
-          <TabsContent value="montador" className="m-0 space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              {/* Coluna da Esquerda: Formulários e Cartões de Configuração */}
-              <div className="lg:col-span-8 space-y-5">
-                {/* Cartão 1: Perfil de Consumo */}
-                <CardNumero numero={1} titulo="Consumo & Irradiação Solar">
-                  <CartaoPerfil
-                    form={form}
-                    set={setParcialForm}
-                    onAplicarQtdSugerida={aplicarQtdSugeridaConsumo}
-                  />
-                </CardNumero>
-
-                {/* Cartão 2: Painéis Fotovoltaicos (Múltiplas Linhas de Modelos) */}
-                <CardNumero
-                  numero={2}
-                  titulo="Módulos Fotovoltaicos (Painéis) — Vários Modelos"
-                  subtitulo="Adicione um ou mais modelos de painéis. O sistema soma a potência de todos no dimensionamento."
-                >
-                  <BlocoPaineisMultiplos
-                    linhas={form.painelLinhas}
-                    paineis={paineis}
-                    onChangeLinhas={(novas) => setParcialForm({ painelLinhas: novas })}
-                    outrosDados={form.outrosDadosPaineis}
-                    onChangeOutrosDados={(texto) => setParcialForm({ outrosDadosPaineis: texto })}
-                    onGravarCatalogo={handleGravarPainelCatalogo}
-                    gravando={gravandoCatalogo}
-                  />
-
-                  {/* Informação rápida de quantidade */}
-                  <div className="pt-2 border-t border-[#dfe5f0]">
-                    <BlocoQuantidadePainel
-                      qtdTotal={
-                        calc.kwp > 0 ? form.painelLinhas.reduce((a, b) => a + (b.qtd || 0), 0) : 0
-                      }
-                      kwp={calc.kwp}
-                    />
-                  </div>
-                </CardNumero>
-
-                {/* Cartão 3: Inversores (Múltiplas Linhas de Modelos) */}
-                <CardNumero
-                  numero={3}
-                  titulo="Inversores — Vários Modelos"
-                  subtitulo="Adicione um ou mais modelos de inversores (ex: microinversores ou múltiplos inversores centrais)."
-                >
-                  <BlocoInversoresMultiplos
-                    linhas={form.inversorLinhas}
-                    inversores={inversores}
-                    onChangeLinhas={(novas) => setParcialForm({ inversorLinhas: novas })}
-                    outrosDados={form.outrosDadosInversores}
-                    onChangeOutrosDados={(texto) =>
-                      setParcialForm({ outrosDadosInversores: texto })
-                    }
-                    onGravarCatalogo={handleGravarInversorCatalogo}
-                    gravando={gravandoCatalogo}
-                  />
-
-                  {/* Informação rápida de potência e FDR */}
-                  <div className="pt-2 border-t border-[#dfe5f0]">
-                    <BlocoQuantidadeInversor
-                      qtdTotal={form.inversorLinhas.reduce((a, b) => a + (b.qtd || 0), 0)}
-                      kwCa={calc.kwCa}
-                      relacao={calc.relacao}
-                      relacaoTipo={calc.relacaoTipo}
-                    />
-                  </div>
-                </CardNumero>
-
-                {/* Cartão 4: Estrutura e Fornecedor */}
-                <CardNumero numero={4} titulo="Estrutura de Fixação & Fornecedor">
-                  <CartaoEstrutura
-                    form={form}
-                    set={setParcialForm}
-                    distribuidoras={distribuidoras}
-                  />
-                </CardNumero>
-
-                {/* Cartão 5: Custo, Margem e Preço */}
-                <CardNumero numero={5} titulo="Custo do Kit, Itens Adicionais e Margem">
-                  <CartaoPreco
-                    form={form}
-                    set={setParcialForm}
-                    setItem={handleSetItem}
-                    addItem={handleAddItem}
-                    removeItem={handleRemoveItem}
-                  />
-                </CardNumero>
-              </div>
-
-              {/* Coluna da Direita: Resumo do Kit Fixo */}
-              <div className="lg:col-span-4 sticky top-6">
-                <ResumoKit
-                  dados={dadosResumo}
-                  onSalvar={() => {
-                    setNomeKitSalvar(sugestaoNomeKit)
-                    setModalSalvarAberto(true)
-                  }}
-                  onCopiar={handleCopiarResumo}
-                  onLimpar={handleLimparTudo}
-                  salvando={salvandoKit}
-                />
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* ABA 2: KITS SALVOS */}
-          <TabsContent value="salvos" className="m-0">
-            <AbaKitsSalvos
-              kits={kitsSalvos}
-              onEditar={handleAbrirKit}
-              onExcluir={handleExcluirKit}
-              carregando={carregandoCatalogo}
-            />
-          </TabsContent>
-
-          {/* ABA 3: CATÁLOGO GERAL */}
-          <TabsContent value="catalogo" className="m-0">
-            <AbaCatalogo
-              paineis={paineis}
-              inversores={inversores}
-              distribuidoras={distribuidoras}
-              onAddPainel={async (p) => {
-                const n = await KitGeradorService.gravarPainel(p)
-                setPaineis((prev) => [n, ...prev])
-                toast({ title: 'Painel cadastrado!' })
-              }}
-              onAddInversor={async (i) => {
-                const n = await KitGeradorService.gravarInversor(i)
-                setInversores((prev) => [n, ...prev])
-                toast({ title: 'Inversor cadastrado!' })
-              }}
-              onAddDistribuidora={async (nome) => {
-                const n = await KitGeradorService.gravarDistribuidora(nome)
-                setDistribuidoras((prev) => [n, ...prev])
-                toast({ title: 'Distribuidora cadastrada!' })
-              }}
-              onExcluirPainel={async (id) => {
-                await KitGeradorService.excluirPainel(id)
-                setPaineis((prev) => prev.filter((p) => p.id !== id))
-                toast({ title: 'Painel removido!' })
-              }}
-              onExcluirInversor={async (id) => {
-                await KitGeradorService.excluirInversor(id)
-                setInversores((prev) => prev.filter((i) => i !== id))
-                toast({ title: 'Inversor removido!' })
-              }}
-              onExcluirDistribuidora={async (id) => {
-                await KitGeradorService.excluirDistribuidora(id)
-                setDistribuidoras((prev) => prev.filter((d) => d.id !== id))
-                toast({ title: 'Distribuidora removida!' })
-              }}
-              carregando={carregandoCatalogo}
-            />
-          </TabsContent>
-        </Tabs>
-
-        {/* Modal de Salvar Kit */}
-        <ModalSalvarKit
-          aberto={modalSalvarAberto}
-          onOpenChange={setModalSalvarAberto}
-          nomeKit={nomeKitSalvar}
-          setNomeKit={setNomeKitSalvar}
-          form={form}
-          calc={calc}
-          onConfirmar={handleSalvarKit}
-          salvando={salvandoKit}
-        />
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleLimparTudo}
+            className="border-[#dfe5f0] text-[#3c4a63] text-xs"
+          >
+            <RotateCcw className="h-3.5 w-3.5 mr-1" />
+            Novo Kit
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              setNomeKitSalvar(sugestaoNomeKit)
+              setModalSalvarAberto(true)
+            }}
+            className="bg-[#0b1f4d] text-white hover:bg-[#122e6f] text-xs font-semibold"
+          >
+            <Sparkles className="h-3.5 w-3.5 mr-1 text-[#f1c40f]" />
+            Salvar Kit
+          </Button>
+        </div>
       </div>
-    </Layout>
+
+      {/* Abas Superiores */}
+      <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="space-y-6">
+        <TabsList className="bg-[#f0f4f9] p-1 border border-[#dfe5f0]">
+          <TabsTrigger
+            value="montador"
+            className="text-xs data-[state=active]:bg-[#0b1f4d] data-[state=active]:text-white flex items-center gap-1.5"
+          >
+            <Layers className="h-3.5 w-3.5" />
+            Montador de Kits
+          </TabsTrigger>
+          <TabsTrigger
+            value="salvos"
+            className="text-xs data-[state=active]:bg-[#0b1f4d] data-[state=active]:text-white flex items-center gap-1.5"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            Kits Salvos ({kitsSalvos.length})
+          </TabsTrigger>
+          <TabsTrigger
+            value="catalogo"
+            className="text-xs data-[state=active]:bg-[#0b1f4d] data-[state=active]:text-white flex items-center gap-1.5"
+          >
+            <ListOrdered className="h-3.5 w-3.5" />
+            Catálogo de Equipamentos
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ABA 1: MONTADOR DE KITS */}
+        <TabsContent value="montador" className="m-0 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Coluna da Esquerda: Formulários e Cartões de Configuração */}
+            <div className="lg:col-span-8 space-y-5">
+              {/* Cartão 1: Perfil de Consumo */}
+              <CardNumero numero={1} titulo="Consumo & Irradiação Solar">
+                <CartaoPerfil
+                  form={form}
+                  set={setParcialForm}
+                  onAplicarQtdSugerida={aplicarQtdSugeridaConsumo}
+                />
+              </CardNumero>
+
+              {/* Cartão 2: Painéis Fotovoltaicos (Múltiplas Linhas de Modelos) */}
+              <CardNumero
+                numero={2}
+                titulo="Módulos Fotovoltaicos (Painéis) — Vários Modelos"
+                subtitulo="Adicione um ou mais modelos de painéis. O sistema soma a potência de todos no dimensionamento."
+              >
+                <BlocoPaineisMultiplos
+                  linhas={form.painelLinhas}
+                  paineis={paineis}
+                  onChangeLinhas={(novas) => setParcialForm({ painelLinhas: novas })}
+                  outrosDados={form.outrosDadosPaineis}
+                  onChangeOutrosDados={(texto) => setParcialForm({ outrosDadosPaineis: texto })}
+                  onGravarCatalogo={handleGravarPainelCatalogo}
+                  gravando={gravandoCatalogo}
+                />
+
+                {/* Informação rápida de quantidade */}
+                <div className="pt-2 border-t border-[#dfe5f0]">
+                  <BlocoQuantidadePainel
+                    qtdTotal={
+                      calc.kwp > 0 ? form.painelLinhas.reduce((a, b) => a + (b.qtd || 0), 0) : 0
+                    }
+                    kwp={calc.kwp}
+                  />
+                </div>
+              </CardNumero>
+
+              {/* Cartão 3: Inversores (Múltiplas Linhas de Modelos) */}
+              <CardNumero
+                numero={3}
+                titulo="Inversores — Vários Modelos"
+                subtitulo="Adicione um ou mais modelos de inversores (ex: microinversores ou múltiplos inversores centrais)."
+              >
+                <BlocoInversoresMultiplos
+                  linhas={form.inversorLinhas}
+                  inversores={inversores}
+                  onChangeLinhas={(novas) => setParcialForm({ inversorLinhas: novas })}
+                  outrosDados={form.outrosDadosInversores}
+                  onChangeOutrosDados={(texto) => setParcialForm({ outrosDadosInversores: texto })}
+                  onGravarCatalogo={handleGravarInversorCatalogo}
+                  gravando={gravandoCatalogo}
+                />
+
+                {/* Informação rápida de potência e FDR */}
+                <div className="pt-2 border-t border-[#dfe5f0]">
+                  <BlocoQuantidadeInversor
+                    qtdTotal={form.inversorLinhas.reduce((a, b) => a + (b.qtd || 0), 0)}
+                    kwCa={calc.kwCa}
+                    relacao={calc.relacao}
+                    relacaoTipo={calc.relacaoTipo}
+                  />
+                </div>
+              </CardNumero>
+
+              {/* Cartão 4: Estrutura e Fornecedor */}
+              <CardNumero numero={4} titulo="Estrutura de Fixação & Fornecedor">
+                <CartaoEstrutura form={form} set={setParcialForm} distribuidoras={distribuidoras} />
+              </CardNumero>
+
+              {/* Cartão 5: Custo, Margem e Preço */}
+              <CardNumero numero={5} titulo="Custo do Kit, Itens Adicionais e Margem">
+                <CartaoPreco
+                  form={form}
+                  set={setParcialForm}
+                  setItem={handleSetItem}
+                  addItem={handleAddItem}
+                  removeItem={handleRemoveItem}
+                />
+              </CardNumero>
+            </div>
+
+            {/* Coluna da Direita: Resumo do Kit Fixo */}
+            <div className="lg:col-span-4 sticky top-6">
+              <ResumoKit
+                dados={dadosResumo}
+                onSalvar={() => {
+                  setNomeKitSalvar(sugestaoNomeKit)
+                  setModalSalvarAberto(true)
+                }}
+                onCopiar={handleCopiarResumo}
+                onLimpar={handleLimparTudo}
+                salvando={salvandoKit}
+              />
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* ABA 2: KITS SALVOS */}
+        <TabsContent value="salvos" className="m-0">
+          <AbaKitsSalvos
+            kits={kitsSalvos}
+            onEditar={handleAbrirKit}
+            onExcluir={handleExcluirKit}
+            carregando={carregandoCatalogo}
+          />
+        </TabsContent>
+
+        {/* ABA 3: CATÁLOGO GERAL */}
+        <TabsContent value="catalogo" className="m-0">
+          <AbaCatalogo
+            paineis={paineis}
+            inversores={inversores}
+            distribuidoras={distribuidoras}
+            onAddPainel={async (p) => {
+              const n = await KitGeradorService.gravarPainel(p)
+              setPaineis((prev) => [n, ...prev])
+              toast({ title: 'Painel cadastrado!' })
+            }}
+            onAddInversor={async (i) => {
+              const n = await KitGeradorService.gravarInversor(i)
+              setInversores((prev) => [n, ...prev])
+              toast({ title: 'Inversor cadastrado!' })
+            }}
+            onAddDistribuidora={async (nome) => {
+              const n = await KitGeradorService.gravarDistribuidora(nome)
+              setDistribuidoras((prev) => [n, ...prev])
+              toast({ title: 'Distribuidora cadastrada!' })
+            }}
+            onExcluirPainel={async (id) => {
+              await KitGeradorService.excluirPainel(id)
+              setPaineis((prev) => prev.filter((p) => p.id !== id))
+              toast({ title: 'Painel removido!' })
+            }}
+            onExcluirInversor={async (id) => {
+              await KitGeradorService.excluirInversor(id)
+              setInversores((prev) => prev.filter((i) => i.id !== id))
+              toast({ title: 'Inversor removido!' })
+            }}
+            onExcluirDistribuidora={async (id) => {
+              await KitGeradorService.excluirDistribuidora(id)
+              setDistribuidoras((prev) => prev.filter((d) => d.id !== id))
+              toast({ title: 'Distribuidora removida!' })
+            }}
+            carregando={carregandoCatalogo}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {/* Modal de Salvar Kit */}
+      <ModalSalvarKit
+        aberto={modalSalvarAberto}
+        onOpenChange={setModalSalvarAberto}
+        nomeKit={nomeKitSalvar}
+        setNomeKit={setNomeKitSalvar}
+        form={form}
+        calc={calc}
+        onConfirmar={handleSalvarKit}
+        salvando={salvandoKit}
+      />
+    </div>
   )
 }
 export { KitGeradorPage }

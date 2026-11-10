@@ -103,15 +103,28 @@ export function BlocoQuantidadeInversor({
 export function CartaoPerfil({
   form,
   set,
+  onAplicarQtdSugerida,
 }: {
   form: EstadoForm
   set: (p: Partial<EstadoForm>) => void
+  onAplicarQtdSugerida?: () => void
 }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div>
-          <Label className="text-xs">Consumo médio (kWh/mês)</Label>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs">Consumo médio (kWh/mês)</Label>
+            {onAplicarQtdSugerida && (
+              <button
+                type="button"
+                onClick={onAplicarQtdSugerida}
+                className="text-[10px] font-semibold text-[#0b1f4d] hover:underline"
+              >
+                Sugerir módulos
+              </button>
+            )}
+          </div>
           <Input
             value={form.consumo}
             onChange={(e) => set({ consumo: e.target.value })}

@@ -23,4 +23,6 @@ export interface DadosResumo {
   inversoresLinhas?: InversorLinha[]
   outrosDadosPaineis?: string
   outrosDadosInversores?: string
+  relacaoTipo?: 'sub' | 'ok' | 'sobre' | 'critica'
+  ligacao?: string
 }

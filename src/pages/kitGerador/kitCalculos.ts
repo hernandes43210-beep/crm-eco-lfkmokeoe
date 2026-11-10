@@ -90,7 +90,7 @@ export function calcularTudo({
   acrescimoPct: number
   descontoTipo: '%' | 'R$'
   descontoValor: number
-  itens: Array<{ custo: number; qtd: number }>
+  itens: Array<{ custo?: number; qtd?: number }>
 }): EstadoCalculo {
   // Potência CC total (kWp) somando todas as linhas de módulos
   const kwp = paineisLinhas.reduce((acc, p) => {
@@ -116,23 +116,18 @@ export function calcularTudo({
   }
   const relacaoTipo = tipoRelacao(relacao)
 
-  // Geração mensal estimada
-  const geracaoMensal = geracaoPorKwp(kwp, sol, perdas)
+  // Geração mensal estimada (kWh/mês = kWp × sol × 30 × (1 − perdas/100))
+  const geracaoMensal = kwp * geracaoPorKwp(sol, perdas)
 
-  // Itens adicionais
+  // Itens adicionais (caso possuam custo opcional)
   const precoItens = itens.reduce(
-    (acc, it) => acc + (Number(it.custo) || 0) * (Number(it.qtd) || 1),
+    (acc, it: any) => acc + (Number(it.custo) || 0) * (Number(it.qtd) || 1),
     0,
   )
 
   const custoTotal = Number(custo) + precoItens
 
-  const precoFinal = precoFinalReal({
-    custo: custoTotal,
-    acrescimoPct,
-    descontoTipo,
-    descontoValor,
-  })
+  const precoFinal = precoFinalReal(custoTotal, acrescimoPct, descontoTipo, descontoValor)
 
   const lucro = lucroReal(custoTotal, precoFinal)
   const margemPct = margemReal(custoTotal, precoFinal)
@@ -178,20 +173,26 @@ export function montarDadosResumo({
 }): DadosResumo {
   return {
     kwp: calc.kwp,
-    kwCa: calc.kwCa,
-    relacao: calc.relacao,
-    relacaoTipo: calc.relacaoTipo,
     geracaoMensal: calc.geracaoMensal,
+    coberturaPct: null,
+    kwCa: calc.kwCa,
+    linhaInversor: '',
+    areaM2: calc.areaM2,
+    tipoInstalacao,
+    relacao: calc.relacao,
+    itens: [],
+    distribuidora,
+    custo: 0,
+    precoVenda: calc.precoFinal,
+    descontoRs: 0,
     precoFinal: calc.precoFinal,
     lucro: calc.lucro,
     margemPct: calc.margemPct,
-    areaM2: calc.areaM2,
     paineisLinhas: toPainelLinhas(paineisLinhas),
     inversoresLinhas: toInversorLinhas(inversoresLinhas),
     outrosDadosPaineis: outrosDadosPaineis.trim(),
     outrosDadosInversores: outrosDadosInversores.trim(),
-    tipoInstalacao,
-    distribuidora,
+    relacaoTipo: calc.relacaoTipo,
     ligacao,
   }
 }

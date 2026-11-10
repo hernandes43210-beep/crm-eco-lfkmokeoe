@@ -18,7 +18,10 @@ export const ROTULO_INSTALACAO: Record<TipoInstalacao, string> = {
   Carport: 'carport (estacionamento)',
 }
 
-export const itensPadrao = (qtdInversores: number, tipo: TipoInstalacao): ItemLinha[] => [
+export const itensPadrao = (
+  qtdInversores: number = 1,
+  tipo: TipoInstalacao = 'Fibrocimento',
+): ItemLinha[] => [
   {
     nome: 'String box (proteção CC/CA) — DPS contra surtos e sobrecorrente',
     qtd: qtdInversores,

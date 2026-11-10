@@ -192,7 +192,7 @@ export function precoFinalReal(
 ): number {
   const precoVenda = custo * (1 + (acrescimoPct || 0) / 100)
   const descontoRs =
-    descontoTipo === '%' ? (precoVenda * (descontoValor || 0)) / 100 : (descontoValor || 0)
+    descontoTipo === '%' ? (precoVenda * (descontoValor || 0)) / 100 : descontoValor || 0
   return Math.max(0, precoVenda - descontoRs)
 }
 
