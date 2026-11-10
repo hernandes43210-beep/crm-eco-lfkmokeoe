@@ -289,6 +289,10 @@ export const KitGeradorService = {
     await pb.collection('kit_paineis').update(id, { ativo: false })
   },
 
+  async excluirPainel(id: string): Promise<void> {
+    await pb.collection('kit_paineis').update(id, { ativo: false })
+  },
+
   // ===================== INVERSORES =====================
   async listarInversores(): Promise<InversorCatalogo[]> {
     return await pb
@@ -349,6 +353,10 @@ export const KitGeradorService = {
     await pb.collection('kit_inversores').update(id, { ativo: false })
   },
 
+  async excluirInversor(id: string): Promise<void> {
+    await pb.collection('kit_inversores').update(id, { ativo: false })
+  },
+
   // ===================== DISTRIBUIDORAS =====================
   async listarDistribuidoras(): Promise<DistribuidoraItem[]> {
     return await pb
@@ -387,6 +395,10 @@ export const KitGeradorService = {
   },
 
   async desativarDistribuidora(id: string): Promise<void> {
+    await pb.collection('kit_distribuidoras').update(id, { ativo: false })
+  },
+
+  async excluirDistribuidora(id: string): Promise<void> {
     await pb.collection('kit_distribuidoras').update(id, { ativo: false })
   },
 

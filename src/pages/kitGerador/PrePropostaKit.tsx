@@ -45,7 +45,10 @@ export function PrePropostaKit({
 }: PrePropostaKitProps) {
   // Extrai listas de modelos usando os parsers universais
   const paineisLinhasIniciais = useMemo(() => parsePaineisLinhas(kit.painel), [kit.painel])
-  const inversoresLinhasIniciais = useMemo(() => parseInversoresLinhas(kit.inversor), [kit.inversor])
+  const inversoresLinhasIniciais = useMemo(
+    () => parseInversoresLinhas(kit.inversor),
+    [kit.inversor],
+  )
   const outrosPaineisInicial = useMemo(() => parseOutrosDados(kit.painel), [kit.painel])
   const outrosInversoresInicial = useMemo(() => parseOutrosDados(kit.inversor), [kit.inversor])
 
@@ -145,7 +148,8 @@ export function PrePropostaKit({
               {kit.nome || 'Kit Fotovoltaico'}
             </CardTitle>
             <p className="text-xs text-[#8a94a8]">
-              {distribuidora || kit.distribuidora || 'Distribuidora'} • {tipoInstalacao || kit.tipo_instalacao || 'Telhado'}
+              {distribuidora || kit.distribuidora || 'Distribuidora'} •{' '}
+              {tipoInstalacao || kit.tipo_instalacao || 'Telhado'}
             </p>
           </div>
           <Badge className="bg-[#0b1f4d] text-[#f1c40f] text-xs font-bold px-2.5 py-1">
@@ -159,7 +163,8 @@ export function PrePropostaKit({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label className="text-xs font-bold text-[#0b1f4d] flex items-center gap-1.5">
-              <Sun className="h-4 w-4 text-[#f1c40f]" /> Módulos Fotovoltaicos ({totalPaineisQtd} un)
+              <Sun className="h-4 w-4 text-[#f1c40f]" /> Módulos Fotovoltaicos ({totalPaineisQtd}{' '}
+              un)
             </Label>
             <Button
               type="button"
@@ -240,7 +245,8 @@ export function PrePropostaKit({
         <div className="space-y-2 pt-2 border-t border-[#dfe5f0]">
           <div className="flex items-center justify-between">
             <Label className="text-xs font-bold text-[#0b1f4d] flex items-center gap-1.5">
-              <Zap className="h-4 w-4 text-[#0b1f4d]" /> Inversores ({totalInversoresQtd} un — {fmt(potenciaInversoresKw)} kW)
+              <Zap className="h-4 w-4 text-[#0b1f4d]" /> Inversores ({totalInversoresQtd} un —{' '}
+              {fmt(potenciaInversoresKw)} kW)
             </Label>
             <Button
               type="button"
@@ -286,7 +292,9 @@ export function PrePropostaKit({
                     type="number"
                     step="0.1"
                     value={inv.potencia_kw}
-                    onChange={(e) => handleUpdateInversor(idx, 'potencia_kw', Number(e.target.value))}
+                    onChange={(e) =>
+                      handleUpdateInversor(idx, 'potencia_kw', Number(e.target.value))
+                    }
                     className="w-16 h-7 rounded border border-[#dfe5f0] bg-white text-right px-1 text-xs"
                   />
                   <span className="text-[11px] text-[#8a94a8]">kW</span>

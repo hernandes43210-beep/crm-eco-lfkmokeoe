@@ -301,18 +301,16 @@ export function GerarPropostaModal({
     const linhas: string[] = []
     if (painel) {
       linhas.push(
-        `${painel.qtd ? `${painel.qtd}× ` : ''}${painel.marca} ${painel.modelo || ''} ${painel.potencia_w ? `${painel.potencia_w} W` : ''}`.replace(
-          /\s+/g,
-          ' ',
-        ).trim(),
+        `${painel.qtd ? `${painel.qtd}× ` : ''}${painel.marca} ${painel.modelo || ''} ${painel.potencia_w ? `${painel.potencia_w} W` : ''}`
+          .replace(/\s+/g, ' ')
+          .trim(),
       )
     }
     if (inversor) {
       linhas.push(
-        `${inversor.qtd ? `${inversor.qtd}× ` : '1× '}${inversor.marca} ${inversor.modelo || ''} ${inversor.potencia_kw ? `${inversor.potencia_kw} kW` : ''}`.replace(
-          /\s+/g,
-          ' ',
-        ).trim(),
+        `${inversor.qtd ? `${inversor.qtd}× ` : '1× '}${inversor.marca} ${inversor.modelo || ''} ${inversor.potencia_kw ? `${inversor.potencia_kw} kW` : ''}`
+          .replace(/\s+/g, ' ')
+          .trim(),
       )
     }
     if (k.area_m2) {

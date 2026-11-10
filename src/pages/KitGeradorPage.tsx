@@ -4,14 +4,7 @@ import { Layout } from '@/components/Layout'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
-import {
-  Zap,
-  RotateCcw,
-  Sparkles,
-  Layers,
-  ListOrdered,
-  FileSpreadsheet,
-} from 'lucide-react'
+import { Zap, RotateCcw, Sparkles, Layers, ListOrdered, FileSpreadsheet } from 'lucide-react'
 import {
   KitGeradorService,
   parsePaineisLinhas,
@@ -34,11 +27,7 @@ import {
 } from './kitGerador/CartoesForm'
 import { BlocoPaineisMultiplos } from './kitGerador/BlocoPaineisMultiplos'
 import { BlocoInversoresMultiplos } from './kitGerador/BlocoInversoresMultiplos'
-import {
-  ResumoKit,
-  AbaCatalogo,
-  AbaKitsSalvos,
-} from './kitGerador/CartoesResumo'
+import { ResumoKit, AbaCatalogo, AbaKitsSalvos } from './kitGerador/CartoesResumo'
 import { ModalSalvarKit } from './kitGerador/ModalSalvarKit'
 import {
   estadoInicial,
@@ -162,12 +151,12 @@ export default function KitGeradorPage() {
     return calcularTudo({
       paineisLinhas: form.painelLinhas,
       inversoresLinhas: form.inversorLinhas,
-      sol: form.sol,
-      perdas: form.perdas,
-      custo: form.custo,
-      acrescimoPct: form.acrescimoPct,
+      sol: Number(form.sol) || 4.5,
+      perdas: Number(form.perdas) || 20,
+      custo: Number(form.custo) || 0,
+      acrescimoPct: Number(form.acrescimoPct) || 40,
       descontoTipo: form.descontoTipo,
-      descontoValor: form.descontoValor,
+      descontoValor: Number(form.descontoValor) || 0,
       itens: form.itens,
     })
   }, [
@@ -199,7 +188,12 @@ export default function KitGeradorPage() {
   // Aplica quantidade sugerida no primeiro módulo com base no consumo do cliente
   const aplicarQtdSugeridaConsumo = useCallback(() => {
     const potW = form.painelLinhas[0]?.potenciaW || 550
-    const sugerida = qtdPaineisSugerida(form.consumo, potW, form.sol, form.perdas)
+    const sugerida = qtdPaineisSugerida(
+      Number(form.consumo) || 600,
+      potW,
+      Number(form.sol) || 4.5,
+      Number(form.perdas) || 20,
+    )
     const novasLinhas = [...form.painelLinhas]
     if (novasLinhas.length > 0) {
       novasLinhas[0] = { ...novasLinhas[0], qtd: sugerida }
@@ -268,7 +262,13 @@ export default function KitGeradorPage() {
     setParcialForm({
       itens: [
         ...form.itens,
-        { id: `it-${Date.now()}`, descricao: 'Novo item adicional', qtd: 1, custo: 0, selecionado: true },
+        {
+          id: `it-${Date.now()}`,
+          descricao: 'Novo item adicional',
+          qtd: 1,
+          custo: 0,
+          selecionado: true,
+        },
       ],
     })
   }
@@ -289,17 +289,38 @@ export default function KitGeradorPage() {
     setSalvandoKit(true)
     try {
       const payloadPainel = montarPayloadPaineis(form.painelLinhas, form.outrosDadosPaineis)
-      const payloadInversor = montarPayloadInversores(form.inversorLinhas, form.outrosDadosInversores)
+      const payloadInversor = montarPayloadInversores(
+        form.inversorLinhas,
+        form.outrosDadosInversores,
+      )
+
+      const itensPayload = form.itens
+        .filter((it: any) => it.incluido !== false && it.selecionado !== false)
+        .map((it: any) => ({
+          nome: it.nome || it.descricao || 'Item',
+          qtd: Number(it.qtd) || 1,
+        }))
 
       const novo = await KitGeradorService.salvarKit({
         nome: nomeKitSalvar.trim(),
         potencia_kwp: calc.kwp,
+        geracao_kwh: calc.geracaoMensal,
+        area_m2: calc.areaM2,
         tipo_instalacao: form.tipoInstalacao,
+        ligacao: form.ligacao,
         distribuidora: form.distribuidora,
-        painel: payloadPainel,
-        inversor: payloadInversor,
+        painel: payloadPainel as any,
+        inversor: payloadInversor as any,
+        itens: itensPayload,
+        custo: Number(form.custo) || 0,
+        acrescimo_pct: Number(form.acrescimoPct) || 0,
+        preco_venda: calc.precoFinal,
+        desconto_tipo: form.descontoTipo,
+        desconto_valor: Number(form.descontoValor) || 0,
+        desconto_rs: 0,
         preco_final: calc.precoFinal,
-        itens: form.itens,
+        lucro: calc.lucro,
+        margem_pct: calc.margemPct,
       })
 
       setKitsSalvos((prev) => [novo, ...prev])
@@ -464,7 +485,8 @@ Valor final sugerido: R$ ${calc.precoFinal.toLocaleString('pt-BR')}`
               </h1>
             </div>
             <p className="text-xs text-[#8a94a8]">
-              Dimensione e configure kits fotovoltaicos com múltiplos modelos de inversores e painéis.
+              Dimensione e configure kits fotovoltaicos com múltiplos modelos de inversores e
+              painéis.
             </p>
           </div>
 
@@ -553,7 +575,9 @@ Valor final sugerido: R$ ${calc.precoFinal.toLocaleString('pt-BR')}`
                   {/* Informação rápida de quantidade */}
                   <div className="pt-2 border-t border-[#dfe5f0]">
                     <BlocoQuantidadePainel
-                      qtdTotal={calc.kwp > 0 ? form.painelLinhas.reduce((a, b) => a + (b.qtd || 0), 0) : 0}
+                      qtdTotal={
+                        calc.kwp > 0 ? form.painelLinhas.reduce((a, b) => a + (b.qtd || 0), 0) : 0
+                      }
                       kwp={calc.kwp}
                     />
                   </div>
@@ -570,7 +594,9 @@ Valor final sugerido: R$ ${calc.precoFinal.toLocaleString('pt-BR')}`
                     inversores={inversores}
                     onChangeLinhas={(novas) => setParcialForm({ inversorLinhas: novas })}
                     outrosDados={form.outrosDadosInversores}
-                    onChangeOutrosDados={(texto) => setParcialForm({ outrosDadosInversores: texto })}
+                    onChangeOutrosDados={(texto) =>
+                      setParcialForm({ outrosDadosInversores: texto })
+                    }
                     onGravarCatalogo={handleGravarInversorCatalogo}
                     gravando={gravandoCatalogo}
                   />

@@ -184,6 +184,35 @@ export interface Precificacao {
   precoPorWp: number | null
 }
 
+export function precoFinalReal(
+  custo: number,
+  acrescimoPct: number,
+  descontoTipo: '%' | 'R$',
+  descontoValor: number,
+): number {
+  const precoVenda = custo * (1 + (acrescimoPct || 0) / 100)
+  const descontoRs =
+    descontoTipo === '%' ? (precoVenda * (descontoValor || 0)) / 100 : (descontoValor || 0)
+  return Math.max(0, precoVenda - descontoRs)
+}
+
+export function lucroReal(custo: number, precoFinal: number): number {
+  return precoFinal - custo
+}
+
+export function margemReal(custo: number, precoFinal: number): number {
+  if (precoFinal <= 0) return 0
+  return ((precoFinal - custo) / precoFinal) * 100
+}
+
+export function tipoRelacao(relacao: number | null): 'sub' | 'ok' | 'sobre' | 'critica' {
+  if (relacao === null || relacao <= 0) return 'ok'
+  if (relacao < 1.0) return 'sub'
+  if (relacao <= 1.35) return 'ok'
+  if (relacao <= 1.55) return 'sobre'
+  return 'critica'
+}
+
 export function precificar(opcoes: {
   custo: number
   acrescimoPct: number

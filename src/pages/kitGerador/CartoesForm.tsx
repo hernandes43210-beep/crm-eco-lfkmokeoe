@@ -10,11 +10,91 @@ import type { EstadoForm } from './formTipos'
 import type { EstadoCalculo } from './kitCalculos'
 import type { DistribuidoraRow } from '@/services/kitGerador'
 
-export function CardNumero({ num }: { num: number }) {
+export function CardNumero({
+  numero,
+  num,
+  titulo,
+  subtitulo,
+  children,
+}: {
+  numero?: number
+  num?: number
+  titulo?: string
+  subtitulo?: string
+  children?: React.ReactNode
+}) {
+  const n = numero ?? num ?? 1
+  if (!titulo && !children) {
+    return (
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#0b1f4d] font-montserrat text-xs font-bold text-white">
+        {n}
+      </span>
+    )
+  }
   return (
-    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#0b1f4d] font-montserrat text-xs font-bold text-white">
-      {num}
-    </span>
+    <div className="rounded-[12px] border border-[#dfe5f0] bg-white p-4 shadow-sm space-y-3">
+      <div className="flex items-start gap-2.5">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#0b1f4d] font-montserrat text-xs font-bold text-white">
+          {n}
+        </span>
+        <div>
+          {titulo && <h2 className="text-sm font-bold text-[#0b1f4d]">{titulo}</h2>}
+          {subtitulo && <p className="text-[11px] text-[#8a94a8]">{subtitulo}</p>}
+        </div>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+export function BlocoQuantidadePainel({ qtdTotal, kwp }: { qtdTotal: number; kwp: number }) {
+  return (
+    <div className="flex items-center justify-between text-xs text-[#3c4a63]">
+      <span>
+        Total de módulos: <strong>{qtdTotal} un</strong>
+      </span>
+      <span>
+        Potência total: <strong>{kwp.toFixed(2)} kWp</strong>
+      </span>
+    </div>
+  )
+}
+
+export function BlocoQuantidadeInversor({
+  qtdTotal,
+  kwCa,
+  relacao,
+  relacaoTipo,
+}: {
+  qtdTotal: number
+  kwCa: number
+  relacao: number | null
+  relacaoTipo?: 'sub' | 'ok' | 'sobre' | 'critica'
+}) {
+  const relacaoTexto = relacao ? `${(relacao * 100).toFixed(0)}%` : '—'
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#3c4a63]">
+      <span>
+        Total de inversores: <strong>{qtdTotal} un</strong>
+      </span>
+      <span>
+        Potência CA: <strong>{kwCa.toFixed(2)} kW</strong>
+      </span>
+      <span>
+        FDR / Sobrecarga:{' '}
+        <strong
+          className={
+            relacaoTipo === 'critica'
+              ? 'text-red-600'
+              : relacaoTipo === 'sobre'
+                ? 'text-amber-600'
+                : 'text-[#0b1f4d]'
+          }
+        >
+          {relacaoTexto}
+        </strong>
+      </span>
+    </div>
   )
 }
 
@@ -195,10 +275,16 @@ export function CartaoPreco({
   form,
   set,
   calc,
+  setItem,
+  addItem,
+  removeItem,
 }: {
   form: EstadoForm
   set: (p: Partial<EstadoForm>) => void
-  calc: EstadoCalculo
+  calc?: EstadoCalculo
+  setItem?: (idx: number, mudancas: any) => void
+  addItem?: () => void
+  removeItem?: (idx: number) => void
 }) {
   return (
     <div className="space-y-4">

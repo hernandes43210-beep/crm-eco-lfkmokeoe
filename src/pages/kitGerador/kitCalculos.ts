@@ -24,6 +24,8 @@ export interface EstadoCalculo {
   lucro: number
   margemPct: number
   areaM2: number
+  qtdPaineisTotal: number
+  qtdInversoresTotal: number
 }
 
 // Converte do estado do formulário para o formato de persistência
@@ -102,7 +104,8 @@ export function calcularTudo({
 
   // Área total estimada de telhado em m²
   const areaM2 = paineisLinhas.reduce((acc, p) => {
-    const areaUnit = Number(p.areaM2) > 0 ? Number(p.areaM2) : ((Number(p.potenciaW) || 550) >= 500 ? 2.79 : 2.0)
+    const areaUnit =
+      Number(p.areaM2) > 0 ? Number(p.areaM2) : (Number(p.potenciaW) || 550) >= 500 ? 2.79 : 2.0
     return acc + (Number(p.qtd) || 0) * areaUnit
   }, 0)
 
@@ -117,7 +120,10 @@ export function calcularTudo({
   const geracaoMensal = geracaoPorKwp(kwp, sol, perdas)
 
   // Itens adicionais
-  const precoItens = itens.reduce((acc, it) => acc + (Number(it.custo) || 0) * (Number(it.qtd) || 1), 0)
+  const precoItens = itens.reduce(
+    (acc, it) => acc + (Number(it.custo) || 0) * (Number(it.qtd) || 1),
+    0,
+  )
 
   const custoTotal = Number(custo) + precoItens
 
@@ -131,6 +137,9 @@ export function calcularTudo({
   const lucro = lucroReal(custoTotal, precoFinal)
   const margemPct = margemReal(custoTotal, precoFinal)
 
+  const qtdPaineisTotal = paineisLinhas.reduce((acc, p) => acc + (Number(p.qtd) || 0), 0)
+  const qtdInversoresTotal = inversoresLinhas.reduce((acc, inv) => acc + (Number(inv.qtd) || 0), 0)
+
   return {
     kwp,
     kwCa,
@@ -142,6 +151,8 @@ export function calcularTudo({
     lucro,
     margemPct,
     areaM2,
+    qtdPaineisTotal,
+    qtdInversoresTotal,
   }
 }
 

@@ -3,15 +3,7 @@ import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Zap,
-  RotateCcw,
-  Copy,
-  Plus,
-  Trash2,
-  FolderOpen,
-  Sparkles,
-} from 'lucide-react'
+import { Zap, RotateCcw, Copy, Plus, Trash2, FolderOpen, Sparkles } from 'lucide-react'
 import { fmt, TIPOS_INVERSOR, type TipoInstalacao } from './logica'
 import { ROTULO_INSTALACAO } from './itensPadrao'
 import {
@@ -114,9 +106,7 @@ export function ResumoKit({
           <span className="text-xs font-bold uppercase tracking-wider text-[#8a94a8]">
             Módulos fotovoltaicos
           </span>
-          <span className="text-xs font-semibold text-[#0b1f4d]">
-            Total: {qtdPaineisTotal} un
-          </span>
+          <span className="text-xs font-semibold text-[#0b1f4d]">Total: {qtdPaineisTotal} un</span>
         </div>
         <div className="space-y-1">
           {paineisLinhas.map((p, idx) => (
@@ -130,9 +120,7 @@ export function ResumoKit({
                   {p.marca} {p.modelo || ''}
                 </span>
               </div>
-              <span className="shrink-0 font-semibold text-[#0b1f4d] ml-2">
-                {p.potencia_w} W
-              </span>
+              <span className="shrink-0 font-semibold text-[#0b1f4d] ml-2">{p.potencia_w} W</span>
             </div>
           ))}
           {paineisLinhas.length === 0 && (
@@ -275,8 +263,18 @@ export function AbaCatalogo({
   paineis: PainelCatalogo[]
   inversores: InversorCatalogo[]
   distribuidoras: DistribuidoraItem[]
-  onAddPainel: (p: { marca: string; modelo: string; potencia_w: number; area_m2: number }) => Promise<void>
-  onAddInversor: (i: { marca: string; modelo: string; potencia_kw: number; tipo: InversorCatalogo['tipo'] }) => Promise<void>
+  onAddPainel: (p: {
+    marca: string
+    modelo: string
+    potencia_w: number
+    area_m2: number
+  }) => Promise<void>
+  onAddInversor: (i: {
+    marca: string
+    modelo: string
+    potencia_kw: number
+    tipo: InversorCatalogo['tipo']
+  }) => Promise<void>
   onAddDistribuidora: (nome: string) => Promise<void>
   onExcluirPainel: (id: string) => Promise<void>
   onExcluirInversor: (id: string) => Promise<void>
@@ -290,7 +288,12 @@ export function AbaCatalogo({
   const [filtroInversores, setFiltroInversores] = useState<FiltroCatalogo>(filtroCatalogoVazio)
 
   // Modais de novo item rápido
-  const [novoPainel, setNovoPainel] = useState({ marca: '', modelo: '', potencia_w: 550, area_m2: 2.79 })
+  const [novoPainel, setNovoPainel] = useState({
+    marca: '',
+    modelo: '',
+    potencia_w: 550,
+    area_m2: 2.79,
+  })
   const [novoInversor, setNovoInversor] = useState({
     marca: '',
     modelo: '',
@@ -376,7 +379,9 @@ export function AbaCatalogo({
               <Input
                 type="number"
                 value={novoPainel.potencia_w}
-                onChange={(e) => setNovoPainel((p) => ({ ...p, potencia_w: Number(e.target.value) }))}
+                onChange={(e) =>
+                  setNovoPainel((p) => ({ ...p, potencia_w: Number(e.target.value) }))
+                }
                 className="h-8 text-xs bg-white"
               />
             </div>
@@ -474,7 +479,9 @@ export function AbaCatalogo({
                 type="number"
                 step="0.1"
                 value={novoInversor.potencia_kw}
-                onChange={(e) => setNovoInversor((i) => ({ ...i, potencia_kw: Number(e.target.value) }))}
+                onChange={(e) =>
+                  setNovoInversor((i) => ({ ...i, potencia_kw: Number(e.target.value) }))
+                }
                 className="h-8 text-xs bg-white"
               />
             </div>
@@ -601,7 +608,9 @@ export function AbaCatalogo({
               </div>
             ))}
             {distribuidoras.length === 0 && (
-              <p className="p-4 text-center text-xs text-[#8a94a8]">Nenhuma distribuidora cadastrada</p>
+              <p className="p-4 text-center text-xs text-[#8a94a8]">
+                Nenhuma distribuidora cadastrada
+              </p>
             )}
           </div>
         </div>
