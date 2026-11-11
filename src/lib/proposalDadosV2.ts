@@ -21,6 +21,9 @@ import {
 } from './proposalCalculos'
 import { formatBRL, formatDateBR } from './solarUtils'
 import { CONTATO_ECOSOLAR } from '@/constants/empresa'
+import { lerEquipamentosProposta, totalKwhBaterias } from '@/lib/propostaBaterias'
+import type { BateriaLinha } from '@/services/kitGerador'
+import type { BateriasPropostaJson } from '@/types/crm'
 
 /** Área aproximada ocupada por cada painel (m²) — usada só para estimar a área do telhado. */
 export const AREA_PAINEL_M2 = 2.3
@@ -63,6 +66,7 @@ export interface ProposalPDFData {
   kit_potencia_painel_w?: number
   kit_potencia_inversor_kw?: number
   kit_tipo_estrutura?: string
+  kit_baterias?: BateriasPropostaJson | string
   kit?: {
     descricao?: string
     string_box?: string
@@ -154,6 +158,8 @@ export interface DadosV2 {
   qtdPaineis: number | null
   areaTelhadoM2: number | null
   kwpFmt: string
+  bateriasKit: BateriaLinha[]
+  bateriasKwhFmt: string
   itensKit: Array<{ qtd: string; item: string; para: string }>
   faq: typeof FAQ_PROPOSTA
   etapas: ReturnType<typeof etapasImplantacao>
@@ -215,16 +221,9 @@ export function montarDadosV2(data: ProposalPDFData): DadosV2 {
   const itemEstrutura = `Estrutura para telhado de ${tipoEstruturaTexto}`
 
   const itensKit = [
-    {
-      qtd: qtdPaineis ? `${qtdPaineis}x` : 'kit',
-      item: itemPaineis,
-      para: descricaoFuncaoItem(itemPaineis, tipoEstruturaTexto),
-    },
-    {
-      qtd: `${qtdInversores}x`,
-      item: itemInversor,
-      para: descricaoFuncaoItem(itemInversor, tipoEstruturaTexto),
-    },
+    ...linhasPainelKit,
+    ...linhasInversorKit,
+    ...linhasBateriaKit,
     {
       qtd: '1x',
       item: stringBox
@@ -319,6 +318,9 @@ export function montarDadosV2(data: ProposalPDFData): DadosV2 {
     qtdPaineis,
     areaTelhadoM2,
     kwpFmt: formatNumeroBR(kwp, 2),
+    bateriasKit,
+    bateriasKwhFmt:
+      bateriasKit.length > 0 ? `${formatNumeroBR(totalKwhBaterias(bateriasKit), 2)} kWh` : '',
     itensKit,
     faq: FAQ_PROPOSTA,
     etapas: etapasImplantacao(CONCESSIONARIA_PADRAO),
@@ -327,6 +329,24 @@ export function montarDadosV2(data: ProposalPDFData): DadosV2 {
     garantiaInstalacaoTxt,
     formasPagamento,
   }
+}
+
+/** Observações/tensão opcionais ignoradas — extrai "Painéis: 10× Marca 580 W" de textos do kit. */
+function extrairLinhasKit(
+  texto: string | undefined,
+  rePalavra: RegExp,
+): Array<{ qtd: number; nome: string }> {
+  if (!texto) return []
+  const out: Array<{ qtd: number; nome: string }> = []
+  for (const seg of texto.split(/[•;\n]/)) {
+    if (!rePalavra.test(seg)) continue
+    const m = seg.match(/(\d+)\s*[x×]\s*([^\n]+)/)
+    if (!m) continue
+    const qtd = parseInt(m[1], 10)
+    const nome = m[2].trim()
+    if (qtd > 0 && nome) out.push({ qtd, nome })
+  }
+  return out
 }
 
 function paybackCurtoLocal(meses: number): string {
