@@ -78,6 +78,17 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from '@/hooks/use-toast'
 
+/** kit_baterias de fallback a partir do kit expandido da proposta (formato { linhas: [...] }). */
+function bateriasDeKitExpand(prop: Proposta): string | undefined {
+  const bateria = (prop.expand?.kit as any)?.bateria
+  if (!bateria) return undefined
+  try {
+    return JSON.stringify({ linhas: bateria })
+  } catch {
+    return undefined
+  }
+}
+
 const PIPELINE_ORDER: LeadStatus[] = [
   'Novo',
   'Contato Feito',
@@ -963,6 +974,7 @@ export default function LeadDetail() {
         undefined,
       kit_tipo_estrutura:
         (prop as any)?.kit_tipo_estrutura || (prop.expand?.kit as any)?.tipo_estrutura || undefined,
+      kit_baterias: (prop as any)?.kit_baterias || bateriasDeKitExpand(prop),
       cliente: {
         nome: lead.nome,
         email: lead.email,

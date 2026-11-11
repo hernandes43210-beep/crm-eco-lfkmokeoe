@@ -244,6 +244,7 @@ export default function PropostaPublica() {
         undefined,
       kit_tipo_estrutura:
         (proposta as any)?.kit_tipo_estrutura || proposta.kit?.tipo_estrutura || undefined,
+      kit_baterias: (proposta as any)?.kit_baterias || undefined,
       cliente: {
         nome: proposta.lead?.nome || 'Cliente',
         email: proposta.lead?.email,

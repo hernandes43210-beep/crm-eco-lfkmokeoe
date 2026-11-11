@@ -21,7 +21,7 @@ import {
 } from './proposalCalculos'
 import { formatBRL, formatDateBR } from './solarUtils'
 import { CONTATO_ECOSOLAR } from '@/constants/empresa'
-import { lerEquipamentosProposta, totalKwhBaterias, rotuloBateria } from '@/lib/propostaBaterias'
+import { lerEquipamentosProposta, totalKwhBaterias } from '@/lib/propostaBaterias'
 import type { BateriaLinha } from '@/services/kitGerador'
 import type { BateriasPropostaJson } from '@/types/crm'
 
@@ -246,11 +246,23 @@ export function montarDadosV2(data: ProposalPDFData): DadosV2 {
       : [{ qtd: qtdInversores > 1 ? `${qtdInversores}x` : '1x', item: itemInversor }]
   ).map((l) => ({ ...l, para: descricaoFuncaoItem('inversor') }))
 
-  const linhasBateriaKit = bateriasKit.map((b) => ({
-    qtd: `${Number(b.qtd) || 1}x`,
-    item: rotuloBateria(b),
-    para: descricaoFuncaoItem('bateria'),
-  }))
+  const linhasBateriaKit = bateriasKit.map((b) => {
+    const qtd = Number(b.qtd) || 1
+    const nome = [b.marca, b.modelo].filter(Boolean).join(' ')
+    const kwh = Number(b.capacidade_kwh) || 0
+    const totalLinha = kwh * qtd
+    // "Bateria Lítio 5,12 kWh — Marca Modelo — Total 20,48 kWh" (total só quando qtd > 1)
+    const partes: string[] = []
+    if (nome) partes.push(nome)
+    if (kwh > 0) partes.push(`${formatNumeroBR(kwh, 2)} kWh`)
+    if (b.tensao) partes.push(b.tensao)
+    if (qtd > 1 && totalLinha > 0) partes.push(`Total ${formatNumeroBR(totalLinha, 2)} kWh`)
+    return {
+      qtd: `${qtd}x`,
+      item: partes.join(' — ') || 'Bateria',
+      para: descricaoFuncaoItem('bateria'),
+    }
+  })
 
   const itensKit = [
     ...linhasPainelKit,
