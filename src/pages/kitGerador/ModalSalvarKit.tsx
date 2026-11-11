@@ -19,7 +19,6 @@ import { parseNumeroPtBr } from './formControles'
 import type { EstadoCalculo } from './kitCalculos'
 import { toPainelLinhas, toInversorLinhas, toBateriaLinhas } from './kitCalculos'
 import type { EstadoForm } from './formTipos'
-import { ItemLinha } from './itensPadrao'
 import {
   SecaoResumo,
   LinhaResumoPainel,
@@ -49,9 +48,7 @@ export function ModalSalvarKit({
   const paineis = toPainelLinhas(form.painelLinhas)
   const inversores = toInversorLinhas(form.inversorLinhas)
   const baterias = toBateriaLinhas(form.baterias)
-  const itensIncluidos = form.itens.filter(
-    (it: ItemLinha) => it.incluido !== false && it.selecionado !== false,
-  )
+  const itensIncluidos = form.itens.filter((it) => it.incluido !== false)
   const capacidadeTotalKwh = baterias.reduce(
     (acc, b) => acc + (b.capacidade_kwh || 0) * (b.qtd || 1),
     0,
