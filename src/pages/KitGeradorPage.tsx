@@ -351,6 +351,7 @@ export default function KitGeradorPage() {
         distribuidora: distribuidoraEfetiva.trim(),
         painel: payloadPainel as any,
         inversor: payloadInversor as any,
+        bateria: temBaterias ? (payloadBateria as any) : undefined,
         itens: itensPayload,
         custo: parseNumeroPtBr(form.custo) ?? 0,
         acrescimo_pct: parseNumeroPtBr(form.acrescimoPct) ?? 0,

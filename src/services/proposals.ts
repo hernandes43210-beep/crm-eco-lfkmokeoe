@@ -1,5 +1,10 @@
 import pb from '@/lib/pocketbase/client'
-import type { Proposta, PublicProposta, PropostaFotoSelecionada } from '@/types/crm'
+import type {
+  Proposta,
+  PublicProposta,
+  PropostaFotoSelecionada,
+  BateriasPropostaJson,
+} from '@/types/crm'
 
 export interface CreatePropostaPayload {
   lead: string
