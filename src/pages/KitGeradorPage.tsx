@@ -43,7 +43,7 @@ import {
   montarPayloadInversores,
   montarDadosResumo,
 } from './kitGerador/kitCalculos'
-import { qtdPaineisSugerida, fmt } from './kitGerador/logica'
+import { qtdPaineisSugerida, fmt, montarNomeKit } from './kitGerador/logica'
 import { parseNumeroPtBr } from './kitGerador/formControles'
 
 export default function KitGeradorPage() {
@@ -147,6 +147,12 @@ export default function KitGeradorPage() {
     carregarDados()
   }, [carregarDados])
 
+  // Distribuidora efetiva: se o usuário escolheu "+ Outra", usa a que ele digitou
+  const distribuidoraEfetiva = useMemo(
+    () => (form.distribuidora === '__outra__' ? form.distribuidoraNova : form.distribuidora),
+    [form.distribuidora, form.distribuidoraNova],
+  )
+
   // Cálculos consolidados somando múltiplos módulos e múltiplos inversores
   const calc = useMemo(() => {
     const custoNum = parseNumeroPtBr(form.custo) ?? 0
@@ -185,10 +191,10 @@ export default function KitGeradorPage() {
       outrosDadosPaineis: form.outrosDadosPaineis,
       outrosDadosInversores: form.outrosDadosInversores,
       tipoInstalacao: form.tipoInstalacao,
-      distribuidora: form.distribuidora,
+      distribuidora: distribuidoraEfetiva,
       ligacao: form.ligacao,
     })
-  }, [calc, form])
+  }, [calc, form, distribuidoraEfetiva])
 
   // Aplica quantidade sugerida no primeiro módulo com base no consumo do cliente
   const aplicarQtdSugeridaConsumo = useCallback(() => {
@@ -322,7 +328,7 @@ export default function KitGeradorPage() {
         area_m2: calc.areaM2,
         tipo_instalacao: form.tipoInstalacao,
         ligacao: form.ligacao,
-        distribuidora: form.distribuidora,
+        distribuidora: distribuidoraEfetiva.trim(),
         painel: payloadPainel as any,
         inversor: payloadInversor as any,
         itens: itensPayload,
@@ -469,7 +475,7 @@ INVERSORES:
 ${textoInversores}
 ${form.outrosDadosInversores ? `Obs: ${form.outrosDadosInversores}\n` : ''}
 Estrutura: ${form.tipoInstalacao}
-Fornecedor: ${form.distribuidora}
+Fornecedor: ${distribuidoraEfetiva}
 
 Valor final sugerido: R$ ${calc.precoFinal.toLocaleString('pt-BR')}`
 
@@ -482,13 +488,18 @@ Valor final sugerido: R$ ${calc.precoFinal.toLocaleString('pt-BR')}`
     toast({ title: 'Montador redefinido para o padrão' })
   }
 
-  // Sugestão de nome do kit ao abrir o modal
-  const sugestaoNomeKit = useMemo(() => {
-    const primeiroPainel = form.painelLinhas[0]
-    const primeiroInv = form.inversorLinhas[0]
-    const potKwp = fmt(calc.kwp)
-    return `Kit ${potKwp} kWp - ${primeiroPainel?.marca || 'Solar'} / ${primeiroInv?.marca || 'Inversor'}`
-  }, [form.painelLinhas, form.inversorLinhas, calc.kwp])
+  // Sugestão de nome do kit ao abrir o modal — ex.: "Kit Solar 13,42 kWp — BYD + PHB — Solo monoposte — Bel Energy"
+  const sugestaoNomeKit = useMemo(
+    () =>
+      montarNomeKit({
+        kwp: calc.kwp,
+        marcasPaineis: form.painelLinhas.map((p) => p.marca),
+        marcasInversores: form.inversorLinhas.map((i) => i.marca),
+        tipoInstalacao: form.tipoInstalacao,
+        distribuidora: distribuidoraEfetiva,
+      }),
+    [form.painelLinhas, form.inversorLinhas, form.tipoInstalacao, distribuidoraEfetiva, calc.kwp],
+  )
 
   return (
     <div className="container mx-auto max-w-7xl px-4 py-6 space-y-6">

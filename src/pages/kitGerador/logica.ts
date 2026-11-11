@@ -256,37 +256,27 @@ export function nomeEstrutura(tipo: string): string {
   return NOMES_ESTRUTURA[tipo] ?? tipo.toLowerCase()
 }
 
-/** Nome automático do kit (editável/travável no formulário). */
+/** Nome automático do kit — ex.: "Kit Solar 13,42 kWp — BYD + PHB — Solo monoposte — Bel Energy". */
 export function montarNomeKit(opcoes: {
   kwp: number
-  marcaPainel: string
-  potenciaPainelW: number
-  marcaInversor: string
-  potenciaInversorKw: number
-  qtdInversores: number
+  marcasPaineis: string[]
+  marcasInversores: string[]
   tipoInstalacao: string
   distribuidora: string
 }): string {
-  const partes: string[] = []
-  if (opcoes.kwp > 0) partes.push(`Kit Solar ${fmt(opcoes.kwp)} kWp`)
-  else partes.push('Kit Solar')
+  const marcasUnicas = (marcas: string[]) => [
+    ...new Set(marcas.map((m) => m.trim()).filter(Boolean)),
+  ]
 
-  const painel: string[] = []
-  if (opcoes.marcaPainel) painel.push(opcoes.marcaPainel)
-  if (opcoes.potenciaPainelW > 0) painel.push(`${fmtInt(opcoes.potenciaPainelW)} W`)
-  if (painel.length) partes.push(painel.join(' '))
+  // Marcas de painéis e inversores compartilham o mesmo segmento, unidas por " + "
+  const marcas = [...marcasUnicas(opcoes.marcasPaineis), ...marcasUnicas(opcoes.marcasInversores)]
 
-  const inversor: string[] = []
-  if (opcoes.marcaInversor) inversor.push(opcoes.marcaInversor)
-  if (opcoes.potenciaInversorKw > 0) {
-    inversor.push(
-      `${fmt(opcoes.potenciaInversorKw)} kW${opcoes.qtdInversores > 1 ? ` ×${opcoes.qtdInversores}` : ''}`,
-    )
-  }
-  if (inversor.length) partes.push(inversor.join(' '))
-
-  if (opcoes.tipoInstalacao) partes.push(opcoes.tipoInstalacao)
-  if (opcoes.distribuidora) partes.push(`Distribuidora ${opcoes.distribuidora}`)
+  const partes: string[] = [
+    opcoes.kwp > 0 ? `Kit Solar ${fmt(opcoes.kwp)} kWp` : 'Kit Solar',
+    marcas.join(' + '),
+    opcoes.tipoInstalacao?.trim(),
+    opcoes.distribuidora?.trim(),
+  ].filter((parte): parte is string => !!parte)
 
   return partes.join(' — ')
 }
