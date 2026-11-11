@@ -54,8 +54,8 @@ export const ProposalsService = {
     return generateRandomToken(32)
   },
 
-  // O formato padrão ao abrir a proposta pelo CRM é o clássico (documento estilo PDF).
-  // O formato Story continua disponível via ?formato=story ou pelo botão dentro do leitor.
+  // O formato do link segue o modelo padrão configurado em /configuracoes
+  // (modelo_proposta_padrao); o leitor ainda permite trocar pelo botão interno.
   getPublicUrl(
     token: string,
     options?: { preview?: boolean; formato?: 'story' | 'classica' },

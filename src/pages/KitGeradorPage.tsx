@@ -45,9 +45,11 @@ import {
 } from './kitGerador/kitCalculos'
 import { qtdPaineisSugerida, fmt, montarNomeKit } from './kitGerador/logica'
 import { parseNumeroPtBr } from './kitGerador/formControles'
+import { useConfiguracoesApp } from '@/context/ConfiguracoesContext'
 
 export default function KitGeradorPage() {
   const { toast } = useToast()
+  const { margemPadraoKit } = useConfiguracoesApp()
 
   // Estados remotos
   const [paineis, setPaineis] = useState<PainelCatalogo[]>([])
@@ -146,6 +148,15 @@ export default function KitGeradorPage() {
   useEffect(() => {
     carregarDados()
   }, [carregarDados])
+
+  // Margem padrão vinda das Configurações do CRM (só quando nenhum kit foi carregado)
+  useEffect(() => {
+    setForm((prev) =>
+      prev.acrescimoPct === '41' && margemPadraoKit !== 41
+        ? { ...prev, acrescimoPct: String(margemPadraoKit).replace('.', ',') }
+        : prev,
+    )
+  }, [margemPadraoKit])
 
   // Distribuidora efetiva: se o usuário escolheu "+ Outra", usa a que ele digitou
   const distribuidoraEfetiva = useMemo(

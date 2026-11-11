@@ -19,6 +19,7 @@ import {
   Edit,
 } from 'lucide-react'
 import { ProposalsService } from '@/services/proposals'
+import { useConfiguracoesApp } from '@/context/ConfiguracoesContext'
 import { toPortugueseErrorMessage } from '@/lib/errors'
 import { DeletePropostaDialog } from '@/components/DeletePropostaDialog'
 import { EditarPropostaModal } from '@/components/EditarPropostaModal'
@@ -43,6 +44,7 @@ import { toast } from '@/hooks/use-toast'
 
 export default function PropostasList() {
   const navigate = useNavigate()
+  const { modeloPropostaPadrao } = useConfiguracoesApp()
   const [propostas, setPropostas] = useState<Proposta[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -88,7 +90,7 @@ export default function PropostasList() {
 
   const handleCopyLink = (token: string) => {
     // Copia o link público oficial limpo para envio ao cliente
-    const url = ProposalsService.getPublicUrl(token)
+    const url = ProposalsService.getPublicUrl(token, { formato: modeloPropostaPadrao })
     navigator.clipboard.writeText(url)
     setCopiedToken(token)
     toast({
@@ -134,7 +136,9 @@ export default function PropostasList() {
   const handleSendWhatsApp = (prop: Proposta) => {
     const leadPhone = (prop.expand?.lead?.telefone || '').replace(/\D/g, '')
     const leadNome = prop.expand?.lead?.nome || 'Cliente'
-    const publicUrl = ProposalsService.getPublicUrl(prop.token_publico)
+    const publicUrl = ProposalsService.getPublicUrl(prop.token_publico, {
+      formato: modeloPropostaPadrao,
+    })
     const msg = `Olá, ${leadNome}! Tudo bem? Segue a proposta comercial do seu sistema solar (${prop.kit_nome}) no valor de ${formatBRL(prop.preco_venda)}. Você pode visualizar todos os detalhes e aprovar online através do link: ${publicUrl}`
 
     if (leadPhone) {
@@ -600,6 +604,7 @@ export default function PropostasList() {
                         onClick={() => {
                           const previewUrl = ProposalsService.getPublicUrl(prop.token_publico, {
                             preview: true,
+                            formato: modeloPropostaPadrao,
                           })
                           window.open(previewUrl, '_blank')
                         }}

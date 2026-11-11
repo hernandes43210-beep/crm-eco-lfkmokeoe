@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider } from '@/context/AuthContext'
+import { ConfiguracoesProvider } from '@/context/ConfiguracoesContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import Layout from '@/components/Layout'
 
@@ -20,6 +21,7 @@ import KitGeradorPage from '@/pages/KitGeradorPage'
 import Equipe from '@/pages/Equipe'
 import WhatsAppPage from '@/pages/WhatsApp'
 import IntegracoesPage from '@/pages/Integracoes'
+import ConfiguracoesPage from '@/pages/Configuracoes'
 import PropostasList from '@/pages/PropostasList'
 import PropostaPublica from '@/pages/PropostaPublica'
 import MeusDocumentosEngenharia from '@/pages/MeusDocumentosEngenharia'
@@ -28,129 +30,140 @@ import NotFound from '@/pages/NotFound'
 const App = () => (
   <BrowserRouter>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner position="top-right" />
-        <Routes>
-          {/* Public Auth Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/cadastro" element={<Cadastro />} />
+      <ConfiguracoesProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner position="top-right" />
+          <Routes>
+            {/* Public Auth Routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/cadastro" element={<Cadastro />} />
 
-          {/* Public Proposal Link Route (No login required) */}
-          <Route path="/proposta/:token" element={<PropostaPublica />} />
+            {/* Public Proposal Link Route (No login required) */}
+            <Route path="/proposta/:token" element={<PropostaPublica />} />
 
-          {/* Protected CRM Routes inside Layout */}
-          <Route
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
+            {/* Protected CRM Routes inside Layout */}
             <Route
-              path="/"
               element={
-                <ProtectedRoute blockEngenheiro>
-                  <Index />
+                <ProtectedRoute>
+                  <Layout />
                 </ProtectedRoute>
               }
-            />
-            <Route
-              path="/leads"
-              element={
-                <ProtectedRoute blockEngenheiro>
-                  <LeadsList />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/leads/novo"
-              element={
-                <ProtectedRoute blockEngenheiro>
-                  <LeadForm />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/leads/importar"
-              element={
-                <ProtectedRoute blockEngenheiro>
-                  <LeadImport />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/leads/:id/editar"
-              element={
-                <ProtectedRoute blockEngenheiro>
-                  <LeadForm />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/leads/:id"
-              element={
-                <ProtectedRoute blockEngenheiro>
-                  <LeadDetail />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/funil"
-              element={
-                <ProtectedRoute blockEngenheiro>
-                  <FunilVendas />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/propostas"
-              element={
-                <ProtectedRoute blockEngenheiro>
-                  <PropostasList />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/gerador-kits"
-              element={
-                <ProtectedRoute blockEngenheiro>
-                  <KitGeradorPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/whatsapp"
-              element={
-                <ProtectedRoute blockEngenheiro>
-                  <WhatsAppPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/engenharia" element={<MeusDocumentosEngenharia />} />
-            {/* Admin-only Routes */}
-            <Route
-              path="/integracoes"
-              element={
-                <ProtectedRoute adminOnly>
-                  <IntegracoesPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/equipe"
-              element={
-                <ProtectedRoute adminOnly>
-                  <Equipe />
-                </ProtectedRoute>
-              }
-            />
-          </Route>
+            >
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute blockEngenheiro>
+                    <Index />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/leads"
+                element={
+                  <ProtectedRoute blockEngenheiro>
+                    <LeadsList />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/leads/novo"
+                element={
+                  <ProtectedRoute blockEngenheiro>
+                    <LeadForm />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/leads/importar"
+                element={
+                  <ProtectedRoute blockEngenheiro>
+                    <LeadImport />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/leads/:id/editar"
+                element={
+                  <ProtectedRoute blockEngenheiro>
+                    <LeadForm />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/leads/:id"
+                element={
+                  <ProtectedRoute blockEngenheiro>
+                    <LeadDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/funil"
+                element={
+                  <ProtectedRoute blockEngenheiro>
+                    <FunilVendas />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/propostas"
+                element={
+                  <ProtectedRoute blockEngenheiro>
+                    <PropostasList />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/gerador-kits"
+                element={
+                  <ProtectedRoute blockEngenheiro>
+                    <KitGeradorPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/whatsapp"
+                element={
+                  <ProtectedRoute blockEngenheiro>
+                    <WhatsAppPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/engenharia" element={<MeusDocumentosEngenharia />} />
+              {/* Admin-only Routes */}
+              <Route
+                path="/integracoes"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <IntegracoesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/equipe"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <Equipe />
+                  </ProtectedRoute>
+                }
+              />
+              {/* Configurações (Admin/CEO) */}
+              <Route
+                path="/configuracoes"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <ConfiguracoesPage />
+                  </ProtectedRoute>
+                }
+              />
+            </Route>
 
-          {/* 404 Route */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </TooltipProvider>
+            {/* 404 Route */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </TooltipProvider>
+      </ConfiguracoesProvider>
     </AuthProvider>
   </BrowserRouter>
 )

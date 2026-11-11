@@ -48,6 +48,7 @@ import {
   type KitGerado,
 } from '@/services/kitGerador'
 import { ESTADOS_BRASILEIROS, obterEnderecoPorEstado } from '@/hooks/useEnderecoAutocomplete'
+import { useConfiguracoesApp } from '@/context/ConfiguracoesContext'
 import { MapPin } from 'lucide-react'
 
 interface GerarPropostaModalProps {
@@ -67,6 +68,7 @@ export function GerarPropostaModal({
   kitGeradoInicial,
 }: GerarPropostaModalProps) {
   const { user } = useAuth()
+  const { modeloPropostaPadrao: modeloPropostaPadraoInicial } = useConfiguracoesApp()
   const [kits, setKits] = useState<Kit[]>([])
   const [loadingKits, setLoadingKits] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -101,7 +103,7 @@ export function GerarPropostaModal({
   const [valorBruto, setValorBruto] = useState<number | string>('')
   const [descontoPercentualStr, setDescontoPercentualStr] = useState<string>('')
   const [precoVenda, setPrecoVenda] = useState<number | string>('')
-  const [formato, setFormato] = useState<'story' | 'classica'>('story')
+  const [formato, setFormato] = useState<'story' | 'classica'>(modeloPropostaPadraoInicial)
   const [validadeDias, setValidadeDias] = useState<number>(15)
   const [condicoesPagamento, setCondicoesPagamento] = useState(
     'À vista com 5% de desconto via TED/PIX ou Financiamento bancário em até 84x com carência de 90 dias. No cartão de crédito em até 24 vezes, dependendo da bandeira.',

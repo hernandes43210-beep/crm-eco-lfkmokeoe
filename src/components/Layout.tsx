@@ -15,6 +15,7 @@ import {
   X,
   ChevronRight,
   Webhook,
+  Settings2,
   KeyRound,
   Inbox,
   HardHat,
@@ -85,6 +86,7 @@ export default function Layout() {
           ? [
               { label: 'Área de Engenharia', path: '/engenharia', icon: HardHat },
               { label: 'Integrações', path: '/integracoes', icon: Webhook },
+              { label: 'Configurações', path: '/configuracoes', icon: Settings2 },
               { label: 'Equipe', path: '/equipe', icon: ShieldCheck },
             ]
           : []),
@@ -106,6 +108,7 @@ export default function Layout() {
     if (path === '/engenharia')
       return isAdmin ? 'Área de Engenharia & Homologação' : 'Meus Documentos Recebidos'
     if (path === '/integracoes') return 'Integrações & Configurações de APIs'
+    if (path === '/configuracoes') return 'Configurações do CRM'
     if (path === '/equipe') return 'Membros da Equipe'
     return 'Ecosolar Energy'
   }
@@ -137,7 +140,7 @@ export default function Layout() {
             className={cn(
               'group flex items-center gap-3.5 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
               isActive
-                ? 'bg-[#0B7A5B] text-white shadow-sm shadow-[#0B7A5B]/30'
+                ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/30'
                 : 'text-slate-300 hover:bg-slate-800/80 hover:text-white',
             )}
           >
@@ -281,7 +284,7 @@ export default function Layout() {
             {!isEngenheiro ? (
               <Button
                 onClick={() => navigate('/leads/novo')}
-                className="bg-[#0B7A5B] hover:bg-[#095C44] text-white font-medium shadow-sm shadow-[#0B7A5B]/30 flex items-center gap-1.5 h-9.5 px-4 rounded-lg"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-sm shadow-primary/30 flex items-center gap-1.5 h-9.5 px-4 rounded-lg"
               >
                 <Plus className="w-4 h-4 stroke-[2.5]" />
                 <span className="hidden sm:inline">Novo Lead</span>
@@ -290,7 +293,7 @@ export default function Layout() {
             ) : (
               <Button
                 onClick={() => navigate('/engenharia')}
-                className="bg-[#0B7A5B] hover:bg-[#095C44] text-white font-medium shadow-sm shadow-[#0B7A5B]/30 flex items-center gap-1.5 h-9.5 px-4 rounded-lg text-xs"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-sm shadow-primary/30 flex items-center gap-1.5 h-9.5 px-4 rounded-lg text-xs"
               >
                 <FolderOpen className="w-4 h-4" />
                 <span>Meus Documentos</span>

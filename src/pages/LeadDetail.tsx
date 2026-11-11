@@ -35,6 +35,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { LeadsService } from '@/services/leads'
 import { WhatsAppService } from '@/services/whatsapp'
 import { ProposalsService } from '@/services/proposals'
+import { useConfiguracoesApp } from '@/context/ConfiguracoesContext'
 import type { Lead, LeadStatus, HistoricoItem, WhatsAppMessage, Proposta } from '@/types/crm'
 import { GerarPropostaModal } from '@/components/GerarPropostaModal'
 import { InvestmentComparison } from '@/components/InvestmentComparison'
@@ -90,6 +91,7 @@ export default function LeadDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user, isAdmin, isEngenheiro } = useAuth()
+  const { modeloPropostaPadrao } = useConfiguracoesApp()
 
   const [lead, setLead] = useState<Lead | null>(null)
   const [loading, setLoading] = useState(true)
@@ -856,7 +858,7 @@ export default function LeadDetail() {
 
   const handleCopyLink = (token: string) => {
     // Copia o link público oficial limpo para envio ao cliente
-    const url = ProposalsService.getPublicUrl(token)
+    const url = ProposalsService.getPublicUrl(token, { formato: modeloPropostaPadrao })
     navigator.clipboard.writeText(url)
     setCopiedToken(token)
     toast({
@@ -915,7 +917,9 @@ export default function LeadDetail() {
       })
       return
     }
-    const publicUrl = ProposalsService.getPublicUrl(prop.token_publico)
+    const publicUrl = ProposalsService.getPublicUrl(prop.token_publico, {
+      formato: modeloPropostaPadrao,
+    })
     const msg = `Olá, ${lead.nome}! Tudo bem? Segue a proposta comercial do seu sistema solar (${prop.kit_nome}) no valor de ${formatBRL(prop.preco_venda)}. Você pode visualizar todos os detalhes e aprovar online através do link: ${publicUrl}`
     const waUrl = `https://wa.me/55${rawPhone}?text=${encodeURIComponent(msg)}`
     window.open(waUrl, '_blank')
@@ -2298,6 +2302,7 @@ export default function LeadDetail() {
                             onClick={() => {
                               const previewUrl = ProposalsService.getPublicUrl(prop.token_publico, {
                                 preview: true,
+                                formato: modeloPropostaPadrao,
                               })
                               window.open(previewUrl, '_blank')
                             }}
