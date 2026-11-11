@@ -45,8 +45,10 @@ import {
   parseItens,
   parsePainelJson,
   parseInversorJson,
+  parseBateriasJson,
   type KitGerado,
 } from '@/services/kitGerador'
+import { montarKitBateriasJson } from '@/lib/propostaBaterias'
 import { ESTADOS_BRASILEIROS, obterEnderecoPorEstado } from '@/hooks/useEnderecoAutocomplete'
 import { useConfiguracoesApp } from '@/context/ConfiguracoesContext'
 import { MapPin } from 'lucide-react'
@@ -112,6 +114,10 @@ export function GerarPropostaModal({
     'Incluso projeto de engenharia, homologação na concessionária local, estrutura de fixação em alumínio, cabos, proteções CC/CA e monitoramento via Wi-Fi.',
   )
   const [fotosSelecionadas, setFotosSelecionadas] = useState<PropostaFotoSelecionada[]>([])
+  // Baterias do kit do Gerador selecionado (linhas informativas fora do cálculo de preço)
+  const [kitBateriasSelecionadas, setKitBateriasSelecionadas] = useState<
+    ReturnType<typeof parseBateriasJson>
+  >([])
 
   // Localidade de instalação / cliente para a proposta (editável)
   const [localidadeUf, setLocalidadeUf] = useState(lead.estado || 'RO')
@@ -278,6 +284,22 @@ export function GerarPropostaModal({
     if (k.area_m2) {
       linhas.push(`Área estimada: ${fmtNum(k.area_m2)} m²`)
     }
+    const baterias = parseBateriasJson(k.bateria)
+    setKitBateriasSelecionadas(baterias)
+    for (const b of baterias) {
+      const partes: string[] = []
+      if (b.qtd && b.qtd > 1) partes.push(`${b.qtd}× `)
+      partes.push([b.marca, b.modelo].filter(Boolean).join(' '))
+      const especs: string[] = []
+      if (b.capacidade_kwh) especs.push(`${b.capacidade_kwh} kWh`)
+      if (b.tensao) especs.push(b.tensao)
+      linhas.push(
+        `Bateria: ${partes.join(' ')}${especs.length ? ` (${especs.join(' — ')})` : ''}`.replace(
+          /\s+/g,
+          ' ',
+        ),
+      )
+    }
     if (k.tipo_instalacao) {
       linhas.push(`Instalação: ${k.tipo_instalacao}`)
     }
@@ -292,6 +314,7 @@ export function GerarPropostaModal({
     if (!id) {
       setSelectedKitGeradoId('')
       setKitGeradoDescricao('')
+      setKitBateriasSelecionadas([])
       return
     }
     const k = kitsGerados.find((kg) => kg.id === id)
@@ -307,6 +330,7 @@ export function GerarPropostaModal({
   const applyKit = (kit: Kit) => {
     setSelectedKitGeradoId('')
     setKitGeradoDescricao('')
+    setKitBateriasSelecionadas([])
     setSelectedKitId(kit.id)
     setKitNome(kit.nome)
     setKitPotenciaKw(kit.potencia_kw)
@@ -476,6 +500,10 @@ export function GerarPropostaModal({
         kit_potencia_inversor_kw: Number(technicalValues.potenciaInversorKw) || undefined,
         kit_string_box: technicalValues.stringBox?.trim() || undefined,
         kit_descricao: kitGeradoDescricao || undefined,
+        kit_baterias:
+          kitBateriasSelecionadas.length > 0
+            ? montarKitBateriasJson(kitBateriasSelecionadas)
+            : undefined,
         fotos_selecionadas: fotosSelecionadas,
         status: 'Enviada',
         formato,

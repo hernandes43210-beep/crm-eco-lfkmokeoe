@@ -391,6 +391,7 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
       kit_potencia_inversor_kw: proposta.getFloat('kit_potencia_inversor_kw') || undefined,
       kit_descricao: proposta.getString('kit_descricao') || undefined,
       kit_string_box: proposta.getString('kit_string_box') || undefined,
+      kit_baterias: proposta.get('kit_baterias') || undefined,
       dossie_engenharia: dossieInstalacaoData,
       lead: leadData,
       kit: kitData,

@@ -17,6 +17,7 @@ import {
 import {
   parsePaineisLinhas,
   parseInversoresLinhas,
+  parseBateriasJson,
   parseOutrosDados,
   type KitGerado,
   type PainelLinha,
@@ -134,6 +135,11 @@ export function PrePropostaKit({
         outros_dados: outrosInversores.trim(),
       }),
       potencia_kwp: potenciaEfetivaKwp,
+    }
+    // Repassa as baterias do kit sem alterá-las (linhas informativas — não editáveis aqui)
+    const bateriasKit = parseBateriasJson(kit.bateria)
+    if (bateriasKit.length > 0) {
+      novoKit.bateria = JSON.stringify({ linhas: bateriasKit })
     }
     onAplicar(novoKit)
   }
