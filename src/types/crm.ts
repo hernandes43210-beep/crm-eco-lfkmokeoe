@@ -558,6 +558,22 @@ export interface SiteFormLogItem {
 export type PropostaStatus = 'Rascunho' | 'Enviada' | 'Aceita' | 'Recusada'
 export type PropostaFormato = 'story' | 'classica'
 
+/** Uma linha de bateria gravada no snapshot kit_baterias da proposta (igual ao kit gerado). */
+export interface BateriasPropostaLinha {
+  marca: string
+  modelo: string
+  capacidade_kwh: number
+  qtd: number
+  tensao?: string
+}
+
+/** Formato de kit_baterias na proposta: array simples ou { linhas: [...] } (json pode vir string). */
+export interface BateriasPropostaJson {
+  linhas?: BateriasPropostaLinha[]
+  outros_dados?: string
+  outrosDados?: string
+}
+
 export interface PropostaAcessoItem {
   data: string
   ip?: string

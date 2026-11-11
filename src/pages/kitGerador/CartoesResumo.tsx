@@ -63,8 +63,10 @@ export function ResumoKit({
 }) {
   const paineisLinhas = dados.paineisLinhas || []
   const inversoresLinhas = dados.inversoresLinhas || []
+  const bateriasLinhas = dados.bateriasLinhas || []
   const qtdPaineisTotal = paineisLinhas.reduce((acc, p) => acc + (p.qtd || 0), 0)
   const qtdInversoresTotal = inversoresLinhas.reduce((acc, i) => acc + (i.qtd || 0), 0)
+  const qtdBateriasTotal = bateriasLinhas.reduce((acc, b) => acc + (b.qtd || 0), 0)
 
   return (
     <div className="rounded-[14px] border border-[#dfe5f0] bg-white p-5 shadow-sm space-y-5">

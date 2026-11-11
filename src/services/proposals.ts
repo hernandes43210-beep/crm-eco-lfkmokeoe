@@ -29,6 +29,7 @@ export interface CreatePropostaPayload {
   kit_potencia_inversor_kw?: number
   kit_descricao?: string
   kit_string_box?: string
+  kit_baterias?: BateriasPropostaJson | string
   fotos_selecionadas?: PropostaFotoSelecionada[]
 }
 
