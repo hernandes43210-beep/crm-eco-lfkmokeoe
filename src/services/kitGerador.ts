@@ -96,6 +96,25 @@ export interface InversorListaJson {
 export type PainelJsonValor = PainelLinha | PainelLinha[] | PainelListaJson | string | null
 export type InversorJsonValor = InversorLinha | InversorLinha[] | InversorListaJson | string | null
 
+/**
+ * Uma linha de bateria no kit (o kit pode ter várias). Linhas informativas
+ * de texto livre — não entram no cálculo de preço do kit.
+ */
+export interface BateriaLinha {
+  marca: string
+  modelo: string
+  capacidade_kwh: number
+  qtd: number
+  tensao?: string
+}
+
+export type BateriaJsonValor =
+  | BateriaLinha
+  | BateriaLinha[]
+  | { linhas?: BateriaLinha[]; outros_dados?: string; outrosDados?: string }
+  | string
+  | null
+
 export interface KitGerado {
   id: string
   nome: string
@@ -107,6 +126,7 @@ export interface KitGerado {
   distribuidora: string
   painel: PainelJsonValor
   inversor: InversorJsonValor
+  bateria?: BateriaJsonValor
   itens: ItemKitGerado[] | string
   custo: number
   acrescimo_pct: number
@@ -133,6 +153,7 @@ export interface SalvarKitPayload {
   distribuidora: string
   painel: PainelLinha | PainelListaJson
   inversor: InversorLinha | InversorListaJson
+  bateria?: BateriaLinha[]
   itens: ItemKitGerado[]
   custo: number
   acrescimo_pct: number
@@ -176,6 +197,28 @@ export function parsePaineisLinhas(valor: PainelJsonValor): PainelLinha[] {
     if (typeof obj.marca === 'string') return [obj as unknown as PainelLinha]
   }
   return []
+}
+
+/** Linhas de bateria do kit — aceita array, { linhas: [...] } ou objeto único; kits antigos voltam []. */
+export function parseBateriasJson(valor: BateriaJsonValor | unknown): BateriaLinha[] {
+  const v = parseCampoJson(valor)
+  if (Array.isArray(v)) return v.filter(ehBateriaLinha)
+  if (v && typeof v === 'object') {
+    const obj = v as Record<string, unknown>
+    if (Array.isArray(obj.linhas)) return obj.linhas.filter(ehBateriaLinha)
+    if (typeof obj.marca === 'string' || typeof obj.capacidade_kwh === 'number')
+      return [obj as unknown as BateriaLinha]
+  }
+  return []
+}
+
+function ehBateriaLinha(v: unknown): v is BateriaLinha {
+  return (
+    !!v &&
+    typeof v === 'object' &&
+    !Array.isArray(v) &&
+    ('marca' in (v as object) || 'capacidade_kwh' in (v as object))
+  )
 }
 
 /** Igual ao anterior, para inversores. */
