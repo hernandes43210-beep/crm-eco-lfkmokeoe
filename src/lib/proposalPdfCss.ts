@@ -104,6 +104,9 @@ export const PROPOSTA_V2_CSS = `
 .prop-v2 .pv-capa-sub { font-size: 10pt; line-height: 1.55; color: #d5dff2; max-width: 150mm; }
 .prop-v2 .pv-capa-foto { position: relative; height: 92mm; overflow: hidden; }
 .prop-v2 .pv-capa-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* A figura/placeholder da capa ocupa todo o quadro (sem margem do navegador), para a imagem preencher o recorte na tela e na impressão */
+.prop-v2 .pv-capa-foto > .pv-foto { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; border-radius: 0; }
+.prop-v2 .pv-capa-foto > .pv-foto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .prop-v2 .pv-capa-foto::after {
   content: ''; position: absolute; inset: 0;
   background: linear-gradient(100deg, ${CORES_PROPOSTA.navy} 0%, rgba(11,31,77,.35) 45%, rgba(11,31,77,0) 78%);
