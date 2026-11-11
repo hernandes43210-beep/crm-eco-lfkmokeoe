@@ -46,7 +46,8 @@ import {
   FATOR_PERDAS_SISTEMA,
 } from '@/lib/solarUtils'
 import { parseKitDetailedItems } from '@/lib/kitItemsParser'
-import { parseBateriasJson, rotuloBateria, totalKwhBaterias } from '@/services/kitGerador'
+import { parseBateriasJson } from '@/services/kitGerador'
+import { rotuloBateria, totalKwhBaterias } from '@/lib/propostaBaterias'
 import { parseCondicoesPagamento } from '@/lib/paymentConditionsParser'
 import { INSTITUTIONAL_INSTALLATION_PHOTOS } from '@/data/socialProofPhotos'
 import { MascotSpeechBubble } from '@/components/MascotSpeechBubble'
