@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-11T14:36:59.274Z",
+  "generatedAt": "2026-11-11T15:01:45.603Z",
   "collections": [
     {
       "name": "users",
@@ -1151,6 +1151,12 @@
         {
           "name": "kit_qtd_inversores",
           "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "kit_baterias",
+          "type": "json",
           "required": false,
           "system": false
         }
@@ -3062,6 +3068,12 @@
         {
           "name": "ativo",
           "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bateria",
+          "type": "json",
           "required": false,
           "system": false
         }

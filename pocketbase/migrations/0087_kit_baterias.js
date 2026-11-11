@@ -7,7 +7,7 @@ migrate(
     const kitGerados = app.findCollectionByNameOrId('kit_gerados')
     if (!kitGerados.fields.getByName('bateria')) {
       kitGerados.fields.add(
-        new JsonField({
+        new JSONField({
           name: 'bateria',
           required: false,
           maxSize: 2000000,
@@ -19,7 +19,7 @@ migrate(
     const propostas = app.findCollectionByNameOrId('propostas')
     if (!propostas.fields.getByName('kit_baterias')) {
       propostas.fields.add(
-        new JsonField({
+        new JSONField({
           name: 'kit_baterias',
           required: false,
           maxSize: 2000000,
