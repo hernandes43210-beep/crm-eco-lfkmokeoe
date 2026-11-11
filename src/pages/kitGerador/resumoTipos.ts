@@ -1,5 +1,5 @@
 // Tipos agregados de resumo para o kit gerador
-import type { ItemKitGerado, PainelLinha, InversorLinha } from '@/services/kitGerador'
+import type { ItemKitGerado, PainelLinha, InversorLinha, BateriaLinha } from '@/services/kitGerador'
 import type { TipoInstalacao } from './logica'
 
 export interface DadosResumo {
@@ -21,6 +21,7 @@ export interface DadosResumo {
   margemPct: number
   paineisLinhas?: PainelLinha[]
   inversoresLinhas?: InversorLinha[]
+  bateriasLinhas?: BateriaLinha[]
   outrosDadosPaineis?: string
   outrosDadosInversores?: string
   relacaoTipo?: 'sub' | 'ok' | 'sobre' | 'critica'

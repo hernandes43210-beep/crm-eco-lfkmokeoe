@@ -16,6 +16,7 @@ import {
 import {
   parsePaineisLinhas,
   parseInversoresLinhas,
+  parseBateriasJson,
   parseOutrosDados,
   type PainelCatalogo,
   type InversorCatalogo,
@@ -173,6 +174,38 @@ export function ResumoKit({
           </div>
         )}
       </div>
+
+      {/* Baterias (informativo) */}
+      {bateriasLinhas.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#8a94a8]">
+              Baterias
+            </span>
+            <span className="text-xs font-semibold text-[#0b1f4d]">
+              Total: {qtdBateriasTotal} un
+            </span>
+          </div>
+          <div className="space-y-1">
+            {bateriasLinhas.map((b, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between rounded border border-[#dfe5f0] bg-[#f8fafc] px-2.5 py-1.5 text-xs"
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="font-bold text-[#0b1f4d]">{b.qtd}×</span>
+                  <span className="truncate text-[#3c4a63]">
+                    {b.marca} {b.modelo || ''}
+                  </span>
+                </div>
+                <span className="shrink-0 font-semibold text-[#0b1f4d] ml-2">
+                  {fmt(b.capacidade_kwh)} kWh{b.tensao ? ` • ${b.tensao}` : ''}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Estrutura e Fornecedor */}
       <div className="rounded-[10px] bg-[#f8fafc] p-3 border border-[#dfe5f0] space-y-1">
@@ -665,6 +698,7 @@ export function AbaKitsSalvos({
         {kitsFiltrados.map((k) => {
           const paineis = parsePaineisLinhas(k.painel)
           const inversores = parseInversoresLinhas(k.inversor)
+          const baterias = parseBateriasJson(k.bateria)
           const outrosPaineis = parseOutrosDados(k.painel)
           const outrosInversores = parseOutrosDados(k.inversor)
 
@@ -711,6 +745,19 @@ export function AbaKitsSalvos({
                       <span className="text-[#8a94a8]">Não informado</span>
                     )}
                   </div>
+
+                  {/* Baterias (informativo) */}
+                  {baterias.length > 0 && (
+                    <div>
+                      <span className="font-semibold text-[#0b1f4d]">Baterias: </span>
+                      {baterias.map((b, idx) => (
+                        <span key={idx} className="block pl-2 text-[#5a6a85]">
+                          • {b.qtd}× {b.marca} {b.modelo || ''} ({fmt(b.capacidade_kwh)} kWh
+                          {b.tensao ? ` • ${b.tensao}` : ''})
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Outros dados se houver */}
                   {(outrosPaineis || outrosInversores) && (

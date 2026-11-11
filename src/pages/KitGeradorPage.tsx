@@ -9,6 +9,7 @@ import {
   KitGeradorService,
   parsePaineisLinhas,
   parseInversoresLinhas,
+  parseBateriasJson,
   parseOutrosDados,
   type PainelCatalogo,
   type InversorCatalogo,
@@ -16,6 +17,7 @@ import {
   type KitGerado,
   type PainelLinha,
   type InversorLinha,
+  type BateriaLinha,
 } from '@/services/kitGerador'
 import {
   CardNumero,
@@ -27,20 +29,24 @@ import {
 } from './kitGerador/CartoesForm'
 import { BlocoPaineisMultiplos } from './kitGerador/BlocoPaineisMultiplos'
 import { BlocoInversoresMultiplos } from './kitGerador/BlocoInversoresMultiplos'
+import { BlocoBaterias } from './kitGerador/BlocoBaterias'
 import { ResumoKit, AbaCatalogo, AbaKitsSalvos } from './kitGerador/CartoesResumo'
 import { ModalSalvarKit } from './kitGerador/ModalSalvarKit'
 import {
   estadoInicial,
   linhaPainelInicial,
   linhaInversorInicial,
+  linhaBateriaInicial,
   type EstadoForm,
   type PainelItemForm,
   type InversorItemForm,
+  type BateriaItemForm,
 } from './kitGerador/formTipos'
 import {
   calcularTudo,
   montarPayloadPaineis,
   montarPayloadInversores,
+  montarPayloadBaterias,
   montarDadosResumo,
 } from './kitGerador/kitCalculos'
 import { qtdPaineisSugerida, fmt, montarNomeKit } from './kitGerador/logica'
@@ -199,6 +205,7 @@ export default function KitGeradorPage() {
       calc,
       paineisLinhas: form.painelLinhas,
       inversoresLinhas: form.inversorLinhas,
+      bateriasLinhas: form.baterias,
       outrosDadosPaineis: form.outrosDadosPaineis,
       outrosDadosInversores: form.outrosDadosInversores,
       tipoInstalacao: form.tipoInstalacao,
@@ -324,6 +331,8 @@ export default function KitGeradorPage() {
         form.inversorLinhas,
         form.outrosDadosInversores,
       )
+      const payloadBateria = montarPayloadBaterias(form.baterias)
+      const temBaterias = payloadBateria !== JSON.stringify({ linhas: [] })
 
       const itensPayload = form.itens
         .filter((it: any) => it.incluido !== false && it.selecionado !== false)
@@ -411,6 +420,20 @@ export default function KitGeradorPage() {
           }))
         : [linhaInversorInicial()]
 
+    // Baterias: linhas informativas — kit antigo sem baterias volta como lista vazia
+    const bateriasParsed: BateriaLinha[] = parseBateriasJson(k.bateria)
+    const formBaterias: BateriaItemForm[] =
+      bateriasParsed.length > 0
+        ? bateriasParsed.map((b, idx) => ({
+            id: `bat-${idx}-${Date.now()}`,
+            marca: b.marca || '',
+            modelo: b.modelo || '',
+            capacidadeKwh: Number(b.capacidade_kwh) || 0,
+            qtd: Number(b.qtd) || 1,
+            tensao: b.tensao || '',
+          }))
+        : []
+
     // Parseia itens extras salvos
     let itensRecuperados = estadoInicial().itens
     if (k.itens) {
@@ -433,6 +456,7 @@ export default function KitGeradorPage() {
       ...prev,
       painelLinhas: formPaineis,
       inversorLinhas: formInversores,
+      baterias: formBaterias,
       outrosDadosPaineis: outrosPaineisParsed,
       outrosDadosInversores: outrosInversoresParsed,
       distribuidora: k.distribuidora || prev.distribuidora,
@@ -472,6 +496,15 @@ export default function KitGeradorPage() {
       .join('\n')
     const textoInversores = form.inversorLinhas
       .map((i) => `• ${i.qtd}x ${i.marca} ${i.modelo} (${fmt(i.potenciaKw)} kW)`)
+      .join('\n')
+    const textoBaterias = form.baterias
+      .filter((b) => b.marca.trim() !== '' || (b.capacidadeKwh || 0) > 0)
+      .map((b) => {
+        const partes = [`• ${b.qtd}x ${b.marca || 'Bateria'} ${b.modelo}`.trim()]
+        if ((b.capacidadeKwh || 0) > 0) partes.push(`— ${b.capacidadeKwh} kWh`)
+        if (b.tensao) partes.push(`— ${b.tensao}`)
+        return partes.join(' ')
+      })
       .join('\n')
 
     const texto = `☀️ KIT SOLAR ECOSOLAR
@@ -650,13 +683,25 @@ Valor final sugerido: R$ ${calc.precoFinal.toLocaleString('pt-BR')}`
                 </div>
               </CardNumero>
 
-              {/* Cartão 4: Estrutura e Fornecedor */}
-              <CardNumero numero={4} titulo="Estrutura de Fixação & Fornecedor">
+              {/* Cartão 4: Baterias (informativo, opcional) */}
+              <CardNumero
+                numero={4}
+                titulo="Baterias (opcional)"
+                subtitulo="Linhas informativas de armazenamento. Não alteram o cálculo de preço do kit."
+              >
+                <BlocoBaterias
+                  linhas={form.baterias}
+                  onChangeLinhas={(novas) => setParcialForm({ baterias: novas })}
+                />
+              </CardNumero>
+
+              {/* Cartão 5: Estrutura e Fornecedor */}
+              <CardNumero numero={5} titulo="Estrutura de Fixação & Fornecedor">
                 <CartaoEstrutura form={form} set={setParcialForm} distribuidoras={distribuidoras} />
               </CardNumero>
 
-              {/* Cartão 5: Custo, Margem e Preço */}
-              <CardNumero numero={5} titulo="Custo do Kit, Itens Adicionais e Margem">
+              {/* Cartão 6: Custo, Margem e Preço */}
+              <CardNumero numero={6} titulo="Custo do Kit, Itens Adicionais e Margem">
                 <CartaoPreco
                   form={form}
                   set={setParcialForm}

@@ -9,9 +9,9 @@ import {
   type Ligacao,
   type TipoInstalacao,
 } from './logica'
-import type { PainelItemForm, InversorItemForm } from './formTipos'
+import type { PainelItemForm, InversorItemForm, BateriaItemForm } from './formTipos'
 import type { DadosResumo } from './resumoTipos'
-import type { PainelLinha, InversorLinha } from '@/services/kitGerador'
+import type { PainelLinha, InversorLinha, BateriaLinha } from '@/services/kitGerador'
 
 export interface EstadoCalculo {
   kwp: number
@@ -62,12 +62,29 @@ export function montarPayloadPaineis(linhas: PainelItemForm[], outrosDados: stri
   })
 }
 
+export function toBateriaLinhas(linhas: BateriaItemForm[]): BateriaLinha[] {
+  return linhas
+    .filter((l) => (l.qtd || 0) > 0 && ((l.capacidadeKwh || 0) > 0 || l.marca.trim() !== ''))
+    .map((l) => ({
+      marca: l.marca || 'Padrão',
+      modelo: l.modelo || '',
+      capacidade_kwh: Number(l.capacidadeKwh) || 0,
+      qtd: Number(l.qtd) || 0,
+      tensao: l.tensao?.trim() || undefined,
+    }))
+}
+
 export function montarPayloadInversores(linhas: InversorItemForm[], outrosDados: string): string {
   const arr = toInversorLinhas(linhas)
   return JSON.stringify({
     linhas: arr,
     outros_dados: outrosDados.trim(),
   })
+}
+
+/** Payload JSON do campo `bateria` do kit (linhas informativas, fora da fórmula de preço). */
+export function montarPayloadBaterias(linhas: BateriaItemForm[]): string {
+  return JSON.stringify({ linhas: toBateriaLinhas(linhas) })
 }
 
 // Cálculo principal somando todas as linhas de painéis e inversores
@@ -156,6 +173,7 @@ export function montarDadosResumo({
   calc,
   paineisLinhas,
   inversoresLinhas,
+  bateriasLinhas,
   outrosDadosPaineis,
   outrosDadosInversores,
   tipoInstalacao,
@@ -165,6 +183,7 @@ export function montarDadosResumo({
   calc: EstadoCalculo
   paineisLinhas: PainelItemForm[]
   inversoresLinhas: InversorItemForm[]
+  bateriasLinhas?: BateriaItemForm[]
   outrosDadosPaineis: string
   outrosDadosInversores: string
   tipoInstalacao: TipoInstalacao
@@ -190,6 +209,7 @@ export function montarDadosResumo({
     margemPct: calc.margemPct,
     paineisLinhas: toPainelLinhas(paineisLinhas),
     inversoresLinhas: toInversorLinhas(inversoresLinhas),
+    bateriasLinhas: bateriasLinhas ? toBateriaLinhas(bateriasLinhas) : [],
     outrosDadosPaineis: outrosDadosPaineis.trim(),
     outrosDadosInversores: outrosDadosInversores.trim(),
     relacaoTipo: calc.relacaoTipo,

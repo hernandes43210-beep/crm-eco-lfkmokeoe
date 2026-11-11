@@ -612,6 +612,7 @@ export interface Proposta extends RecordModel {
   kit_qtd_inversores?: number
   kit_descricao?: string
   kit_string_box?: KitStringBox | ''
+  kit_baterias?: BateriasPropostaJson | string
   fotos_selecionadas?: PropostaFotoSelecionada[] | string
   created: string
   updated: string
@@ -699,6 +700,7 @@ export interface PublicProposta {
   kit_potencia_inversor_kw?: number
   kit_descricao?: string
   kit_string_box?: KitStringBox | ''
+  kit_baterias?: BateriasPropostaJson | string
   dossie_engenharia?: {
     tipo_instalacao?: TipoInstalacaoDossie
     tipo_estrutura_detalhe?: string

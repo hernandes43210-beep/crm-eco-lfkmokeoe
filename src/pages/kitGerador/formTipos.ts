@@ -25,6 +25,16 @@ export interface InversorItemForm {
   qtd: number
 }
 
+// Linha informativa de bateria — não entra no cálculo de preço do kit
+export interface BateriaItemForm {
+  id: string
+  marca: string
+  modelo: string
+  capacidadeKwh: number
+  qtd: number
+  tensao: string
+}
+
 export interface EstadoForm {
   // Perfil
   consumo: string
@@ -39,6 +49,9 @@ export interface EstadoForm {
   // Inversores múltiplos
   inversorLinhas: InversorItemForm[]
   outrosDadosInversores: string
+
+  // Baterias (opcional, informativo)
+  baterias: BateriaItemForm[]
 
   // Estrutura
   tipoInstalacao: TipoInstalacao
@@ -74,6 +87,17 @@ export function linhaInversorInicial(): InversorItemForm {
     potenciaKw: 5,
     tipo: 'Monofásico',
     qtd: 1,
+  }
+}
+
+export function linhaBateriaInicial(): BateriaItemForm {
+  return {
+    id: `bat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    marca: '',
+    modelo: '',
+    capacidadeKwh: 5,
+    qtd: 1,
+    tensao: '',
   }
 }
 
@@ -131,6 +155,7 @@ export function estadoInicial(
           ]
         : [linhaInversorInicial()],
     outrosDadosInversores: '',
+    baterias: [],
     tipoInstalacao: 'Fibrocimento',
     distribuidora: distribuidoras && distribuidoras.length > 0 ? distribuidoras[0].nome : '',
     distribuidoraNova: '',
