@@ -197,6 +197,9 @@ export function descricaoFuncaoItem(nome: string, tipoEstrutura?: string): strin
   if (n.includes('monitor') || n.includes('app')) {
     return 'App no celular (iOS e Android) mostra quanto o sistema gerou no dia, no mês e quanto você economizou.'
   }
+  if (n.includes('bateria')) {
+    return 'Armazenam a energia excedente para você usar à noite, em apagões ou picos de consumo. Baterias de lítio com BMS integrado.'
+  }
   if (n.includes('projeto') || n.includes('art') || n.includes('homolog')) {
     return 'Engenheiro eletricista responsável faz o projeto, registra a ART e cuida de todo o processo na concessionária até a troca do medidor.'
   }

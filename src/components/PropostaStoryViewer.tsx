@@ -115,10 +115,7 @@ export function PropostaStoryViewer({
 
   // Lista dinâmica de telas do Story: se não houver condição de pagamento definida, omite graciosamente
   const screens: StoryScreenKey[] = useMemo(() => {
-    const list: StoryScreenKey[] = [
-      'modulos',
-      'inversor',
-    ]
+    const list: StoryScreenKey[] = ['modulos', 'inversor']
 
     if (bateriasKit.length > 0) {
       list.push('baterias')
