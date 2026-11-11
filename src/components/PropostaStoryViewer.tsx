@@ -22,6 +22,7 @@ import {
   Volume2,
   Camera,
   Flame,
+  BatteryCharging,
   Check,
   CheckCircle,
   HelpCircle,
@@ -45,6 +46,7 @@ import {
   FATOR_PERDAS_SISTEMA,
 } from '@/lib/solarUtils'
 import { parseKitDetailedItems } from '@/lib/kitItemsParser'
+import { parseBateriasJson, rotuloBateria, totalKwhBaterias } from '@/services/kitGerador'
 import { parseCondicoesPagamento } from '@/lib/paymentConditionsParser'
 import { INSTITUTIONAL_INSTALLATION_PHOTOS } from '@/data/socialProofPhotos'
 import { MascotSpeechBubble } from '@/components/MascotSpeechBubble'
@@ -68,6 +70,7 @@ export interface PropostaStoryViewerProps {
 export type StoryScreenKey =
   | 'modulos'
   | 'inversor'
+  | 'baterias'
   | 'geracao'
   | 'economia'
   | 'roi'
@@ -107,16 +110,21 @@ export function PropostaStoryViewer({
     return parseCondicoesPagamento(proposta.condicoes_pagamento, proposta.preco_venda)
   }, [proposta.condicoes_pagamento, proposta.preco_venda])
 
+  // Baterias do kit (campo kit_baterias da proposta) — tela extra só quando houver.
+  const bateriasKit = useMemo(() => parseBateriasJson((proposta as any)?.kit_baterias), [proposta])
+
   // Lista dinâmica de telas do Story: se não houver condição de pagamento definida, omite graciosamente
   const screens: StoryScreenKey[] = useMemo(() => {
     const list: StoryScreenKey[] = [
       'modulos',
       'inversor',
-      'geracao',
-      'economia',
-      'roi',
-      'qualidades',
     ]
+
+    if (bateriasKit.length > 0) {
+      list.push('baterias')
+    }
+
+    list.push('geracao', 'economia', 'roi', 'qualidades')
 
     if (pagamentoParsed.temCondicoes) {
       list.push('pagamento')
@@ -952,7 +960,95 @@ export function PropostaStoryViewer({
           )}
 
           {/* ======================================================== */}
-          {/* TELA 3: GERAÇÃO MENSAL ESTIMADA                           */}
+          {/* TELA (OPCIONAL): BATERIAS DO KIT                          */}
+          {/* ======================================================== */}
+          {activeScreenKey === 'baterias' && (
+            <div className="flex-1 flex flex-col justify-between space-y-3 animate-in fade-in duration-300 py-1">
+              <div className="space-y-1.5">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-400/40 text-violet-300 text-[11px] font-black uppercase tracking-wider">
+                  <BatteryCharging className="w-3.5 h-3.5 text-violet-400" />
+                  <span>
+                    {currentScreenIndex + 1} de {totalScreens} • Equipamento: Banco de Baterias
+                  </span>
+                </div>
+
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">
+                  Autonomia com <span className="text-violet-400">Baterias de Lítio</span>
+                </h2>
+                <p className="text-xs text-slate-300">
+                  Energia armazenada para usar à noite, em apagões ou fora dos horários de sol.
+                </p>
+              </div>
+
+              {/* CARD DESTAQUE: Total de armazenamento */}
+              <div className="relative rounded-2xl overflow-hidden border-2 border-violet-400/70 shadow-2xl bg-gradient-to-br from-[#1B1040] via-[#0A192F] to-[#241452] p-4 sm:p-5 text-center">
+                <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full bg-violet-500/20 blur-2xl pointer-events-none" />
+
+                <span className="text-[10px] uppercase tracking-widest text-violet-300 font-extrabold block">
+                  Armazenamento Total do Kit
+                </span>
+
+                <div className="my-3">
+                  <div className="text-4xl sm:text-5xl font-black text-white font-mono-numbers tracking-tight">
+                    {totalKwhBaterias(bateriasKit).toLocaleString('pt-BR', {
+                      maximumFractionDigits: 2,
+                    })}
+                    <span className="text-lg text-violet-300 font-bold ml-1">kWh</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 mt-1">
+                    de capacidade instalada em baterias
+                  </p>
+                </div>
+
+                {/* Linhas reais de bateria gravadas no kit */}
+                <div className="space-y-1.5 pt-3 border-t border-white/10 text-left">
+                  {bateriasKit.map((b, i) => (
+                    <div
+                      key={i}
+                      className="flex items-start gap-2 bg-black/30 rounded-lg p-2 border border-violet-400/20"
+                    >
+                      <BatteryCharging className="w-3.5 h-3.5 text-violet-400 shrink-0 mt-0.5" />
+                      <span className="text-xs text-slate-200 font-semibold leading-snug">
+                        {rotuloBateria(b)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Benefícios rápidos */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-white/5 rounded-xl p-2.5 border border-white/10 space-y-0.5">
+                  <span className="text-[10px] text-violet-300 font-bold block">
+                    🌙 Energia à Noite
+                  </span>
+                  <p className="text-[11px] text-slate-300 leading-tight">
+                    Consuma a energia gerada durante o dia mesmo após o pôr do sol.
+                  </p>
+                </div>
+                <div className="bg-white/5 rounded-xl p-2.5 border border-white/10 space-y-0.5">
+                  <span className="text-[10px] text-violet-300 font-bold block">
+                    🛡️ Proteção contra Apagões
+                  </span>
+                  <p className="text-[11px] text-slate-300 leading-tight">
+                    Seus equipamentos essenciais continuam funcionando em quedas de energia.
+                  </p>
+                </div>
+              </div>
+
+              {/* GUIA AMIGÁVEL: Mascote explicando o banco de baterias */}
+              <MascotSpeechBubble
+                titulo="O Mascote Explica:"
+                fala={`Além dos painéis, seu kit tem banco de baterias com ${totalKwhBaterias(bateriasKit).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kWh: energia guardada para você usar quando quiser, até de madrugada!`}
+                dica="Baterias de lítio com BMS integrado e longa vida útil."
+                destaqueBadge={`${totalKwhBaterias(bateriasKit).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kWh`}
+                humor="animado"
+              />
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* TELA: GERAÇÃO MENSAL ESTIMADA                             */}
           {/* ======================================================== */}
           {activeScreenKey === 'geracao' && (
             <div className="flex-1 flex flex-col justify-between space-y-3 animate-in fade-in duration-300 py-1">

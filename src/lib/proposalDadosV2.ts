@@ -21,7 +21,7 @@ import {
 } from './proposalCalculos'
 import { formatBRL, formatDateBR } from './solarUtils'
 import { CONTATO_ECOSOLAR } from '@/constants/empresa'
-import { lerEquipamentosProposta, totalKwhBaterias } from '@/lib/propostaBaterias'
+import { lerEquipamentosProposta, totalKwhBaterias, rotuloBateria } from '@/lib/propostaBaterias'
 import type { BateriaLinha } from '@/services/kitGerador'
 import type { BateriasPropostaJson } from '@/types/crm'
 
@@ -219,6 +219,38 @@ export function montarDadosV2(data: ProposalPDFData): DadosV2 {
     potenciaInversorKw ? ` ${formatNumeroBR(potenciaInversorKw, 1)} kW` : ''
   }`.replace(/\s+/g, ' ')
   const itemEstrutura = `Estrutura para telhado de ${tipoEstruturaTexto}`
+
+  // Equipamentos reais do kit: baterias (campo kit_baterias) e quantidades reais
+  // por modelo extraídas da descrição técnica. Em propostas antigas sem esses
+  // dados, cai nos fallbacks de sempre (quantidade calculada pela potência).
+  const equipamentos = lerEquipamentosProposta(data.kit_baterias)
+  const bateriasKit = equipamentos.baterias
+
+  const linhasPainelExtraidas = extrairLinhasKit(
+    data.kit_descricao || data.kit?.descricao,
+    /pain[eé]l/i,
+  )
+  const linhasPainelKit = (
+    linhasPainelExtraidas.length > 0
+      ? linhasPainelExtraidas.map((l) => ({ qtd: `${l.qtd}x`, item: l.nome }))
+      : [{ qtd: qtdPaineis ? `${qtdPaineis}x` : '1 kit', item: itemPaineis }]
+  ).map((l) => ({ ...l, para: descricaoFuncaoItem('painel solar') }))
+
+  const linhasInversorExtraidas = extrairLinhasKit(
+    data.kit_descricao || data.kit?.descricao,
+    /inversor/i,
+  )
+  const linhasInversorKit = (
+    linhasInversorExtraidas.length > 0
+      ? linhasInversorExtraidas.map((l) => ({ qtd: `${l.qtd}x`, item: l.nome }))
+      : [{ qtd: qtdInversores > 1 ? `${qtdInversores}x` : '1x', item: itemInversor }]
+  ).map((l) => ({ ...l, para: descricaoFuncaoItem('inversor') }))
+
+  const linhasBateriaKit = bateriasKit.map((b) => ({
+    qtd: `${Number(b.qtd) || 1}x`,
+    item: rotuloBateria(b),
+    para: descricaoFuncaoItem('bateria'),
+  }))
 
   const itensKit = [
     ...linhasPainelKit,
