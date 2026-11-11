@@ -45,6 +45,8 @@ import {
   parseItens,
   parsePainelJson,
   parseInversorJson,
+  parsePaineisLinhas,
+  parseInversoresLinhas,
   parseBateriasJson,
   type KitGerado,
 } from '@/services/kitGerador'
@@ -226,8 +228,11 @@ export function GerarPropostaModal({
 
   /** Preenche o formulário com um kit salvo no Gerador de Kit Solar. */
   const applyKitGerado = (k: KitGerado) => {
-    const painel = parsePainelJson(k.painel)
-    const inversor = parseInversorJson(k.inversor)
+    // TODAS as linhas de painéis e inversores do kit gravado (não só a primeira)
+    const paineis = parsePaineisLinhas(k.painel)
+    const inversores = parseInversoresLinhas(k.inversor)
+    const painel = paineis[0] ?? null
+    const inversor = inversores[0] ?? null
     setSelectedKitGeradoId(k.id)
     setSelectedKitId('')
     setKitNome(k.nome)
@@ -265,18 +270,21 @@ export function GerarPropostaModal({
       stringBox: '',
     })
 
-    // Descrição técnica: módulos, inversor (com modelo), área e itens do kit
+    // Descrição técnica: módulos, TODOS os inversores (com modelo), área e itens do kit.
+    // Prefixos "Painéis:" / "Inversor:" garantem que a extração da proposta
+    // (extrairLinhasKit em proposalDadosV2) encontre cada linha, mesmo quando o
+    // nome do modelo não contém a palavra (ex.: "Lux Power Eco Híbrido").
     const linhas: string[] = []
-    if (painel) {
+    for (const p of paineis) {
       linhas.push(
-        `${painel.qtd ? `${painel.qtd}× ` : ''}${painel.marca} ${painel.modelo || ''} ${painel.potencia_w ? `${painel.potencia_w} W` : ''}`
+        `Painéis: ${p.qtd ? `${p.qtd}× ` : ''}${p.marca} ${p.modelo || ''} ${p.potencia_w ? `${p.potencia_w} W` : ''}`
           .replace(/\s+/g, ' ')
           .trim(),
       )
     }
-    if (inversor) {
+    for (const inv of inversores) {
       linhas.push(
-        `${inversor.qtd ? `${inversor.qtd}× ` : '1× '}${inversor.marca} ${inversor.modelo || ''} ${inversor.potencia_kw ? `${inversor.potencia_kw} kW` : ''}`
+        `Inversor: ${inv.qtd ? `${inv.qtd}× ` : '1× '}${inv.marca} ${inv.modelo || ''} ${inv.potencia_kw ? `${inv.potencia_kw} kW` : ''}`
           .replace(/\s+/g, ' ')
           .trim(),
       )
