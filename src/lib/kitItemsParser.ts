@@ -83,6 +83,39 @@ function extrairItensDeTexto(
 }
 
 /**
+ * Extrai TODAS as linhas de inversor de um texto em segmentos ("•", quebra de linha, ";").
+ * Reconhece:
+ *  - prefixo explícito "Inversor:" (formato gravado pelo Gerador de Kit / GerarPropostaModal)
+ *  - padrão "N× Marca Modelo ... kW" contendo "inversor"/"microinversor"/"híbrido" na linha
+ * Ignora segmentos de painéis ("Painéis: 46× ... W") e linhas sem "×".
+ */
+function extrairLinhasInversorDeTexto(texto: string | undefined): ItemDetalhadoKit[] {
+  if (!texto) return []
+  const resultado: ItemDetalhadoKit[] = []
+  const segmentos = texto.split(/[•\n;]+/)
+  for (const seg of segmentos) {
+    const s = seg.trim()
+    if (!s) continue
+    const comPrefixo = /^\s*inversor(es)?\s*[:-]/i.test(s)
+    const pareceModulo = /m[oó]dulo|pain[eé]l/i.test(s)
+    const m = s.match(/(\d+)\s*[x×]\s*(.+)$/i)
+    if (!m) continue
+    const nome = m[2].trim()
+    if (!nome) continue
+    const mencionaInversor = /inversor|microinversor|h[ií]brido|hybrid/i.test(s)
+    if (pareceModulo && !comPrefixo) continue
+    if (!comPrefixo && !mencionaInversor) continue
+    resultado.push({
+      tipo: 'inversor',
+      nome,
+      quantidade: parseInt(m[1], 10) || 1,
+      unidade: 'un',
+    })
+  }
+  return resultado
+}
+
+/**
  * Decompõe os dados do kit em itens técnicos para exibição em tabelas
  * (proposta clássica, proposta story, formalização).
  */
@@ -147,36 +180,66 @@ export function parseKitDetailedItems(input: KitDetailedItemsInput): KitDetailed
     })
   }
 
-  // --- Inversor ---
+  // --- Inversor(es) ---
+  // Kits modernos podem ter várias linhas de inversor (ex.: 46 microinversores Sungrow
+  // 2,5 kW + 1 híbrido Lux Power 10,5 kW). A descrição gravada contém uma linha por
+  // modelo ("Inversor: 46× Sungrow SH-RS ... • Inversor: 1× Lux Power ..."), então um
+  // item por linha é criado. Fallback: campo estruturado único (legado).
   const kwInversor = parseW(potenciaInversorKw)
-  const textoInversor =
-    extrairItensDeTexto(descricao, 'inversor').find((i) => /kw\b/i.test(i.nome)) ||
-    extrairItensDeTexto(observacoes, 'inversor').find((i) => /kw\b/i.test(i.nome))
+  const ESPEC_INVERSOR =
+    'Inversor solar (string) com monitoramento integrado via Wi-Fi/dongle, proteções integradas ' +
+    'e garantia de fabricação. Homologado no INMETRO.'
+  // Descrição moderna: segmentos separados por "•"/quebra de linha com prefixo "Inversor:"
+  // (gravado pelo GerarPropostaModal/EditarPropostaModal). Ex.:
+  // "Painéis: 46× Sungrow ... 550 W • Inversor: 46× Sungrow SH-RS 2,5 kW • Inversor: 1× Lux Power Eco Híbrido 10,5 kW"
+  const linhasInversorDescricao = extrairLinhasInversorDeTexto(descricao)
+  const linhasInversor =
+    linhasInversorDescricao.length > 0
+      ? linhasInversorDescricao
+      : extrairLinhasInversorDeTexto(observacoes)
 
-  let qtdInversor = 1
-  let nomeInversor = ''
-  if (textoInversor) {
-    qtdInversor = Number(textoInversor.quantidade) || 1
-    nomeInversor = textoInversor.nome
+  if (linhasInversor.length > 0) {
+    for (const textoInversor of linhasInversor) {
+      const qtdInversor = Number(textoInversor.quantidade) || 1
+      // Com o prefixo "Inversor:" gravado pelo gerador, o texto já começa na marca/modelo.
+      // Com uma única linha, a marca estruturada prevalece (comportamento legado preservado).
+      const nomeInversor = textoInversor.nome
+      const marcaLinhaInversor =
+        (marcaInversor && linhasInversor.length === 1
+          ? marcaInversor
+          : nomeInversor
+              .split(/(?=[\d])|\s+(?=[A-Z]{1,3}[\d-])/)[0]
+              ?.replace(/[\s-]+$/, '')
+              .trim()) ||
+        nomeInversor.split(' ')[0] ||
+        ''
+      const potenciaUnitLinhaInversor = nomeInversor.match(/([\d.,]+)\s*k?W\b/i)?.[0] || undefined
+
+      itens.push({
+        tipo: 'inversor',
+        nome: `${qtdInversor}× Inversor Solar${marcaLinhaInversor ? ` ${marcaLinhaInversor}` : ''}`,
+        quantidade: qtdInversor,
+        unidade: 'un',
+        potenciaUnit: potenciaUnitLinhaInversor,
+        especificacao: ESPEC_INVERSOR,
+        fabricanteModelo: nomeInversor,
+      })
+    }
+  } else {
+    const marcaInversorFinal = marcaInversor || ''
+    itens.push({
+      tipo: 'inversor',
+      nome: `1× Inversor Solar${marcaInversorFinal ? ` ${marcaInversorFinal}` : ''}`,
+      quantidade: 1,
+      unidade: 'un',
+      potenciaUnit:
+        kwInversor > 0
+          ? `${kwInversor.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kW`
+          : undefined,
+      especificacao: ESPEC_INVERSOR,
+      fabricanteModelo: marcaInversorFinal || undefined,
+    })
   }
-
-  const marcaInversorFinal = marcaInversor || (nomeInversor ? nomeInversor.split(' ')[0] : '') || ''
-  const potenciaUnitInversor =
-    kwInversor > 0
-      ? `${kwInversor.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kW`
-      : nomeInversor.match(/([\d.,]+)\s*k?W\b/i)?.[0] || ''
-
-  itens.push({
-    tipo: 'inversor',
-    nome: `${qtdInversor}× Inversor Solar${marcaInversorFinal ? ` ${marcaInversorFinal}` : ''}`,
-    quantidade: qtdInversor,
-    unidade: 'un',
-    potenciaUnit: potenciaUnitInversor || undefined,
-    especificacao:
-      'Inversor solar (string) com monitoramento integrado via Wi-Fi/dongle, proteções integradas ' +
-      'e garantia de fabricação. Homologado no INMETRO.',
-    fabricanteModelo: marcaInversorFinal || undefined,
-  })
 
   // --- String Box ---
   if (stringBox) {
@@ -219,8 +282,14 @@ export function parseKitDetailedItems(input: KitDetailedItemsInput): KitDetailed
     itens.push(it)
   }
 
-  // Fabricantes principais para exibição consolidada
-  const fabricantes = [marcaModuloFinal, marcaInversorFinal]
+  // Fabricantes principais para exibição consolidada (todas as linhas de inversor entram)
+  const marcaInversorFinal = marcaInversor || ''
+  const fabricantes = [
+    marcaModuloFinal,
+    ...itens
+      .filter((i) => i.tipo === 'inversor')
+      .map((i) => String(i.fabricanteModelo ?? '').trim()),
+  ]
   if (kitFabricante) {
     for (const parte of kitFabricante.split('/')) {
       const p = parte.trim()

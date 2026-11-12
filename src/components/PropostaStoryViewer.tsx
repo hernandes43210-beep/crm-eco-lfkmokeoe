@@ -175,8 +175,9 @@ export function PropostaStoryViewer({
 
   const potenciaPainelFormatada = `${potenciaPainelW}W`
 
-  // Dados técnicos específicos do inversor
-  const inversorItem = specs.itens.find((it) => it.tipo === 'inversor')
+  // Dados técnicos específicos dos inversores (um kit pode ter vários modelos)
+  const inversoresItens = specs.itens.filter((it) => it.tipo === 'inversor')
+  const inversorItem = inversoresItens[0]
   // Prioriza o snapshot da proposta (kit_qtd_inversores, ex.: 52 microinversores),
   // depois o extraído da descrição do kit e, por último, o fallback 1.
   const rawQtdInversoresProposta = Number(
@@ -212,6 +213,19 @@ export function PropostaStoryViewer({
   const inversorPrincipal =
     inversorItem?.fabricanteModelo ||
     (potenciaInversorKw ? `${marcaInversor} ${potenciaInversorKw} kW` : marcaInversor)
+
+  // Rótulos das linhas de inversor (para a lista de múltiplos modelos):
+  // "46× Sungrow SH-RS 2,5 kW" — quantidade de cada linha + modelo completo.
+  const rotulosInversores = inversoresItens.map((it) => {
+    const qtd = Number(it.quantidade) || 1
+    const modelo = it.fabricanteModelo || it.nome
+    return `${qtd}× ${modelo}`
+  })
+  const totalUnidadesInversores = inversoresItens.reduce(
+    (acc, it) => acc + (Number(it.quantidade) || 1),
+    0,
+  )
+  const temMultiplosInversores = inversoresItens.length > 1
 
   const stringBoxDesc =
     (proposta as any)?.kit_string_box ||
@@ -866,6 +880,27 @@ export function PropostaStoryViewer({
                       ? 'Inversor Huawei FusionSolar com inteligência artificial, máxima segurança AFCI e monitoramento inteligente pelo celular.'
                       : `${inversorPrincipal} com homologação INMETRO, alta confiabilidade e conexão autorizada na rede da concessionária Energisa.`}
                 </p>
+
+                {/* Kit com múltiplos modelos de inversor: uma linha por modelo */}
+                {temMultiplosInversores && (
+                  <div className="mt-3 pt-3 border-t border-white/10 space-y-1.5 text-left">
+                    <span className="text-[10px] uppercase tracking-widest text-sky-300 font-extrabold block">
+                      Inversores do Kit ({totalUnidadesInversores}{' '}
+                      {totalUnidadesInversores === 1 ? 'unidade' : 'unidades'})
+                    </span>
+                    {rotulosInversores.map((rotulo, i) => (
+                      <div
+                        key={i}
+                        className="flex items-start gap-2 bg-black/30 rounded-lg p-2 border border-blue-400/20"
+                      >
+                        <Cpu className="w-3.5 h-3.5 text-sky-300 shrink-0 mt-0.5" />
+                        <span className="text-xs text-slate-100 font-semibold leading-snug">
+                          {rotulo}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {stringBoxDesc && (
                   <div className="mt-3 pt-2 border-t border-white/10 text-[11px] text-slate-300">

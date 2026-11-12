@@ -535,6 +535,33 @@ export function EditarPropostaModal({
           })
         : undefined
 
+      // Preserva a descrição existente SOMENTE quando o vendedor não mexeu nos
+      // componentes técnicos (caso de propostas de kit gerado com várias linhas de
+      // inversor — reger a partir dos seletores singulares perderia as linhas).
+      const componentesTecnicosAlterados =
+        technicalValues.qtdPaineis !== initialStateRef.current.qtdPaineis ||
+        technicalValues.potenciaPainelW !== initialStateRef.current.potenciaPainelW ||
+        technicalValues.marcaPaineis !== initialStateRef.current.marcaPaineis ||
+        technicalValues.qtdInversores !== initialStateRef.current.qtdInversores ||
+        technicalValues.marcaInversor !== initialStateRef.current.marcaInversor ||
+        technicalValues.potenciaInversorKw !== initialStateRef.current.potenciaInversorKw
+      const descFinal =
+        isCustomMode && descGerada
+          ? descGerada
+          : componentesTecnicosAlterados
+            ? sugerirDescricaoTecnica({
+                qtdPaineis: technicalValues.qtdPaineis,
+                potenciaPainelW: technicalValues.potenciaPainelW,
+                marcaPaineis: technicalValues.marcaPaineis,
+                qtdInversores: technicalValues.qtdInversores,
+                marcaInversor: technicalValues.marcaInversor,
+                potenciaInversorKw: technicalValues.potenciaInversorKw,
+                kwp: potenciaNum > 0 ? potenciaNum : manualKwpInfo.kwp,
+                stringBox: technicalValues.stringBox || '',
+                tipoEstrutura: technicalValues.tipoEstrutura,
+              })
+            : (proposta as any).kit_descricao || undefined
+
       const payload: Partial<Proposta> = {
         kit: kitRelId || undefined,
         kit_nome: kitNome.trim(),
@@ -557,7 +584,7 @@ export function EditarPropostaModal({
         kit_potencia_painel_w: Number(technicalValues.potenciaPainelW) || undefined,
         kit_potencia_inversor_kw: Number(technicalValues.potenciaInversorKw) || undefined,
         kit_string_box: (technicalValues.stringBox?.trim() as KitStringBox) || undefined,
-        kit_descricao: descGerada || (proposta as any).kit_descricao || undefined,
+        kit_descricao: descFinal,
         fotos_selecionadas: fotosSelecionadas,
         condicoes_pagamento: condicoesPagamento.trim(),
         observacoes: observacoes.trim(),

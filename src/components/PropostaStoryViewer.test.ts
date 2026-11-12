@@ -27,6 +27,42 @@ describe('Proposta Story Equipamentos e Mascote', () => {
     expect(inversorItem?.potenciaUnit).toContain('5')
   })
 
+  it('cria UM item de inversor por linha do kit quando a descrição tem vários modelos', () => {
+    const specs = parseKitDetailedItems({
+      kitNome: 'Kit Solar 132 kWp',
+      kitPotenciaKw: 132,
+      kitFabricante: 'Sungrow / Lux Power',
+      descricao:
+        'Painéis: 46× Sungrow SH-RS 550 W • Inversor: 46× Sungrow SH-RS 2,5 kW • Inversor: 1× Lux Power Eco Híbrido 10,5 kW',
+      potenciaPainelW: 550,
+      marcaPainel: 'Sungrow',
+      marcaInversor: 'Sungrow',
+      potenciaInversorKw: 2.5,
+    })
+
+    const inversores = specs.itens.filter((it) => it.tipo === 'inversor')
+    expect(inversores).toHaveLength(2)
+    expect(inversores[0]?.quantidade).toBe(46)
+    expect(inversores[0]?.fabricanteModelo).toContain('Sungrow')
+    expect(inversores[1]?.quantidade).toBe(1)
+    expect(inversores[1]?.fabricanteModelo).toContain('Lux Power')
+  })
+
+  it('mantém o comportamento legado quando só há um inversor estruturado (sem linhas na descrição)', () => {
+    const specs = parseKitDetailedItems({
+      kitNome: 'Kit Residencial 10 kWp',
+      kitPotenciaKw: 10,
+      marcaInversor: 'Sungrow',
+      potenciaInversorKw: 8,
+    })
+
+    const inversores = specs.itens.filter((it) => it.tipo === 'inversor')
+    expect(inversores).toHaveLength(1)
+    expect(inversores[0]?.quantidade).toBe(1)
+    expect(inversores[0]?.fabricanteModelo).toBe('Sungrow')
+    expect(inversores[0]?.potenciaUnit).toBe('8 kW')
+  })
+
   it('extrai dados corretos para montagem do carrossel do Story', () => {
     const specs = parseKitDetailedItems({
       kitNome: 'Kit Residencial 10 kWp',
