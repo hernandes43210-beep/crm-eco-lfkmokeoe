@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -155,6 +155,21 @@ export function EditarPropostaModal({
   })
   const [isManualQuickMode, setIsManualQuickMode] = useState(true)
 
+  // Snapshot dos valores técnicos aplicados ao abrir/carregar (load ou applyKit).
+  // Serve para saber, no submit, se o vendedor realmente alterou algum componente
+  // técnico — só nesse caso kit_descricao é regerada (preserva linhas múltiplas
+  // de inversor de kits gerados).
+  const initialStateRef = useRef<KitTechnicalSelectorsValues>({
+    qtdPaineis: 10,
+    potenciaPainelW: 630,
+    marcaPaineis: 'TSUN POWER',
+    qtdInversores: 1,
+    marcaInversor: 'Sungrow',
+    potenciaInversorKw: 7.5,
+    tipoEstrutura: 'fibrocimento',
+    stringBox: '',
+  })
+
   // Modo custom/manual ativo quando 'custom' ou sem kit catalogado vinculado
   const isCustomMode = selectedKitId === 'custom' || !selectedKitId
   const selectedKit = useMemo(() => {
@@ -277,7 +292,7 @@ export function EditarPropostaModal({
       const stringBoxFinal =
         (proposta as any).kit_string_box || kitExpand?.string_box || componentes.stringBox || ''
 
-      setTechnicalValues({
+      const valoresAplicados: KitTechnicalSelectorsValues = {
         qtdPaineis: componentes.qtdPaineis || 10,
         potenciaPainelW: potPainelFinal,
         marcaPaineis: marcaPainelFinal,
@@ -286,7 +301,10 @@ export function EditarPropostaModal({
         potenciaInversorKw: potInvFinal,
         tipoEstrutura: tipoEstruturaFinal,
         stringBox: stringBoxFinal,
-      })
+      }
+      setTechnicalValues(valoresAplicados)
+      // Snapshot do estado inicial técnico (base da comparação no submit)
+      initialStateRef.current = valoresAplicados
       setIsManualQuickMode(true)
     }
   }, [open, proposta])
@@ -318,7 +336,7 @@ export function EditarPropostaModal({
     setMargem(kit.margem)
 
     const componentes = extrairComponentesKit(kit)
-    setTechnicalValues({
+    const valoresAplicados: KitTechnicalSelectorsValues = {
       qtdPaineis: componentes.qtdPaineis || 10,
       potenciaPainelW: kit.potencia_painel_w || componentes.potenciaPainelW || 630,
       marcaPaineis: kit.marca_painel || componentes.marcaPaineis || 'TSUN POWER',
@@ -327,7 +345,10 @@ export function EditarPropostaModal({
       potenciaInversorKw: kit.potencia_inversor_kw || componentes.potenciaInversorKw || 5,
       tipoEstrutura: (kit.tipo_estrutura || componentes.tipoEstrutura || 'fibrocimento') as any,
       stringBox: (kit.string_box || componentes.stringBox || '') as any,
-    })
+    }
+    setTechnicalValues(valoresAplicados)
+    // Selecionar outro kit conta como novo estado inicial técnico
+    initialStateRef.current = valoresAplicados
 
     // Preço de venda base do kit
     let baseVenda = kit.preco_venda
