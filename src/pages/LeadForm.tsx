@@ -78,6 +78,7 @@ export default function LeadForm() {
   const [proximoContatoObs, setProximoContatoObs] = useState('')
   const [slaDias, setSlaDias] = useState<number>(7)
   const [precoVenda, setPrecoVenda] = useState<number | string>(18000)
+  const [modalidadeVenda, setModalidadeVenda] = useState<'avista' | 'fno'>('avista')
 
   // Load existing lead if editing
   useEffect(() => {
@@ -126,6 +127,7 @@ export default function LeadForm() {
           }
           setSlaDias(lead.sla_dias || 7)
           setPrecoVenda(lead.preco_venda || '')
+          setModalidadeVenda((lead as any).modalidade_venda === 'fno' ? 'fno' : 'avista')
         })
         .catch((err) => {
           console.error('Error loading lead:', err)
@@ -254,6 +256,7 @@ export default function LeadForm() {
         status: status || 'Novo',
         sla_dias: Math.max(1, Number(slaDias) || 7),
         preco_venda: Math.max(0, Number(precoVenda) || 0),
+        modalidade_venda: modalidadeVenda,
         proximo_contato: proximoContato.trim(),
       }
 
@@ -543,6 +546,37 @@ export default function LeadForm() {
                   className="h-10 text-sm font-semibold border-slate-200 focus-visible:ring-[#0B7A5B]"
                 />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-700">Modalidade da Venda</Label>
+              <div className="grid grid-cols-2 gap-2 max-w-md">
+                <button
+                  type="button"
+                  onClick={() => setModalidadeVenda('avista')}
+                  className={`h-10 rounded-md border text-sm font-semibold transition-colors ${
+                    modalidadeVenda === 'avista'
+                      ? 'bg-[#0B7A5B] text-white border-[#0B7A5B]'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  À Vista
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModalidadeVenda('fno')}
+                  className={`h-10 rounded-md border text-sm font-semibold transition-colors ${
+                    modalidadeVenda === 'fno'
+                      ? 'bg-[#0B7A5B] text-white border-[#0B7A5B]'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  Financiada (FNO)
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Financiada usa o simulador FNO (BASA) na geração da proposta.
+              </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -4,6 +4,7 @@ import type {
   PublicProposta,
   PropostaFotoSelecionada,
   BateriasPropostaJson,
+  FnoSimulacaoResumoJson,
 } from '@/types/crm'
 
 export interface CreatePropostaPayload {
@@ -35,6 +36,8 @@ export interface CreatePropostaPayload {
   kit_descricao?: string
   kit_string_box?: string
   kit_baterias?: BateriasPropostaJson | string
+  modalidade_venda?: 'avista' | 'fno'
+  fno_simulacao?: FnoSimulacaoResumoJson
   fotos_selecionadas?: PropostaFotoSelecionada[]
 }
 

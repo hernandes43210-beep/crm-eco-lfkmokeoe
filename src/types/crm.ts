@@ -348,6 +348,7 @@ export interface Lead extends RecordModel {
   pr_assinada_ganho?: boolean
   pr_file?: string
   preco_venda?: number
+  modalidade_venda?: 'avista' | 'fno'
   proprietario: string
   luvik_deal_id?: string
   tipo_imovel?: string
@@ -586,6 +587,33 @@ export interface PropostaFotoSelecionada {
   legenda?: string
 }
 
+/** Resumo da simulação FNO gravado junto da proposta (json pode vir string). */
+export interface FnoSimulacaoResumoJson {
+  valor_entrada?: number
+  valor_financiado?: number
+  taxa_anual_aa?: number
+  prazo_meses?: number
+  carencia_meses?: number
+  data_base?: string
+  data_liberacao?: string
+  data_primeiro_vencimento?: string
+  total_juros?: number
+  total_a_pagar?: number
+  parcela_mensal_estimada?: number
+  parcelas_resumo?: FnoParcelaResumo[]
+}
+
+export interface FnoParcelaResumo {
+  n: number
+  vencimento: string
+  juros_trecho1: number
+  juros_trecho2: number
+  juros_mes: number
+  amortizacao: number
+  parcela: number
+  saldo: number
+}
+
 export interface Proposta extends RecordModel {
   id: string
   lead: string
@@ -629,6 +657,8 @@ export interface Proposta extends RecordModel {
   kit_descricao?: string
   kit_string_box?: KitStringBox | ''
   kit_baterias?: BateriasPropostaJson | string
+  modalidade_venda?: 'avista' | 'fno'
+  fno_simulacao?: FnoSimulacaoResumoJson | string
   fotos_selecionadas?: PropostaFotoSelecionada[] | string
   created: string
   updated: string
@@ -717,6 +747,8 @@ export interface PublicProposta {
   kit_descricao?: string
   kit_string_box?: KitStringBox | ''
   kit_baterias?: BateriasPropostaJson | string
+  modalidade_venda?: 'avista' | 'fno'
+  fno_simulacao?: FnoSimulacaoResumoJson | string
   dossie_engenharia?: {
     tipo_instalacao?: TipoInstalacaoDossie
     tipo_estrutura_detalhe?: string

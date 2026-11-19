@@ -24,6 +24,7 @@ import IntegracoesPage from '@/pages/Integracoes'
 import ConfiguracoesPage from '@/pages/Configuracoes'
 import PropostasList from '@/pages/PropostasList'
 import PropostaPublica from '@/pages/PropostaPublica'
+import FinanciamentoFnoPage from '@/pages/FinanciamentoFnoPage'
 import MeusDocumentosEngenharia from '@/pages/MeusDocumentosEngenharia'
 import NotFound from '@/pages/NotFound'
 
@@ -79,6 +80,14 @@ const App = () => (
                 element={
                   <ProtectedRoute blockEngenheiro>
                     <LeadImport />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/financiamento-fno"
+                element={
+                  <ProtectedRoute blockEngenheiro>
+                    <FinanciamentoFnoPage />
                   </ProtectedRoute>
                 }
               />
