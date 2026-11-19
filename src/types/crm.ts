@@ -594,6 +594,7 @@ export interface FnoSimulacaoResumoJson {
   taxa_anual_aa?: number
   prazo_meses?: number
   carencia_meses?: number
+  dia_vencimento?: number
   data_base?: string
   data_liberacao?: string
   data_primeiro_vencimento?: string

@@ -49,6 +49,7 @@ import { parseKitDetailedItems } from '@/lib/kitItemsParser'
 import { parseBateriasJson } from '@/services/kitGerador'
 import { rotuloBateria, totalKwhBaterias } from '@/lib/propostaBaterias'
 import { parseCondicoesPagamento } from '@/lib/paymentConditionsParser'
+import { parseModalidade, parseFnoSimulacao } from '@/components/proposta/fnoModalidade'
 import { INSTITUTIONAL_INSTALLATION_PHOTOS } from '@/data/socialProofPhotos'
 import { MascotSpeechBubble } from '@/components/MascotSpeechBubble'
 import { Button } from '@/components/ui/button'
@@ -77,6 +78,7 @@ export type StoryScreenKey =
   | 'roi'
   | 'qualidades'
   | 'pagamento'
+  | 'fno'
   | 'valor_assinatura'
 
 export function PropostaStoryViewer({
@@ -114,6 +116,16 @@ export function PropostaStoryViewer({
   // Baterias do kit (campo kit_baterias da proposta) — tela extra só quando houver.
   const bateriasKit = useMemo(() => parseBateriasJson((proposta as any)?.kit_baterias), [proposta])
 
+  // Simulação FNO gravada (só considerada válida quando proposta financiada com dados mínimos)
+  const fnoSimulacao = useMemo(() => {
+    if (parseModalidade((proposta as any)?.modalidade_venda) !== 'fno') return null
+    const parsed = parseFnoSimulacao((proposta as any)?.fno_simulacao)
+    if (!parsed || (parsed.valor_financiado ?? 0) <= 0 || (parsed.prazo_meses ?? 0) <= 0) {
+      return null
+    }
+    return parsed
+  }, [proposta])
+
   // Lista dinâmica de telas do Story: se não houver condição de pagamento definida, omite graciosamente
   const screens: StoryScreenKey[] = useMemo(() => {
     const list: StoryScreenKey[] = ['modulos', 'inversor']
@@ -128,9 +140,14 @@ export function PropostaStoryViewer({
       list.push('pagamento')
     }
 
+    // Slide FNO: só quando a proposta é financiada e tem simulação gravada válida
+    if (fnoSimulacao) {
+      list.push('fno')
+    }
+
     list.push('valor_assinatura')
     return list
-  }, [pagamentoParsed.temCondicoes])
+  }, [pagamentoParsed.temCondicoes, fnoSimulacao])
 
   const totalScreens = screens.length
   const activeScreenKey = screens[currentScreenIndex] || screens[0]
@@ -1592,6 +1609,97 @@ export function PropostaStoryViewer({
                 fala="O pagamento à vista é a melhor opção, mas você também conta com cartão em até 24x ou financiamento pelas parcerias da nossa própria Ecosolar Energy com bancos e financeiras. Escolha a sua melhor opção e comece a economizar!"
                 dica="Escolha a sua melhor opção na assinatura do projeto."
                 destaqueBadge="Sua Escolha"
+                humor="animado"
+              />
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* TELA FINANCIAMENTO FNO: Resumo da simulação financiada    */}
+          {/* ======================================================== */}
+          {activeScreenKey === 'fno' && fnoSimulacao && (
+            <div className="flex-1 flex flex-col justify-between space-y-2.5 animate-in fade-in duration-300 py-1">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400/20 border border-amber-400/50 text-amber-300 text-[11px] font-black uppercase tracking-wider">
+                  <Landmark className="w-3.5 h-3.5 text-amber-400" />
+                  <span>
+                    {currentScreenIndex + 1} de {totalScreens} • Financiamento FNO
+                  </span>
+                </div>
+
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">
+                  Financiada pelo <span className="text-amber-400">FNO</span>
+                </h2>
+                <p className="text-[11px] text-slate-300">
+                  Condições especiais negociadas para você: entrada reduzida e parcelas que cabem no
+                  seu bolso.
+                </p>
+              </div>
+
+              {/* Resumo da simulação em cards discretos no padrão corporativo */}
+              <div className="space-y-2">
+                <div className="rounded-2xl p-3.5 border-2 border-amber-400/70 bg-gradient-to-br from-amber-950/50 via-[#0A192F] to-[#0A192F] shadow-md text-center space-y-1">
+                  <span className="text-[10px] uppercase tracking-widest text-slate-300 font-extrabold block">
+                    Valor Financiado
+                  </span>
+                  <div className="text-2xl sm:text-3xl font-black text-amber-300 font-mono-numbers tracking-tight">
+                    {formatBRL(fnoSimulacao.valor_financiado || 0)}
+                  </div>
+                  {(fnoSimulacao.valor_entrada ?? 0) > 0 && (
+                    <span className="text-[10.5px] text-emerald-300 font-semibold block">
+                      Entrada de {formatBRL(fnoSimulacao.valor_entrada || 0)} no ato
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-xl p-2.5 border border-white/10 bg-white/5 text-center">
+                    <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold block">
+                      Parcelas
+                    </span>
+                    <span className="text-sm font-black text-white font-mono-numbers block">
+                      {fnoSimulacao.prazo_meses}x
+                    </span>
+                    <span className="text-[10px] text-slate-300 font-mono-numbers block">
+                      ≈ {formatBRL(fnoSimulacao.parcela_mensal_estimada || 0)}/mês
+                    </span>
+                  </div>
+                  <div className="rounded-xl p-2.5 border border-white/10 bg-white/5 text-center">
+                    <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold block">
+                      Taxa
+                    </span>
+                    <span className="text-sm font-black text-white font-mono-numbers block">
+                      {(fnoSimulacao.taxa_anual_aa ?? 0).toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                      % a.a.
+                    </span>
+                    {(fnoSimulacao.carencia_meses ?? 0) > 0 && (
+                      <span className="text-[10px] text-slate-300 block">
+                        Carência de {fnoSimulacao.carencia_meses} meses
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {(fnoSimulacao.total_a_pagar ?? 0) > 0 && (
+                  <div className="rounded-xl p-2.5 border border-white/10 bg-white/5 flex items-center justify-between px-3">
+                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                      Total a pagar
+                    </span>
+                    <span className="text-sm font-black text-white font-mono-numbers">
+                      {formatBRL(fnoSimulacao.total_a_pagar || 0)}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <MascotSpeechBubble
+                titulo="Fique tranquilo!"
+                fala="O financiamento FNO tem taxa especial e parcelas que cabem no seu bolso — e a economia na conta de energia ajuda a pagar o financiamento todos os meses."
+                dica="A data e o valor das parcelas ficam detalhados na proposta completa."
+                destaqueBadge="Taxa Especial FNO"
                 humor="animado"
               />
             </div>

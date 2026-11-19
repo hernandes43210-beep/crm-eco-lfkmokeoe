@@ -43,8 +43,8 @@ export function formularioParaEntrada(form: FnoFormulario) {
 
 /** Roda a simulação lendo os feriados da coleção fno_feriados em runtime. */
 export async function rodarSimulacaoFno(form: FnoFormulario): Promise<FnoResultado> {
-  const feriados = await FnoFeriadosService.listarDatas()
-  return simularFno(formularioParaEntrada(form), new Set(feriados))
+  const feriados = await FnoFeriadosService.carregarFeriados()
+  return simularFno(formularioParaEntrada(form), feriados)
 }
 
 /** Compacta o resultado para gravar em propostas.fno_simulacao. */

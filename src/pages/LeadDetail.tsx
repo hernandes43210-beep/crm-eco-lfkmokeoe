@@ -30,6 +30,8 @@ import {
   Eye,
   FileCheck,
   Bot,
+  Landmark,
+  Banknote,
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { LeadsService } from '@/services/leads'
@@ -1036,6 +1038,28 @@ export default function LeadDetail() {
                   title={`Motivo da perda: ${lead.motivo_perda}`}
                 >
                   Perda: {lead.motivo_perda}
+                </Badge>
+              )}
+
+              {lead.modalidade_venda === 'fno' && (
+                <Badge
+                  variant="outline"
+                  className="text-xs px-2 py-0.5 border bg-amber-50 text-amber-800 border-amber-300 font-medium flex items-center gap-1"
+                  title="Venda financiada pelo FNO"
+                >
+                  <Landmark className="w-3 h-3 text-amber-600" />
+                  <span>Financiada FNO</span>
+                </Badge>
+              )}
+
+              {lead.modalidade_venda === 'avista' && (
+                <Badge
+                  variant="outline"
+                  className="text-xs px-2 py-0.5 border bg-slate-50 text-slate-700 border-slate-300 font-medium flex items-center gap-1"
+                  title="Venda à vista"
+                >
+                  <Banknote className="w-3 h-3 text-slate-500" />
+                  <span>À vista</span>
                 </Badge>
               )}
 

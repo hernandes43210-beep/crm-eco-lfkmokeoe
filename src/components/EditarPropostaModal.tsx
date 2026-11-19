@@ -255,7 +255,7 @@ export function EditarPropostaModal({
         setFnoForm({
           valor_total: 0,
           valor_entrada: simSalva.valor_entrada,
-          taxa_anual: simSalva.taxa_anual,
+          taxa_anual: simSalva.taxa_anual_aa ?? 12,
           prazo_meses: simSalva.prazo_meses,
           carencia_meses: simSalva.carencia_meses,
           data_base: simSalva.data_base,
