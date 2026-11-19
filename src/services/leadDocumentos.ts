@@ -95,6 +95,35 @@ export const CATEGORIAS_DOCUMENTOS: Array<{
     iconName: 'FileSignature',
     exemplos: 'Documento assinado digitalmente ou digitalizado',
   },
+  {
+    key: 'foto_transformador',
+    label: 'Foto do Transformador',
+    descricao:
+      'Fotografia do transformador da concessionária mais próximo ao imóvel (importante para definir a estratégia de conexão)',
+    iconName: 'PlugZap',
+    exemplos: 'Foto nítida do equipamento com identificação da concessionária',
+  },
+  {
+    key: 'foto_local_instalacao',
+    label: 'Foto do Local da Instalação',
+    descricao: 'Fotografia do telhado/terreno onde os painéis serão instalados (vista geral)',
+    iconName: 'Camera',
+    exemplos: 'Vistas gerais do local (PDF, JPG ou PNG)',
+  },
+  {
+    key: 'foto_poste_padrao',
+    label: 'Foto do Poste e Padrão de Instalação',
+    descricao: 'Fotografia do poste de energia e do padrão de entrada (medidor/quadro)',
+    iconName: 'UtilityPole',
+    exemplos: 'Foto do poste e do medidor/quadro (PDF, JPG ou PNG)',
+  },
+  {
+    key: 'contrato_posse_imovel',
+    label: 'Contrato de Posse do Imóvel',
+    descricao: 'Contrato de compra e venda, escritura ou declaração de posse do imóvel',
+    iconName: 'FileText',
+    exemplos: 'PDF ou foto legível do documento',
+  },
 ]
 
 export const LeadDocumentosService = {

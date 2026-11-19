@@ -594,6 +594,10 @@ routerAdd(
       let countConta = 0
       let countDatasheet = 0
       let countProc = 0
+      let countTransformador = 0
+      let countLocal = 0
+      let countPostePadrao = 0
+      let countPosseImovel = 0
 
       for (let j = 0; j < docs.length; j++) {
         const cat = docs[j].getString('categoria')
@@ -601,7 +605,25 @@ routerAdd(
         else if (cat === 'conta_energia') countConta++
         else if (cat === 'datasheet_equipamentos') countDatasheet++
         else if (cat === 'procuracao') countProc++
+        else if (cat === 'foto_transformador') countTransformador++
+        else if (cat === 'foto_local_instalacao') countLocal++
+        else if (cat === 'foto_poste_padrao') countPostePadrao++
+        else if (cat === 'contrato_posse_imovel') countPosseImovel++
       }
+
+      const linhasCategorias = [
+        { rotulo: 'Documentos Pessoais do Cliente', n: countPessoais },
+        { rotulo: 'Conta de Energia Elétrica', n: countConta },
+        { rotulo: 'Datasheet dos Equipamentos', n: countDatasheet },
+        { rotulo: 'Procuração Assinada', n: countProc },
+        { rotulo: 'Foto do Transformador', n: countTransformador },
+        { rotulo: 'Foto do Local da Instalação', n: countLocal },
+        { rotulo: 'Foto do Poste e Padrão de Instalação', n: countPostePadrao },
+        { rotulo: 'Contrato de Posse do Imóvel', n: countPosseImovel },
+      ]
+        .filter((c) => c.n > 0)
+        .map((c) => '          <li>' + c.rotulo + ': <strong>' + c.n + '</strong> arquivo(s)</li>')
+        .join('\n')
 
       // Bloco HTML do Dossiê Técnico para Projeto
       let dossieHtmlBlock = ''
@@ -735,18 +757,7 @@ routerAdd(
         docsAtualizadosCount +
         ' total)</div>' +
         '        <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #064e3b; line-height: 1.7;">' +
-        '          <li>Documentos Pessoais do Cliente: <strong>' +
-        countPessoais +
-        '</strong> arquivo(s)</li>' +
-        '          <li>Conta de Energia Elétrica: <strong>' +
-        countConta +
-        '</strong> arquivo(s)</li>' +
-        '          <li>Datasheet dos Equipamentos: <strong>' +
-        countDatasheet +
-        '</strong> arquivo(s)</li>' +
-        '          <li>Procuração Assinada: <strong>' +
-        countProc +
-        '</strong> arquivo(s)</li>' +
+        linhasCategorias +
         '        </ul>' +
         (observacao
           ? '        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #86efac; font-size: 12px; color: #14532d;"><strong>Observações:</strong> ' +

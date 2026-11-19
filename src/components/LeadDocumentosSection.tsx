@@ -16,11 +16,15 @@ import {
   SunMedium,
   FileSignature,
   FileSpreadsheet,
+  PlugZap,
+  Camera,
+  UtilityPole,
   Image as ImageIcon,
   Loader2,
   User as UserIcon,
   HelpCircle,
   FolderOpen,
+  Home,
 } from 'lucide-react'
 import type {
   DocumentoLead,
@@ -114,6 +118,10 @@ export function LeadDocumentosSection({
     conta_energia: useRef<HTMLInputElement>(null),
     datasheet_equipamentos: useRef<HTMLInputElement>(null),
     procuracao: useRef<HTMLInputElement>(null),
+    foto_transformador: useRef<HTMLInputElement>(null),
+    foto_local_instalacao: useRef<HTMLInputElement>(null),
+    foto_poste_padrao: useRef<HTMLInputElement>(null),
+    contrato_posse_imovel: useRef<HTMLInputElement>(null),
   }
 
   const loadData = async () => {
@@ -653,6 +661,14 @@ export function LeadDocumentosSection({
         return <Cpu className="w-4 h-4 text-blue-600" />
       case 'procuracao':
         return <FileSignature className="w-4 h-4 text-purple-600" />
+      case 'foto_transformador':
+        return <PlugZap className="w-4 h-4 text-orange-600" />
+      case 'foto_local_instalacao':
+        return <Camera className="w-4 h-4 text-teal-600" />
+      case 'foto_poste_padrao':
+        return <UtilityPole className="w-4 h-4 text-amber-700" />
+      case 'contrato_posse_imovel':
+        return <Home className="w-4 h-4 text-sky-600" />
       default:
         return <FileText className="w-4 h-4 text-slate-500" />
     }
@@ -820,7 +836,7 @@ export function LeadDocumentosSection({
           </div>
         )}
 
-        {/* 4 Categorias de Documentos */}
+        {/* 8 Categorias de Documentos */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {CATEGORIAS_DOCUMENTOS.map((cat) => {
             const docsDaCategoria = documentos.filter((d) => d.categoria === cat.key)

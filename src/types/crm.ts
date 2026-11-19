@@ -31,6 +31,10 @@ export type DocumentoLeadCategoria =
   | 'conta_energia'
   | 'datasheet_equipamentos'
   | 'procuracao'
+  | 'foto_transformador'
+  | 'foto_local_instalacao'
+  | 'foto_poste_padrao'
+  | 'contrato_posse_imovel'
 
 export type DocumentoLeadStatusEnvio = 'pendente' | 'enviado' | 'reenviado'
 
