@@ -48,6 +48,8 @@ import { LuvikService, type WebhookUrls } from '@/services/luvik'
 import { SiteFormService } from '@/services/siteForm'
 import { ClicksignService, type ClicksignStatusResponse } from '@/services/clicksign'
 import { GeminiIntegrationService, type GeminiStatusResponse } from '@/services/geminiIntegration'
+import { ClaudeIntegrationService, type ClaudeStatusResponse } from '@/services/claudeIntegration'
+import { Bot } from 'lucide-react'
 import { PhbSolarService, type PhbStatusResponse } from '@/services/phbSolar'
 import { toPortugueseErrorMessage } from '@/lib/errors'
 import type { LuvikSettings, LuvikLogItem, SiteFormSettings, SiteFormLogItem } from '@/types/crm'
@@ -56,9 +58,9 @@ export default function IntegracoesPage() {
   const { isAdmin } = useAuth()
 
   // Tab ativa
-  const [activeTab, setActiveTab] = useState<'gemini' | 'phb' | 'clicksign' | 'site' | 'luvik'>(
-    'gemini',
-  )
+  const [activeTab, setActiveTab] = useState<
+    'gemini' | 'claude' | 'phb' | 'clicksign' | 'site' | 'luvik'
+  >('gemini')
 
   // Estado da integração PHB Solar v1.4.0
   const [phbStatus, setPhbStatus] = useState<PhbStatusResponse | null>(null)
@@ -83,6 +85,20 @@ export default function IntegracoesPage() {
   const [geminiInputKey, setGeminiInputKey] = useState('')
   const [showGeminiInputKey, setShowGeminiInputKey] = useState(false)
   const [geminiTestResult, setGeminiTestResult] = useState<{
+    success: boolean
+    message: string
+    http_status?: number
+    duration_ms?: number
+  } | null>(null)
+
+  // Estado da integração Claude (Anthropic)
+  const [claudeStatus, setClaudeStatus] = useState<ClaudeStatusResponse | null>(null)
+  const [loadingClaude, setLoadingClaude] = useState(false)
+  const [savingClaudeKey, setSavingClaudeKey] = useState(false)
+  const [testingClaude, setTestingClaude] = useState(false)
+  const [claudeInputKey, setClaudeInputKey] = useState('')
+  const [showClaudeInputKey, setShowClaudeInputKey] = useState(false)
+  const [claudeTestResult, setClaudeTestResult] = useState<{
     success: boolean
     message: string
     http_status?: number
@@ -181,6 +197,102 @@ export default function IntegracoesPage() {
       setLoadingGemini(false)
     }
   }, [])
+
+  const loadClaudeData = useCallback(async () => {
+    try {
+      setLoadingClaude(true)
+      const data = await ClaudeIntegrationService.getStatus()
+      setClaudeStatus(data)
+    } catch (err: unknown) {
+      console.error('Erro ao carregar status da Claude:', err)
+    } finally {
+      setLoadingClaude(false)
+    }
+  }, [])
+
+  const handleSaveClaudeKey = async () => {
+    if (!claudeInputKey.trim()) {
+      toast({
+        title: 'Chave não informada',
+        description: 'Cole a chave da API da Anthropic (sk-ant-...) para salvar.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      setSavingClaudeKey(true)
+      setClaudeTestResult(null)
+      await ClaudeIntegrationService.saveSettings({
+        api_key: claudeInputKey.trim(),
+      })
+
+      toast({
+        title: 'Chave da Claude salva com sucesso!',
+        description:
+          'A chave foi persistida de forma protegida e já está disponível para as ações de IA do CRM.',
+      })
+
+      setClaudeInputKey('')
+      setShowClaudeInputKey(false)
+      await loadClaudeData()
+    } catch (err: unknown) {
+      const msg = toPortugueseErrorMessage(err, 'Falha ao salvar chave da API da Claude.')
+      toast({
+        title: 'Erro ao salvar chave',
+        description: msg,
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingClaudeKey(false)
+    }
+  }
+
+  const handleTestClaudeConnection = async () => {
+    try {
+      setTestingClaude(true)
+      setClaudeTestResult(null)
+
+      // Se o usuário digitou uma chave no input mas não salvou ainda, testa a chave digitada
+      const keyToTest = claudeInputKey.trim() || undefined
+      const res = await ClaudeIntegrationService.testConnection(keyToTest)
+
+      setClaudeTestResult({
+        success: res.success,
+        message: res.message,
+        http_status: res.http_status,
+        duration_ms: res.duration_ms,
+      })
+
+      if (res.success) {
+        toast({
+          title: 'Conexão validada!',
+          description: res.message,
+        })
+      } else {
+        toast({
+          title: 'Falha no teste de conexão',
+          description: res.message,
+          variant: 'destructive',
+        })
+      }
+
+      await loadClaudeData()
+    } catch (err: unknown) {
+      const msg = toPortugueseErrorMessage(err, 'Erro ao testar conexão com a Claude.')
+      setClaudeTestResult({
+        success: false,
+        message: msg,
+      })
+      toast({
+        title: 'Erro ao testar conexão',
+        description: msg,
+        variant: 'destructive',
+      })
+    } finally {
+      setTestingClaude(false)
+    }
+  }
 
   const loadPhbData = useCallback(async () => {
     try {
@@ -462,11 +574,12 @@ export default function IntegracoesPage() {
 
   const loadAllData = useCallback(() => {
     loadGeminiData()
+    loadClaudeData()
     loadPhbData()
     loadSiteData()
     loadLuvikData()
     loadClicksignData()
-  }, [loadGeminiData, loadPhbData, loadSiteData, loadLuvikData, loadClicksignData])
+  }, [loadGeminiData, loadClaudeData, loadPhbData, loadSiteData, loadLuvikData, loadClicksignData])
 
   useEffect(() => {
     loadAllData()
@@ -707,6 +820,22 @@ export default function IntegracoesPage() {
             <Sparkles className="w-4 h-4 text-amber-500" />
             <span>Google Gemini (Imagens IA)</span>
             {geminiStatus?.configured ? (
+              <Badge className="bg-emerald-100 text-emerald-800 text-[10px] py-0 px-1.5 ml-1">
+                Conectada
+              </Badge>
+            ) : (
+              <Badge className="bg-amber-100 text-amber-800 text-[10px] py-0 px-1.5 ml-1">
+                Pendente
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="claude"
+            className="data-[state=active]:bg-white data-[state=active]:text-[#0B7A5B] data-[state=active]:shadow-xs font-semibold text-xs py-2 px-4 gap-2"
+          >
+            <Bot className="w-4 h-4 text-violet-500" />
+            <span>Claude (Anthropic)</span>
+            {claudeStatus?.configured ? (
               <Badge className="bg-emerald-100 text-emerald-800 text-[10px] py-0 px-1.5 ml-1">
                 Conectada
               </Badge>
@@ -1076,6 +1205,328 @@ export default function IntegracoesPage() {
                       O Google oferece cota gratuita mensal para testes e uso no Google AI Studio.
                       Nenhuma cobrança é realizada sem ativação explícita de faturamento no Google
                       Cloud.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* TAB CLAUDE (ANTHROPIC) */}
+        <TabsContent value="claude" className="space-y-6 mt-0">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-7 space-y-5">
+              <Card className="border-slate-200/80 shadow-xs bg-white">
+                <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <Bot className="w-5 h-5 text-violet-500" />
+                      <span>Claude (Anthropic) — Assistente de IA</span>
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-500">
+                      Cérebro de IA do CRM para análise de leads, textos de propostas, mensagens de
+                      follow-up e assistência ao vendedor.
+                    </CardDescription>
+                  </div>
+
+                  {claudeStatus?.configured ? (
+                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 text-xs gap-1.5 py-1 px-2.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Conectada</span>
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="bg-amber-50 text-amber-700 border-amber-300 text-xs gap-1 py-1 px-2.5"
+                    >
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Não Configurada</span>
+                    </Badge>
+                  )}
+                </CardHeader>
+
+                <CardContent className="p-6 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase block">
+                        Modelo
+                      </span>
+                      <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-violet-500" />
+                        Claude Sonnet (claude-sonnet-4-5)
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase block">
+                        Origem da Chave
+                      </span>
+                      <span className="font-semibold text-slate-800 text-[11px] truncate block">
+                        {claudeStatus?.source === 'database'
+                          ? 'Banco de Dados (CRM)'
+                          : claudeStatus?.source === 'env'
+                            ? 'Variável de Ambiente ($os.getenv)'
+                            : 'Nenhuma chave configurada'}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1 sm:col-span-2">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase block">
+                        Chave da API da Anthropic (Armazenamento Seguro)
+                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-slate-800 text-xs font-semibold">
+                          {claudeStatus?.masked_key || 'Nenhuma chave configurada'}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-white text-emerald-700 border-emerald-300"
+                          >
+                            Protegido no Servidor
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px] bg-white text-slate-500">
+                            Apenas Admin
+                          </Badge>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-slate-400 pt-0.5">
+                        As chamadas à API da Anthropic são feitas 100% pelo servidor do CRM
+                        (pb_hooks). A chave nunca é exposta ao navegador de nenhum usuário.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Formulário de Configuração da Chave */}
+                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-3.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <KeyRound className="w-4 h-4 text-violet-600" />
+                        <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                          Configurar / Atualizar Chave da API
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        Apenas Administradores
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Cole abaixo a chave de API gerada no{' '}
+                      <strong className="text-slate-800">Console da Anthropic</strong> (começa com{' '}
+                      <code className="bg-white px-1 rounded border">sk-ant-...</code>). Ao salvar,
+                      o CRM passa a utilizá-la imediatamente nas ações de IA dos leads (análise,
+                      follow-up e assistência ao vendedor).
+                    </p>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                          Chave da API da Anthropic (ANTHROPIC_API_KEY)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showClaudeInputKey ? 'text' : 'password'}
+                            value={claudeInputKey}
+                            onChange={(e) => setClaudeInputKey(e.target.value)}
+                            placeholder={
+                              claudeStatus?.configured
+                                ? 'Cole uma nova chave para substituir a atual...'
+                                : 'Cole aqui sua chave (ex: sk-ant-...)'
+                            }
+                            className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-xs font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#0B7A5B] pr-9"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowClaudeInputKey(!showClaudeInputKey)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            title={showClaudeInputKey ? 'Ocultar chave' : 'Exibir chave digitada'}
+                          >
+                            {showClaudeInputKey ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={savingClaudeKey || !claudeInputKey.trim()}
+                          onClick={handleSaveClaudeKey}
+                          className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold h-8.5 px-3.5 gap-1.5 shadow-xs"
+                        >
+                          <Save className="w-3.5 h-3.5" />
+                          <span>{savingClaudeKey ? 'Salvando...' : 'Salvar Chave'}</span>
+                        </Button>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={
+                            testingClaude || (!claudeStatus?.configured && !claudeInputKey.trim())
+                          }
+                          onClick={handleTestClaudeConnection}
+                          className="h-8.5 px-3.5 text-xs font-semibold border-slate-300 text-slate-700 hover:text-emerald-700 hover:bg-emerald-50 gap-1.5"
+                          title="Faz uma chamada leve à API da Anthropic para verificar se a chave é válida"
+                        >
+                          <Activity
+                            className={`w-3.5 h-3.5 ${testingClaude ? 'animate-spin' : ''}`}
+                          />
+                          <span>{testingClaude ? 'Testando...' : 'Testar Conexão'}</span>
+                        </Button>
+
+                        <a
+                          href="https://console.anthropic.com/settings/keys"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs text-[#0B7A5B] hover:text-[#095C44] font-medium hover:underline ml-auto"
+                        >
+                          <span>Obter chave no Console da Anthropic</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+
+                      {/* Feedback do Teste de Conexão */}
+                      {claudeTestResult && (
+                        <div
+                          className={`p-3 rounded-lg border text-xs flex items-start gap-2.5 ${
+                            claudeTestResult.success
+                              ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                              : 'bg-rose-50 border-rose-200 text-rose-900'
+                          }`}
+                        >
+                          {claudeTestResult.success ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                          )}
+                          <div className="space-y-0.5">
+                            <p className="font-semibold">{claudeTestResult.message}</p>
+                            {claudeTestResult.duration_ms && (
+                              <p className="text-[11px] opacity-80">
+                                Latência da API da Anthropic: {claudeTestResult.duration_ms} ms
+                                {claudeTestResult.http_status
+                                  ? ` • HTTP ${claudeTestResult.http_status}`
+                                  : ''}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-violet-50/60 border border-violet-200/80 text-xs text-violet-950 space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-violet-900">
+                      <Sparkles className="w-4 h-4 text-violet-600 shrink-0" />
+                      <span>Onde essa integração é usada no CRM?</span>
+                    </div>
+                    <ul className="list-disc list-inside space-y-1 text-violet-900/90 text-[11px]">
+                      <li>
+                        <strong>Ficha do Lead:</strong> botão &quot;Assistente IA (Claude)&quot; com
+                        análise do lead (resumo, riscos e próximos passos) e sugestão de mensagem de
+                        follow-up pronta para enviar.
+                      </li>
+                      <li>
+                        <strong>Assistência ao vendedor:</strong> respostas contextuais usando os
+                        dados do lead como contexto, direto na tela do lead.
+                      </li>
+                      <li>
+                        <strong>Sem chave configurada:</strong> os botões apenas avisam que o Admin
+                        precisa configurar em Integrações — nada quebra no resto do CRM.
+                      </li>
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="lg:col-span-5 space-y-5">
+              <Card className="border-slate-200/80 shadow-xs bg-white">
+                <CardHeader className="pb-3 border-b border-slate-100">
+                  <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <HelpCircle className="w-5 h-5 text-violet-500" />
+                    <span>Como obter a chave no Console da Anthropic</span>
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    Passo a passo rápido (requer conta com créditos na Anthropic)
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent className="p-6 space-y-3.5 text-xs text-slate-600">
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-6 h-6 rounded-full bg-violet-100 text-violet-900 font-bold text-xs flex items-center justify-center shrink-0">
+                      1
+                    </span>
+                    <div>
+                      <strong className="text-slate-800">Acesse o Console da Anthropic</strong>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Entre em{' '}
+                        <a
+                          href="https://console.anthropic.com/settings/keys"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-mono text-emerald-700 hover:underline"
+                        >
+                          console.anthropic.com/settings/keys
+                        </a>{' '}
+                        com sua conta Anthropic.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-6 h-6 rounded-full bg-violet-100 text-violet-900 font-bold text-xs flex items-center justify-center shrink-0">
+                      2
+                    </span>
+                    <div>
+                      <strong className="text-slate-800">Clique em &quot;Create Key&quot;</strong>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Dê um nome para a chave (ex.: CRM Ecosolar) e confirme a criação.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-6 h-6 rounded-full bg-violet-100 text-violet-900 font-bold text-xs flex items-center justify-center shrink-0">
+                      3
+                    </span>
+                    <div>
+                      <strong className="text-slate-800">Copie a chave gerada</strong>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        A chave começa com{' '}
+                        <code className="bg-slate-100 px-1 rounded">sk-ant-...</code>. Ela é exibida
+                        apenas uma vez — copie para a área de transferência.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-6 h-6 rounded-full bg-violet-100 text-violet-900 font-bold text-xs flex items-center justify-center shrink-0">
+                      4
+                    </span>
+                    <div>
+                      <strong className="text-slate-800">
+                        Cole no campo ao lado e clique em Salvar
+                      </strong>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Depois clique em <em>&quot;Testar Conexão&quot;</em> para certificar-se de
+                        que a API está respondendo.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                    <strong className="text-slate-800 block">Dica de custos:</strong>
+                    <p>
+                      A API da Anthropic é paga por uso (tokens). Acompanhe o consumo e os limites
+                      no próprio Console da Anthropic, em &quot;Usage &amp; billing&quot;.
                     </p>
                   </div>
                 </CardContent>

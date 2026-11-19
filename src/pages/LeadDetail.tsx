@@ -69,6 +69,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { SecaoPainel } from '@/components/lead/SecaoPainel'
+import { LeadClaudeAssistente } from '@/components/lead/LeadClaudeAssistente'
 import { Label } from '@/components/ui/label'
 import {
   Dialog,
@@ -1409,6 +1410,9 @@ export default function LeadDetail() {
               )}
             </div>
           </SecaoPainel>
+
+          {/* Card: Assistente de IA da Claude (Análise do lead & Follow-up) */}
+          <LeadClaudeAssistente lead={lead} isAdmin={isAdmin} />
 
           {/* Card: Próximo Contato & Lembretes Automáticos */}
           <SecaoPainel
