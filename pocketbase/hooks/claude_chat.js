@@ -3,46 +3,47 @@
 // Prioridade da chave: integracoes_config (chave='claude') > $os.getenv('ANTHROPIC_API_KEY')
 // Disponível para Admin/CEO/Engenheiro/Corretor/Vendedor (qualquer usuário autenticado do CRM).
 
-const CLAUDE_MODELO_PADRAO = 'claude-sonnet-4-5'
-
-function claudeErroAmigavel(statusCode, errData) {
-  const detail = errData && errData.error && errData.error.message ? errData.error.message : ''
-  const errTipo = errData && errData.error && errData.error.type ? errData.error.type : ''
-
-  if (statusCode === 401 || statusCode === 403) {
-    return 'Chave da Claude inválida ou sem permissão. Peça ao Admin para conferir a chave em Integrações.'
-  }
-  if (statusCode === 429) {
-    return 'Limite de uso da Claude atingido temporariamente. Aguarde alguns instantes e tente novamente.'
-  }
-  if (
-    detail.indexOf('credit') !== -1 ||
-    detail.indexOf('billing') !== -1 ||
-    detail.indexOf('balance') !== -1
-  ) {
-    return 'A conta da Anthropic está sem crédito/saldo ativo. Peça ao Admin para verificar o faturamento.'
-  }
-  if (statusCode === 404 || statusCode === 400) {
-    return 'A Anthropic rejeitou a requisição (modelo indisponível ou dados inválidos). Tente novamente ou peça ao Admin para conferir a integração.'
-  }
-  if (detail) {
-    return (
-      'Erro da Claude (' +
-      statusCode +
-      '): ' +
-      detail.replace(/sk-ant-[A-Za-z0-9_-]+/g, '[CHAVE_PROTEGIDA]')
-    )
-  }
-  return 'Erro inesperado ao chamar a Claude (' + statusCode + ').'
-}
-
 routerAdd(
   'POST',
   '/backend/v1/integrations/claude/chat',
   (e) => {
+    const CLAUDE_MODELO_PADRAO = 'claude-sonnet-4-5'
+
     const auth = e.auth
     if (!auth) {
       return e.json(401, { error: 'Não autenticado' })
+    }
+
+    // Erro amigável em português, sem expor a chave
+    function claudeErroAmigavel(statusCode, errData) {
+      const detail = errData && errData.error && errData.error.message ? errData.error.message : ''
+      const errTipo = errData && errData.error && errData.error.type ? errData.error.type : ''
+
+      if (statusCode === 401 || statusCode === 403) {
+        return 'Chave da Claude inválida ou sem permissão. Peça ao Admin para conferir a chave em Integrações.'
+      }
+      if (statusCode === 429) {
+        return 'Limite de uso da Claude atingido temporariamente. Aguarde alguns instantes e tente novamente.'
+      }
+      if (
+        detail.indexOf('credit') !== -1 ||
+        detail.indexOf('billing') !== -1 ||
+        detail.indexOf('balance') !== -1
+      ) {
+        return 'A conta da Anthropic está sem crédito/saldo ativo. Peça ao Admin para verificar o faturamento.'
+      }
+      if (statusCode === 404 || statusCode === 400) {
+        return 'A Anthropic rejeitou a requisição (modelo indisponível ou dados inválidos). Tente novamente ou peça ao Admin para conferir a integração.'
+      }
+      if (detail) {
+        return (
+          'Erro da Claude (' +
+          statusCode +
+          '): ' +
+          detail.replace(/sk-ant-[A-Za-z0-9_-]+/g, '[CHAVE_PROTEGIDA]')
+        )
+      }
+      return 'Erro inesperado ao chamar a Claude (' + statusCode + ').'
     }
 
     // Chave: banco > env
@@ -90,7 +91,7 @@ routerAdd(
     if (!(maxTokens > 0) || maxTokens > 4096) {
       maxTokens = 1024
     }
-    let model =
+    const model =
       typeof body.model === 'string' && body.model.trim() ? body.model.trim() : CLAUDE_MODELO_PADRAO
 
     if (!prompt) {

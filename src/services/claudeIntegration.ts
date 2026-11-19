@@ -1,7 +1,7 @@
 // Serviço de integração Claude (Anthropic) — espelha geminiIntegration.ts
 // A chave fica apenas no backend (integracoes_config chave='claude' > env ANTHROPIC_API_KEY).
 
-import { pb } from '@/lib/pocketbase/client'
+import pb from '@/lib/pocketbase/client'
 
 export interface ClaudeStatusResponse {
   configured: boolean

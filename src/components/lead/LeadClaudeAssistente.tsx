@@ -52,7 +52,7 @@ function montarContextoLead(lead: Lead): string {
   if (historico.length > 0) {
     linhas.push('- Últimos eventos do histórico (do mais recente ao mais antigo):')
     for (const item of historico.slice(0, 8)) {
-      const quem = item.autor_nome || item.de || 'sistema'
+      const quem = item.autor_nome || item.autor || 'sistema'
       const desc = (item.descricao || '').trim()
       if (desc) linhas.push(`  • [${item.data || ''}] ${quem}: ${desc}`)
     }

@@ -2,47 +2,12 @@
 // Executa teste real e leve contra a API da Anthropic (Claude) com a chave ativa ou informada.
 // Endpoint: POST https://api.anthropic.com/v1/messages (headers x-api-key + anthropic-version)
 
-const CLAUDE_MODELO_TESTE = 'claude-sonnet-4-5'
-
-function claudeCarregarChave(testKey) {
-  let settingsRec = null
-  try {
-    const records = $app.findRecordsByFilter(
-      'integracoes_config',
-      "chave = 'claude'",
-      '-created',
-      1,
-      0,
-    )
-    if (records && records.length > 0) {
-      settingsRec = records[0]
-      if (!testKey) {
-        testKey = (settingsRec.getString('api_key') || '').trim()
-      }
-    }
-  } catch (_) {}
-  if (!testKey) {
-    try {
-      testKey = ($os.getenv('ANTHROPIC_API_KEY') || '').trim()
-    } catch (_) {}
-  }
-  return { testKey: testKey || '', settingsRec }
-}
-
-function claudeSalvarTeste(settingsRec, status, mensagem) {
-  if (!settingsRec) return
-  try {
-    settingsRec.set('ultimo_teste_status', status)
-    settingsRec.set('ultimo_teste_mensagem', mensagem)
-    settingsRec.set('ultimo_teste_em', new Date().toISOString())
-    $app.save(settingsRec)
-  } catch (_) {}
-}
-
 routerAdd(
   'POST',
   '/backend/v1/integrations/claude/test',
   (e) => {
+    const CLAUDE_MODELO_TESTE = 'claude-sonnet-4-5'
+
     const auth = e.auth
     if (!auth) {
       return e.json(401, { error: 'Não autenticado' })
@@ -55,7 +20,30 @@ routerAdd(
 
     const body = e.requestInfo().body || {}
     const candidata = typeof body.api_key === 'string' ? body.api_key.trim() : ''
-    const { testKey, settingsRec } = claudeCarregarChave(candidata)
+
+    // Carrega a chave ativa: parâmetro > banco (integracoes_config chave='claude') > env
+    let testKey = candidata
+    let settingsRec = null
+    try {
+      const records = $app.findRecordsByFilter(
+        'integracoes_config',
+        "chave = 'claude'",
+        '-created',
+        1,
+        0,
+      )
+      if (records && records.length > 0) {
+        settingsRec = records[0]
+        if (!testKey) {
+          testKey = (settingsRec.getString('api_key') || '').trim()
+        }
+      }
+    } catch (_) {}
+    if (!testKey) {
+      try {
+        testKey = ($os.getenv('ANTHROPIC_API_KEY') || '').trim()
+      } catch (_) {}
+    }
 
     if (!testKey) {
       return e.json(400, {
@@ -65,7 +53,7 @@ routerAdd(
       })
     }
 
-    // Chamada mínima real à API de Mensagens da Anthropic (1 token de saída)
+    // Chamada mínima real à API de Mensagens da Anthropic (8 tokens de saída)
     const startTime = new Date().getTime()
     let httpRes = null
     try {
@@ -88,7 +76,14 @@ routerAdd(
       const errMsg =
         'Falha ao conectar com os servidores da Anthropic: ' +
         (httpErr && httpErr.message ? httpErr.message : 'tempo limite esgotado.')
-      claudeSalvarTeste(settingsRec, 'erro_conexao', errMsg)
+      if (settingsRec) {
+        try {
+          settingsRec.set('ultimo_teste_status', 'erro_conexao')
+          settingsRec.set('ultimo_teste_mensagem', errMsg)
+          settingsRec.set('ultimo_teste_em', new Date().toISOString())
+          $app.save(settingsRec)
+        } catch (_) {}
+      }
       return e.json(200, {
         success: false,
         status: 'erro_conexao',
@@ -102,7 +97,14 @@ routerAdd(
     if (statusCode >= 200 && statusCode < 300) {
       const successMsg =
         'Chave validada com sucesso com a API da Anthropic (Claude ' + CLAUDE_MODELO_TESTE + ')!'
-      claudeSalvarTeste(settingsRec, 'sucesso', successMsg)
+      if (settingsRec) {
+        try {
+          settingsRec.set('ultimo_teste_status', 'sucesso')
+          settingsRec.set('ultimo_teste_mensagem', successMsg)
+          settingsRec.set('ultimo_teste_em', new Date().toISOString())
+          $app.save(settingsRec)
+        } catch (_) {}
+      }
       return e.json(200, {
         success: true,
         status: 'sucesso',
@@ -161,7 +163,14 @@ routerAdd(
       friendlyMsg = 'Erro retornado pela Anthropic (' + statusCode + '): ' + sanitizedDetail
     }
 
-    claudeSalvarTeste(settingsRec, 'erro_' + statusCode, friendlyMsg)
+    if (settingsRec) {
+      try {
+        settingsRec.set('ultimo_teste_status', 'erro_' + statusCode)
+        settingsRec.set('ultimo_teste_mensagem', friendlyMsg)
+        settingsRec.set('ultimo_teste_em', new Date().toISOString())
+        $app.save(settingsRec)
+      } catch (_) {}
+    }
 
     return e.json(200, {
       success: false,
