@@ -21,6 +21,7 @@ import {
   HardHat,
   FolderOpen,
   Kanban,
+  Landmark,
 } from 'lucide-react'
 import officialLogoPng from '@/assets/a-613c6.png'
 import EcosolarLogo from '@/components/EcosolarLogo'

@@ -75,6 +75,16 @@ import { useKitFilters } from '@/hooks/useKitFilters'
 import { KitFilterBar } from '@/components/KitFilterBar'
 import { ESTADOS_BRASILEIROS, obterEnderecoPorEstado } from '@/hooks/useEnderecoAutocomplete'
 import { MapPin } from 'lucide-react'
+import {
+  parseModalidade,
+  parseFnoSimulacao,
+  rodarSimulacaoFno,
+  simulacaoParaJson,
+  type FnoFormulario,
+  type FnoResultado,
+  type ModalidadeVenda,
+} from '@/components/proposta/fnoModalidade'
+import { PropostaFnoCampos } from '@/components/proposta/PropostaFnoCampos'
 
 interface EditarPropostaModalProps {
   open: boolean
@@ -125,6 +135,21 @@ export function EditarPropostaModal({
   const [condicoesPagamento, setCondicoesPagamento] = useState('')
   const [observacoes, setObservacoes] = useState('')
   const [fotosSelecionadas, setFotosSelecionadas] = useState<PropostaFotoSelecionada[]>([])
+
+  // Modalidade de venda (à vista × financiada FNO) e simulação vigente
+  const [modalidadeVenda, setModalidadeVenda] = useState<ModalidadeVenda>('avista')
+  const [fnoForm, setFnoForm] = useState<FnoFormulario>(() => ({
+    valor_total: 0,
+    valor_entrada: 0,
+    taxa_anual: 12,
+    prazo_meses: 60,
+    carencia_meses: 6,
+    data_base: new Date().toISOString().substring(0, 10),
+    dia_vencimento: 10,
+  }))
+  const [fnoResultado, setFnoResultado] = useState<FnoResultado | null>(null)
+  const [fnoCalculando, setFnoCalculando] = useState(false)
+  const [fnoErro, setFnoErro] = useState('')
 
   // Localidade de instalação / cliente (editável)
   const leadSalvo = proposta?.expand?.lead
@@ -223,6 +248,33 @@ export function EditarPropostaModal({
       setDescontoPercentualStr(pDescPct)
       setPrecoVenda(proposta.preco_venda ?? '')
       setFormato(proposta.formato || 'story')
+      setModalidadeVenda(parseModalidade(proposta.modalidade_venda))
+      // Restaurar parâmetros da simulação gravada, se houver
+      const simSalva = parseFnoSimulacao(proposta.fno_simulacao)
+      if (simSalva) {
+        setFnoForm({
+          valor_total: 0,
+          valor_entrada: simSalva.valor_entrada,
+          taxa_anual: simSalva.taxa_anual,
+          prazo_meses: simSalva.prazo_meses,
+          carencia_meses: simSalva.carencia_meses,
+          data_base: simSalva.data_base,
+          dia_vencimento: simSalva.dia_vencimento ?? 10,
+        })
+      } else {
+        setFnoForm({
+          valor_total: 0,
+          valor_entrada: 0,
+          taxa_anual: 12,
+          prazo_meses: 60,
+          carencia_meses: 6,
+          data_base: new Date().toISOString().substring(0, 10),
+          dia_vencimento: 10,
+        })
+      }
+      // A simulação é recalculada pelo efeito a partir do formulário restaurado
+      setFnoResultado(null)
+      setFnoErro('')
       setValidadeDias(proposta.validade_dias || 15)
       setStatus(proposta.status || 'Enviada')
       setCondicoesPagamento(proposta.condicoes_pagamento || '')

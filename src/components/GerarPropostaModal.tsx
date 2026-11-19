@@ -51,6 +51,16 @@ import {
   type KitGerado,
 } from '@/services/kitGerador'
 import { montarKitBateriasJson } from '@/lib/propostaBaterias'
+import {
+  MODALIDADE_ROTULOS,
+  parseModalidade,
+  rodarSimulacaoFno,
+  simulacaoParaJson,
+  type FnoFormulario,
+  type FnoResultado,
+  type ModalidadeVenda,
+} from '@/components/proposta/fnoModalidade'
+import { PropostaFnoCampos } from '@/components/proposta/PropostaFnoCampos'
 import { ESTADOS_BRASILEIROS, obterEnderecoPorEstado } from '@/hooks/useEnderecoAutocomplete'
 import { useConfiguracoesApp } from '@/context/ConfiguracoesContext'
 import { MapPin } from 'lucide-react'
@@ -116,6 +126,23 @@ export function GerarPropostaModal({
     'Incluso projeto de engenharia, homologação na concessionária local, estrutura de fixação em alumínio, cabos, proteções CC/CA e monitoramento via Wi-Fi.',
   )
   const [fotosSelecionadas, setFotosSelecionadas] = useState<PropostaFotoSelecionada[]>([])
+
+  // Modalidade de venda (à vista × financiada FNO) e simulação vigente
+  const [modalidadeVenda, setModalidadeVenda] = useState<ModalidadeVenda>(
+    parseModalidade(lead.modalidade_venda),
+  )
+  const [fnoForm, setFnoForm] = useState<FnoFormulario>(() => ({
+    valor_total: 0,
+    valor_entrada: 0,
+    taxa_anual: 12,
+    prazo_meses: 60,
+    carencia_meses: 6,
+    data_base: new Date().toISOString().substring(0, 10),
+    dia_vencimento: 10,
+  }))
+  const [fnoResultado, setFnoResultado] = useState<FnoResultado | null>(null)
+  const [fnoCalculando, setFnoCalculando] = useState(false)
+  const [fnoErro, setFnoErro] = useState('')
   // Baterias do kit do Gerador selecionado (linhas informativas fora do cálculo de preço)
   const [kitBateriasSelecionadas, setKitBateriasSelecionadas] = useState<
     ReturnType<typeof parseBateriasJson>
@@ -132,6 +159,7 @@ export function GerarPropostaModal({
       setLocalidadeUf(lead.estado || 'RO')
       setLocalidadeCidade(lead.cidade || '')
       setLocalidadeCep(lead.cep || '')
+      setModalidadeVenda(parseModalidade(lead.modalidade_venda))
     }
   }, [open, lead])
 
@@ -430,6 +458,50 @@ export function GerarPropostaModal({
     recalcularValoresComDesconto(numBruto, val)
   }
 
+  // Recalcular a simulação FNO quando modalidade, preço ou parâmetros mudarem
+  useEffect(() => {
+    if (modalidadeVenda !== 'fno') {
+      setFnoResultado(null)
+      setFnoErro('')
+      return
+    }
+    const valorTotal = parseFloat(String(precoVenda)) || 0
+    if (valorTotal <= 0) {
+      setFnoResultado(null)
+      setFnoErro('')
+      return
+    }
+    let cancelado = false
+    setFnoCalculando(true)
+    setFnoErro('')
+    const form: FnoFormulario = { ...fnoForm, valor_total: valorTotal }
+    rodarSimulacaoFno(form)
+      .then((res) => {
+        if (cancelado) return
+        if (res.erro) {
+          setFnoResultado(null)
+          setFnoErro(res.erro)
+        } else {
+          setFnoResultado(res)
+          setFnoErro('')
+        }
+      })
+      .catch((err) => {
+        if (!cancelado) {
+          console.error('Erro ao simular FNO:', err)
+          setFnoResultado(null)
+          setFnoErro('Não foi possível calcular a simulação FNO agora.')
+        }
+      })
+      .finally(() => {
+        if (!cancelado) setFnoCalculando(false)
+      })
+    return () => {
+      cancelado = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modalidadeVenda, precoVenda, fnoForm])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!kitNome.trim()) {
@@ -464,6 +536,19 @@ export function GerarPropostaModal({
         variant: 'destructive',
       })
       return
+    }
+
+    if (modalidadeVenda === 'fno') {
+      if (!fnoResultado) {
+        toast({
+          title: 'Simulação FNO pendente',
+          description:
+            fnoErro ||
+            'Verifique os dados do financiamento (prazo maior que a carência, valor e data-base).',
+          variant: 'destructive',
+        })
+        return
+      }
     }
 
     const numBrutoFinal =
@@ -513,6 +598,9 @@ export function GerarPropostaModal({
             ? montarKitBateriasJson(kitBateriasSelecionadas)
             : undefined,
         fotos_selecionadas: fotosSelecionadas,
+        modalidade_venda: modalidadeVenda,
+        fno_simulacao:
+          modalidadeVenda === 'fno' && fnoResultado ? simulacaoParaJson(fnoResultado) : undefined,
         status: 'Enviada',
         formato,
         token_publico: token,
@@ -944,6 +1032,25 @@ export function GerarPropostaModal({
               )
             })()}
           </div>
+
+          {/* Modalidade de Venda: À vista × Financiada (FNO) */}
+          <PropostaFnoCampos
+            modalidade={modalidadeVenda}
+            onModalidade={setModalidadeVenda}
+            form={{
+              valor_total: parseFloat(String(precoVenda)) || 0,
+              valor_entrada: fnoForm.valor_entrada,
+              taxa_anual: fnoForm.taxa_anual,
+              prazo_meses: fnoForm.prazo_meses,
+              carencia_meses: fnoForm.carencia_meses,
+              data_base: fnoForm.data_base,
+              dia_vencimento: fnoForm.dia_vencimento,
+            }}
+            onForm={(parcial) => setFnoForm((f) => ({ ...f, ...parcial }))}
+            resultado={fnoResultado}
+            calculando={fnoCalculando}
+            erro={fnoErro}
+          />
 
           {/* Formato da Proposta Pública & Validade */}
           <div className="p-3 rounded-xl border border-amber-200 bg-amber-50/40 space-y-3">

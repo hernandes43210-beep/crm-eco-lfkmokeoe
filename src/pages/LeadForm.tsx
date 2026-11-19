@@ -127,7 +127,7 @@ export default function LeadForm() {
           }
           setSlaDias(lead.sla_dias || 7)
           setPrecoVenda(lead.preco_venda || '')
-          setModalidadeVenda((lead as any).modalidade_venda === 'fno' ? 'fno' : 'avista')
+          setModalidadeVenda(lead.modalidade_venda === 'fno' ? 'fno' : 'avista')
         })
         .catch((err) => {
           console.error('Error loading lead:', err)

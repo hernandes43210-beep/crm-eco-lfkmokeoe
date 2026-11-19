@@ -392,6 +392,8 @@ routerAdd('GET', '/backend/v1/propostas/public/{token}', (e) => {
       kit_descricao: proposta.getString('kit_descricao') || undefined,
       kit_string_box: proposta.getString('kit_string_box') || undefined,
       kit_baterias: proposta.get('kit_baterias') || undefined,
+      modalidade_venda: proposta.getString('modalidade_venda') || 'avista',
+      fno_simulacao: proposta.get('fno_simulacao') || undefined,
       dossie_engenharia: dossieInstalacaoData,
       lead: leadData,
       kit: kitData,
