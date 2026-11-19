@@ -41,6 +41,8 @@ export function proposalDataDePublica(proposta: PublicProposta): ProposalPDFData
       proposta.kit_potencia_inversor_kw || proposta.kit?.potencia_inversor_kw || undefined,
     kit_tipo_estrutura: proposta.kit_tipo_estrutura || proposta.kit?.tipo_estrutura || undefined,
     kit_baterias: proposta.kit_baterias || undefined,
+    modalidade_venda: proposta.modalidade_venda,
+    fno_simulacao: proposta.fno_simulacao,
     cliente: {
       nome: proposta.lead?.nome || 'Cliente',
       email: proposta.lead?.email,

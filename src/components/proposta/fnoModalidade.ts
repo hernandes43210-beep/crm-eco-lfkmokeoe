@@ -74,3 +74,4 @@ export function parseModalidade(raw: string | undefined | null): ModalidadeVenda
 
 export { formatarBRL }
 export { round2 }
+export type { FnoResultado }

@@ -523,6 +523,50 @@ export function EditarPropostaModal({
     recalcularValoresComDesconto(numBruto, val)
   }
 
+  // Recalcular a simulação FNO quando modalidade, preço ou parâmetros mudarem
+  useEffect(() => {
+    if (modalidadeVenda !== 'fno') {
+      setFnoResultado(null)
+      setFnoErro('')
+      return
+    }
+    const valorTotal = parseFloat(String(precoVenda)) || 0
+    if (valorTotal <= 0) {
+      setFnoResultado(null)
+      setFnoErro('')
+      return
+    }
+    let cancelado = false
+    setFnoCalculando(true)
+    setFnoErro('')
+    const form: FnoFormulario = { ...fnoForm, valor_total: valorTotal }
+    rodarSimulacaoFno(form)
+      .then((res) => {
+        if (cancelado) return
+        if (res.erro) {
+          setFnoResultado(null)
+          setFnoErro(res.erro)
+        } else {
+          setFnoResultado(res)
+          setFnoErro('')
+        }
+      })
+      .catch((err) => {
+        if (!cancelado) {
+          console.error('Erro ao simular FNO:', err)
+          setFnoResultado(null)
+          setFnoErro('Não foi possível calcular a simulação FNO agora.')
+        }
+      })
+      .finally(() => {
+        if (!cancelado) setFnoCalculando(false)
+      })
+    return () => {
+      cancelado = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modalidadeVenda, precoVenda, fnoForm])
+
   // Cálculos solares derivados em tempo real baseados na fórmula oficial:
   // Geração mensal = Potência (kWp) × 4,6 h/dia × 0,80 × 30
   // Economia mensal = Geração mensal (kWh) × R$ 1,15 × 85%
@@ -570,6 +614,19 @@ export function EditarPropostaModal({
         variant: 'destructive',
       })
       return
+    }
+
+    if (modalidadeVenda === 'fno') {
+      if (!fnoResultado) {
+        toast({
+          title: 'Simulação FNO pendente',
+          description:
+            fnoErro ||
+            'Verifique os dados do financiamento (prazo maior que a carência, valor e data-base).',
+          variant: 'destructive',
+        })
+        return
+      }
     }
 
     const numBrutoFinal =
@@ -661,6 +718,9 @@ export function EditarPropostaModal({
         fotos_selecionadas: fotosSelecionadas,
         condicoes_pagamento: condicoesPagamento.trim(),
         observacoes: observacoes.trim(),
+        modalidade_venda: modalidadeVenda,
+        fno_simulacao:
+          modalidadeVenda === 'fno' && fnoResultado ? simulacaoParaJson(fnoResultado) : undefined,
       }
 
       const updated = await ProposalsService.updateProposta(proposta.id, payload, {
@@ -1322,6 +1382,25 @@ export function EditarPropostaModal({
             kitNome={selectedKit?.nome}
             value={fotosSelecionadas}
             onChange={setFotosSelecionadas}
+          />
+
+          {/* Modalidade de Venda: À vista × Financiada (FNO) */}
+          <PropostaFnoCampos
+            modalidade={modalidadeVenda}
+            onModalidade={setModalidadeVenda}
+            form={{
+              valor_total: parseFloat(String(precoVenda)) || 0,
+              valor_entrada: fnoForm.valor_entrada,
+              taxa_anual: fnoForm.taxa_anual,
+              prazo_meses: fnoForm.prazo_meses,
+              carencia_meses: fnoForm.carencia_meses,
+              data_base: fnoForm.data_base,
+              dia_vencimento: fnoForm.dia_vencimento,
+            }}
+            onForm={(parcial) => setFnoForm((f) => ({ ...f, ...parcial }))}
+            resultado={fnoResultado}
+            calculando={fnoCalculando}
+            erro={fnoErro}
           />
 
           {/* Condições de Pagamento */}

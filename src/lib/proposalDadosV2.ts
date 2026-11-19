@@ -23,7 +23,12 @@ import { formatBRL, formatDateBR } from './solarUtils'
 import { CONTATO_ECOSOLAR } from '@/constants/empresa'
 import { lerEquipamentosProposta, totalKwhBaterias } from '@/lib/propostaBaterias'
 import type { BateriaLinha } from '@/services/kitGerador'
-import type { BateriasPropostaJson } from '@/types/crm'
+import type { BateriasPropostaJson, FnoSimulacaoResumoJson } from '@/types/crm'
+import {
+  parseFnoSimulacao,
+  parseModalidade,
+  type ModalidadeVenda,
+} from '@/components/proposta/fnoModalidade'
 
 /** Área aproximada ocupada por cada painel (m²) — usada só para estimar a área do telhado. */
 export const AREA_PAINEL_M2 = 2.3
@@ -67,6 +72,8 @@ export interface ProposalPDFData {
   kit_potencia_inversor_kw?: number
   kit_tipo_estrutura?: string
   kit_baterias?: BateriasPropostaJson | string
+  modalidade_venda?: 'avista' | 'fno' | string
+  fno_simulacao?: FnoSimulacaoResumoJson | string
   kit?: {
     descricao?: string
     string_box?: string
@@ -167,6 +174,18 @@ export interface DadosV2 {
   garantiaInversorTxt: string
   garantiaInstalacaoTxt: string
   formasPagamento: Array<{ titulo: string; texto: string }>
+  /** Modalidade de venda e resumo FNO (presentes só em propostas financiadas). */
+  modalidadeVenda: ModalidadeVenda
+  fnoResumo: FnoSimulacaoResumoJson | null
+  fnoEntradaRS: string
+  fnoValorFinanciadoRS: string
+  fnoParcelasTxt: string
+  fnoParcelaEstimadaRS: string
+  fnoTaxaAnualTxt: string
+  fnoCarenciaTxt: string
+  fnoTotalJurosRS: string
+  fnoTotalAPagarRS: string
+  fnoPrimeiroVencTxt: string
 }
 
 const WHATSAPP_ECOSOLAR = '(69) 99234-6989'
@@ -312,6 +331,9 @@ export function montarDadosV2(data: ProposalPDFData): DadosV2 {
     },
   ]
 
+  const modalidadeVenda = parseModalidade(data.modalidade_venda)
+  const fnoResumo = parseFnoSimulacao(data.fno_simulacao)
+
   const garantiaInversorTxt =
     GARANTIA_INVERSOR_ANOS && GARANTIA_INVERSOR_ANOS > 0
       ? `garantia de fábrica de ${GARANTIA_INVERSOR_ANOS} anos conforme certificado do fabricante`
@@ -372,6 +394,23 @@ export function montarDadosV2(data: ProposalPDFData): DadosV2 {
     garantiaInversorTxt,
     garantiaInstalacaoTxt,
     formasPagamento,
+    modalidadeVenda,
+    fnoResumo,
+    fnoEntradaRS: formatBRL(fnoResumo?.valor_entrada || 0),
+    fnoValorFinanciadoRS: formatBRL(fnoResumo?.valor_financiado || 0),
+    fnoParcelasTxt: fnoResumo?.prazo_meses ? String(fnoResumo.prazo_meses) : '—',
+    fnoParcelaEstimadaRS: formatBRL(fnoResumo?.parcela_mensal_estimada || 0),
+    fnoTaxaAnualTxt:
+      fnoResumo?.taxa_anual_aa != null
+        ? `${formatNumeroBR(fnoResumo.taxa_anual_aa, 2)}% a.a.`
+        : '—',
+    fnoCarenciaTxt:
+      fnoResumo?.carencia_meses != null && fnoResumo.carencia_meses > 0
+        ? `${fnoResumo.carencia_meses} ${fnoResumo.carencia_meses === 1 ? 'mês' : 'meses'}`
+        : 'sem carência',
+    fnoTotalJurosRS: formatBRL(fnoResumo?.total_juros || 0),
+    fnoTotalAPagarRS: formatBRL(fnoResumo?.total_a_pagar || 0),
+    fnoPrimeiroVencTxt: fnoResumo?.data_primeiro_vencimento || '—',
   }
 }
 

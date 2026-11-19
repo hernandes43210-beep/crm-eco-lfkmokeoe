@@ -247,6 +247,19 @@ export const PROPOSTA_V2_CSS = `
 .prop-v2 .pv-pagto h4 { font-family: 'Montserrat'; font-weight: 800; font-size: 9.5pt; color: ${CORES_PROPOSTA.navy}; }
 .prop-v2 .pv-pagto p { font-size: 7.8pt; color: ${CORES_PROPOSTA.textoSec}; margin-top: 1.2mm; line-height: 1.45; }
 
+/* Financiamento FNO (página 5) — só aparece quando a proposta é financiada */
+.prop-v2 .pv-fno { border: 1px solid ${CORES_PROPOSTA.borda}; border-left: 3px solid ${CORES_PROPOSTA.navy}; border-radius: 3mm; background: ${CORES_PROPOSTA.cardBg}; padding: 4mm 4.5mm; }
+.prop-v2 .pv-fno-tag { font-family: 'Montserrat'; font-weight: 700; font-size: 7.2pt; color: #fff; background: ${CORES_PROPOSTA.navy}; border-radius: 999px; padding: 1mm 3mm; white-space: nowrap; }
+.prop-v2 .pv-fno-sub { font-size: 7.4pt; color: ${CORES_PROPOSTA.textoSec}; margin-top: 1.5mm; line-height: 1.4; }
+.prop-v2 .pv-fno-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2.5mm; margin-top: 2.5mm; }
+.prop-v2 .pv-fno-item { background: #fff; border: 1px solid ${CORES_PROPOSTA.borda}; border-radius: 2mm; padding: 2.2mm 2.6mm; }
+.prop-v2 .pv-fno-item .k { font-size: 6.8pt; color: ${CORES_PROPOSTA.textoSec}; }
+.prop-v2 .pv-fno-item .v { font-family: 'Montserrat'; font-weight: 800; font-size: 9pt; color: ${CORES_PROPOSTA.navy}; margin-top: .6mm; }
+.prop-v2 .pv-fno-item .v.am { color: ${CORES_PROPOSTA.verde}; }
+@media screen and (max-width: 820px) {
+  .prop-v2 .pv-fno-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
 /* Página 6 — obras, FAQ e aceite */
 .prop-v2 .pv-mosaico { display: grid; grid-template-columns: 1.4fr 1fr 1fr; grid-template-rows: repeat(2, 34mm); gap: 3mm; }
 .prop-v2 .pv-foto { position: relative; border-radius: 3mm; overflow: hidden; background: ${CORES_PROPOSTA.cardBg}; }

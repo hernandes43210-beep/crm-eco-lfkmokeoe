@@ -386,6 +386,7 @@ function pagina5(d: DadosV2): string {
             .join('')}
         </div>
       </div>
+      ${blocoFnoHtml(d)}
     </div>
     ${footerInterno(5)}
   </section>`
@@ -394,6 +395,34 @@ function pagina5(d: DadosV2): string {
 /* ------------------------------------------------------------------ */
 /* PÁGINA 6 — OBRAS + FAQ + ACEITE                                    */
 /* ------------------------------------------------------------------ */
+/**
+ * Bloco de financiamento FNO (página 5). Só renderiza quando a proposta foi
+ * gravada como financiada e tem simulação salva — propostas antigas/à vista
+ * não mudam nada.
+ */
+function blocoFnoHtml(d: DadosV2): string {
+  if (d.modalidadeVenda !== 'fno' || !d.fnoResumo) return ''
+  return `
+     <div class="pv-fno" style="margin-top:5mm;">
+       <div style="display:flex;align-items:center;justify-content:space-between;gap:4mm;flex-wrap:wrap;">
+         <div style="font-family:Montserrat;font-weight:800;font-size:9pt;color:#1d4290;letter-spacing:1.2px;">FINANCIAMENTO FNO — CONDIÇÕES DESTA PROPOSTA</div>
+         <span class="pv-fno-tag">Modalidade financiada</span>
+       </div>
+       <p class="pv-fno-sub">Simulação resumida — tabela completa de parcelas disponível com o consultor. Sujeito à aprovação de crédito do banco.</p>
+       <div class="pv-fno-grid">
+         <div class="pv-fno-item"><div class="k">Entrada</div><div class="v">${esc(d.fnoEntradaRS)}</div></div>
+         <div class="pv-fno-item"><div class="k">Valor financiado</div><div class="v">${esc(d.fnoValorFinanciadoRS)}</div></div>
+         <div class="pv-fno-item"><div class="k">Nº de parcelas</div><div class="v">${esc(d.fnoParcelasTxt)}</div></div>
+         <div class="pv-fno-item"><div class="k">Parcela mensal estimada</div><div class="v am">${esc(d.fnoParcelaEstimadaRS)}</div></div>
+         <div class="pv-fno-item"><div class="k">Taxa de juros</div><div class="v">${esc(d.fnoTaxaAnualTxt)}</div></div>
+         <div class="pv-fno-item"><div class="k">Carência</div><div class="v">${esc(d.fnoCarenciaTxt)}</div></div>
+         <div class="pv-fno-item"><div class="k">Total de juros</div><div class="v">${esc(d.fnoTotalJurosRS)}</div></div>
+         <div class="pv-fno-item"><div class="k">Total a pagar</div><div class="v">${esc(d.fnoTotalAPagarRS)}</div></div>
+       </div>
+       <p class="pv-fno-sub" style="margin-top:2mm;">1º vencimento em ${esc(d.fnoPrimeiroVencTxt)} • juros calculados por dias úteis (base 252) com apuração em dois trechos, na régua FNO (BASA).</p>
+     </div>`
+}
+
 function pagina6(d: DadosV2, fotos: FotoProposta[], linkPublico: string, urlBase?: string): string {
   const faqHtml = d.faq
     .map((f) => `<div><div class="q">${esc(f.p)}</div><div class="a">${esc(f.r)}</div></div>`)
