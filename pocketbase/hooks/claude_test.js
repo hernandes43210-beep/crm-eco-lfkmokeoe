@@ -1,13 +1,14 @@
 // POST /backend/v1/integrations/claude/test (Admin only)
 // Executa teste real e leve contra a API da Anthropic (Claude) com a chave ativa ou informada.
 // Endpoint: POST https://api.anthropic.com/v1/messages (headers x-api-key + anthropic-version)
+// O modelo é o salvo pelo Admin em integracoes_config (dados_extras.modelo). Se ele (ou o
+// padrão) der 404/400 "model not found", o teste tenta automaticamente os modelos alternativos
+// e valida com o primeiro que responder.
 
 routerAdd(
   'POST',
   '/backend/v1/integrations/claude/test',
   (e) => {
-    const CLAUDE_MODELO_TESTE = 'claude-sonnet-4-5'
-
     const auth = e.auth
     if (!auth) {
       return e.json(401, { error: 'Não autenticado' })
@@ -24,6 +25,7 @@ routerAdd(
     // Carrega a chave ativa: parâmetro > banco (integracoes_config chave='claude') > env
     let testKey = candidata
     let settingsRec = null
+    let modeloConfigurado = ''
     try {
       const records = $app.findRecordsByFilter(
         'integracoes_config',
@@ -37,6 +39,15 @@ routerAdd(
         if (!testKey) {
           testKey = (settingsRec.getString('api_key') || '').trim()
         }
+        try {
+          const extras = settingsRec.getString('dados_extras') || ''
+          if (extras) {
+            const extrasObj = JSON.parse(extras)
+            if (extrasObj && typeof extrasObj.modelo === 'string' && extrasObj.modelo.trim()) {
+              modeloConfigurado = extrasObj.modelo.trim()
+            }
+          }
+        } catch (_) {}
       }
     } catch (_) {}
     if (!testKey) {
@@ -53,11 +64,20 @@ routerAdd(
       })
     }
 
-    // Chamada mínima real à API de Mensagens da Anthropic (8 tokens de saída)
-    const startTime = new Date().getTime()
-    let httpRes = null
-    try {
-      httpRes = $http.send({
+    // Cascade de modelos: o modelo configurado (ou o padrão) primeiro, depois alternativos
+    const MODELOS_ALTERNATIVOS = [
+      'claude-sonnet-4-5',
+      'claude-sonnet-4-20250514',
+      'claude-3-5-sonnet-20241022',
+      'claude-3-5-haiku-20241022',
+    ]
+    const modelosTentados = []
+    if (modeloConfigurado && MODELOS_ALTERNATIVOS.indexOf(modeloConfigurado) === -1) {
+      MODELOS_ALTERNATIVOS.unshift(modeloConfigurado)
+    }
+
+    function chamarAnthropic(modelo) {
+      return $http.send({
         url: 'https://api.anthropic.com/v1/messages',
         method: 'POST',
         headers: {
@@ -66,42 +86,104 @@ routerAdd(
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: CLAUDE_MODELO_TESTE,
+          model: modelo,
           max_tokens: 8,
           messages: [{ role: 'user', content: 'Responda apenas: OK' }],
         }),
         timeout: 20,
       })
-    } catch (httpErr) {
-      const errMsg =
-        'Falha ao conectar com os servidores da Anthropic: ' +
-        (httpErr && httpErr.message ? httpErr.message : 'tempo limite esgotado.')
-      if (settingsRec) {
+    }
+
+    // Chamada mínima real à API de Mensagens da Anthropic (8 tokens de saída)
+    const startTime = new Date().getTime()
+    let httpRes = null
+    let modeloFuncionou = ''
+    let ultimoStatusCode = 0
+    let ultimoErrData = {}
+    try {
+      for (let i = 0; i < MODELOS_ALTERNATIVOS.length; i++) {
+        const modelo = MODELOS_ALTERNATIVOS[i]
+        modelosTentados.push(modelo)
+        let res = null
         try {
-          settingsRec.set('ultimo_teste_status', 'erro_conexao')
-          settingsRec.set('ultimo_teste_mensagem', errMsg)
-          settingsRec.set('ultimo_teste_em', new Date().toISOString())
-          $app.save(settingsRec)
-        } catch (_) {}
+          res = chamarAnthropic(modelo)
+        } catch (httpErr) {
+          const errMsg =
+            'Falha ao conectar com os servidores da Anthropic: ' +
+            (httpErr && httpErr.message ? httpErr.message : 'tempo limite esgotado.')
+          if (settingsRec) {
+            try {
+              settingsRec.set('ultimo_teste_status', 'erro_conexao')
+              settingsRec.set('ultimo_teste_mensagem', errMsg)
+              settingsRec.set('ultimo_teste_em', new Date().toISOString())
+              $app.save(settingsRec)
+            } catch (_) {}
+          }
+          return e.json(200, {
+            success: false,
+            status: 'erro_conexao',
+            message: errMsg,
+          })
+        }
+        ultimoStatusCode = res.statusCode
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          httpRes = res
+          modeloFuncionou = modelo
+          break
+        }
+        const errData = res.json || {}
+        ultimoErrData = errData
+        const errTipo = errData.error && errData.error.type ? errData.error.type : ''
+        const detail = errData.error && errData.error.message ? errData.error.message : ''
+        // 404 (modelo não existe para essa chave) ou 400 not_found: tenta o próximo modelo.
+        const notFound =
+          res.statusCode === 404 ||
+          (res.statusCode === 400 &&
+            (errTipo === 'not_found_error' || detail.indexOf('model') !== -1))
+        const podeTentarProximo = notFound || res.statusCode === 400
+        if (!podeTentarProximo) {
+          break
+        }
       }
+    } catch (loopErr) {
       return e.json(200, {
         success: false,
-        status: 'erro_conexao',
-        message: errMsg,
+        status: 'erro_inesperado',
+        message:
+          'Erro inesperado ao testar a conexão com a Anthropic: ' +
+          (loopErr && loopErr.message ? loopErr.message : ''),
       })
     }
 
     const duration = new Date().getTime() - startTime
-    const statusCode = httpRes.statusCode
+    const statusCode = ultimoStatusCode
 
-    if (statusCode >= 200 && statusCode < 300) {
-      const successMsg =
-        'Chave validada com sucesso com a API da Anthropic (Claude ' + CLAUDE_MODELO_TESTE + ')!'
+    if (httpRes && statusCode >= 200 && statusCode < 300) {
+      let successMsg =
+        'Chave validada com sucesso com a API da Anthropic (modelo ' + modeloFuncionou + ')!'
+      if (modeloFuncionou !== modeloConfigurado) {
+        successMsg +=
+          ' O modelo configurado (' +
+          (modeloConfigurado || 'claude-sonnet-4-5') +
+          ') não respondeu para essa chave; os testes e o assistente usarão ' +
+          modeloFuncionou +
+          '. Atualize o campo Modelo em Integrações se desejar fixá-lo.'
+      }
       if (settingsRec) {
         try {
           settingsRec.set('ultimo_teste_status', 'sucesso')
           settingsRec.set('ultimo_teste_mensagem', successMsg)
           settingsRec.set('ultimo_teste_em', new Date().toISOString())
+          // Memoriza o modelo que funcionou para o assistente usar a partir de agora
+          let extrasObj = {}
+          try {
+            const extrasRaw = settingsRec.getString('dados_extras') || ''
+            if (extrasRaw) {
+              extrasObj = JSON.parse(extrasRaw)
+            }
+          } catch (_) {}
+          extrasObj.modelo = modeloFuncionou
+          settingsRec.set('dados_extras', JSON.stringify(extrasObj))
           $app.save(settingsRec)
         } catch (_) {}
       }
@@ -110,17 +192,21 @@ routerAdd(
         status: 'sucesso',
         http_status: statusCode,
         duration_ms: duration,
+        modelo: modeloFuncionou,
+        modelos_tentados: modelosTentados,
         message: successMsg,
       })
     }
 
     // Tratamento de erros comuns da Anthropic em português claro, sem expor a chave
-    const errData = httpRes.json || {}
+    const errData = ultimoErrData || {}
     let detail = ''
     if (errData.error && errData.error.message) {
       detail = errData.error.message
     }
     const errTipo = errData.error && errData.error.type ? errData.error.type : ''
+    const modeloTentado =
+      modelosTentados.length > 0 ? modelosTentados[modelosTentados.length - 1] : ''
 
     let friendlyMsg =
       'Falha na autenticação da chave da Claude. Verifique se a chave está correta no console da Anthropic (console.anthropic.com).'
@@ -132,7 +218,7 @@ routerAdd(
       } else if (errTipo === 'permission_error') {
         friendlyMsg =
           'Permissão negada (403): essa chave não tem acesso ao modelo ' +
-          CLAUDE_MODELO_TESTE +
+          modeloTentado +
           '. Verifique permissões/org no console da Anthropic.'
       } else {
         friendlyMsg =
@@ -140,14 +226,12 @@ routerAdd(
           statusCode +
           '): a chave pode estar inválida ou sem permissão. Confira no console da Anthropic.'
       }
-    } else if (statusCode === 400 && errTipo === 'invalid_request_error') {
+    } else if (statusCode === 404 || statusCode === 400) {
+      const listaTentados = modelosTentados.join(', ')
       friendlyMsg =
-        'Requisição rejeitada pela Anthropic (400): a chave foi aceita, mas o modelo pode não estar disponível para ela. Verifique o console da Anthropic.'
-    } else if (statusCode === 404) {
-      friendlyMsg =
-        'Modelo ' +
-        CLAUDE_MODELO_TESTE +
-        ' não encontrado para essa chave (404). Verifique o console da Anthropic.'
+        'Nenhum modelo respondeu para essa chave (testados: ' +
+        listaTentados +
+        '). Verifique no console da Anthropic (console.anthropic.com) quais modelos sua conta/workspace tem acesso e escolha um no campo Modelo.'
     } else if (statusCode === 429) {
       friendlyMsg =
         'Limite de uso (rate limit) atingido na API da Anthropic. A chave é válida, mas aguarde alguns instantes ou revise o plano/créditos.'
@@ -177,6 +261,8 @@ routerAdd(
       status: 'erro_' + statusCode,
       http_status: statusCode,
       duration_ms: duration,
+      modelo: modeloTentado,
+      modelos_tentados: modelosTentados,
       message: friendlyMsg,
       raw_error: detail,
     })

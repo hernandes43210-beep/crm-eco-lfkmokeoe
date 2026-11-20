@@ -48,7 +48,12 @@ import { LuvikService, type WebhookUrls } from '@/services/luvik'
 import { SiteFormService } from '@/services/siteForm'
 import { ClicksignService, type ClicksignStatusResponse } from '@/services/clicksign'
 import { GeminiIntegrationService, type GeminiStatusResponse } from '@/services/geminiIntegration'
-import { ClaudeIntegrationService, type ClaudeStatusResponse } from '@/services/claudeIntegration'
+import {
+  ClaudeIntegrationService,
+  CLAUDE_MODELO_PADRAO,
+  CLAUDE_MODELOS_SUGERIDOS,
+  type ClaudeStatusResponse,
+} from '@/services/claudeIntegration'
 import { Bot } from 'lucide-react'
 import { PhbSolarService, type PhbStatusResponse } from '@/services/phbSolar'
 import { toPortugueseErrorMessage } from '@/lib/errors'
@@ -98,6 +103,8 @@ export default function IntegracoesPage() {
   const [testingClaude, setTestingClaude] = useState(false)
   const [claudeInputKey, setClaudeInputKey] = useState('')
   const [showClaudeInputKey, setShowClaudeInputKey] = useState(false)
+  const [claudeModelo, setClaudeModelo] = useState(CLAUDE_MODELO_PADRAO)
+  const [savingClaudeModelo, setSavingClaudeModelo] = useState(false)
   const [claudeTestResult, setClaudeTestResult] = useState<{
     success: boolean
     message: string
@@ -203,12 +210,49 @@ export default function IntegracoesPage() {
       setLoadingClaude(true)
       const data = await ClaudeIntegrationService.getStatus()
       setClaudeStatus(data)
+      if (data.model_configured) {
+        setClaudeModelo(data.model_configured)
+      }
     } catch (err: unknown) {
       console.error('Erro ao carregar status da Claude:', err)
     } finally {
       setLoadingClaude(false)
     }
   }, [])
+
+  const handleSaveClaudeModelo = async () => {
+    const modelo = claudeModelo.trim()
+    if (!modelo) {
+      toast({
+        title: 'Modelo não informado',
+        description:
+          'Escolha um modelo da lista ou digite o identificador (ex: claude-sonnet-4-5).',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      setSavingClaudeModelo(true)
+      await ClaudeIntegrationService.saveModelo(modelo)
+
+      toast({
+        title: 'Modelo da Claude salvo!',
+        description: 'As chamadas de IA do CRM (teste e assistente do lead) usarão ' + modelo + '.',
+      })
+
+      await loadClaudeData()
+    } catch (err: unknown) {
+      const msg = toPortugueseErrorMessage(err, 'Falha ao salvar o modelo da Claude.')
+      toast({
+        title: 'Erro ao salvar modelo',
+        description: msg,
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingClaudeModelo(false)
+    }
+  }
 
   const handleSaveClaudeKey = async () => {
     if (!claudeInputKey.trim()) {
@@ -1254,7 +1298,9 @@ export default function IntegracoesPage() {
                       </span>
                       <span className="font-bold text-slate-900 flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-violet-500" />
-                        Claude Sonnet (claude-sonnet-4-5)
+                        {claudeStatus?.model_configured
+                          ? claudeStatus.model_configured
+                          : `Padrão: ${claudeStatus?.model_default || CLAUDE_MODELO_PADRAO}`}
                       </span>
                     </div>
 
@@ -1321,6 +1367,43 @@ export default function IntegracoesPage() {
                     </p>
 
                     <div className="space-y-3">
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                          Modelo (MODEL) — usado nas chamadas de IA
+                        </label>
+                        <div className="flex gap-1.5">
+                          <input
+                            type="text"
+                            list="claude-modelos-options"
+                            value={claudeModelo}
+                            onChange={(e) => setClaudeModelo(e.target.value)}
+                            placeholder="claude-sonnet-4-5"
+                            className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-xs font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#0B7A5B]"
+                          />
+                          <datalist id="claude-modelos-options">
+                            {CLAUDE_MODELOS_SUGERIDOS.map((m) => (
+                              <option key={m} value={m} />
+                            ))}
+                          </datalist>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={savingClaudeModelo || !claudeModelo.trim()}
+                            onClick={handleSaveClaudeModelo}
+                            className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold h-8.5 px-3 gap-1.5 shadow-xs shrink-0"
+                            title="Salva o modelo para todas as chamadas de IA da Claude no CRM"
+                          >
+                            <Save className="w-3.5 h-3.5" />
+                            <span>{savingClaudeModelo ? 'Salvando...' : 'Salvar'}</span>
+                          </Button>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          Escolha um modelo sugerido ou digite outro identificador disponível na sua
+                          conta Anthropic. Se o modelo configurado der 404, o teste e o assistente
+                          tentam automaticamente os alternativos.
+                        </p>
+                      </div>
+
                       <div>
                         <label className="text-[11px] font-semibold text-slate-700 block mb-1">
                           Chave da API da Anthropic (ANTHROPIC_API_KEY)

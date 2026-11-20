@@ -1,6 +1,8 @@
 // POST /backend/v1/integrations/claude/chat
 // Proxy backend -> API da Anthropic (Claude Messages). A chave NUNCA vai ao frontend.
 // Prioridade da chave: integracoes_config (chave='claude') > $os.getenv('ANTHROPIC_API_KEY')
+// Modelo: body.model > modelo salvo pelo Admin (integracoes_config.dados_extras.modelo) >
+// padrão. Em caso de 404/400 "modelo não encontrado", cai em cascata para os alternativos.
 // Disponível para Admin/CEO/Engenheiro/Corretor/Vendedor (qualquer usuário autenticado do CRM).
 
 routerAdd(
@@ -8,6 +10,12 @@ routerAdd(
   '/backend/v1/integrations/claude/chat',
   (e) => {
     const CLAUDE_MODELO_PADRAO = 'claude-sonnet-4-5'
+    const MODELOS_ALTERNATIVOS = [
+      'claude-sonnet-4-5',
+      'claude-sonnet-4-20250514',
+      'claude-3-5-sonnet-20241022',
+      'claude-3-5-haiku-20241022',
+    ]
 
     const auth = e.auth
     if (!auth) {
@@ -33,7 +41,7 @@ routerAdd(
         return 'A conta da Anthropic está sem crédito/saldo ativo. Peça ao Admin para verificar o faturamento.'
       }
       if (statusCode === 404 || statusCode === 400) {
-        return 'A Anthropic rejeitou a requisição (modelo indisponível ou dados inválidos). Tente novamente ou peça ao Admin para conferir a integração.'
+        return 'A Anthropic rejeitou a requisição (modelo indisponível ou dados inválidos). Peça ao Admin para conferir a integração em Integrações → Claude (Anthropic).'
       }
       if (detail) {
         return (
@@ -46,9 +54,10 @@ routerAdd(
       return 'Erro inesperado ao chamar a Claude (' + statusCode + ').'
     }
 
-    // Chave: banco > env
+    // Chave e modelo: banco > env
     let apiKey = ''
     let source = 'none'
+    let modeloConfigurado = ''
     try {
       const records = $app.findRecordsByFilter(
         'integracoes_config',
@@ -63,6 +72,15 @@ routerAdd(
           apiKey = saved
           source = 'database'
         }
+        try {
+          const extras = records[0].getString('dados_extras') || ''
+          if (extras) {
+            const extrasObj = JSON.parse(extras)
+            if (extrasObj && typeof extrasObj.modelo === 'string' && extrasObj.modelo.trim()) {
+              modeloConfigurado = extrasObj.modelo.trim()
+            }
+          }
+        } catch (_) {}
       }
     } catch (_) {}
     if (!apiKey) {
@@ -91,44 +109,94 @@ routerAdd(
     if (!(maxTokens > 0) || maxTokens > 4096) {
       maxTokens = 1024
     }
-    const model =
-      typeof body.model === 'string' && body.model.trim() ? body.model.trim() : CLAUDE_MODELO_PADRAO
+    const modeloPedido =
+      typeof body.model === 'string' && body.model.trim() ? body.model.trim() : ''
 
     if (!prompt) {
       return e.json(400, { success: false, error: 'prompt obrigatório' })
     }
 
+    // Cascade: modelo pedido > modelo salvo pelo Admin > padrão > alternativos (sem repetir)
+    const cadeia = []
+    function addModelo(m) {
+      if (m && cadeia.indexOf(m) === -1) {
+        cadeia.push(m)
+      }
+    }
+    addModelo(modeloPedido)
+    addModelo(modeloConfigurado)
+    addModelo(CLAUDE_MODELO_PADRAO)
+    for (let i = 0; i < MODELOS_ALTERNATIVOS.length; i++) {
+      addModelo(MODELOS_ALTERNATIVOS[i])
+    }
+
     const startTime = new Date().getTime()
     let httpRes = null
+    let modeloUsado = ''
+    let ultimoStatusCode = 0
+    let ultimoErrData = {}
     try {
-      httpRes = $http.send({
-        url: 'https://api.anthropic.com/v1/messages',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: model,
-          max_tokens: maxTokens,
-          ...(system ? { system: system } : {}),
-          messages: [{ role: 'user', content: prompt }],
-        }),
-        timeout: 90,
+      for (let i = 0; i < cadeia.length; i++) {
+        const modelo = cadeia[i]
+        let res = null
+        try {
+          res = $http.send({
+            url: 'https://api.anthropic.com/v1/messages',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': apiKey,
+              'anthropic-version': '2023-06-01',
+            },
+            body: JSON.stringify({
+              model: modelo,
+              max_tokens: maxTokens,
+              ...(system ? { system: system } : {}),
+              messages: [{ role: 'user', content: prompt }],
+            }),
+            timeout: 90,
+          })
+        } catch (httpErr) {
+          const errMsg =
+            'Falha ao conectar com os servidores da Anthropic: ' +
+            (httpErr && httpErr.message ? httpErr.message : 'tempo limite esgotado.')
+          return e.json(200, { success: false, error: 'erro_conexao', message: errMsg })
+        }
+        ultimoStatusCode = res.statusCode
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          httpRes = res
+          modeloUsado = modelo
+          break
+        }
+        ultimoErrData = res.json || {}
+        const errTipo =
+          ultimoErrData.error && ultimoErrData.error.type ? ultimoErrData.error.type : ''
+        const detail =
+          ultimoErrData.error && ultimoErrData.error.message ? ultimoErrData.error.message : ''
+        // 404, ou 400 apontando para o modelo: tenta o próximo da cadeia
+        const podeTentarProximo =
+          res.statusCode === 404 ||
+          (res.statusCode === 400 &&
+            (errTipo === 'not_found_error' || detail.indexOf('model') !== -1))
+        if (!podeTentarProximo) {
+          break
+        }
+      }
+    } catch (loopErr) {
+      return e.json(200, {
+        success: false,
+        error: 'erro_inesperado',
+        message:
+          'Erro inesperado ao chamar a Claude: ' +
+          (loopErr && loopErr.message ? loopErr.message : ''),
       })
-    } catch (httpErr) {
-      const errMsg =
-        'Falha ao conectar com os servidores da Anthropic: ' +
-        (httpErr && httpErr.message ? httpErr.message : 'tempo limite esgotado.')
-      return e.json(200, { success: false, error: 'erro_conexao', message: errMsg })
     }
 
     const duration = new Date().getTime() - startTime
-    const statusCode = httpRes.statusCode
+    const statusCode = ultimoStatusCode
 
-    if (statusCode < 200 || statusCode >= 300) {
-      const errData = httpRes.json || {}
+    if (statusCode < 200 || statusCode >= 300 || !httpRes) {
+      const errData = ultimoErrData || {}
       return e.json(200, {
         success: false,
         error: 'erro_api',
@@ -163,7 +231,7 @@ routerAdd(
     return e.json(200, {
       success: true,
       texto: texto,
-      model: data.model || model,
+      model: data.model || modeloUsado,
       stop_reason: data.stop_reason || '',
       duration_ms: duration,
       source: source,

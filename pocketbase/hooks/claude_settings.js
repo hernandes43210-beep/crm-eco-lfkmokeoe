@@ -1,6 +1,6 @@
 // POST /backend/v1/integrations/claude/settings (Admin only)
-// Salva ou atualiza a chave da API da Anthropic (Claude) na coleção 'integracoes_config'
-// NUNCA expõe a chave completa ao frontend após o salvamento.
+// Salva ou atualiza a chave da API da Anthropic (Claude) e o modelo em 'integracoes_config'
+// (chave='claude'); o modelo vai em dados_extras JSON. NUNCA expõe a chave completa.
 
 routerAdd(
   'POST',
@@ -12,14 +12,15 @@ routerAdd(
     }
     if (auth.getString('role') !== 'Admin') {
       return e.json(403, {
-        error: 'Apenas administradores podem alterar a chave da API da Claude.',
+        error: 'Apenas administradores podem alterar as configurações da API da Claude.',
       })
     }
 
     const body = e.requestInfo().body || {}
     const rawApiKey = typeof body.api_key === 'string' ? body.api_key.trim() : null
+    const rawModelo = typeof body.modelo === 'string' ? body.modelo.trim() : null
 
-    if (rawApiKey === null || rawApiKey === '') {
+    if (rawApiKey === null || (rawApiKey === '' && rawModelo === null)) {
       return e.json(400, {
         error:
           'A chave da API da Claude é obrigatória. Cole a chave obtida no console da Anthropic.',
@@ -50,8 +51,23 @@ routerAdd(
       )
     }
 
-    rec.set('api_key', rawApiKey)
+    // Preserva dados_extras existentes, atualizando apenas o modelo
+    let extrasObj = {}
+    try {
+      const extrasRaw = rec.getString('dados_extras') || ''
+      if (extrasRaw) {
+        extrasObj = JSON.parse(extrasRaw)
+      }
+    } catch (_) {}
+
+    if (rawApiKey) {
+      rec.set('api_key', rawApiKey)
+    }
     rec.set('ativo', true)
+    if (rawModelo) {
+      extrasObj.modelo = rawModelo
+      rec.set('dados_extras', JSON.stringify(extrasObj))
+    }
 
     try {
       $app.save(rec)
@@ -75,10 +91,11 @@ routerAdd(
 
     return e.json(200, {
       success: true,
-      message: 'Chave da API da Claude salva com sucesso no backend!',
+      message: 'Configurações da Claude salvas com sucesso no backend!',
       configured: true,
       source: 'database',
       masked_key: masked,
+      modelo: rawModelo || '',
     })
   },
   $apis.requireAuth(),

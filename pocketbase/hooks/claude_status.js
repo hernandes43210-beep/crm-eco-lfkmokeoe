@@ -7,12 +7,21 @@ routerAdd(
   'GET',
   '/backend/v1/integrations/claude/status',
   (e) => {
+    const CLAUDE_MODELO_PADRAO = 'claude-sonnet-4-5'
+    const MODELOS_DISPONIVEIS = [
+      'claude-sonnet-4-5',
+      'claude-sonnet-4-20250514',
+      'claude-3-5-sonnet-20241022',
+      'claude-3-5-haiku-20241022',
+    ]
+
     let apiKey = ''
     let source = 'none'
     let ultimoTesteStatus = ''
     let ultimoTesteMensagem = ''
     let ultimoTesteEm = ''
     let settingsId = ''
+    let modeloConfigurado = ''
 
     // 1. Tentar ler da coleção integracoes_config
     try {
@@ -34,6 +43,15 @@ routerAdd(
         ultimoTesteStatus = (rec.getString('ultimo_teste_status') || '').trim()
         ultimoTesteMensagem = (rec.getString('ultimo_teste_mensagem') || '').trim()
         ultimoTesteEm = (rec.getString('ultimo_teste_em') || '').trim()
+        try {
+          const extras = rec.getString('dados_extras') || ''
+          if (extras) {
+            const extrasObj = JSON.parse(extras)
+            if (extrasObj && typeof extrasObj.modelo === 'string' && extrasObj.modelo.trim()) {
+              modeloConfigurado = extrasObj.modelo.trim()
+            }
+          }
+        } catch (_) {}
       }
     } catch (_) {}
 
@@ -66,7 +84,10 @@ routerAdd(
       source: source, // "database" | "env" | "none"
       masked_key: masked,
       settings_id: settingsId,
-      model_default: 'claude-sonnet-4-5',
+      model_default: CLAUDE_MODELO_PADRAO,
+      model_configured: modeloConfigurado,
+      model_effective: modeloConfigurado || CLAUDE_MODELO_PADRAO,
+      modelos_disponiveis: MODELOS_DISPONIVEIS,
       ultimo_teste_status: ultimoTesteStatus,
       ultimo_teste_mensagem: ultimoTesteMensagem,
       ultimo_teste_em: ultimoTesteEm,
