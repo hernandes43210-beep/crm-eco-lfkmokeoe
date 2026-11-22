@@ -27,6 +27,7 @@ import PropostaPublica from '@/pages/PropostaPublica'
 import FinanciamentoFnoPage from '@/pages/FinanciamentoFnoPage'
 import MeusDocumentosEngenharia from '@/pages/MeusDocumentosEngenharia'
 import NotFound from '@/pages/NotFound'
+import Gestante from '@/pages/Gestante'
 
 const App = () => (
   <BrowserRouter>
@@ -42,6 +43,9 @@ const App = () => (
 
             {/* Public Proposal Link Route (No login required) */}
             <Route path="/proposta/:token" element={<PropostaPublica />} />
+
+            {/* Public app: cronômetro de contrações / gestação (dados só no aparelho) */}
+            <Route path="/gestante" element={<Gestante />} />
 
             {/* Protected CRM Routes inside Layout */}
             <Route
