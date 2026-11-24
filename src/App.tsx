@@ -12,6 +12,7 @@ import Layout from '@/components/Layout'
 import Index from '@/pages/Index'
 import Login from '@/pages/Login'
 import Cadastro from '@/pages/Cadastro'
+import RedefinirSenha from '@/pages/RedefinirSenha'
 import LeadsList from '@/pages/LeadsList'
 import LeadForm from '@/pages/LeadForm'
 import LeadDetail from '@/pages/LeadDetail'
@@ -39,6 +40,7 @@ const App = () => (
             {/* Public Auth Routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/cadastro" element={<Cadastro />} />
+            <Route path="/redefinir-senha" element={<RedefinirSenha />} />
 
             {/* Public Proposal Link Route (No login required) */}
             <Route path="/proposta/:token" element={<PropostaPublica />} />
