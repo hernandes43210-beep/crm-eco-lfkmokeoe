@@ -32,6 +32,7 @@ import {
   Bot,
   Landmark,
   Banknote,
+  Wrench,
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { LeadsService } from '@/services/leads'
@@ -1978,6 +1979,38 @@ export default function LeadDetail() {
               fetchLead()
             }}
           />
+        </SecaoPainel>
+      )}
+
+      {/* Seção Envio ao Instalador (apenas Admin/CEO) */}
+      {(isAdmin || user?.role === 'CEO') && (
+        <SecaoPainel titulo="Envio ao Instalador">
+          <div className="p-2 sm:p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-orange-100 border border-orange-300 text-orange-800 flex items-center justify-center shrink-0">
+                <Wrench className="w-5 h-5 text-orange-600" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-slate-900">Enviar ao Instalador</h4>
+                <p className="text-xs text-slate-500 leading-relaxed max-w-2xl">
+                  Atribui a instalação deste cliente a um instalador da equipe. Ele recebe somente o
+                  endereço completo, a localização e os datasheets dos equipamentos —{' '}
+                  <strong>nenhum documento do cliente é enviado</strong> — além do Contrato de
+                  Responsabilidade (vigência de 12 meses) por e-mail.
+                </p>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setShowEnviarInstaladorModal(true)}
+              className="bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs h-8.5 px-3 gap-1.5 shrink-0 shadow-xs"
+            >
+              <Wrench className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Enviar ao Instalador</span>
+            </Button>
+          </div>
         </SecaoPainel>
       )}
 
