@@ -47,6 +47,7 @@ import { MotivoPerdaModal } from '@/components/MotivoPerdaModal'
 import { LeadInstallationPhotos } from '@/components/LeadInstallationPhotos'
 import { LeadFormalizacaoSection } from '@/components/LeadFormalizacaoSection'
 import { LeadDocumentosSection } from '@/components/LeadDocumentosSection'
+import { EnviarInstaladorModal } from '@/components/EnviarInstaladorModal'
 import { LeadHomologacaoSection } from '@/components/LeadHomologacaoSection'
 import { HomologacaoService } from '@/services/homologacao'
 import type { HomologacaoLead } from '@/types/crm'
@@ -146,6 +147,9 @@ export default function LeadDetail() {
   // Homologação na Engenharia & ART
   const [homologacao, setHomologacao] = useState<HomologacaoLead | null>(null)
   const [loadingHomologacao, setLoadingHomologacao] = useState(false)
+
+  // Envio ao Instalador
+  const [showEnviarInstaladorModal, setShowEnviarInstaladorModal] = useState(false)
 
   // WhatsApp integration in LeadDetail
   const [waMessages, setWaMessages] = useState<WhatsAppMessage[]>([])

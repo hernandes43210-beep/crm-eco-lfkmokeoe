@@ -1,4 +1,4 @@
-export type UserRole = 'Admin' | 'Vendedor' | 'Engenheiro'
+export type UserRole = 'Admin' | 'Vendedor' | 'Engenheiro' | 'Instalador'
 
 import type { RecordModel } from 'pocketbase'
 
@@ -37,6 +37,27 @@ export type DocumentoLeadCategoria =
   | 'contrato_posse_imovel'
 
 export type DocumentoLeadStatusEnvio = 'pendente' | 'enviado' | 'reenviado'
+
+export interface InstalacaoInstaladorRecord extends RecordModel {
+  id: string
+  lead: string
+  instalador: string
+  cliente_nome: string
+  endereco_completo: string
+  localizacao: string
+  datasheets: string | null
+  data_envio: string
+  status: 'pendente' | 'em_andamento' | 'concluida'
+  observacoes: string
+  enviado_por: string
+  created: string
+  updated: string
+  expand?: {
+    lead?: Lead
+    instalador?: User
+    enviado_por?: User
+  }
+}
 
 export type TipoInstalacaoDossie = 'telhado' | 'solo' | 'outro'
 
@@ -455,6 +476,13 @@ export interface Kit extends RecordModel {
   imagem_ia_prompt?: string
   created: string
   updated: string
+}
+
+export interface KitInstaladoInfo {
+  marca_painel?: string
+  marca_inversor?: string
+  potencia_painel_w?: number
+  potencia_inversor_kw?: number
 }
 
 export interface Convidado extends RecordModel {

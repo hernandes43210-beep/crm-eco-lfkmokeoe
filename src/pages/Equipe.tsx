@@ -21,6 +21,7 @@ import {
   Pencil,
   HardHat,
   UserCog,
+  Wrench,
 } from 'lucide-react'
 import { EquipeService } from '@/services/equipe'
 import { useAuth } from '@/context/AuthContext'
@@ -592,13 +593,17 @@ export default function Equipe() {
                                   ? 'bg-purple-50 text-purple-700 border-purple-200'
                                   : usr.role === 'Engenheiro'
                                     ? 'bg-emerald-50 text-[#0B7A5B] border-emerald-300 font-bold'
-                                    : 'bg-blue-50 text-blue-700 border-blue-200'
+                                    : usr.role === 'Instalador'
+                                      ? 'bg-orange-50 text-orange-700 border-orange-200'
+                                      : 'bg-blue-50 text-blue-700 border-blue-200'
                               }`}
                             >
                               {usr.role === 'Admin' ? (
                                 <Shield className="w-3 h-3" />
                               ) : usr.role === 'Engenheiro' ? (
                                 <HardHat className="w-3 h-3 text-[#0B7A5B]" />
+                              ) : usr.role === 'Instalador' ? (
+                                <Wrench className="w-3 h-3 text-orange-600" />
                               ) : (
                                 <Briefcase className="w-3 h-3" />
                               )}
@@ -611,7 +616,7 @@ export default function Equipe() {
                                 size="icon"
                                 onClick={() => openEditRoleModal(usr)}
                                 className="h-6 w-6 text-slate-400 hover:text-[#0B7A5B] hover:bg-emerald-50"
-                                title="Alterar papel (Admin, Vendedor, Engenheiro)"
+                                title="Alterar papel (Admin, Vendedor, Engenheiro, Instalador)"
                               >
                                 <UserCog className="w-3 h-3" />
                               </Button>
@@ -863,7 +868,9 @@ export default function Equipe() {
                                   ? 'bg-purple-50 text-purple-700 border-purple-200'
                                   : inv.role === 'Engenheiro'
                                     ? 'bg-emerald-50 text-[#0B7A5B] border-emerald-300 font-bold'
-                                    : 'bg-blue-50 text-blue-700 border-blue-200'
+                                    : inv.role === 'Instalador'
+                                      ? 'bg-orange-50 text-orange-700 border-orange-200'
+                                      : 'bg-blue-50 text-blue-700 border-blue-200'
                               }`}
                             >
                               {inv.role}
@@ -1100,6 +1107,9 @@ export default function Equipe() {
                     Engenheiro (Acesso restrito aos documentos técnicos para análise e homologação)
                   </option>
                   <option value="Admin">Admin (Acesso total, gestão da equipe e kits)</option>
+                  <option value="Instalador">
+                    Instalador (Recebe apenas instalações: endereço, localização e datasheets)
+                  </option>
                 </select>
               </div>
 
@@ -1442,6 +1452,10 @@ export default function Equipe() {
                   margens ou kits)
                 </option>
                 <option value="Admin">Admin (Acesso total administrativo e comercial)</option>
+                <option value="Instalador">
+                  Instalador (Vê apenas "Minhas Instalações": endereço, localização e datasheets
+                  enviados)
+                </option>
               </select>
             </div>
 
