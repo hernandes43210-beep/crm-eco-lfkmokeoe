@@ -8,6 +8,7 @@ interface AuthContextType {
   isAuthenticated: boolean
   isAdmin: boolean
   isEngenheiro: boolean
+  isInstalador: boolean
   isVendedor: boolean
   podeSupervisionarEngenharia: boolean
   login: (email: string, pass: string) => Promise<void>
@@ -85,6 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: !!user,
         isAdmin: user?.role === 'Admin',
         isEngenheiro: user?.role === 'Engenheiro',
+        isInstalador: user?.role === 'Instalador',
         isVendedor: user?.role === 'Vendedor',
         podeSupervisionarEngenharia:
           user?.role === 'Admin' || !!user?.pode_supervisionar_engenharia,

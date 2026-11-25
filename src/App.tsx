@@ -1,5 +1,5 @@
 /* Main App Component - Handles routing, auth provider and layout */
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -27,6 +27,7 @@ import PropostasList from '@/pages/PropostasList'
 import PropostaPublica from '@/pages/PropostaPublica'
 import FinanciamentoFnoPage from '@/pages/FinanciamentoFnoPage'
 import MeusDocumentosEngenharia from '@/pages/MeusDocumentosEngenharia'
+import MinhasInstalacoes from '@/pages/MinhasInstalacoes'
 import NotFound from '@/pages/NotFound'
 
 const App = () => (
@@ -54,9 +55,17 @@ const App = () => (
               }
             >
               <Route
+                path="/minhas-instalacoes"
+                element={
+                  <ProtectedRoute>
+                    <MinhasInstalacoes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/"
                 element={
-                  <ProtectedRoute blockEngenheiro>
+                  <ProtectedRoute blockEngenheiro blockInstalador>
                     <Index />
                   </ProtectedRoute>
                 }
@@ -64,7 +73,7 @@ const App = () => (
               <Route
                 path="/leads"
                 element={
-                  <ProtectedRoute blockEngenheiro>
+                  <ProtectedRoute blockEngenheiro blockInstalador>
                     <LeadsList />
                   </ProtectedRoute>
                 }
@@ -72,7 +81,7 @@ const App = () => (
               <Route
                 path="/leads/novo"
                 element={
-                  <ProtectedRoute blockEngenheiro>
+                  <ProtectedRoute blockEngenheiro blockInstalador>
                     <LeadForm />
                   </ProtectedRoute>
                 }
@@ -80,7 +89,7 @@ const App = () => (
               <Route
                 path="/leads/importar"
                 element={
-                  <ProtectedRoute blockEngenheiro>
+                  <ProtectedRoute blockEngenheiro blockInstalador>
                     <LeadImport />
                   </ProtectedRoute>
                 }
@@ -88,7 +97,7 @@ const App = () => (
               <Route
                 path="/financiamento-fno"
                 element={
-                  <ProtectedRoute blockEngenheiro>
+                  <ProtectedRoute blockEngenheiro blockInstalador>
                     <FinanciamentoFnoPage />
                   </ProtectedRoute>
                 }
@@ -96,7 +105,7 @@ const App = () => (
               <Route
                 path="/leads/:id/editar"
                 element={
-                  <ProtectedRoute blockEngenheiro>
+                  <ProtectedRoute blockEngenheiro blockInstalador>
                     <LeadForm />
                   </ProtectedRoute>
                 }
@@ -104,7 +113,7 @@ const App = () => (
               <Route
                 path="/leads/:id"
                 element={
-                  <ProtectedRoute blockEngenheiro>
+                  <ProtectedRoute blockEngenheiro blockInstalador>
                     <LeadDetail />
                   </ProtectedRoute>
                 }
@@ -112,7 +121,7 @@ const App = () => (
               <Route
                 path="/funil"
                 element={
-                  <ProtectedRoute blockEngenheiro>
+                  <ProtectedRoute blockEngenheiro blockInstalador>
                     <FunilVendas />
                   </ProtectedRoute>
                 }
@@ -120,7 +129,7 @@ const App = () => (
               <Route
                 path="/propostas"
                 element={
-                  <ProtectedRoute blockEngenheiro>
+                  <ProtectedRoute blockEngenheiro blockInstalador>
                     <PropostasList />
                   </ProtectedRoute>
                 }
@@ -128,7 +137,7 @@ const App = () => (
               <Route
                 path="/gerador-kits"
                 element={
-                  <ProtectedRoute blockEngenheiro>
+                  <ProtectedRoute blockEngenheiro blockInstalador>
                     <KitGeradorPage />
                   </ProtectedRoute>
                 }
@@ -136,7 +145,7 @@ const App = () => (
               <Route
                 path="/whatsapp"
                 element={
-                  <ProtectedRoute blockEngenheiro>
+                  <ProtectedRoute blockEngenheiro blockInstalador>
                     <WhatsAppPage />
                   </ProtectedRoute>
                 }

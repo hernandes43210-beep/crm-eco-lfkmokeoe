@@ -22,6 +22,7 @@ import {
   FolderOpen,
   Kanban,
   Landmark,
+  Wrench,
 } from 'lucide-react'
 import officialLogoPng from '@/assets/a-613c6.png'
 import EcosolarLogo from '@/components/EcosolarLogo'
@@ -35,7 +36,7 @@ import { ChangePasswordModal } from '@/components/ChangePasswordModal'
 import { cn } from '@/lib/utils'
 
 export default function Layout() {
-  const { user, logout, isAdmin, isEngenheiro } = useAuth()
+  const { user, logout, isAdmin, isEngenheiro, isInstalador } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
@@ -67,32 +68,36 @@ export default function Layout() {
   // Navigation Items
   // Se for Engenheiro, o menu deve conter APENAS:
   // - Meus Documentos (/engenharia)
+  // Se for Instalador, o menu deve conter APENAS:
+  // - Minhas Instalações (/minhas-instalacoes)
   // Painel, Leads, Funil, Kits, Propostas, WhatsApp, Integrações, Equipe etc. são TOTALMENTE ocultos.
-  const navItems = isEngenheiro
-    ? [{ label: 'Meus Documentos', path: '/engenharia', icon: FolderOpen }]
-    : [
-        { label: 'Painel', path: '/', icon: LayoutDashboard },
-        {
-          label: 'Leads',
-          path: '/leads',
-          icon: Users,
-          badge: countAguardando > 0 ? countAguardando : undefined,
-        },
-        { label: 'Importar Leads', path: '/leads/importar', icon: FileSpreadsheet },
-        { label: 'Funil de Vendas', path: '/funil', icon: GitBranch },
-        { label: 'Propostas', path: '/propostas', icon: FileText },
-        { label: 'Kits', path: '/gerador-kits', icon: Package },
-        { label: 'Financiamento FNO', path: '/financiamento-fno', icon: Landmark },
-        { label: 'WhatsApp', path: '/whatsapp', icon: MessageSquare },
-        ...(isAdmin
-          ? [
-              { label: 'Área de Engenharia', path: '/engenharia', icon: HardHat },
-              { label: 'Integrações', path: '/integracoes', icon: Webhook },
-              { label: 'Configurações', path: '/configuracoes', icon: Settings2 },
-              { label: 'Equipe', path: '/equipe', icon: ShieldCheck },
-            ]
-          : []),
-      ]
+  const navItems = isInstalador
+    ? [{ label: 'Minhas Instalações', path: '/minhas-instalacoes', icon: Wrench }]
+    : isEngenheiro
+      ? [{ label: 'Meus Documentos', path: '/engenharia', icon: FolderOpen }]
+      : [
+          { label: 'Painel', path: '/', icon: LayoutDashboard },
+          {
+            label: 'Leads',
+            path: '/leads',
+            icon: Users,
+            badge: countAguardando > 0 ? countAguardando : undefined,
+          },
+          { label: 'Importar Leads', path: '/leads/importar', icon: FileSpreadsheet },
+          { label: 'Funil de Vendas', path: '/funil', icon: GitBranch },
+          { label: 'Propostas', path: '/propostas', icon: FileText },
+          { label: 'Kits', path: '/gerador-kits', icon: Package },
+          { label: 'Financiamento FNO', path: '/financiamento-fno', icon: Landmark },
+          { label: 'WhatsApp', path: '/whatsapp', icon: MessageSquare },
+          ...(isAdmin
+            ? [
+                { label: 'Área de Engenharia', path: '/engenharia', icon: HardHat },
+                { label: 'Integrações', path: '/integracoes', icon: Webhook },
+                { label: 'Configurações', path: '/configuracoes', icon: Settings2 },
+                { label: 'Equipe', path: '/equipe', icon: ShieldCheck },
+              ]
+            : []),
+        ]
 
   // Page title mapping based on current pathname
   const getPageTitle = () => {
@@ -108,6 +113,7 @@ export default function Layout() {
     if (path === '/gerador-kits') return 'Gerador de Kit Solar'
     if (path === '/financiamento-fno') return 'Financiamento FNO (BASA)'
     if (path === '/whatsapp') return 'WhatsApp & Atendimento Solar'
+    if (path === '/minhas-instalacoes') return 'Minhas Instalações'
     if (path === '/engenharia')
       return isAdmin ? 'Área de Engenharia & Homologação' : 'Meus Documentos Recebidos'
     if (path === '/integracoes') return 'Integrações & Configurações de APIs'
@@ -284,7 +290,15 @@ export default function Layout() {
               <NotificationBell side="bottom" align="end" />
             </div>
 
-            {!isEngenheiro ? (
+            {isInstalador ? (
+              <Button
+                onClick={() => navigate('/minhas-instalacoes')}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-sm shadow-primary/30 flex items-center gap-1.5 h-9.5 px-4 rounded-lg text-xs"
+              >
+                <Wrench className="w-4 h-4" />
+                <span>Minhas Instalações</span>
+              </Button>
+            ) : !isEngenheiro ? (
               <Button
                 onClick={() => navigate('/leads/novo')}
                 className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-sm shadow-primary/30 flex items-center gap-1.5 h-9.5 px-4 rounded-lg"

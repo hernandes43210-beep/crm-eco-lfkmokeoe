@@ -1982,8 +1982,8 @@ export default function LeadDetail() {
         </SecaoPainel>
       )}
 
-      {/* Seção Envio ao Instalador (apenas Admin/CEO) */}
-      {(isAdmin || user?.role === 'CEO') && (
+      {/* Seção Envio ao Instalador (apenas Admin — o Admin cuida de toda a equipe) */}
+      {isAdmin && (
         <SecaoPainel titulo="Envio ao Instalador">
           <div className="p-2 sm:p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
@@ -2775,6 +2775,15 @@ export default function LeadDetail() {
         isSubmitting={isMarkingLost}
         onConfirm={handleConfirmPerda}
         onCancel={() => setShowMotivoPerdaModal(false)}
+      />
+
+      {/* Modal Enviar ao Instalador (apenas Admin/CEO) */}
+      <EnviarInstaladorModal
+        open={showEnviarInstaladorModal}
+        onOpenChange={setShowEnviarInstaladorModal}
+        lead={lead}
+        currentUserId={user?.id}
+        onEnviado={fetchLead}
       />
     </div>
   )

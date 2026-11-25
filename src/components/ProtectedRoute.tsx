@@ -7,14 +7,16 @@ interface ProtectedRouteProps {
   children: React.ReactNode
   adminOnly?: boolean
   blockEngenheiro?: boolean
+  blockInstalador?: boolean
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   adminOnly = false,
   blockEngenheiro = false,
+  blockInstalador = false,
 }) => {
-  const { isAuthenticated, isLoading, isAdmin, isEngenheiro } = useAuth()
+  const { isAuthenticated, isLoading, isAdmin, isEngenheiro, isInstalador } = useAuth()
   const location = useLocation()
 
   if (isLoading) {
@@ -35,8 +37,18 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/engenharia" replace />
   }
 
+  // Bloqueio de rotas comerciais para Instalador: redirecionamento silencioso para /minhas-instalacoes sem toast
+  if (isInstalador && (blockInstalador || (adminOnly && !isAdmin))) {
+    return <Navigate to="/minhas-instalacoes" replace />
+  }
+
   if (adminOnly && !isAdmin) {
-    return <Navigate to={isEngenheiro ? '/engenharia' : '/'} replace />
+    return (
+      <Navigate
+        to={isEngenheiro ? '/engenharia' : isInstalador ? '/minhas-instalacoes' : '/'}
+        replace
+      />
+    )
   }
 
   return <>{children}</>
