@@ -1,451 +1,269 @@
 /**
- * Montagem dos dados exibidos nas 6 páginas da proposta clássica v2.
- * Fonte única usada pela página pública /proposta/:id (componentes React)
- * e pela versão para impressão/PDF (proposalPdf.ts) — tela e PDF mostram
- * sempre os mesmos números, todos vindos do cadastro ou de proposalCalculos.
+ * Dados da proposta clássica REVISADA (navy #0B1E4A + amarelo #FFC629).
+ * Substitui a antiga montarDadosV2: lê os MESMOS inputs (proposta pública + kit).
+ * Fonte dos números: calcularProposta (economia líquida, Lei 14.300).
  */
+import type { PublicProposta } from '@/types/crm'
+import { parsePainelJson, parseInversorJson } from '@/services/kitGerador'
 import {
   calcularProposta,
   calcularDataValidade,
+  formatNumeroBR,
+  formatBRL,
+  paybackCurto,
+  anosEMeses,
+  capitalizarNome,
   percentualFioB,
-  DEPOIMENTO_PROPOSTA,
   FAQ_PROPOSTA,
   etapasImplantacao,
-  descricaoFuncaoItem,
-  formatNumeroBR,
+  DEPOIMENTO_PROPOSTA,
   GARANTIA_INVERSOR_ANOS,
   GARANTIA_INSTALACAO_ANOS,
   RENDIMENTO_POUPANCA_AO_ANO,
   RENDIMENTO_CDB_LIQUIDO_AO_ANO,
-  PERDA_ANUAL_PAINEL,
+  DIAS_VALIDADE_PADRAO,
+  TAXA_DISPONIBILIDADE_KWH,
+  type ResultadoCalculoProposta,
+  type TipoLigacao,
+  type LimiteInversorInfo,
 } from './proposalCalculos'
-import { formatBRL, formatDateBR } from './solarUtils'
-import { CONTATO_ECOSOLAR } from '@/constants/empresa'
-import { lerEquipamentosProposta, totalKwhBaterias } from '@/lib/propostaBaterias'
-import type { BateriaLinha } from '@/services/kitGerador'
-import type { BateriasPropostaJson, FnoSimulacaoResumoJson } from '@/types/crm'
-import {
-  parseFnoSimulacao,
-  parseModalidade,
-  type ModalidadeVenda,
-} from '@/components/proposta/fnoModalidade'
 
-/** Área aproximada ocupada por cada painel (m²) — usada só para estimar a área do telhado. */
-export const AREA_PAINEL_M2 = 2.3
-
-export interface ProposalPDFData {
-  id?: string
-  token_publico?: string
-  status?: string
-  kit_nome: string
-  kit_potencia_kw?: number
-  kit_fabricante?: string
-  custo?: number
-  margem?: number
-  preco_venda: number
-  desconto_percentual?: number
-  valor_desconto?: number
-  valor_bruto?: number
-  validade_dias?: number
-  data_validade: string
-  condicoes_pagamento?: string
-  observacoes?: string
-  data_aceite?: string
-  aceito_por_nome?: string
-  created?: string
-  cliente: {
-    nome: string
-    email?: string
-    telefone?: string
-    cidade?: string
-    estado?: string
-    endereco?: string
-    consumo_mensal_kwh?: number
-  }
-  vendedor?: { name?: string; email?: string }
-  kit_descricao?: string
-  kit_string_box?: string
-  kit_marca_painel?: string
-  kit_marca_inversor?: string
-  kit_qtd_inversores?: number
-  kit_potencia_painel_w?: number
-  kit_potencia_inversor_kw?: number
-  kit_tipo_estrutura?: string
-  kit_baterias?: BateriasPropostaJson | string
-  modalidade_venda?: 'avista' | 'fno' | string
-  fno_simulacao?: FnoSimulacaoResumoJson | string
-  kit?: {
-    descricao?: string
-    string_box?: string
-    marca_painel?: string
-    marca_inversor?: string
-    qtd_inversores?: number
-    potencia_painel_w?: number
-    potencia_inversor_kw?: number
-    tipo_estrutura?: string
-  }
-  lead?: { consumo_mensal_kwh?: number }
-  fotos_selecionadas?:
-    | Array<{ origem: 'lead' | 'institucional'; id: string; legenda?: string }>
-    | string
-  fotos_obra?: Array<{ id: string; url?: string; foto?: string; legenda?: string }>
-  /** Fotos já resolvidas pela página (URL absolutas) — têm prioridade sobre fotos_obra. */
-  fotos_urls?: FotoProposta[]
-}
+/** Área aproximada por kWp (m²) — fallback quando o painel não traz área. */
+const M2_POR_KWP = 5
 
 export interface FotoProposta {
   url: string
-  legenda: string
+  legenda?: string
 }
 
-/** Resolve as fotos da obra (URL + legenda) com fallback para gradiente quando não há fotos. */
-export function fotosPropostaDe(
-  data: ProposalPDFData,
-  fotosResolvidas?: FotoProposta[],
-): FotoProposta[] {
-  if (fotosResolvidas && fotosResolvidas.length > 0) return fotosResolvidas.slice(0, 5)
-  const out: FotoProposta[] = []
-  if (Array.isArray(data.fotos_obra)) {
-    for (const f of data.fotos_obra) {
-      const url = f.url || ''
-      if (!url) continue
-      out.push({ url, legenda: f.legenda || 'Obra Ecosolar Energy' })
-      if (out.length >= 5) break
-    }
-  }
-  return out
+export interface EmpresaProposta {
+  nome: string
+  slogan: string
+  cnpj: string
+  endereco: string
+  whatsapp: string
+  email: string
+  instagram: string
+  engenheiro: string
+  crea: string
 }
 
-/** Escapa texto para uso seguro em HTML gerado. */
-export function esc(s: unknown): string {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
+export const EMPRESA_PADRAO: EmpresaProposta = {
+  nome: 'ECO SOLAR ENERGY',
+  slogan: 'Do sol até a sua conta de luz',
+  cnpj: '',
+  endereco: '',
+  whatsapp: '',
+  email: '',
+  instagram: '',
+  engenheiro: '',
+  crea: '',
+}
+
+export interface KitItensProposta {
+  nome: string
+  qtd: string
+  obs: string
 }
 
 export interface DadosV2 {
+  empresa: EmpresaProposta
   numero: string
-  emissaoBR: string
-  validadeBR: string
-  anoEmissao: number
-  fioB: number
+  dataEmissao: Date
+  dataValidade: Date
+  validadeDias: number
   clienteNome: string
-  primeiroNome: string
-  localCliente: string
+  clientePrimeiroNome: string
+  cidade: string
+  uf: string
+  cidadeUf: string
   consumoKwh: number
   tipoTelhado: string
+  tipoLigacao: TipoLigacao
+  concessLabel: string
   concessionaria: string
   consultorNome: string
-  consultorEmail: string
-  whatsapp: string
-  instagram: string
-  calc: ReturnType<typeof calcularProposta>
-  precoFinalRS: string
-  precoCheioRS: string
-  descontoRS: string
-  descontoPct: number
-  tarifaRS: string
-  contaHojeRS: string
-  economiaMensalRS: string
-  economiaAnualRS: string
-  economia25Txt: string
-  paybackCurtoTxt: string
-  paybackExtensoTxt: string
-  rendimentoSolarInt: number
-  cdbNoPrimeiroAnoRS: string
-  marcaPainel: string
-  marcaInversor: string
-  qtdInversores: number
-  potenciaPainelW: number
-  potenciaInversorKw: number
-  stringBox: string
-  tipoEstruturaTexto: string
-  qtdPaineis: number | null
-  areaTelhadoM2: number | null
-  kwpFmt: string
-  bateriasKit: BateriaLinha[]
-  bateriasKwhFmt: string
-  itensKit: Array<{ qtd: string; item: string; para: string }>
+  potenciaKwp: number
+  geracaoMensalKwh: number
+  areaM2: number
+  painelModelo: string
+  painelQtd: number
+  painelGarantiaProduto: string
+  painelGarantiaDesempenho: string
+  inversorModelo: string
+  inversorKw: number
+  inversorQtd: number
+  kitItens: KitItensProposta[]
+  fotoCapa: FotoProposta | null
+  calc: ResultadoCalculoProposta
+  fioBPct: number
+  simultaneidadePct: number
+  tarifaFioB: number
+  aceiteUrl: string
+  financiamentoTxt: string
   faq: typeof FAQ_PROPOSTA
   etapas: ReturnType<typeof etapasImplantacao>
-  depoimento: { texto: string; autor: string }
-  garantiaInversorTxt: string
-  garantiaInstalacaoTxt: string
-  formasPagamento: Array<{ titulo: string; texto: string }>
-  /** Modalidade de venda e resumo FNO (presentes só em propostas financiadas). */
-  modalidadeVenda: ModalidadeVenda
-  fnoResumo: FnoSimulacaoResumoJson | null
-  fnoEntradaRS: string
-  fnoValorFinanciadoRS: string
-  fnoParcelasTxt: string
-  fnoParcelaEstimadaRS: string
-  fnoTaxaAnualTxt: string
-  fnoCarenciaTxt: string
-  fnoTotalJurosRS: string
-  fnoTotalAPagarRS: string
-  fnoPrimeiroVencTxt: string
+  depoimento: typeof DEPOIMENTO_PROPOSTA
+  garantiaInversorAnos: number | null
+  garantiaInstalacaoAnos: number | null
+  rendPoupancaPct: number
+  rendCdbPct: number
+  alertaInversor: LimiteInversorInfo | null
+  txt: {
+    contaHojeRS: string
+    contaNovaRS: string
+    economiaMensalRS: string
+    economiaAnualRS: string
+    retornoPctAA: string
+    paybackCurto: string
+    paybackExtenso: string
+    anosEMeses: (m: number) => string
+    economia25RS: string
+    potenciaTxt: string
+    geracaoTxt: string
+    precoFinalRS: string
+    precoCheioRS: string
+    descontoRS: string
+    descontoPct: string
+    tarifaRS: string
+    taxaMinimaRS: string
+    fioBRS: string
+    coberturaPctTxt: string
+  }
 }
 
-const WHATSAPP_ECOSOLAR = '(69) 99234-6989'
-const INSTAGRAM_ECOSOLAR = '@_ecosolar_energy'
-const CONCESSIONARIA_PADRAO = 'Energisa'
+export type PropostaInput = PublicProposta
 
-/** Monta todos os dados/textos das 6 páginas a partir do cadastro da proposta. */
-export function montarDadosV2(data: ProposalPDFData): DadosV2 {
-  const consumoKwh = Number(data.lead?.consumo_mensal_kwh || data.cliente.consumo_mensal_kwh || 0)
-  const kwp = Number(data.kit_potencia_kw || 0)
-  const precoFinal = Number(data.preco_venda || 0)
-  let precoCheio = Number(data.valor_bruto || 0)
-  if (!(precoCheio > precoFinal) && data.desconto_percentual && data.desconto_percentual > 0) {
-    precoCheio = precoFinal / (1 - data.desconto_percentual / 100)
-  }
-  if (!(precoCheio > precoFinal)) precoCheio = precoFinal
+function parseTipoLigacao(p: PropostaInput): TipoLigacao {
+  const t = ((p as unknown as Record<string, unknown>).tipo_ligacao as string) || ''
+  const tl = t.toLowerCase()
+  if (tl.includes('tri')) return 'tri'
+  if (tl.includes('bi')) return 'bi'
+  // dica pelo texto do kit (ex.: "Monofásico")
+  const kitTxt = String(p.kit_descricao || '')
+  if (kitTxt.toLowerCase().includes('trif')) return 'tri'
+  if (kitTxt.toLowerCase().includes('bif')) return 'bi'
+  return 'mono'
+}
+
+export function proposalDataDePublica(
+  p: PropostaInput,
+  empresa: Partial<EmpresaProposta> = {},
+  aceiteUrl = '',
+): DadosV2 {
+  const emp: EmpresaProposta = { ...EMPRESA_PADRAO, ...empresa }
+  const kit = p.kit
+  const painel = parsePainelJson(kit?.marca_painel ? { marca: kit.marca_painel } : null)
+  const tipoLigacao = parseTipoLigacao(p)
+  const dataEmissao = p.created ? new Date(p.created) : new Date()
+  const dataValidade = p.data_validade
+    ? new Date(p.data_validade)
+    : calcularDataValidade(dataEmissao)
+
+  const potenciaKwp = Number(p.kit_potencia_kw || kit?.potencia_kw || 0)
+  const precoFinal = Number(p.preco_venda || 0)
+  const precoCheio = Number(p.valor_bruto || p.preco_venda || 0)
 
   const calc = calcularProposta({
-    consumoKwh,
-    potenciaKwp: kwp,
+    consumoKwh: Number(p.lead?.consumo_mensal_kwh || 0),
+    potenciaKwp,
     precoFinal,
     precoCheio,
+    tarifaKwh: undefined,
+    tipoLigacao,
+    dataEmissao,
+    kwInversor: Number(kit?.potencia_inversor_kw || p.kit_potencia_inversor_kw || 0) || undefined,
+    qtdInversores: Number(kit?.qtd_inversores || p.kit_qtd_inversores || 1),
   })
 
-  const emissao = data.created ? new Date(data.created) : new Date()
-  const validade = calcularDataValidade(emissao, data.validade_dias || 15)
+  // FOTOS: somente a CAPA — nenhuma foto de obras destacada (decisão do usuário).
+  let fotoCapa: FotoProposta | null = null
+  const kitImg = kit?.imagem_ia_url || kit?.imagem_ia
+  if (kitImg) {
+    fotoCapa = { url: kitImg, legenda: 'Imagem ilustrativa do sistema proposto' }
+  }
 
-  const marcaPainel = data.kit_marca_painel || data.kit?.marca_painel || ''
-  const marcaInversor = data.kit_marca_inversor || data.kit?.marca_inversor || ''
-  const potenciaPainelW = Number(data.kit_potencia_painel_w || data.kit?.potencia_painel_w || 0)
-  const potenciaInversorKw = Number(
-    data.kit_potencia_inversor_kw || data.kit?.potencia_inversor_kw || 0,
-  )
-  const stringBox = data.kit_string_box || data.kit?.string_box || ''
-  const tipoEstruturaTexto = data.kit_tipo_estrutura || data.kit?.tipo_estrutura || 'telhado'
-
-  // Quantidade de inversores: campo direto da proposta/kit; ausente ⇒ assume 1.
-  const qtdInversoresRaw = Number(data.kit_qtd_inversores ?? data.kit?.qtd_inversores ?? 1)
-  const qtdInversores =
-    Number.isFinite(qtdInversoresRaw) && qtdInversoresRaw > 0 ? Math.round(qtdInversoresRaw) : 1
-
-  const qtdPaineis =
-    potenciaPainelW > 0 && kwp > 0 ? Math.round((kwp * 1000) / potenciaPainelW) : null
-  const areaTelhadoM2 = qtdPaineis ? Math.round(qtdPaineis * AREA_PAINEL_M2) : null
-
-  const itemPaineis = `Painéis solares ${marcaPainel || 'de alta eficiência'}${
-    potenciaPainelW ? ` ${formatNumeroBR(potenciaPainelW)} W` : ''
-  }`.replace(/\s+/g, ' ')
-  const itemInversor = `Inversor on-grid ${marcaInversor || 'de qualidade homologada'}${
-    potenciaInversorKw ? ` ${formatNumeroBR(potenciaInversorKw, 1)} kW` : ''
-  }`.replace(/\s+/g, ' ')
-  const itemEstrutura = `Estrutura para telhado de ${tipoEstruturaTexto}`
-
-  // Equipamentos reais do kit: baterias (campo kit_baterias) e quantidades reais
-  // por modelo extraídas da descrição técnica. Em propostas antigas sem esses
-  // dados, cai nos fallbacks de sempre (quantidade calculada pela potência).
-  const equipamentos = lerEquipamentosProposta(data.kit_baterias)
-  const bateriasKit = equipamentos.baterias
-
-  const linhasPainelExtraidas = extrairLinhasKit(
-    data.kit_descricao || data.kit?.descricao,
-    /pain[eé]l/i,
-  )
-  const linhasPainelKit = (
-    linhasPainelExtraidas.length > 0
-      ? linhasPainelExtraidas.map((l) => ({ qtd: `${l.qtd}x`, item: l.nome }))
-      : [{ qtd: qtdPaineis ? `${qtdPaineis}x` : '1 kit', item: itemPaineis }]
-  ).map((l) => ({ ...l, para: descricaoFuncaoItem('painel solar') }))
-
-  const linhasInversorExtraidas = extrairLinhasKit(
-    data.kit_descricao || data.kit?.descricao,
-    /inversor/i,
-  )
-  const linhasInversorKit = (
-    linhasInversorExtraidas.length > 0
-      ? linhasInversorExtraidas.map((l) => ({ qtd: `${l.qtd}x`, item: l.nome }))
-      : [{ qtd: qtdInversores > 1 ? `${qtdInversores}x` : '1x', item: itemInversor }]
-  ).map((l) => ({ ...l, para: descricaoFuncaoItem('inversor') }))
-
-  const linhasBateriaKit = bateriasKit.map((b) => {
-    const qtd = Number(b.qtd) || 1
-    const nome = [b.marca, b.modelo].filter(Boolean).join(' ')
-    const kwh = Number(b.capacidade_kwh) || 0
-    const totalLinha = kwh * qtd
-    // "Bateria Lítio 5,12 kWh — Marca Modelo — Total 20,48 kWh" (total só quando qtd > 1)
-    const partes: string[] = []
-    if (nome) partes.push(nome)
-    if (kwh > 0) partes.push(`${formatNumeroBR(kwh, 2)} kWh`)
-    if (b.tensao) partes.push(b.tensao)
-    if (qtd > 1 && totalLinha > 0) partes.push(`Total ${formatNumeroBR(totalLinha, 2)} kWh`)
-    return {
-      qtd: `${qtd}x`,
-      item: partes.join(' — ') || 'Bateria',
-      para: descricaoFuncaoItem('bateria'),
-    }
-  })
-
-  const itensKit = [
-    ...linhasPainelKit,
-    ...linhasInversorKit,
-    ...linhasBateriaKit,
-    {
-      qtd: '1x',
-      item: stringBox
-        ? `String box (proteção CC/CA) — ${stringBox}`
-        : 'String box (proteção CC/CA)',
-      para: descricaoFuncaoItem('string box'),
-    },
-    {
-      qtd: '1 kit',
-      item: itemEstrutura,
-      para: descricaoFuncaoItem(itemEstrutura, tipoEstruturaTexto),
-    },
-    {
-      qtd: '1 kit',
-      item: 'Cabos solares e conectores MC4',
-      para: descricaoFuncaoItem('cabos solares mc4'),
-    },
-    {
-      qtd: '1x',
-      item: 'Monitoramento 24 h',
-      para: descricaoFuncaoItem('monitoramento'),
-    },
-    {
-      qtd: '1 serv.',
-      item: 'Projeto, ART e homologação',
-      para: descricaoFuncaoItem('projeto art homologação'),
-    },
-  ]
-
-  const formasPagamento: Array<{ titulo: string; texto: string }> = [
-    {
-      titulo: 'À vista',
-      texto: 'PIX ou TED — condição com o desconto desta proposta.',
-    },
-    {
-      titulo: 'Financiamento',
-      texto: 'Bancário em até 84x, com até 90 dias de carência para a 1ª parcela.',
-    },
-    {
-      titulo: 'Cartão de crédito',
-      texto: 'Em até 24x, conforme a bandeira.',
-    },
-  ]
-
-  const modalidadeVenda = parseModalidade(data.modalidade_venda)
-  const fnoResumo = parseFnoSimulacao(data.fno_simulacao)
-
-  const garantiaInversorTxt =
-    GARANTIA_INVERSOR_ANOS && GARANTIA_INVERSOR_ANOS > 0
-      ? `garantia de fábrica de ${GARANTIA_INVERSOR_ANOS} anos conforme certificado do fabricante`
-      : 'garantia de fábrica conforme certificado do fabricante'
-  const garantiaInstalacaoTxt =
-    GARANTIA_INSTALACAO_ANOS && GARANTIA_INSTALACAO_ANOS > 0
-      ? `garantia de ${GARANTIA_INSTALACAO_ANOS} anos sobre o serviço executado pela Ecosolar`
-      : 'garantia sobre o serviço executado pela Ecosolar'
+  const financiamentoTxt = 'ou financiamento com carência — consulte condições'
 
   return {
-    numero: (data.id || 'ECO').slice(-6).toUpperCase(),
-    emissaoBR: formatDateBR(emissao.toISOString()),
-    validadeBR: formatDateBR(validade.toISOString()),
-    anoEmissao: emissao.getFullYear(),
-    fioB: percentualFioB(emissao),
-    clienteNome: data.cliente?.nome || 'Cliente',
-    primeiroNome: (data.cliente?.nome || 'Cliente').split(' ')[0],
-    localCliente:
-      [data.cliente?.cidade, data.cliente?.estado].filter(Boolean).join(' - ') || 'Brasil',
-    consumoKwh,
-    tipoTelhado: tipoEstruturaTexto,
-    concessionaria: CONCESSIONARIA_PADRAO,
-    consultorNome: data.vendedor?.name || 'Equipe Ecosolar Energy',
-    consultorEmail: data.vendedor?.email || CONTATO_ECOSOLAR.email || 'hernandes43210@gmail.com',
-    whatsapp: WHATSAPP_ECOSOLAR,
-    instagram: INSTAGRAM_ECOSOLAR,
+    empresa: emp,
+    numero: p.token_publico || p.id || '',
+    dataEmissao,
+    dataValidade,
+    validadeDias: Number(p.validade_dias || DIAS_VALIDADE_PADRAO),
+    clienteNome: capitalizarNome(p.lead?.nome || 'Cliente'),
+    clientePrimeiroNome: capitalizarNome(p.lead?.nome || 'Cliente').split(' ')[0] || 'Cliente',
+    cidade: p.lead?.cidade || '',
+    uf: p.lead?.estado || '',
+    cidadeUf: [p.lead?.cidade, p.lead?.estado].filter(Boolean).join(' - '),
+    consumoKwh: Number(p.lead?.consumo_mensal_kwh || 0),
+    tipoTelhado: p.kit_tipo_estrutura || kit?.tipo_estrutura || 'telhado',
+    tipoLigacao,
+    concessLabel: p.lead?.cidade ? `a ${p.lead.cidade}` : 'à sua região',
+    concessionaria: 'concessionária local',
+    consultorNome: p.vendedor?.name || '',
+    potenciaKwp,
+    geracaoMensalKwh: calc.geracaoMensalKwh,
+    areaM2: painel?.area_m2 && painel?.qtd ? painel.area_m2 * painel.qtd : potenciaKwp * M2_POR_KWP,
+    painelModelo: painel
+      ? `${painel.marca} ${painel.modelo}`.trim()
+      : 'Painel fotovoltaico monocristalino',
+    painelQtd: painel?.qtd ? Number(painel.qtd) : 0,
+    painelGarantiaProduto: '12 anos',
+    painelGarantiaDesempenho: '30 anos',
+    inversorModelo: (() => {
+      const inv = parseInversorJson(kit?.marca_inversor ? { marca: kit.marca_inversor } : null)
+      return inv ? `${inv.marca} ${inv.modelo}`.trim() : 'Inversor string'
+    })(),
+    inversorKw: Number(kit?.potencia_inversor_kw || p.kit_potencia_inversor_kw || 0),
+    inversorQtd: Number(kit?.qtd_inversores || p.kit_qtd_inversores || 1),
+    kitItens: [],
+    fotoCapa,
     calc,
-    precoFinalRS: formatBRL(precoFinal),
-    precoCheioRS: formatBRL(precoCheio),
-    descontoRS: formatBRL(calc.descontoRs),
-    descontoPct: Math.round(calc.descontoPct),
-    tarifaRS: `R$ ${formatNumeroBR(calc.tarifaKwh, 2)}`,
-    contaHojeRS: formatBRL(calc.contaHoje),
-    economiaMensalRS: formatBRL(calc.economiaMensal),
-    economiaAnualRS: formatBRL(calc.economiaAnual),
-    economia25Txt: `${formatNumeroBR(Math.floor(calc.economia25Anos / 1000), 0)} mil`,
-    paybackCurtoTxt: paybackCurtoLocal(calc.paybackMeses),
-    paybackExtensoTxt: paybackExtensoLocal(calc.paybackMeses),
-    rendimentoSolarInt: Math.round(calc.rendimentoSolarPct),
-    cdbNoPrimeiroAnoRS: formatBRL(precoFinal * RENDIMENTO_CDB_LIQUIDO_AO_ANO),
-    marcaPainel,
-    marcaInversor,
-    qtdInversores,
-    potenciaPainelW,
-    potenciaInversorKw,
-    stringBox,
-    tipoEstruturaTexto,
-    qtdPaineis,
-    areaTelhadoM2,
-    kwpFmt: formatNumeroBR(kwp, 2),
-    bateriasKit,
-    bateriasKwhFmt:
-      bateriasKit.length > 0 ? `${formatNumeroBR(totalKwhBaterias(bateriasKit), 2)} kWh` : '',
-    itensKit,
+    fioBPct: percentualFioB(dataEmissao),
+    simultaneidadePct: 30,
+    tarifaFioB: calc.tarifaKwh,
+    aceiteUrl,
+    financiamentoTxt,
     faq: FAQ_PROPOSTA,
-    etapas: etapasImplantacao(CONCESSIONARIA_PADRAO),
+    etapas: etapasImplantacao('concessionária local'),
     depoimento: DEPOIMENTO_PROPOSTA,
-    garantiaInversorTxt,
-    garantiaInstalacaoTxt,
-    formasPagamento,
-    modalidadeVenda,
-    fnoResumo,
-    fnoEntradaRS: formatBRL(fnoResumo?.valor_entrada || 0),
-    fnoValorFinanciadoRS: formatBRL(fnoResumo?.valor_financiado || 0),
-    fnoParcelasTxt: fnoResumo?.prazo_meses ? String(fnoResumo.prazo_meses) : '—',
-    fnoParcelaEstimadaRS: formatBRL(fnoResumo?.parcela_mensal_estimada || 0),
-    fnoTaxaAnualTxt:
-      fnoResumo?.taxa_anual_aa != null
-        ? `${formatNumeroBR(fnoResumo.taxa_anual_aa, 2)}% a.a.`
-        : '—',
-    fnoCarenciaTxt:
-      fnoResumo?.carencia_meses != null && fnoResumo.carencia_meses > 0
-        ? `${fnoResumo.carencia_meses} ${fnoResumo.carencia_meses === 1 ? 'mês' : 'meses'}`
-        : 'sem carência',
-    fnoTotalJurosRS: formatBRL(fnoResumo?.total_juros || 0),
-    fnoTotalAPagarRS: formatBRL(fnoResumo?.total_a_pagar || 0),
-    fnoPrimeiroVencTxt: fnoResumo?.data_primeiro_vencimento || '—',
+    garantiaInversorAnos: GARANTIA_INVERSOR_ANOS,
+    garantiaInstalacaoAnos: GARANTIA_INSTALACAO_ANOS,
+    rendPoupancaPct: Math.round(RENDIMENTO_POUPANCA_AO_ANO * 100),
+    rendCdbPct: Math.round(RENDIMENTO_CDB_LIQUIDO_AO_ANO * 100),
+    alertaInversor: calc.alertaInversor,
+    txt: {
+      contaHojeRS: formatBRL(calc.contaHoje),
+      contaNovaRS: formatBRL(calc.contaNova),
+      economiaMensalRS: formatBRL(calc.economiaMensal),
+      economiaAnualRS: formatBRL(calc.economiaAnual),
+      retornoPctAA: `${formatNumeroBR(calc.rendimentoSolarPct, 1)}% a.a.`,
+      paybackCurto: paybackCurto(calc.paybackMeses),
+      paybackExtenso: paybackExtensoTxt(calc.paybackMeses),
+      anosEMeses,
+      economia25RS: formatBRL(calc.economia25Anos),
+      potenciaTxt: `${formatNumeroBR(potenciaKwp, 2)} kWp`,
+      geracaoTxt: `${formatNumeroBR(calc.geracaoMensalKwh)} kWh/mês`,
+      precoFinalRS: formatBRL(precoFinal),
+      precoCheioRS: formatBRL(precoCheio),
+      descontoRS: formatBRL(calc.descontoRs),
+      descontoPct: `${formatNumeroBR(calc.descontoPct, 0)}%`,
+      tarifaRS: formatBRL(calc.tarifaKwh),
+      taxaMinimaRS: formatBRL(calc.taxaMinimaMensal),
+      fioBRS: formatBRL(calc.custoFioBMensal),
+      coberturaPctTxt: `${calc.coberturaPct}%`,
+    },
   }
 }
 
-/** Observações/tensão opcionais ignoradas — extrai "Painéis: 10× Marca 580 W" de textos do kit. */
-function extrairLinhasKit(
-  texto: string | undefined,
-  rePalavra: RegExp,
-): Array<{ qtd: number; nome: string }> {
-  if (!texto) return []
-  const out: Array<{ qtd: number; nome: string }> = []
-  for (const seg of texto.split(/[•;\n]/)) {
-    if (!rePalavra.test(seg)) continue
-    const m = seg.match(/(\d+)\s*[x×]\s*([^\n]+)/)
-    if (!m) continue
-    const qtd = parseInt(m[1], 10)
-    const nome = m[2].trim()
-    if (qtd > 0 && nome) out.push({ qtd, nome })
-  }
-  return out
+function paybackExtensoTxt(meses: number): string {
+  const t = anosEMeses(meses)
+  return t === '—' ? '' : `cerca de ${t}`
 }
 
-function paybackCurtoLocal(meses: number): string {
-  if (meses <= 0) return '—'
-  const anos = Math.round((meses / 12) * 2) / 2
-  return `≈ ${String(anos).replace('.', ',')} ${anos === 1 ? 'ano' : 'anos'}`
-}
+/** Compat: nome antigo mantido exportado. */
+export const montarDadosV2 = proposalDataDePublica
 
-function paybackExtensoLocal(meses: number): string {
-  if (meses <= 0) return '—'
-  const anos = Math.floor(meses / 12)
-  const rest = meses % 12
-  const partes: string[] = []
-  if (anos > 0) partes.push(`${anos} ${anos === 1 ? 'ano' : 'anos'}`)
-  if (rest > 0) partes.push(`${rest} ${rest === 1 ? 'mês' : 'meses'}`)
-  return partes.length ? `cerca de ${partes.join(' e ')}` : 'cerca de 1 mês'
-}
-
-export { RENDIMENTO_POUPANCA_AO_ANO, RENDIMENTO_CDB_LIQUIDO_AO_ANO, PERDA_ANUAL_PAINEL }
+export { TAXA_DISPONIBILIDADE_KWH }
+export type { TipoLigacao }

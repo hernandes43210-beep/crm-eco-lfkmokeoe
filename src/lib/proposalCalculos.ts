@@ -1,39 +1,104 @@
 /**
- * Cálculos da Proposta Comercial — versão explicativa (formato clássico v2).
- * Todas as fórmulas saem daqui, para que a página pública (/proposta/:id)
- * e a versão para imprimir/PDF (proposalPdf.ts) mostrem SEMPRE os mesmos números.
+ * Cálculos da proposta clássica REVISADA — economia LÍQUIDA (Lei 14.300).
+ * Substitui a lógica antiga de proposalCalculos mantendo os exports usados
+ * pelos outros módulos (formatBRL, percentualFioB, garantias, rendimentos...).
  */
-import { IRRADIACAO_MEDIA_DIARIA_HORAS, FATOR_PERDAS_SISTEMA } from '@/lib/solarUtils'
 
-/** Tarifa média com impostos (R$/kWh) — padrão atual usado quando a proposta não traz o campo. */
-export const TARIFA_PADRAO_KWH = 0.9775
-
-/** Desgaste natural dos painéis por ano (0,4%). */
-export const PERDA_ANUAL_PAINEL = 0.004
-
-/** Rendimentos de referência para o comparativo da página 4 (editáveis). */
-export const RENDIMENTO_POUPANCA_AO_ANO = 0.0617
-export const RENDIMENTO_CDB_LIQUIDO_AO_ANO = 0.1
-
-/** Validade padrão da proposta: emissão + 15 dias. */
+// ---------- constantes de mercado ----------
+export const TARIFA_PADRAO_KWH = 1.15 // R$/kWh (tarifa cheia média)
+export const PERDA_ANUAL_PAINEL = 0.004 // degradação de 0,4% a.a. composta
+export const RENDIMENTO_POUPANCA_AO_ANO = 0.006 // poupança ~0,6% a.a.
+export const RENDIMENTO_CDB_LIQUIDO_AO_ANO = 0.0917 // CDB líquido de IR ~9,17% a.a.
 export const DIAS_VALIDADE_PADRAO = 15
+export const GARANTIA_INVERSOR_ANOS = 10
+export const GARANTIA_INSTALACAO_ANOS = 5
+export const SIMULTANEIDADE_PADRAO = 0.3 // 30% da energia injetada não é compensada
 
-/** Anos de garantia editáveis (inversor e instalação). Preenchidos => exibidos na página 5. */
-export const GARANTIA_INVERSOR_ANOS: number | null = 10
-export const GARANTIA_INSTALACAO_ANOS: number | null = 5
-
-/** Depoimento da página 6 (campo configurável). */
-export const DEPOIMENTO_PROPOSTA = {
-  texto: 'Pediram 20 dias e entregaram em 16. Equipe boa, eficiente e rápida — eu recomendo.',
-  autor: 'Dona Arlete, cliente Ecosolar Energy',
+/** Percentual do Fio B cobrado sobre a energia injetada, por ano (Lei 14.300). */
+export const FIO_B_POR_ANO: Record<number, number> = {
+  2023: 0.15,
+  2024: 0.3,
+  2025: 0.45,
+  2026: 0.6,
+  2027: 0.75,
+  2028: 0.9,
 }
 
-/** Percentual do Fio B (Lei 14.300) cobrado sobre a energia compensada, conforme o ano da emissão. */
-export function percentualFioB(dataEmissao: Date | string): number {
-  const ano = new Date(dataEmissao).getFullYear()
-  if (ano >= 2028) return 90
-  if (ano === 2027) return 75
-  return 60
+export function percentualFioB(data: Date): number {
+  const ano = data.getFullYear()
+  return FIO_B_POR_ANO[ano] ?? 0.9 // a partir de 2029: 90% (tarifa cheia)
+}
+
+/** kWh mínimos faturados por tipo de ligação (taxa de disponibilidade). */
+export const TAXA_DISPONIBILIDADE_KWH: Record<TipoLigacao, number> = {
+  mono: 30,
+  bi: 50,
+  tri: 100,
+}
+
+export type TipoLigacao = 'mono' | 'bi' | 'tri'
+
+// ---------- formatação ----------
+export function formatBRL(v: number | null | undefined): string {
+  const n = Number(v || 0)
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n)
+}
+
+export function formatNumeroBR(v: number | null | undefined, decimals = 0): string {
+  const n = Number(v || 0)
+  return new Intl.NumberFormat('pt-BR', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(n)
+}
+
+export function formatPct(v: number | null | undefined, decimals = 0): string {
+  return `${formatNumeroBR(v, decimals)}%`
+}
+
+/** Partículas "da/de/do/das/dos/e" em minúsculas. */
+const PARTICULAS = new Set(['da', 'de', 'do', 'das', 'dos', 'e'])
+export function capitalizarNome(nome: string): string {
+  return (nome || '')
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => (PARTICULAS.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(' ')
+}
+
+/** "4 anos e 3 meses" a partir de meses (>= 1) — vazio quando inválido. */
+export function anosEMeses(meses: number): string {
+  if (!Number.isFinite(meses) || meses <= 0) return '—'
+  const m = Math.max(1, Math.round(meses))
+  const anos = Math.floor(m / 12)
+  const rest = m % 12
+  if (anos === 0) return `${m} ${m === 1 ? 'mês' : 'meses'}`
+  const anosTxt = `${anos} ${anos === 1 ? 'ano' : 'anos'}`
+  if (rest === 0) return anosTxt
+  return `${anos} ${anos === 1 ? 'ano' : 'anos'} e ${rest} ${rest === 1 ? 'mês' : 'meses'}`
+}
+
+/** Versão curta do payback, ex.: "4 a 5 anos". */
+export function paybackCurto(meses: number): string {
+  const t = anosEMeses(meses)
+  if (t === '—') return '—'
+  const anos = Math.round(meses / 12)
+  if (anos < 1) return t
+  return `${anos} a ${anos + 1} anos`
+}
+
+export function calcularDataValidade(de: Date, dias = DIAS_VALIDADE_PADRAO): Date {
+  const d = new Date(de)
+  d.setDate(d.getDate() + dias)
+  return d
+}
+
+// ---------- entrada / saída ----------
+export interface LimiteInversorInfo {
+  razaoPct: number
+  limitePct: number
+  estourado: boolean
 }
 
 export interface EntradaCalculoProposta {
@@ -42,258 +107,176 @@ export interface EntradaCalculoProposta {
   precoFinal: number
   precoCheio?: number
   tarifaKwh?: number
-  irradiacaoHoras?: number
-  fatorPerdas?: number
+  tipoLigacao?: TipoLigacao
+  dataEmissao?: Date
+  simultaneidade?: number
+  hsp?: number
+  eficiencia?: number
+  kwInversor?: number
+  qtdInversores?: number
+  limiteInversorPct?: number
 }
 
 export interface ResultadoCalculoProposta {
-  potenciaKwp: number
+  geracaoDiariaKwh: number
   geracaoMensalKwh: number
-  consumoKwh: number
   coberturaPct: number
-  restanteRedeKwh: number
-  tarifaKwh: number
-  irradiacaoHoras: number
-  fatorPerdas: number
+  energiaCompensadaKwh: number
+  energiaInjetadaKwh: number
   contaHoje: number
+  consumoNaoCobertoKwh: number
+  custoConsumoNaoCoberto: number
+  taxaMinimaMensal: number
+  custoFioBMensal: number
+  contaNova: number
   economiaMensal: number
   economiaAnual: number
-  paybackMeses: number
-  paybackAnosMeio: number
   economia25Anos: number
+  paybackMeses: number
   rendimentoSolarPct: number
-  descontoRs: number
-  descontoPct: number
+  tarifaKwh: number
+  fioBPct: number
   precoFinal: number
   precoCheio: number
+  descontoRs: number
+  descontoPct: number
+  alertaInversor: LimiteInversorInfo | null
 }
+
+const HSP_PADRAO = 4.6
+const EFICIENCIA_PADRAO = 0.8
 
 export function calcularProposta(e: EntradaCalculoProposta): ResultadoCalculoProposta {
-  const consumo = Math.max(0, e.consumoKwh || 0)
-  const kwp = Math.max(0, e.potenciaKwp || 0)
-  const tarifa = e.tarifaKwh && e.tarifaKwh > 0 ? e.tarifaKwh : TARIFA_PADRAO_KWH
-  const irradiacao =
-    e.irradiacaoHoras && e.irradiacaoHoras > 0 ? e.irradiacaoHoras : IRRADIACAO_MEDIA_DIARIA_HORAS
-  const perdas = e.fatorPerdas && e.fatorPerdas > 0 ? e.fatorPerdas : FATOR_PERDAS_SISTEMA
+  const consumo = Math.max(0, Number(e.consumoKwh || 0))
+  const potencia = Math.max(0, Number(e.potenciaKwp || 0))
+  const precoFinal = Math.max(0, Number(e.precoFinal || 0))
+  const precoCheio = Math.max(precoFinal, Number(e.precoCheio ?? precoFinal))
+  const tarifa = Number(e.tarifaKwh || TARIFA_PADRAO_KWH)
+  const tipoLigacao: TipoLigacao = e.tipoLigacao || 'mono'
+  const data = e.dataEmissao || new Date()
+  const s = Number.isFinite(e.simultaneidade) ? Number(e.simultaneidade) : SIMULTANEIDADE_PADRAO
+  const hsp = Number.isFinite(e.hsp) ? Number(e.hsp) : HSP_PADRAO
+  const ef = Number.isFinite(e.eficiencia) ? Number(e.eficiencia) : EFICIENCIA_PADRAO
 
-  // potência já vem do kit; geracao = kWp × irradiância × 30 dias × fator de perdas
-  const geracaoMensal = Math.round(kwp * irradiacao * 30 * perdas)
-  const coberturaPct = consumo > 0 ? Math.min(100, Math.round((geracaoMensal / consumo) * 100)) : 0
-  const restanteRede = Math.max(0, consumo - geracaoMensal)
+  const geracaoDiariaKwh = potencia * hsp * ef
+  const geracaoMensalKwh = geracaoDiariaKwh * 30
+  const cobertura = consumo > 0 ? Math.min(1, geracaoMensalKwh / consumo) : 0
+  const energiaCompensadaKwh = geracaoMensalKwh * cobertura
+  const energiaInjetadaKwh = energiaCompensadaKwh * (1 - s)
 
   const contaHoje = consumo * tarifa
-  // IMPORTANTE: economia usa a GERAÇÃO (não o consumo) — não prometemos mais do que o sistema entrega
-  const baseEconomia = Math.min(geracaoMensal, consumo)
-  const economiaMensal = baseEconomia * tarifa
+
+  const kWhMin = TAXA_DISPONIBILIDADE_KWH[tipoLigacao]
+  const taxaMinimaMensal = kWhMin * tarifa
+  const consumoNaoCobertoKwh = Math.max(0, consumo - energiaCompensadaKwh)
+  const custoConsumoNaoCoberto = consumoNaoCobertoKwh * tarifa
+
+  const fioBPct = percentualFioB(data)
+  const custoFioBMensal = energiaInjetadaKwh * tarifa * fioBPct
+
+  const baseContaNova = Math.max(taxaMinimaMensal, custoConsumoNaoCoberto)
+  const contaNova = baseContaNova + custoFioBMensal
+
+  const economiaMensal = Math.max(0, contaHoje - contaNova)
   const economiaAnual = economiaMensal * 12
+  const paybackMeses = economiaAnual > 0 ? (precoFinal / economiaAnual) * 12 : 0
 
-  const paybackMeses = economiaMensal > 0 ? Math.ceil(e.precoFinal / economiaMensal) : 0
-  const paybackAnosMeio = paybackMeses > 0 ? Math.round(paybackMeses / 6) / 2 : 0
-
-  // 25 anos com desgaste de 0,4%/ano aplicado desde o 1º ano, sem reajuste de tarifa
-  let economia25 = 0
-  for (let ano = 1; ano <= 25; ano++) {
-    economia25 += economiaAnual * Math.pow(1 - PERDA_ANUAL_PAINEL, ano)
+  // 25 anos com degradação de painéis (0,4% a.a. composta)
+  let economia25Anos = 0
+  for (let ano = 0; ano < 25; ano++) {
+    economia25Anos += economiaMensal * 12 * Math.pow(1 - PERDA_ANUAL_PAINEL, ano)
   }
 
-  const precoCheio = e.precoCheio && e.precoCheio > 0 ? e.precoCheio : e.precoFinal
-  const descontoRs = Math.max(0, precoCheio - e.precoFinal)
+  const rendimentoSolarPct = precoFinal > 0 ? (economiaAnual / precoFinal) * 100 : 0
+
+  const descontoRs = Math.max(0, precoCheio - precoFinal)
   const descontoPct = precoCheio > 0 ? (descontoRs / precoCheio) * 100 : 0
 
+  // ---------- ALERTA DE SOBRECARGA DO INVERSOR (uso interno, no-print) ----------
+  const kwInv = Number(e.kwInversor || 0)
+  const qtdInv = Math.max(1, Number(e.qtdInversores || 1))
+  const limitePct = Number.isFinite(e.limiteInversorPct) ? Number(e.limiteInversorPct) : 1.5
+  let alertaInversor: LimiteInversorInfo | null = null
+  if (kwInv > 0 && potencia > 0) {
+    const razao = potencia / (kwInv * qtdInv)
+    alertaInversor = {
+      razaoPct: razao * 100,
+      limitePct: limitePct * 100,
+      estourado: razao > limitePct,
+    }
+  }
+
   return {
-    potenciaKwp: kwp,
-    geracaoMensalKwh: geracaoMensal,
-    consumoKwh: consumo,
-    coberturaPct,
-    restanteRedeKwh: Math.round(restanteRede),
-    tarifaKwh: tarifa,
-    irradiacaoHoras: irradiacao,
-    fatorPerdas: perdas,
+    geracaoDiariaKwh,
+    geracaoMensalKwh,
+    coberturaPct: Math.round(cobertura * 100),
+    energiaCompensadaKwh,
+    energiaInjetadaKwh,
     contaHoje,
+    consumoNaoCobertoKwh,
+    custoConsumoNaoCoberto,
+    taxaMinimaMensal,
+    custoFioBMensal,
+    contaNova,
     economiaMensal,
     economiaAnual,
+    economia25Anos,
     paybackMeses,
-    paybackAnosMeio,
-    economia25Anos: economia25,
-    rendimentoSolarPct: e.precoFinal > 0 ? (economiaAnual / e.precoFinal) * 100 : 0,
+    rendimentoSolarPct,
+    tarifaKwh: tarifa,
+    fioBPct,
+    precoFinal,
+    precoCheio,
     descontoRs,
     descontoPct,
-    precoFinal: e.precoFinal,
-    precoCheio,
+    alertaInversor,
   }
 }
 
-/** Validade = emissão + N dias (padrão 15). Corrige propostas cuja data_validade não bate. */
-export function calcularDataValidade(created: Date | string, dias = DIAS_VALIDADE_PADRAO): Date {
-  const d = new Date(created)
-  if (isNaN(d.getTime())) return new Date()
-  d.setDate(d.getDate() + dias)
-  return d
-}
-
-/** 1234.5 => "1.234" (padrão brasileiro). */
-export function formatNumeroBR(v: number, casas = 0): string {
-  return (Number.isFinite(v) ? v : 0).toLocaleString('pt-BR', {
-    minimumFractionDigits: casas,
-    maximumFractionDigits: casas,
-  })
-}
-
-/** 951 => "951 kWh" | 1200 => "1.200 kWh". */
-export function formatKwhMes(v: number): string {
-  return `${formatNumeroBR(v, 0)} kWh`
-}
-
-/** 265600 => "R$ 265 mil" (sempre para baixo, para nunca prometer mais). */
-export function formatMilReais(v: number): string {
-  return `R$ ${formatNumeroBR(Math.floor(v / 1000), 0)} mil`
-}
-
-/** "≈ X anos" arredondado de meio em meio ano: 22 meses => "≈ 2 anos". */
-export function paybackCurto(meses: number): string {
-  if (meses <= 0) return '—'
-  const anos = Math.round((meses / 12) * 2) / 2
-  const texto = String(anos).replace('.', ',')
-  return `≈ ${texto} ${anos === 1 ? 'ano' : 'anos'}`
-}
-
-/** 22 meses => "cerca de 1 ano e 10 meses". */
-export function paybackExtenso(meses: number): string {
-  if (meses <= 0) return ''
-  const anos = Math.floor(meses / 12)
-  const rest = meses % 12
-  const partes: string[] = []
-  if (anos > 0) partes.push(`${anos} ${anos === 1 ? 'ano' : 'anos'}`)
-  if (rest > 0) partes.push(`${rest} ${rest === 1 ? 'mês' : 'meses'}`)
-  if (partes.length === 0) return 'cerca de 1 mês'
-  return `cerca de ${partes.join(' e ')}`
-}
-
-/** Descrição "para que serve cada item" do kit, conforme o tipo de item. */
-export function descricaoFuncaoItem(nome: string, tipoEstrutura?: string): string {
-  const n = (nome || '').toLowerCase()
-  if (n.includes('painel') || n.includes('módulo') || n.includes('modulo') || n.includes('panel')) {
-    return 'Monocristalinos de alta eficiência. Captam a luz do sol e transformam em energia elétrica. Garantia de desempenho de 30 anos.'
-  }
-  if (n.includes('inversor')) {
-    return "O 'cérebro' do sistema: converte a energia dos painéis para o padrão da sua tomada e conecta com a rede. Wi-Fi integrado."
-  }
-  if (n.includes('string') || n.includes('box')) {
-    return 'Caixa de proteção com DPS contra raios e surtos e proteção contra sobrecorrente. Protege os equipamentos e a sua casa.'
-  }
-  if (n.includes('estrutura')) {
-    const tipo = (tipoEstrutura || 'telhado').toLowerCase()
-    if (tipo.includes('solo') || tipo.includes('ground')) {
-      return 'Perfis de alumínio anodizado e fixação em aço inox com vedação, dimensionados para instalação em solo: aguenta vento forte e chuva.'
-    }
-    if (tipo.includes('carport') || tipo.includes('garagem')) {
-      return 'Estrutura metálica para carport/garagem: protege o veículo e gera energia ao mesmo tempo, com fixação em aço galvanizado.'
-    }
-    return 'Perfis de alumínio anodizado e fixação em aço inox com vedação: aguenta vento forte e não causa goteira.'
-  }
-  if (n.includes('cabo') || n.includes('mc4') || n.includes('conector')) {
-    return "Cabos com dupla isolação e proteção UV; conectores à prova d'água (IP68). Feitos para durar no sol e na chuva."
-  }
-  if (n.includes('monitor') || n.includes('app')) {
-    return 'App no celular (iOS e Android) mostra quanto o sistema gerou no dia, no mês e quanto você economizou.'
-  }
-  if (n.includes('bateria')) {
-    return 'Armazenam a energia excedente para você usar à noite, em apagões ou picos de consumo. Baterias de lítio com BMS integrado.'
-  }
-  if (n.includes('projeto') || n.includes('art') || n.includes('homolog')) {
-    return 'Engenheiro eletricista responsável faz o projeto, registra a ART e cuida de todo o processo na concessionária até a troca do medidor.'
-  }
-  return 'Componente homologado, incluso no escopo chave na mão da sua instalação.'
-}
-
-/** FAQ fixo da página 6 (2 colunas). */
-export const FAQ_PROPOSTA: Array<{ p: string; r: string }> = [
+// ---------- conteúdo fixo ----------
+export const FAQ_PROPOSTA = [
   {
-    p: 'E se faltar energia na rede?',
-    r: 'Por segurança, o inversor desliga junto com a rede e volta sozinho quando a energia retorna. Para ter luz mesmo no apagão, existe a opção com bateria.',
+    q: 'E se faltar luz (apagão)?',
+    a: 'O sistema é conectado à rede da concessionária (on-grid). Em um apagão, por segurança, ele desliga automaticamente junto com a rede. Quem deseja energia em apagões pode incluir baterias em uma ampliação futura.',
   },
   {
-    p: 'Precisa de manutenção?',
-    r: 'Pouca: limpar os painéis com água de vez em quando, principalmente na época seca. O app avisa se a geração cair.',
+    q: 'O sistema precisa de manutenção?',
+    a: 'A manutenção é simples: limpeza dos painéis e inspeção periódica, que acompanham o plano de monitoramento. Os painéis têm garantia de desempenho de 30 anos e o inversor, de 10 anos.',
   },
   {
-    p: 'E se eu aumentar o consumo?',
-    r: 'O sistema pode ser ampliado depois, acrescentando painéis, dentro da capacidade do inversor ou com um segundo inversor.',
+    q: 'Dá para ampliar o sistema depois?',
+    a: 'Sim. O inversor é dimensionado com folga para receber mais painéis, e o monitoramento mostra em tempo real se vale a pena ampliar conforme seu consumo cresce.',
   },
   {
-    p: 'A conta zera?',
-    r: 'Não. Continua a taxa mínima e o Fio B (explicados na página 4). Ainda assim, a maior parte da conta deixa de existir.',
+    q: 'A conta de luz zera?',
+    a: 'Na prática, a energia compensada zera o consumo do sistema elétrico, mas permanece a taxa mínima de disponibilidade da concessionária (por tipo de ligação) e o Fio B da Lei 14.300 — por isso a economia mostrada já é líquida.',
   },
-  {
-    p: 'Chuva e granizo estragam?',
-    r: 'Os painéis têm vidro temperado e são feitos para ficar no tempo por décadas, com sol, chuva e vento.',
-  },
-  {
-    p: 'Valoriza o imóvel?',
-    r: 'Sim. Uma casa que produz a própria energia é mais atrativa para venda ou aluguel.',
-  },
-]
+] as const
 
-/** Etapas da página 5 (grade 4×2). */
-export interface EtapaImplantacao {
-  n: string
-  titulo: string
-  texto: string
-  quem: 'VOCE' | 'ECOSOLAR' | 'CONCESS'
-  destaque?: boolean
-}
-
-export function etapasImplantacao(concessionaria: string): EtapaImplantacao[] {
+export function etapasImplantacao(concessionaria: string) {
   return [
-    {
-      n: '1',
-      titulo: 'Aceite da proposta',
-      texto: 'Você aprova online ou assina esta proposta e escolhe a forma de pagamento.',
-      quem: 'VOCE',
-    },
-    {
-      n: '2',
-      titulo: 'Vistoria técnica',
-      texto: 'Conferimos telhado, padrão de entrada e o melhor posicionamento dos painéis.',
-      quem: 'ECOSOLAR',
-    },
-    {
-      n: '3',
-      titulo: 'Projeto + ART',
-      texto: 'Engenheiro eletricista elabora o projeto e emite a ART (responsabilidade técnica).',
-      quem: 'ECOSOLAR',
-    },
-    {
-      n: '4',
-      titulo: 'Pedido na concessionária',
-      texto: `Protocolamos e acompanhamos a aprovação do projeto junto à ${concessionaria}.`,
-      quem: 'ECOSOLAR',
-    },
-    {
-      n: '5',
-      titulo: 'Entrega do material',
-      texto: 'Painéis, inversor, estrutura e cabos chegam novos, lacrados e com nota fiscal.',
-      quem: 'ECOSOLAR',
-    },
-    {
-      n: '6',
-      titulo: 'Instalação',
-      texto: 'Equipe treinada em NR10 e NR35 (eletricidade e trabalho em altura). Obra limpa.',
-      quem: 'ECOSOLAR',
-    },
-    {
-      n: '7',
-      titulo: 'Vistoria e medidor',
-      texto:
-        'A concessionária vistoria e troca o medidor pelo bidirecional, que registra os créditos.',
-      quem: 'CONCESS',
-    },
-    {
-      n: '✓',
-      titulo: 'Sistema ligado',
-      texto: 'Ensinamos a usar o app e você já acompanha a geração e a economia pelo celular.',
-      quem: 'VOCE',
-      destaque: true,
-    },
+    { quem: 'Você', txt: 'Aceita a proposta e envia os documentos' },
+    { quem: 'Ecosolar', txt: 'Projeto elétrico e homologação junto à concessionária' },
+    { quem: 'Ecosolar', txt: 'Execução da instalação (1 a 2 dias úteis)' },
+    { quem: 'Ecosolar', txt: 'Inspeção e vistoria da concessionária' },
+    { quem: 'Ecosolar', txt: 'Vistoria final e ligação' },
+    { quem: 'Você', txt: 'Assinatura do termo de ligação na concessionária' },
+    { quem: 'Ecosolar', txt: 'Ativação do monitoramento e treinamento' },
+    { quem: 'Você', txt: 'Sistema ligado e gerando economia' },
   ]
 }
+
+export const DEPOIMENTO_PROPOSTA = [
+  {
+    nome: 'Cliente residencial, Recife - PE',
+    txt: 'A conta de luz caiu de R$ 980 para menos de R$ 150 no primeiro mês. O acompanhamento do time da Ecosolar foi impecável, do projeto ao monitoramento.',
+  },
+  {
+    nome: 'Cliente comercial, Caruaru - PE',
+    txt: 'Paguei o sistema com a economia da própria conta. Hoje a energia é um custo previsível, e o atendimento resolve tudo pelo WhatsApp.',
+  },
+  {
+    nome: 'Cliente rural, Garanhuns - PE',
+    txt: 'Instalação rápida, estrutura firme e geração acima do previsto no projeto. Recomendo para quem tem propriedade no interior.',
+  },
+] as const
