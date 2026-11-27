@@ -4,7 +4,14 @@
  * Fonte dos números: calcularProposta (economia líquida, Lei 14.300).
  */
 import type { PublicProposta } from '@/types/crm'
-import { parsePainelJson, parseInversorJson } from '@/services/kitGerador'
+import {
+  parsePaineisLinhas,
+  parseInversoresLinhas,
+  parseBateriasJson,
+  type PainelJsonValor,
+  type InversorJsonValor,
+} from '@/services/kitGerador'
+import { rotuloBateria } from './propostaBaterias'
 import {
   calcularProposta,
   calcularDataValidade,
@@ -134,6 +141,9 @@ export interface DadosV2 {
 
 export type PropostaInput = PublicProposta
 
+/** O expand do kit, em runtime, traz também os campos JSON do kit gerado. */
+type KitCamposJson = { painel?: PainelJsonValor; inversor?: InversorJsonValor }
+
 function parseTipoLigacao(p: PropostaInput): TipoLigacao {
   const t = ((p as unknown as Record<string, unknown>).tipo_ligacao as string) || ''
   const tl = t.toLowerCase()
@@ -153,7 +163,20 @@ export function proposalDataDePublica(
 ): DadosV2 {
   const emp: EmpresaProposta = { ...EMPRESA_PADRAO, ...empresa }
   const kit = p.kit
-  const painel = parsePainelJson(kit?.marca_painel ? { marca: kit.marca_painel } : null)
+  const kitJson = (kit ?? {}) as unknown as KitCamposJson
+  const paineisLinhas = parsePaineisLinhas(kitJson.painel ?? null)
+  const painel =
+    paineisLinhas[0] ??
+    (kit?.marca_painel || p.kit_marca_painel
+      ? {
+          marca: kit?.marca_painel || p.kit_marca_painel || '',
+          modelo: '',
+          potencia_w: Number(kit?.potencia_painel_w || p.kit_potencia_painel_w || 0),
+          area_m2: 0,
+          qtd: 0,
+        }
+      : null)
+  const inversoresLinhas = parseInversoresLinhas(kitJson.inversor ?? null)
   const tipoLigacao = parseTipoLigacao(p)
   const dataEmissao = p.created ? new Date(p.created) : new Date()
   const dataValidade = p.data_validade
@@ -206,18 +229,29 @@ export function proposalDataDePublica(
     geracaoMensalKwh: calc.geracaoMensalKwh,
     areaM2: painel?.area_m2 && painel?.qtd ? painel.area_m2 * painel.qtd : potenciaKwp * M2_POR_KWP,
     painelModelo: painel
-      ? `${painel.marca} ${painel.modelo}`.trim()
+      ? `${painel.marca} ${painel.modelo || ''}`.trim() || 'Painel fotovoltaico monocristalino'
       : 'Painel fotovoltaico monocristalino',
     painelQtd: painel?.qtd ? Number(painel.qtd) : 0,
     painelGarantiaProduto: '12 anos',
     painelGarantiaDesempenho: '30 anos',
     inversorModelo: (() => {
-      const inv = parseInversorJson(kit?.marca_inversor ? { marca: kit.marca_inversor } : null)
-      return inv ? `${inv.marca} ${inv.modelo}`.trim() : 'Inversor string'
+      const inv = inversoresLinhas[0]
+      if (inv) return `${inv.marca} ${inv.modelo}`.trim()
+      return kit?.marca_inversor || p.kit_marca_inversor
+        ? (kit?.marca_inversor || p.kit_marca_inversor || '').trim()
+        : 'Inversor string'
     })(),
     inversorKw: Number(kit?.potencia_inversor_kw || p.kit_potencia_inversor_kw || 0),
     inversorQtd: Number(kit?.qtd_inversores || p.kit_qtd_inversores || 1),
-    kitItens: [],
+    kitItens: (() => {
+      // Baterias do kit entram como linhas do "O que vem no seu kit" (v0.0.79+).
+      const baterias = parseBateriasJson(p.kit_baterias)
+      return baterias.map((b) => ({
+        nome: rotuloBateria(b),
+        qtd: String(b.qtd || 1),
+        obs: 'Armazenamento de energia (ampliação opcional)',
+      }))
+    })(),
     fotoCapa,
     calc,
     fioBPct: percentualFioB(dataEmissao),
