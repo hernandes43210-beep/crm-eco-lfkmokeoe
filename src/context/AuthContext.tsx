@@ -10,6 +10,8 @@ interface AuthContextType {
   isEngenheiro: boolean
   isInstalador: boolean
   isVendedor: boolean
+  /** Gestor de instalações: Admin/CEO — vê TODAS as instalações (visão gerencial). */
+  isGestorInstalacoes: boolean
   podeSupervisionarEngenharia: boolean
   login: (email: string, pass: string) => Promise<void>
   logout: () => void
@@ -88,6 +90,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isEngenheiro: user?.role === 'Engenheiro',
         isInstalador: user?.role === 'Instalador',
         isVendedor: user?.role === 'Vendedor',
+        // 'CEO' aceito defensivamente: hoje o select de role não tem o valor, mas se vier
+        // a ter, o perfil CEO também é gestor. Admin já cobre o CEO real (Hernandes).
+        isGestorInstalacoes: user?.role === 'Admin' || (user?.role as string) === 'CEO',
         podeSupervisionarEngenharia:
           user?.role === 'Admin' || !!user?.pode_supervisionar_engenharia,
         login,

@@ -53,7 +53,7 @@ const CORES_STATUS: Record<InstalacaoStatus, string> = {
 }
 
 export default function MinhasInstalacoes() {
-  const { user } = useAuth()
+  const { user, isGestorInstalacoes, isInstalador } = useAuth()
   const [instalacoes, setInstalacoes] = useState<InstalacaoInstalador[]>([])
   const [loading, setLoading] = useState(true)
   const [salvandoId, setSalvandoId] = useState<string | null>(null)
@@ -61,13 +61,18 @@ export default function MinhasInstalacoes() {
   const carregar = async () => {
     try {
       setLoading(true)
-      const lista = await InstalacoesService.listar(user?.id)
+      // Instalador: só o que foi enviado a ele. Admin/CEO: todas as instalações (RLS libera).
+      const lista = isGestorInstalacoes
+        ? await InstalacoesService.listar()
+        : await InstalacoesService.listar(user?.id)
       setInstalacoes(lista)
     } catch (err) {
       console.error('Erro ao carregar instalações:', err)
       toast({
         title: 'Erro',
-        description: 'Não foi possível carregar suas instalações.',
+        description: isGestorInstalacoes
+          ? 'Não foi possível carregar as instalações.'
+          : 'Não foi possível carregar suas instalações.',
         variant: 'destructive',
       })
     } finally {
@@ -138,7 +143,9 @@ export default function MinhasInstalacoes() {
           <div>
             <h2 className="text-xl font-bold text-slate-900">Minhas Instalações</h2>
             <p className="text-sm text-slate-500">
-              Instalações solares atribuídas a você pela equipe Ecosolar.
+              {isGestorInstalacoes
+                ? 'Todas as instalações enviadas pela equipe Ecosolar, de todos os instaladores.'
+                : 'Instalações solares atribuídas a você pela equipe Ecosolar.'}
             </p>
           </div>
         </div>
@@ -182,10 +189,15 @@ export default function MinhasInstalacoes() {
             <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
               <Wrench className="w-6 h-6 text-slate-400" />
             </div>
-            <p className="text-sm font-semibold text-slate-700">Nenhuma instalação atribuída</p>
+            <p className="text-sm font-semibold text-slate-700">
+              {isGestorInstalacoes
+                ? 'Nenhuma instalação enviada ainda'
+                : 'Nenhuma instalação atribuída'}
+            </p>
             <p className="text-xs text-slate-500 max-w-sm">
-              Quando a equipe enviar uma instalação para você, ela aparecerá aqui com o endereço,
-              localização, datasheets e o Contrato de Responsabilidade enviado por e-mail.
+              {isGestorInstalacoes
+                ? 'Quando o Admin enviar uma instalação a um instalador, ela aparecerá aqui.'
+                : 'Quando a equipe enviar uma instalação para você, ela aparecerá aqui com o endereço, localização, datasheets e o Contrato de Responsabilidade enviado por e-mail.'}
             </p>
           </CardContent>
         </Card>
@@ -194,6 +206,7 @@ export default function MinhasInstalacoes() {
           {instalacoes.map((inst) => {
             const datasheets = parseDatasheets(inst.datasheets)
             const mapsUrl = mapUrl(inst)
+            const nomeInstalador = inst.expand?.instalador?.name
             return (
               <Card key={inst.id} className="border-slate-200 shadow-xs overflow-hidden">
                 <CardHeader className="pb-3 bg-slate-50/70 border-b border-slate-100">
@@ -211,6 +224,12 @@ export default function MinhasInstalacoes() {
                       {ROTULOS_STATUS_INSTALACAO[inst.status] || inst.status}
                     </Badge>
                   </div>
+                  {isGestorInstalacoes && (
+                    <p className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
+                      <Wrench className="w-3 h-3 text-slate-400" />
+                      Instalador responsável: {nomeInstalador || 'não informado'}
+                    </p>
+                  )}
                 </CardHeader>
                 <CardContent className="pt-4 space-y-4">
                   {/* Endereço + localização */}

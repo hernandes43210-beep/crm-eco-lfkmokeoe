@@ -36,7 +36,7 @@ import { ChangePasswordModal } from '@/components/ChangePasswordModal'
 import { cn } from '@/lib/utils'
 
 export default function Layout() {
-  const { user, logout, isAdmin, isEngenheiro, isInstalador } = useAuth()
+  const { user, logout, isAdmin, isEngenheiro, isInstalador, isGestorInstalacoes } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
@@ -89,6 +89,8 @@ export default function Layout() {
           { label: 'Kits', path: '/gerador-kits', icon: Package },
           { label: 'Financiamento FNO', path: '/financiamento-fno', icon: Landmark },
           { label: 'WhatsApp', path: '/whatsapp', icon: MessageSquare },
+          // Admin/CEO acessam a área do instalador (visão gerencial de todas as instalações)
+          { label: 'Minhas Instalações', path: '/minhas-instalacoes', icon: Wrench },
           ...(isAdmin
             ? [
                 { label: 'Área de Engenharia', path: '/engenharia', icon: HardHat },
@@ -113,7 +115,8 @@ export default function Layout() {
     if (path === '/gerador-kits') return 'Gerador de Kit Solar'
     if (path === '/financiamento-fno') return 'Financiamento FNO (BASA)'
     if (path === '/whatsapp') return 'WhatsApp & Atendimento Solar'
-    if (path === '/minhas-instalacoes') return 'Minhas Instalações'
+    if (path === '/minhas-instalacoes')
+      return isInstalador ? 'Minhas Instalações' : 'Instalações (Área do Instalador)'
     if (path === '/engenharia')
       return isAdmin ? 'Área de Engenharia & Homologação' : 'Meus Documentos Recebidos'
     if (path === '/integracoes') return 'Integrações & Configurações de APIs'
