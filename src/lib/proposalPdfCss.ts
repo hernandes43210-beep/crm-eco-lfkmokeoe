@@ -149,7 +149,7 @@ export const PROPOSTA_V2_CSS = `
 @media print{
   @page{size:A4 portrait;margin:0}
   body{background:#fff !important}
-  .no-print,.pv-alerta-interno{display:none !important}
+  .no-print,.pv-alerta-interno,.pv-somente-tela{display:none !important}
   .prop-v2{padding:0 !important;background:#fff !important}
   .pv-page{box-shadow:none !important;margin:0 !important;border-radius:0 !important;width:210mm !important;height:297mm !important;break-inside:avoid;page-break-inside:avoid;break-after:page}
   .pv-page:last-child{break-after:auto;page-break-after:auto}
