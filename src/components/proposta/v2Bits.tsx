@@ -1,79 +1,76 @@
-/**
- * Blocos visuais compartilhados entre as 6 páginas da proposta clássica v2 na tela.
- * Espelham os blocos de proposalPdf.ts (header interno, rodapé, foto com placeholder).
- */
-import type { DadosV2, FotoProposta } from '@/lib/proposalDadosV2'
+import type { DadosV2 } from '@/lib/proposalDadosV2'
+import { CORES_PROPOSTA } from '@/lib/proposalPdfCss'
 
-export function CabecalhoInterno({ d }: { d: DadosV2 }) {
+interface CabecalhoInternoProps {
+  d: DadosV2
+  pagina: number
+}
+
+/** Cabeçalho das páginas internas (não usado na capa). */
+export function CabecalhoInterno({ d, pagina }: CabecalhoInternoProps) {
   return (
-    <header className="pv-header">
-      <div className="pv-logo">
-        <span className="eco">ECO</span>
-        <span className="solar">SOLAR</span> <span className="energy">ENERGY</span>
+    <div className="pv-cabecalho">
+      <div className="marca">
+        ECO<span className="solar">SOLAR</span> ENERGY
       </div>
-      <div className="pv-header-info">
-        <div>
-          <strong>PROPOSTA Nº {d.numero}</strong>
-        </div>
-        <div>
-          Emissão {d.emissaoBR} • Válida até <strong>{d.validadeBR}</strong>
-        </div>
+      <div className="num">
+        Proposta nº {String(d.numero).slice(-6).toUpperCase()} · pág. {pagina}
       </div>
-    </header>
+    </div>
   )
 }
 
-export function RodapeInterno({ pagina }: { pagina: number }) {
+interface RodapeInternoProps {
+  d: DadosV2
+  pagina: number
+}
+
+/** Rodapé fixo das páginas internas. */
+export function RodapeInterno({ d, pagina }: RodapeInternoProps) {
   return (
-    <footer className="pv-footer">
+    <div className="pv-rodape">
       <span>
-        <strong>Ecosolar Energy</strong> — A energia do futuro, hoje!
+        {d.empresa.nome} · {d.empresa.slogan}
       </span>
-      <span className="pv-pgnum">Página {pagina}</span>
-    </footer>
+      <span className="pg">{pagina}</span>
+    </div>
   )
 }
 
-/** Foto com legenda; sem foto, mostra o mesmo placeholder de gradiente do PDF. */
-export function FotoV2({ foto, classe = '' }: { foto: FotoProposta | null; classe?: string }) {
-  if (!foto) {
+interface FotoV2Props {
+  d: DadosV2
+}
+
+/** Foto de CAPA do kit (única foto permitida — decisão do usuário: nada de fotos de obras). */
+export function FotoV2({ d }: FotoV2Props) {
+  if (!d.fotoCapa) {
     return (
-      <div className={`pv-foto ${classe}`}>
-        <div
-          style={{
-            width: '100%',
-            height: '100%',
-            background: 'linear-gradient(140deg,#0b1f4d,#1d4290)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#ffd23f',
-            fontFamily: 'Montserrat, sans-serif',
-            fontWeight: 800,
-            fontSize: '9pt',
-            textAlign: 'center',
-            padding: '4mm',
-          }}
-        >
-          ECOSOLAR ENERGY
-        </div>
-      </div>
+      <div
+        className="pv-capa-foto"
+        style={{
+          background: `linear-gradient(140deg, ${CORES_PROPOSTA.amarelo}, ${CORES_PROPOSTA.navyEscuro})`,
+        }}
+      />
     )
   }
   return (
-    <figure className={`pv-foto ${classe}`}>
-      <img src={foto.url} alt={foto.legenda} />
-      <figcaption className="leg">{foto.legenda}</figcaption>
-    </figure>
+    <div className="pv-capa-foto">
+      <img src={d.fotoCapa.url} alt={d.fotoCapa.legenda || 'Imagem do sistema solar proposto'} />
+      {d.fotoCapa.legenda ? <div className="legenda">{d.fotoCapa.legenda}</div> : null}
+    </div>
   )
 }
 
-/** Item com bolinha colorida (verde = incluso, cinza = observação). */
-export function LiV2({ cor = 'v', children }: { cor?: 'v' | 'c'; children: React.ReactNode }) {
+interface LiV2Props {
+  children: React.ReactNode
+}
+
+/** Item de lista com marcador amarelo. */
+export function LiV2({ children }: LiV2Props) {
   return (
-    <div className="pv-li">
-      <span className={`bola ${cor}`} />
-      <span>{children}</span>
-    </div>
+    <li style={{ display: 'flex', gap: '2mm', alignItems: 'flex-start' }}>
+      <span style={{ color: CORES_PROPOSTA.amareloEscuro, fontWeight: 900 }}>•</span>
+      <span style={{ flex: 1 }}>{children}</span>
+    </li>
   )
 }

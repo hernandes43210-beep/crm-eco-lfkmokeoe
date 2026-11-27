@@ -23,8 +23,7 @@ import { PropostaStoryViewer } from '@/components/PropostaStoryViewer'
 import { PROPOSTA_V2_CSS, FONTS_PROPOSTA_LINK } from '@/lib/proposalPdfCss'
 import { PropostaViewerErrorBoundary } from '@/components/PropostaViewerErrorBoundary'
 import { CabecalhoDoc } from '@/components/proposta/DocumentoViewer'
-import { proposalDataDePublica, resolverFotosTela } from '@/components/proposta/v2Helpers'
-import { montarDadosV2 } from '@/lib/proposalDadosV2'
+import { proposalDataDePublica } from '@/lib/proposalDadosV2'
 import { PaginaCapa } from '@/components/proposta/v2PaginaCapa'
 import { PaginaApresentacao } from '@/components/proposta/v2PaginaApresentacao'
 import { PaginaSistema } from '@/components/proposta/v2PaginaSistema'
@@ -507,13 +506,11 @@ export default function PropostaPublica() {
   }
 
   // ===== FORMATO CLÁSSICO v2 — as 6 páginas novas (mesma fonte de dados do PDF) =====
-  const dadosProposta = proposalDataDePublica(proposta)
-  const dadosV2 = montarDadosV2(dadosProposta)
-  const fotosV2 = resolverFotosTela(proposta)
   const linkPublicoProposta =
     typeof window !== 'undefined'
       ? `${window.location.origin}/proposta/${proposta.token_publico}`
       : `/proposta/${proposta.token_publico}`
+  const dadosV2 = proposalDataDePublica(proposta, undefined, linkPublicoProposta)
 
   return (
     <PropostaViewerErrorBoundary
@@ -654,12 +651,12 @@ export default function PropostaPublica() {
 
           {/* Folha(s) do documento */}
           <div className="prop-v2 pt-2">
-            <PaginaCapa d={dadosV2} fotos={fotosV2} />
+            <PaginaCapa d={dadosV2} />
             <PaginaApresentacao d={dadosV2} />
             <PaginaSistema d={dadosV2} />
-            <PaginaInvestimento d={dadosV2} kitNome={proposta.kit_nome || ''} />
+            <PaginaInvestimento d={dadosV2} />
             <PaginaComoVaiSer d={dadosV2} />
-            <PaginaFinal d={dadosV2} fotos={fotosV2} linkPublico={linkPublicoProposta}>
+            <PaginaFinal d={dadosV2} linkPublico={linkPublicoProposta}>
               {/* Card de Aceite Online com Assinatura Digital (mantido do formato clássico) */}
               <Card
                 id="secao-assinatura-classica"
