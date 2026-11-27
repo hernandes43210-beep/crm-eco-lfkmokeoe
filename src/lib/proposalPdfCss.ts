@@ -135,7 +135,7 @@ export const PROPOSTA_V2_CSS = `
 .pv-aceite{border:1.5px solid #0B1E4A;border-radius:3mm;padding:4mm 5mm;background:linear-gradient(180deg,#F8FAFD,#fff)}
 .pv-aceite .mono{display:block;font-size:8pt;font-weight:700;color:#0B1E4A;word-break:break-all;background:#F3F5FA;border-radius:2mm;padding:2mm 2.5mm;margin-top:2mm}
 .pv-aceite .qrbox{display:flex;gap:4mm;align-items:center;margin-top:2.5mm}
-.pv-aceite .qrbox img,.pv-aceite .qrbox canvas{width:26mm;height:26mm}
+.pv-aceite .qrbox img,.pv-aceite .qrbox canvas,.pv-aceite .qrbox svg{width:26mm;height:26mm}
 .pv-aceite .qrtexto{font-size:7.6pt;color:#5A6680;line-height:1.5}
 .pv-aceite-tela{margin-top:2.5mm}
 .pv-assina{display:flex;gap:8mm;margin-top:3mm}
@@ -158,5 +158,6 @@ export const PROPOSTA_V2_CSS = `
 
 /** CSS extra injetado só na tela de impressão/PDF (esconde a UI do CRM). */
 export const IMPRESSAO_CSS_EXTRA = `
-@media print{.no-print,.pv-alerta-interno{display:none !important}}
+@media print{.no-print,.pv-alerta-interno,.pv-somente-tela{display:none !important}}
+@media print{@page{size:A4 portrait;margin:0}body{background:#fff !important}.prop-v2{padding:0 !important;background:#fff !important}.pv-page{box-shadow:none !important;margin:0 !important;border-radius:0 !important;width:210mm !important;height:297mm !important;break-inside:avoid;page-break-inside:avoid;break-after:page}.pv-page:last-child{break-after:auto;page-break-after:auto}}
 `

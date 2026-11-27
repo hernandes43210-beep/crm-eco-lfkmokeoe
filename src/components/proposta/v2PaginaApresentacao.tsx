@@ -1,93 +1,98 @@
-import { CabecalhoInterno, RodapeInterno, LiV2 } from './v2Bits'
+import { CabecalhoInterno, RodapeInterno } from './v2Bits'
 import type { DadosV2 } from '@/lib/proposalDadosV2'
 
 interface PaginaApresentacaoProps {
   d: DadosV2
 }
 
-/** Página 2 — APRESENTAÇÃO (resumo do cliente e da conta de luz hoje). */
+/** Página 2 — APRESENTAÇÃO (resumo em 30 segundos + trilha Sol→Casa→Rede + De dia/À noite). */
 export function PaginaApresentacao({ d }: PaginaApresentacaoProps) {
+  const primeiroNome = (d.clienteNome || 'Cliente').trim().split(/\s+/)[0]
+
   return (
     <div className="pv-page">
       <CabecalhoInterno d={d} pagina={2} />
       <div
         className="pv-pad"
-        style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6mm' }}
+        style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4mm' }}
       >
         <div>
           <span className="pv-sec-tag">Apresentação</span>
           <div className="pv-sec-title" style={{ marginTop: '2mm' }}>
-            Entenda a sua conta de energia hoje
-          </div>
-          <p className="pv-sub" style={{ marginTop: '1.5mm' }}>
-            Proposta nº {String(d.numero).slice(-6).toUpperCase()} preparada para{' '}
-            <strong>{d.clienteNome}</strong> ({d.cidadeUf || 'região a confirmar'}).
-          </p>
-        </div>
-
-        {/* resumo */}
-        <div className="pv-resumo">
-          <div className="pv-kpi">
-            <div className="k">Consumo mensal</div>
-            <div className="v">{d.consumoKwh} kWh</div>
-          </div>
-          <div className="pv-kpi">
-            <div className="k">Conta hoje</div>
-            <div className="v">{d.txt.contaHojeRS}</div>
-          </div>
-          <div className="pv-kpi">
-            <div className="k">Conta nova</div>
-            <div className="v am">{d.txt.contaNovaRS}</div>
-            <div className="n">taxa mínima + Fio B</div>
-          </div>
-          <div className="pv-kpi hl">
-            <div className="k">Economia mensal</div>
-            <div className="v">{d.txt.economiaMensalRS}</div>
-            <div className="n">valor líquido já descontado</div>
+            Olá, {primeiroNome}! Aqui está o resumo em 30 segundos
           </div>
         </div>
 
-        {/* fórmula da conta nova */}
-        <div className="pv-formula">
-          <span style={{ fontSize: '8pt', color: '#C9D4EA' }}>
-            Conta nova = taxa mínima ({d.txt.taxaMinimaRS}) + Fio B ({d.txt.fioBRS})
-          </span>
-          <span className="r">{d.txt.contaNovaRS}</span>
+        <p className="pv-corpo">
+          Analisamos o seu consumo de <b>{d.consumoKwh || '—'} kWh/mês</b> em{' '}
+          <b>{d.cidadeUf || 'sua região'}</b> e dimensionamos um sistema que gera{' '}
+          <b>~{d.txt.geracaoTxt}</b> por mês. Na prática: a conta de luz de hoje (
+          <b>{d.txt.contaHojeRS}</b>) passa a custar em torno de <b>{d.txt.contaNovaRS}</b> — só a
+          taxa mínima e o Fio B. Você fica sabendo do investimento na página 4, com tudo incluso e
+          sem surpresa.
+        </p>
+
+        {/* resumo em 4 KPIs */}
+        <div className="pv-minis" style={{ marginTop: '1mm' }}>
+          <div className="pv-mini">
+            <div className="k">Potência instalada</div>
+            <div className="v">{d.txt.potenciaTxt}</div>
+          </div>
+          <div className="pv-mini">
+            <div className="k">Geração mensal</div>
+            <div className="v">~{d.txt.geracaoTxt}</div>
+          </div>
+          <div className="pv-mini">
+            <div className="k">Economia/mês</div>
+            <div className="v am">{d.txt.economiaMensalRS}</div>
+          </div>
+          <div className="pv-mini">
+            <div className="k">Retorno</div>
+            <div className="v">{d.txt.paybackCurto}</div>
+          </div>
         </div>
 
-        {/* pontos */}
-        <div className="pv-card">
-          <h3>O que está incluído nesta proposta</h3>
-          <ul
-            style={{
-              listStyle: 'none',
-              padding: 0,
-              margin: 0,
-              display: 'grid',
-              gap: '1.8mm',
-              fontSize: '8.2pt',
-              color: '#1A2440',
-            }}
-          >
-            <LiV2>Projeto elétrico e homologação junto à concessionária (chave na mão)</LiV2>
-            <LiV2>
-              Kit: {d.painelModelo} ({d.painelQtd || '—'} pçs) + {d.inversorModelo} ({d.inversorKw}{' '}
-              kW)
-            </LiV2>
-            <LiV2>Instalação, estruturas, cabeamento e string box</LiV2>
-            <LiV2>Monitoramento de geração e suporte pós-instalação</LiV2>
-          </ul>
-        </div>
-
-        {/* fluxo resumido */}
-        <div className="pv-fluxo">
-          {d.etapas.slice(0, 4).map((e, i) => (
-            <div className="etapa" key={i}>
-              <b>{e.quem}</b>
-              {e.txt}
+        {/* trilha Sol → Painéis → Inversor → Casa → Rede */}
+        <div className="pv-trilha" style={{ marginTop: '2mm' }}>
+          {d.trilha.map((t) => (
+            <div className="etapa" key={t.k}>
+              <div className="etapa-ic" aria-hidden="true">
+                {t.k === 'sol'
+                  ? '☀'
+                  : t.k === 'painel'
+                    ? '▤'
+                    : t.k === 'inversor'
+                      ? '⌁'
+                      : t.k === 'casa'
+                        ? '⌂'
+                        : '⚡'}
+              </div>
+              <div className="etapa-t">{t.t}</div>
+              <div className="etapa-x">{t.x}</div>
             </div>
           ))}
-          <div className="seta">→</div>
+        </div>
+
+        {/* De dia / À noite */}
+        <div className="pv-dia-noite" style={{ marginTop: '2mm' }}>
+          <div className="col">
+            <div className="col-t" style={{ color: '#B45309' }}>
+              ☀ De dia
+            </div>
+            <div className="col-x">
+              Os painéis produzem energia e a sua casa consome direto da sua própria usina. O que
+              sobra vira crédito automaticamente.
+            </div>
+          </div>
+          <div className="col">
+            <div className="col-t" style={{ color: '#1D4ED8' }}>
+              ☾ À noite
+            </div>
+            <div className="col-x">
+              Os créditos de energia gerada durante o dia abastecem o consumo noturno. É assim que a
+              conta continua baixa fora do sol.
+            </div>
+          </div>
         </div>
       </div>
       <RodapeInterno d={d} pagina={2} />

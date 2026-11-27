@@ -1,115 +1,107 @@
 import { CabecalhoInterno, RodapeInterno } from './v2Bits'
-import { formatNumeroBR } from '@/lib/proposalCalculos'
 import type { DadosV2 } from '@/lib/proposalDadosV2'
 
 interface PaginaSistemaProps {
   d: DadosV2
 }
 
-/** Página 3 — SISTEMA (dimensionamento, equipamentos e cobertura). */
+/** Página 3 — SISTEMA (fórmula tracejada, cobertura, tabela do kit com Qtd./Item/Para que serve/Incluso). */
 export function PaginaSistema({ d }: PaginaSistemaProps) {
-  const fioBPct = Math.round(d.fioBPct * 100)
   return (
     <div className="pv-page">
       <CabecalhoInterno d={d} pagina={3} />
       <div
         className="pv-pad"
-        style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5mm' }}
+        style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3.5mm' }}
       >
         <div>
           <span className="pv-sec-tag">O sistema</span>
           <div className="pv-sec-title" style={{ marginTop: '2mm' }}>
-            Dimensionamento para {d.cidadeUf || 'sua região'}
+            Como chegamos no tamanho certo
           </div>
-          <p className="pv-sub" style={{ marginTop: '1.5mm' }}>
-            Sistema de {d.txt.potenciaTxt} gerando cerca de {d.txt.geracaoTxt} — área estimada de{' '}
-            {formatNumeroBR(d.areaM2, 0)} m² no {d.tipoTelhado}.
-          </p>
         </div>
 
-        {/* fórmula de geração */}
-        <div className="pv-formula">
-          <span className="f">{d.txt.potenciaTxt} × irradiação × rendimento</span>
-          <span className="r">{d.txt.geracaoTxt}</span>
-        </div>
+        {/* fórmula tracejada da geração */}
+        <div className="pv-formula">{d.txt.formulaTxt}</div>
 
-        {/* cobertura */}
+        {/* barra de cobertura */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span style={{ fontSize: '8.5pt', fontWeight: 700, color: '#0B1E4A' }}>
-              Cobertura estimada do consumo
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '8pt',
+              color: '#5A6680',
+              marginBottom: '1.5mm',
+            }}
+          >
+            <span>
+              Cobertura estimada do seu consumo:{' '}
+              <b style={{ color: '#0B1E4A' }}>{d.txt.coberturaTxt}</b>
             </span>
-            <span
-              style={{
-                fontFamily: 'Montserrat, sans-serif',
-                fontWeight: 900,
-                fontSize: '13pt',
-                color: '#0B1E4A',
-              }}
-            >
-              {d.txt.coberturaPctTxt}
+            <span>
+              Geração ~{d.txt.geracaoTxt} • Consumo {d.consumoKwh || '—'} kWh/mês
             </span>
           </div>
-          <div className="pv-barra-cobertura" style={{ marginTop: '2mm' }}>
+          <div className="pv-barra-out">
             <div
-              className="fill"
-              style={{
-                width: `${Math.min(100, d.calc.coberturaPct)}%`,
-                justifyContent: d.calc.coberturaPct > 15 ? 'flex-end' : 'flex-start',
-                paddingLeft: d.calc.coberturaPct > 15 ? 0 : '2mm',
-              }}
-            >
-              {d.calc.coberturaPct}%
-            </div>
+              className="pv-barra-in"
+              style={{ width: `${Math.max(2, Math.min(100, d.coberturaPct))}%` }}
+            />
           </div>
-          <p className="pv-nota" style={{ marginTop: '1.5mm' }}>
-            Energia compensada: {formatNumeroBR(d.calc.energiaCompensadaKwh)} kWh/mês · Fio B da Lei
-            14.300 no ano: {fioBPct}% da energia injetada ({d.txt.fioBRS}/mês).
-          </p>
+          <div style={{ fontSize: '7.5pt', color: '#5A6680', marginTop: '1.5mm' }}>
+            O excedente vira crédito na distribuidora e compensa o consumo noturno e chuvoso (Lei
+            14.300).
+          </div>
         </div>
 
-        {/* tabela de equipamentos */}
-        <div>
+        {/* tabela do kit */}
+        <div className="pv-tabela-wrap">
           <table className="pv-tabela">
             <thead>
               <tr>
-                <th>Equipamento</th>
-                <th>Modelo</th>
-                <th>Qtd.</th>
+                <th style={{ width: '12mm' }}>Qtd.</th>
+                <th style={{ width: '52mm' }}>Item</th>
+                <th>Para que serve</th>
+                <th style={{ width: '22mm' }}>Incluso</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td className="qtd">Painel fotovoltaico</td>
-                <td>{d.painelModelo}</td>
-                <td className="qtd">{d.painelQtd || '—'}</td>
-              </tr>
-              <tr>
-                <td className="qtd">Inversor</td>
-                <td>{d.inversorModelo}</td>
-                <td className="qtd">
-                  {d.inversorQtd} × {d.inversorKw} kW
-                </td>
-              </tr>
+              {d.itensKit.map((it) => (
+                <tr key={it.item}>
+                  <td className="qtd">{it.qtd}</td>
+                  <td>
+                    <b>{it.item}</b>
+                  </td>
+                  <td className="para">{it.paraQue}</td>
+                  <td className="incluso">{it.incluso}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
 
-        {/* garantias */}
-        <div className="pv-grid2">
-          <div className="pv-card">
-            <h3>Garantia dos painéis</h3>
-            <p style={{ fontSize: '8.2pt', color: '#1A2440' }}>
-              {d.painelGarantiaProduto} contra defeitos de fabricação e {d.painelGarantiaDesempenho}{' '}
-              de desempenho (degradação máxima de 0,4% a.a.).
-            </p>
+        {/* box "Por que considerar 20% de perdas" */}
+        <div className="pv-perdas">
+          <b>Por que considerar 20% de perdas?</b> Nenhum sistema entrega 100% da potência de
+          catálogo: calor, cabos, poeira e a eficiência do inversor consomem parte da energia. As
+          contas desta proposta já usam o cenário realista ({d.txt.geracaoTxt} líquidos por mês), e
+          não o número otimista do folheto.
+        </div>
+
+        {/* 3 KPIs */}
+        <div className="pv-kpis3" style={{ marginTop: '1mm' }}>
+          <div className="pv-kpi">
+            <div className="k">Geração mensal líquida</div>
+            <div className="v">~{d.txt.geracaoTxt}</div>
           </div>
-          <div className="pv-card">
-            <h3>Garantias do serviço</h3>
-            <p style={{ fontSize: '8.2pt', color: '#1A2440' }}>
-              {d.inversorModelo}: {d.garantiaInversorAnos ?? 10} anos · instalação:{' '}
-              {d.garantiaInstalacaoAnos ?? 5} anos.
-            </p>
+          <div className="pv-kpi">
+            <div className="k">Cobertura da conta</div>
+            <div className="v">{d.txt.coberturaTxt}</div>
+          </div>
+          <div className="pv-kpi">
+            <div className="k">Vida útil do sistema</div>
+            <div className="v">25+ anos</div>
           </div>
         </div>
       </div>

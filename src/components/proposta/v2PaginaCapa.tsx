@@ -6,86 +6,146 @@ interface PaginaCapaProps {
   d: DadosV2
 }
 
-/** Página 1 — CAPA (foto de capa do kit + dados principais). */
+/** Página 1 — CAPA (foto só aqui, com legenda — decisão v0.0.79: sem fotos de obras). */
 export function PaginaCapa({ d }: PaginaCapaProps) {
-  const dataEmissao = d.dataEmissao.toLocaleDateString('pt-BR')
   return (
-    <div className="pv-page pv-capa">
-      <div className="pv-capa-grid" />
-      <div
-        className="pv-pad"
-        style={{ position: 'relative', display: 'flex', flexDirection: 'column', flex: 1 }}
-      >
-        {/* topo: logo + selo */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div className="pv-logo">
-            <span className="eco">ECO</span>
-            <span className="solar">SOLAR</span> <span className="energy">ENERGY</span>
-          </div>
-          <div className="pv-selo">PROPOSTA COMERCIAL · {dataEmissao}</div>
-        </div>
-
-        {/* meio: chamada + card cliente + foto */}
+    <div className="pv-page">
+      <div className="pv-capa">
+        <div className="pv-capa-grid" />
         <div
+          className="pv-pad"
           style={{
-            flex: 1,
+            position: 'relative',
+            zIndex: 1,
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'center',
-            gap: '8mm',
+            flex: 1,
           }}
         >
-          <div>
-            <div
-              style={{
-                fontFamily: 'Montserrat, sans-serif',
-                fontWeight: 900,
-                fontSize: '24pt',
-                lineHeight: 1.1,
-              }}
-            >
-              Sua energia,
-              <br />
-              <span style={{ color: CORES_PROPOSTA.amarelo }}>do sol até a conta de luz</span>
+          {/* topo: logo + selo com número */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: '8mm',
+            }}
+          >
+            <div className="pv-logo">
+              <span className="eco">ECO</span>
+              <span className="solar">SOLAR</span> <span className="energy">ENERGY</span>
             </div>
-            <p className="pv-capa-sub" style={{ marginTop: '4mm' }}>
-              Proposta de sistema fotovoltaico conectado à rede, projetado para reduzir de forma
-              permanente o custo de energia de {d.clientePrimeiroNome} em{' '}
-              {d.cidadeUf || 'sua região'}.
-            </p>
+            <span className="pv-selo">PROPOSTA Nº {String(d.numero).slice(-6).toUpperCase()}</span>
           </div>
 
-          <div style={{ display: 'flex', gap: '6mm', alignItems: 'center' }}>
-            <div className="pv-card-cliente" style={{ flex: 1 }}>
-              <div className="lbl">Proposta para</div>
-              <div className="nome">{d.clienteNome}</div>
-              <div className="meta">
-                {[d.cidadeUf, d.concessionaria !== 'concessionária local' ? d.concessionaria : null]
-                  .filter(Boolean)
-                  .join(' · ') || 'Local de instalação a confirmar'}
+          {/* meio: título + card do cliente | foto de capa */}
+          <div
+            style={{
+              display: 'flex',
+              gap: '8mm',
+              alignItems: 'stretch',
+              marginTop: '10mm',
+              flex: 1,
+            }}
+          >
+            <div style={{ flex: 1.1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+              <div
+                style={{
+                  fontFamily: 'Montserrat, sans-serif',
+                  fontWeight: 900,
+                  fontSize: '22pt',
+                  lineHeight: 1.12,
+                }}
+              >
+                Proposta de
+                <br />
+                <span style={{ color: CORES_PROPOSTA.amarelo }}>Energia Solar</span>
+                <br />
+                sob medida
+              </div>
+              <p className="pv-capa-sub" style={{ marginTop: '5mm' }}>
+                Um sistema dimensionado para a sua conta de luz, explicado passo a passo: o que você
+                recebe, quanto vai economizar e como funciona cada etapa até a usina ligada.
+              </p>
+              <div className="pv-card-cliente" style={{ marginTop: 'auto' }}>
+                <div className="lbl">Preparada especialmente para</div>
+                <div className="nome">{d.clienteNome}</div>
+                <div className="meta">
+                  📍 {d.cidadeUf || 'sua região'} • Consumo médio:{' '}
+                  {d.consumoKwh ? `${d.consumoKwh} kWh/mês` : '—'} • Telhado: {d.tipoTelhado}
+                </div>
               </div>
             </div>
-            <FotoV2 d={d} />
+            <div style={{ flex: 0.9, minWidth: 0 }}>
+              <FotoV2 d={d} />
+            </div>
           </div>
-        </div>
 
-        {/* base: miniaturas de números-chave */}
-        <div className="pv-minis">
-          <div className="pv-mini">
-            <div className="k">Potência</div>
-            <div className="v am">{d.txt.potenciaTxt}</div>
+          {/* base: 4 KPIs */}
+          <div className="pv-minis" style={{ marginTop: '9mm' }}>
+            <div className="pv-mini">
+              <div className="k">Potência</div>
+              <div className="v">{d.txt.potenciaTxt}</div>
+            </div>
+            <div className="pv-mini">
+              <div className="k">Geração</div>
+              <div className="v">~{d.txt.geracaoTxt}</div>
+            </div>
+            <div className="pv-mini">
+              <div className="k">Economia/mês</div>
+              <div className="v am">{d.txt.economiaMensalRS}</div>
+            </div>
+            <div className="pv-mini">
+              <div className="k">Retorno</div>
+              <div className="v">{d.txt.paybackCurto}</div>
+            </div>
           </div>
-          <div className="pv-mini">
-            <div className="k">Geração mensal</div>
-            <div className="v">{d.txt.geracaoTxt}</div>
+
+          {/* linha institucional */}
+          <div
+            style={{
+              marginTop: '8mm',
+              borderTop: '1px solid rgba(255,255,255,.18)',
+              paddingTop: '4.5mm',
+              display: 'flex',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '2mm',
+              fontSize: '8pt',
+              color: '#C9D4EA',
+            }}
+          >
+            <span>
+              Consultor responsável:{' '}
+              <strong style={{ color: '#fff' }}>{d.consultorNome || 'Equipe Ecosolar'}</strong>
+            </span>
+            <span>
+              Emissão:{' '}
+              <strong style={{ color: '#fff' }}>{d.dataEmissao.toLocaleDateString('pt-BR')}</strong>{' '}
+              • Válida até:{' '}
+              <strong style={{ color: '#fff' }}>
+                {d.dataValidade.toLocaleDateString('pt-BR')}
+              </strong>
+            </span>
           </div>
-          <div className="pv-mini">
-            <div className="k">Economia mensal</div>
-            <div className="v am">{d.txt.economiaMensalRS}</div>
-          </div>
-          <div className="pv-mini">
-            <div className="k">Retorno</div>
-            <div className="v">{d.txt.retornoPctAA}</div>
+          <div
+            style={{
+              marginTop: '4mm',
+              paddingTop: '4mm',
+              borderTop: '1px solid rgba(255,255,255,.18)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '8pt',
+              color: '#C9D4EA',
+              flexWrap: 'wrap',
+              gap: '2mm',
+            }}
+          >
+            <span>
+              <strong style={{ color: '#fff' }}>Ecosolar Energy</strong> • Projeto • Homologação •
+              Instalação
+            </span>
+            <span>{d.empresa.instagram || '@ecosolarenergy'}</span>
           </div>
         </div>
       </div>
