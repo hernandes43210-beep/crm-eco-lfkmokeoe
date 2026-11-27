@@ -81,6 +81,11 @@ export interface DadosV2 {
   validadeDias: number
   clienteNome: string
   clientePrimeiroNome: string
+  /** Segundo depoimento (placeholder até o CRM ter depoimentos reais). */
+  depoimentoExtra: { nome: string; txt: string } | null
+  precoAVistaRS: string
+  cartaoTxt: string
+  prazoInstalacaoDias: number
   cidade: string
   uf: string
   cidadeUf: string
@@ -256,9 +261,13 @@ export function proposalDataDePublica(
     calc,
     fioBPct: percentualFioB(dataEmissao),
     simultaneidadePct: 30,
-    tarifaFioB: calc.tarifaKwh,
+    tarifaFioB: calc.tarifaFioB,
     aceiteUrl,
     financiamentoTxt,
+    cartaoTxt: '',
+    prazoInstalacaoDias: PRAZO_INSTALACAO_DIAS,
+    depoimentoExtra: null,
+    precoAVistaRS: formatBRL(precoFinal),
     faq: FAQ_PROPOSTA,
     etapas: etapasImplantacao('concessionária local'),
     depoimento: DEPOIMENTO_PROPOSTA,

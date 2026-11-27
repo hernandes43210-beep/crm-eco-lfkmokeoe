@@ -5,10 +5,11 @@
  */
 
 // ---------- constantes de mercado ----------
-export const TARIFA_PADRAO_KWH = 1.15 // R$/kWh (tarifa cheia média)
+export const TARIFA_PADRAO_KWH = 0.98 // R$/kWh (tarifa cheia com impostos — referência da proposta)
+export const TARIFA_FIO_B_PADRAO = 0.3 // R$/kWh do componente Fio B (referência)
 export const PERDA_ANUAL_PAINEL = 0.004 // degradação de 0,4% a.a. composta
 export const RENDIMENTO_POUPANCA_AO_ANO = 0.006 // poupança ~0,6% a.a.
-export const RENDIMENTO_CDB_LIQUIDO_AO_ANO = 0.0917 // CDB líquido de IR ~9,17% a.a.
+export const RENDIMENTO_CDB_LIQUIDO_AO_ANO = 0.1 // CDB líquido de IR ~10% a.a.
 export const DIAS_VALIDADE_PADRAO = 15
 export const GARANTIA_INVERSOR_ANOS = 10
 export const GARANTIA_INSTALACAO_ANOS = 5
@@ -107,6 +108,7 @@ export interface EntradaCalculoProposta {
   precoFinal: number
   precoCheio?: number
   tarifaKwh?: number
+  tarifaFioB?: number
   tipoLigacao?: TipoLigacao
   dataEmissao?: Date
   simultaneidade?: number
@@ -135,6 +137,7 @@ export interface ResultadoCalculoProposta {
   paybackMeses: number
   rendimentoSolarPct: number
   tarifaKwh: number
+  tarifaFioB: number
   fioBPct: number
   precoFinal: number
   precoCheio: number
@@ -161,7 +164,8 @@ export function calcularProposta(e: EntradaCalculoProposta): ResultadoCalculoPro
   const geracaoDiariaKwh = potencia * hsp * ef
   const geracaoMensalKwh = geracaoDiariaKwh * 30
   const cobertura = consumo > 0 ? Math.min(1, geracaoMensalKwh / consumo) : 0
-  const energiaCompensadaKwh = geracaoMensalKwh * cobertura
+  // Só compensa até o que a casa consome: excedente vira crédito, não reduz a conta além disso.
+  const energiaCompensadaKwh = consumo > 0 ? Math.min(geracaoMensalKwh, consumo) : 0
   const energiaInjetadaKwh = energiaCompensadaKwh * (1 - s)
 
   const contaHoje = consumo * tarifa
@@ -172,7 +176,8 @@ export function calcularProposta(e: EntradaCalculoProposta): ResultadoCalculoPro
   const custoConsumoNaoCoberto = consumoNaoCobertoKwh * tarifa
 
   const fioBPct = percentualFioB(data)
-  const custoFioBMensal = energiaInjetadaKwh * tarifa * fioBPct
+  const tarifaFioB = Number.isFinite(e.tarifaFioB) ? Number(e.tarifaFioB) : TARIFA_FIO_B_PADRAO
+  const custoFioBMensal = energiaInjetadaKwh * tarifaFioB * fioBPct
 
   const baseContaNova = Math.max(taxaMinimaMensal, custoConsumoNaoCoberto)
   const contaNova = baseContaNova + custoFioBMensal
@@ -224,6 +229,7 @@ export function calcularProposta(e: EntradaCalculoProposta): ResultadoCalculoPro
     paybackMeses,
     rendimentoSolarPct,
     tarifaKwh: tarifa,
+    tarifaFioB,
     fioBPct,
     precoFinal,
     precoCheio,
@@ -236,47 +242,70 @@ export function calcularProposta(e: EntradaCalculoProposta): ResultadoCalculoPro
 // ---------- conteúdo fixo ----------
 export const FAQ_PROPOSTA = [
   {
-    q: 'E se faltar luz (apagão)?',
-    a: 'O sistema é conectado à rede da concessionária (on-grid). Em um apagão, por segurança, ele desliga automaticamente junto com a rede. Quem deseja energia em apagões pode incluir baterias em uma ampliação futura.',
+    q: 'E se faltar energia na rede?',
+    a: 'Por segurança, o inversor desliga junto com a rede e volta sozinho. Para ter luz no apagão, existe a opção com bateria.',
   },
   {
-    q: 'O sistema precisa de manutenção?',
-    a: 'A manutenção é simples: limpeza dos painéis e inspeção periódica, que acompanham o plano de monitoramento. Os painéis têm garantia de desempenho de 30 anos e o inversor, de 10 anos.',
+    q: 'Precisa de manutenção?',
+    a: 'Pouca: limpar os painéis com água de vez em quando, principalmente na seca. O app avisa se a geração cair.',
   },
   {
-    q: 'Dá para ampliar o sistema depois?',
-    a: 'Sim. O inversor é dimensionado com folga para receber mais painéis, e o monitoramento mostra em tempo real se vale a pena ampliar conforme seu consumo cresce.',
+    q: 'E se eu aumentar o consumo?',
+    a: 'O sistema pode ser ampliado depois, dentro da capacidade do inversor ou com um segundo inversor.',
   },
   {
-    q: 'A conta de luz zera?',
-    a: 'Na prática, a energia compensada zera o consumo do sistema elétrico, mas permanece a taxa mínima de disponibilidade da concessionária (por tipo de ligação) e o Fio B da Lei 14.300 — por isso a economia mostrada já é líquida.',
+    q: 'A conta zera?',
+    a: 'Não. Continuam a taxa mínima e o Fio B (página 4). Ainda assim, a maior parte da conta deixa de existir.',
   },
 ] as const
 
-export function etapasImplantacao(concessionaria: string) {
+export function etapasImplantacao(_concessionaria: string) {
   return [
-    { quem: 'Você', txt: 'Aceita a proposta e envia os documentos' },
-    { quem: 'Ecosolar', txt: 'Projeto elétrico e homologação junto à concessionária' },
-    { quem: 'Ecosolar', txt: 'Execução da instalação (1 a 2 dias úteis)' },
-    { quem: 'Ecosolar', txt: 'Inspeção e vistoria da concessionária' },
-    { quem: 'Ecosolar', txt: 'Vistoria final e ligação' },
-    { quem: 'Você', txt: 'Assinatura do termo de ligação na concessionária' },
-    { quem: 'Ecosolar', txt: 'Ativação do monitoramento e treinamento' },
-    { quem: 'Você', txt: 'Sistema ligado e gerando economia' },
+    {
+      quem: 'Você',
+      titulo: 'Aceite da proposta',
+      txt: 'Você aprova online ou assina e escolhe a forma de pagamento.',
+    },
+    {
+      quem: 'Ecosolar',
+      titulo: 'Vistoria técnica',
+      txt: 'Conferimos telhado, padrão de entrada e posição dos painéis.',
+    },
+    {
+      quem: 'Ecosolar',
+      titulo: 'Projeto + ART',
+      txt: 'Engenheiro eletricista elabora o projeto e emite a ART.',
+    },
+    {
+      quem: 'Ecosolar',
+      titulo: 'Pedido na concessionária',
+      txt: 'Protocolamos e acompanhamos a aprovação do projeto.',
+    },
+    {
+      quem: 'Ecosolar',
+      titulo: 'Entrega do material',
+      txt: 'Equipamentos novos, lacrados e com nota fiscal.',
+    },
+    { quem: 'Ecosolar', titulo: 'Instalação', txt: 'Equipe treinada em NR10 e NR35. Obra limpa.' },
+    {
+      quem: 'Concessionária',
+      titulo: 'Vistoria e medidor',
+      txt: 'Troca do medidor pelo bidirecional, que registra os créditos.',
+    },
+    {
+      quem: 'Você',
+      titulo: 'Sistema ligado',
+      txt: 'Ensinamos a usar o app e você acompanha tudo pelo celular.',
+    },
   ]
 }
 
 export const DEPOIMENTO_PROPOSTA = [
   {
-    nome: 'Cliente residencial, Recife - PE',
-    txt: 'A conta de luz caiu de R$ 980 para menos de R$ 150 no primeiro mês. O acompanhamento do time da Ecosolar foi impecável, do projeto ao monitoramento.',
-  },
-  {
-    nome: 'Cliente comercial, Caruaru - PE',
-    txt: 'Paguei o sistema com a economia da própria conta. Hoje a energia é um custo previsível, e o atendimento resolve tudo pelo WhatsApp.',
-  },
-  {
-    nome: 'Cliente rural, Garanhuns - PE',
-    txt: 'Instalação rápida, estrutura firme e geração acima do previsto no projeto. Recomendo para quem tem propriedade no interior.',
+    nome: 'Dona Arlete – Seringueiras/RO',
+    txt: 'Pediram 20 dias e entregaram em 16. Equipe boa, eficiente e rápida — eu recomendo.',
   },
 ] as const
+
+/** Instalação em até X dias após a aprovação da concessionária (página 5). */
+export const PRAZO_INSTALACAO_DIAS = 20
