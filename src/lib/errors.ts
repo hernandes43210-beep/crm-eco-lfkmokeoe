@@ -330,12 +330,16 @@ export function toPortugueseErrorMessage(
       }
       const originalMsg = pbErr.message || (pbErr.response as any)?.message || ''
       const lower = originalMsg.toLowerCase()
-      if (
-        lower.includes('failed to authenticate') ||
-        lower.includes('invalid credentials') ||
-        lower.includes('something went wrong')
-      ) {
+      // Só traduz para credenciais quando o erro é realmente de autenticação;
+      // "Something went wrong" (falha interna genérica do backend) NÃO é erro de login.
+      if (lower.includes('failed to authenticate') || lower.includes('invalid credentials')) {
         return 'E-mail ou senha inválidos. Verifique suas credenciais.'
+      }
+      if (lower.includes('something went wrong')) {
+        return (
+          fallbackMsg ||
+          'O servidor não conseguiu processar a requisição. Tente novamente em instantes.'
+        )
       }
       const translated = translateValidationMessage(originalMsg)
       if (
