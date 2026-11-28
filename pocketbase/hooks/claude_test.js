@@ -90,21 +90,30 @@ routerAdd(
     }
 
     function chamarAnthropic(modelo) {
-      return $http.send({
-        url: 'https://api.anthropic.com/v1/messages',
-        method: 'POST',
-        headers: {
+      // Sem spread de objeto ({...x}): o JSVM (goja) não tem os helpers
+      // __spreadValues/__spreadProps gerados por bundlers. Usa Object.assign.
+      const headersClaude = Object.assign(
+        {},
+        {
           'Content-Type': 'application/json',
           'x-api-key': testKey,
           'anthropic-version': '2023-06-01',
-          // Enviado apenas quando há ID do Workspace configurado (opcional)
-          ...(workspaceId ? { 'anthropic-workspace-id': workspaceId } : {}),
         },
-        body: JSON.stringify({
-          model: modelo,
-          max_tokens: 8,
-          messages: [{ role: 'user', content: 'Responda apenas: OK' }],
-        }),
+      )
+      // Enviado apenas quando há ID do Workspace configurado (opcional)
+      if (workspaceId) {
+        headersClaude['anthropic-workspace-id'] = workspaceId
+      }
+      const payloadClaude = {
+        model: modelo,
+        max_tokens: 8,
+        messages: [{ role: 'user', content: 'Responda apenas: OK' }],
+      }
+      return $http.send({
+        url: 'https://api.anthropic.com/v1/messages',
+        method: 'POST',
+        headers: headersClaude,
+        body: JSON.stringify(payloadClaude),
         timeout: 20,
       })
     }
