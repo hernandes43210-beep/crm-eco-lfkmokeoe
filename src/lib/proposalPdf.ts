@@ -1,18 +1,17 @@
 /**
- * Versão para imprimir/PDF da proposta comercial clássica REVISADA (6 páginas A4).
- * Reaproveita proposalDadosV2 (dados/cálculos — economia líquida Lei 14.300) e
- * proposalPdfCss (identidade navy #0B1E4A + amarelo #FFC629).
- * Fotos: somente a CAPA do kit (kit.imagem_ia_url) — nenhuma foto de obras
- * destacada (decisão do usuário v0.0.79, mantida na reconciliação v2).
- * O QR Code do aceite aponta para o link público da proposta.
+ * Versão para imprimir/PDF da proposta comercial v2 (6 páginas A4).
+ * Espelha, em HTML string, as 6 páginas de componentes TSX:
+ *   v2PaginaCapa, v2PaginaApresentacao, v2PaginaSistema, v2PaginaInvestimento,
+ *   v2PaginaComoVaiSer e v2PaginaFinal — os DADOS vêm de proposalDadosV2.
+ * Visual: proposalPdfCss (navy #0B1E4A + amarelo #FFC629).
+ * Fotos: somente a CAPA do kit, com legenda (decisão v0.0.79, mantida na v2).
+ * QR Code do aceite: gerado LOCALMENTE via qrcode.react (sem API externa).
  */
 import type { PublicProposta } from '@/types/crm'
+import { CONTATO_ECOSOLAR } from '@/constants/empresa'
+import { qrAceiteSvg } from './proposalPdfQr'
 import { proposalDataDePublica, type DadosV2, type FotoProposta } from './proposalDadosV2'
-import {
-  RENDIMENTO_POUPANCA_AO_ANO as REN_POUP,
-  RENDIMENTO_CDB_LIQUIDO_AO_ANO as REN_CDB,
-  formatBRL,
-} from './proposalCalculos'
+import { PRAZO_INSTALACAO_DIAS } from './proposalCalculos'
 import { FONTS_PROPOSTA_LINK, PROPOSTA_V2_CSS, IMPRESSAO_CSS_EXTRA } from './proposalPdfCss'
 
 /**
@@ -41,7 +40,7 @@ function leadDeData(data: ProposalPDFData): PublicProposta['lead'] {
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
 /* ------------------------------------------------------------------ */
-/** Escapa texto para HTML (antes vivia em proposalDadosV2). */
+/** Escapa texto para HTML (dados que vêm do CRM/cliente). */
 function esc(v: unknown): string {
   return String(v ?? '')
     .replace(/&/g, '&amp;')
@@ -75,68 +74,59 @@ export function preloadFotosProposta(urls: string[]): Promise<void> {
 }
 
 /* ------------------------------------------------------------------ */
-/* Blocos reutilizados                                                */
+/* Blocos reutilizados (espelhos de v2Bits.tsx)                       */
 /* ------------------------------------------------------------------ */
-function headerInterno(d: DadosV2): string {
-  return `<header class="pv-header">
-    <div class="pv-logo"><span class="eco">ECO</span><span class="solar">SOLAR</span> <span class="energy">ENERGY</span></div>
-    <div class="pv-header-info">
-      <div><strong>PROPOSTA Nº ${esc(d.numero)}</strong></div>
-      <div>Emissão ${esc(dataBR(d.dataEmissao))} • Válida até <strong>${esc(dataBR(d.dataValidade))}</strong></div>
-    </div>
-  </header>`
-}
-
-function footerInterno(pagina: number): string {
-  return `<footer class="pv-footer">
-    <span><strong>Ecosolar Energy</strong> — Do sol até a sua conta de luz</span>
-    <span class="pv-pgnum">Página ${pagina}</span>
-  </footer>`
-}
-
-function fotoHtml(f: FotoProposta | null, classe: string): string {
-  if (!f) {
-    return `<div class="pv-foto ${classe}"><div style="width:100%;height:100%;background:linear-gradient(140deg,#0B1E4A,#1d4290);display:flex;align-items:center;justify-content:center;color:#FFC629;font-family:Montserrat;font-weight:800;font-size:9pt;text-align:center;padding:4mm;">ECOSOLAR ENERGY</div></div>`
-  }
-  return `<figure class="pv-foto ${classe}"><img src="${esc(f.url)}" alt="${esc(f.legenda || 'Sistema fotovoltaico proposto')}" /><figcaption class="leg">${esc(f.legenda)}</figcaption></figure>`
-}
-
-/** QR Code de aceite (imagem gerada por API pública, aponta para o link público). */
-function qrCodeHtml(urlAbsoluta: string): string {
-  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=0&data=${encodeURIComponent(urlAbsoluta)}`
-  return `<img src="${esc(qr)}" alt="QR Code do aceite da proposta" width="70" height="70" style="width:22mm;height:22mm;display:block;" />`
-}
-
-/** Bloco de alerta de sobrecarga do inversor — só na TELA (não sai no PDF do cliente). */
-function alertaInversorHtml(d: DadosV2): string {
-  const a = d.alertaInversor
-  if (!a?.estourado) return ''
-  return `<div class="pv-somente-tela" style="margin-top:4mm;border:1.5px solid #b45309;background:#fef3c7;color:#7c2d12;border-radius:2mm;padding:3mm 4mm;font-size:8.4pt;line-height:1.5;">
-    <strong>⚠ Atenção (uso interno — não impresso):</strong> a potência do kit (${esc(d.potenciaKwp)} kWp) corresponde a
-    ${esc(Math.round(a.razaoPct))}% da potência dos inversores (limite recomendado: ${esc(Math.round(a.limitePct))}%).
-    Revise o dimensionamento do inversor antes de enviar ao cliente.
+function cabecalhoInternoHtml(d: DadosV2, pagina: number): string {
+  return `<div class="pv-cabecalho">
+    <div class="marca">ECO<span class="solar">SOLAR</span> ENERGY</div>
+    <div class="num">Proposta nº ${esc(String(d.numero).slice(-6).toUpperCase())} · pág. ${pagina}</div>
   </div>`
 }
 
+function rodapeInternoHtml(d: DadosV2, pagina: number): string {
+  return `<div class="pv-rodape">
+    <span>${esc(d.empresa.nome)} · ${esc(d.empresa.slogan)}</span>
+    <span class="pg">${pagina}</span>
+  </div>`
+}
+
+function fotoCapaHtml(d: DadosV2): string {
+  if (!d.fotoCapa) {
+    return `<div class="pv-capa-foto" style="background:linear-gradient(140deg,#FFC629,#071636);"></div>`
+  }
+  return `<div class="pv-capa-foto">
+      <img src="${esc(d.fotoCapa.url)}" alt="${esc(d.fotoCapa.legenda || 'Imagem do sistema solar proposto')}" />
+      ${d.fotoCapa.legenda ? `<div class="legenda">${esc(d.fotoCapa.legenda)}</div>` : ''}
+    </div>`
+}
+
+/**
+ * QR Code de aceite gerado LOCALMENTE (qrcode.react → SVG inline, sem API externa).
+ * `url` precisa ser a URL ABSOLUTA do link público de aceite.
+ */
+function qrCodeHtml(url: string): string {
+  if (!url) return ''
+  return qrAceiteSvg(url, 128)
+}
+
 /* ------------------------------------------------------------------ */
-/* PÁGINA 1 — CAPA                                                    */
+/* PÁGINA 1 — CAPA (espelho de v2PaginaCapa.tsx)                      */
 /* ------------------------------------------------------------------ */
-function paginaCapa(d: DadosV2): string {
-  return `<section class="pv-page">
+function paginaCapaHtml(d: DadosV2): string {
+  return `<div class="pv-page">
     <div class="pv-capa">
       <div class="pv-capa-grid"></div>
-      <div style="position:relative;z-index:1;display:flex;flex-direction:column;flex:1;">
+      <div class="pv-pad" style="position:relative;z-index:1;display:flex;flex-direction:column;flex:1;">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8mm;">
-          <div>
-            <div class="pv-logo" style="font-size:21pt;"><span class="eco">ECO</span><span class="solar">SOLAR</span> <span class="energy">ENERGY</span></div>
-            <div class="pv-slogan" style="margin-top:1.5mm;">Do sol até a sua conta de luz</div>
-          </div>
-          <span class="pv-selo">Proposta Nº ${esc(d.numero)}</span>
+          <div class="pv-logo"><span class="eco">ECO</span><span class="solar">SOLAR</span> <span class="energy">ENERGY</span></div>
+          <span class="pv-selo">PROPOSTA Nº ${esc(String(d.numero).slice(-6).toUpperCase())}</span>
         </div>
 
         <div style="display:flex;gap:8mm;align-items:stretch;margin-top:10mm;flex:1;">
-          <div style="flex:1.1;display:flex;flex-direction:column;">
-            <h1>Proposta de<br /><span class="am">Energia Solar</span><br />sob medida</h1>
+          <div style="flex:1.1;display:flex;flex-direction:column;min-width:0;">
+            <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:22pt;line-height:1.12;">
+              Proposta de<br /><span style="color:#FFC629;">Energia Solar</span><br />sob medida
+            </div>
             <p class="pv-capa-sub" style="margin-top:5mm;">Um sistema dimensionado para a sua conta de luz, explicado passo a passo: o que você recebe, quanto vai economizar e como funciona cada etapa até a usina ligada.</p>
             <div class="pv-card-cliente" style="margin-top:auto;">
               <div class="lbl">Preparada especialmente para</div>
@@ -144,9 +134,7 @@ function paginaCapa(d: DadosV2): string {
               <div class="meta">📍 ${esc(d.cidadeUf || 'sua região')} • Consumo médio: ${esc(d.consumoKwh ? `${d.consumoKwh} kWh/mês` : '—')} • Telhado: ${esc(d.tipoTelhado)}</div>
             </div>
           </div>
-          <div style="flex:0.9;min-width:0;">
-            <div class="pv-capa-foto pv-clip">${fotoHtml(d.fotoCapa, '')}</div>
-          </div>
+          <div style="flex:0.9;min-width:0;">${fotoCapaHtml(d)}</div>
         </div>
 
         <div class="pv-minis" style="margin-top:9mm;">
@@ -156,351 +144,302 @@ function paginaCapa(d: DadosV2): string {
           <div class="pv-mini"><div class="k">Retorno</div><div class="v">${esc(d.txt.paybackCurto)}</div></div>
         </div>
 
-        <div class="pv-capaline" style="margin-top:8mm;border-top:1px solid rgba(255,255,255,.18);padding-top:4.5mm;">
-          <span>Consultor responsável: <strong>${esc(d.consultorNome || 'Equipe Ecosolar')}</strong></span>
-          <span>Data de emissão: <strong>${esc(dataBR(d.dataEmissao))}</strong></span>
-          <span class="val">Válida até: <strong>${esc(dataBR(d.dataValidade))}</strong></span>
+        <div style="margin-top:8mm;border-top:1px solid rgba(255,255,255,.18);padding-top:4.5mm;display:flex;justify-content:space-between;flex-wrap:wrap;gap:2mm;font-size:8pt;color:#C9D4EA;">
+          <span>Consultor responsável: <strong style="color:#fff;">${esc(d.consultorNome || 'Equipe Ecosolar')}</strong></span>
+          <span>Emissão: <strong style="color:#fff;">${esc(dataBR(d.dataEmissao))}</strong> • Válida até: <strong style="color:#fff;">${esc(dataBR(d.dataValidade))}</strong></span>
         </div>
-
-        <div style="margin-top:auto;border-top:1px solid rgba(255,255,255,.18);padding-top:4mm;display:flex;justify-content:space-between;font-size:8pt;color:#cdd7ec;flex-wrap:wrap;gap:2mm;">
+        <div style="margin-top:4mm;padding-top:4mm;border-top:1px solid rgba(255,255,255,.18);display:flex;justify-content:space-between;font-size:8pt;color:#C9D4EA;flex-wrap:wrap;gap:2mm;">
           <span><strong style="color:#fff;">Ecosolar Energy</strong> • Projeto • Homologação • Instalação</span>
           <span>${esc(d.empresa.instagram || '@ecosolarenergy')}</span>
         </div>
       </div>
     </div>
-  </section>`
+  </div>`
 }
 
 /* ------------------------------------------------------------------ */
-/* PÁGINA 2 — APRESENTAÇÃO + COMO FUNCIONA                            */
+/* PÁGINA 2 — APRESENTAÇÃO (espelho de v2PaginaApresentacao.tsx)      */
 /* ------------------------------------------------------------------ */
-function pagina2(d: DadosV2): string {
-  return `<section class="pv-page">
-    ${headerInterno(d)}
-    <div class="pv-page-inner pv-pad">
-      <div style="margin-top:6mm;">
+const TRILHA = [
+  { k: 'sol', ic: '☀', t: 'Sol', x: 'Luz gratuita, todos os dias' },
+  { k: 'painel', ic: '▤', t: 'Painéis', x: 'Transformam a luz em energia' },
+  { k: 'inversor', ic: '⌁', t: 'Inversor', x: 'Deixa a energia pronta para uso' },
+  { k: 'casa', ic: '⌂', t: 'Sua casa', x: 'Usa na hora o que precisa' },
+  { k: 'rede', ic: '⚡', t: 'Rede', x: 'Guarda a sobra como crédito' },
+] as const
+
+function paginaApresentacaoHtml(d: DadosV2): string {
+  const primeiroNome = (d.clienteNome || 'Cliente').trim().split(/\s+/)[0]
+  const trilhaHtml = TRILHA.map(
+    (t) =>
+      `<div class="etapa"><div class="etapa-ic">${t.ic}</div><div class="etapa-t">${t.t}</div><div class="etapa-x">${t.x}</div></div>`,
+  ).join('')
+
+  return `<div class="pv-page">
+    ${cabecalhoInternoHtml(d, 2)}
+    <div class="pv-pad" style="flex:1;display:flex;flex-direction:column;gap:4mm;">
+      <div>
         <span class="pv-sec-tag">Apresentação</span>
-        <h2 class="pv-sec-title" style="margin-top:3mm;">Olá, ${esc(d.clientePrimeiroNome)}.<br /><span style="color:#FFC629;background:#0B1E4A;padding:0 2mm;border-radius:1.5mm;">Esta proposta foi feita para você.</span></h2>
+        <div class="pv-sec-title" style="margin-top:2mm;">Olá, ${esc(primeiroNome)}! Aqui está o resumo em 30 segundos</div>
       </div>
 
-      <div class="pv-card" style="margin-top:5mm;font-size:9pt;line-height:1.65;">
-        <p>Obrigado pela confiança em conversar com a Ecosolar Energy. Analisamos o seu consumo médio de <strong>${esc(d.consumoKwh || '—')} kWh por mês</strong> — hoje cerca de <strong>${esc(d.txt.contaHojeRS)}</strong> na conta de luz — e dimensionamos um sistema de energia solar de <strong>${esc(d.txt.potenciaTxt)}</strong> para que a maior parte dessa energia seja produzida no seu próprio telhado, com equipamentos de marcas reconhecidas e instalação feita pela nossa equipe.</p>
-        <p style="margin-top:2.5mm;">Nas próximas páginas explicamos, sem termos complicados, como o sistema funciona, por que escolhemos esse tamanho, o que está incluso, quanto você vai economizar e o passo a passo da obra. Se surgir qualquer dúvida, é só chamar no WhatsApp — explicamos quantas vezes for preciso.</p>
+      <p class="pv-corpo">Analisamos o seu consumo de <b>${esc(d.consumoKwh || '—')} kWh/mês</b> em <b>${esc(d.cidadeUf || 'sua região')}</b> e dimensionamos um sistema que gera <b>~${esc(d.txt.geracaoTxt)}</b> por mês. Na prática: a conta de luz de hoje (<b>${esc(d.txt.contaHojeRS)}</b>) passa a custar em torno de <b>${esc(d.txt.contaNovaRS)}</b> — só a taxa mínima e o Fio B. Você fica sabendo do investimento na página 4, com tudo incluso e sem surpresa.</p>
+
+      <div class="pv-minis" style="margin-top:1mm;">
+        <div class="pv-mini"><div class="k">Potência instalada</div><div class="v">${esc(d.txt.potenciaTxt)}</div></div>
+        <div class="pv-mini"><div class="k">Geração mensal</div><div class="v">~${esc(d.txt.geracaoTxt)}</div></div>
+        <div class="pv-mini"><div class="k">Economia/mês</div><div class="v am">${esc(d.txt.economiaMensalRS)}</div></div>
+        <div class="pv-mini"><div class="k">Retorno</div><div class="v">${esc(d.txt.paybackCurto)}</div></div>
       </div>
 
-      <div style="margin-top:5mm;">
-        <div style="font-family:Montserrat;font-weight:800;font-size:9pt;color:#1d4290;letter-spacing:1.2px;">RESUMO EM 30 SEGUNDOS</div>
-        <div class="pv-grid4" style="margin-top:3mm;">
-          <div class="pv-resumo"><div class="k">Conta hoje</div><div class="v">${esc(d.txt.contaHojeRS)}</div><div class="n">${esc(d.consumoKwh || '—')} kWh/mês</div></div>
-          <div class="pv-resumo"><div class="k">Geração do sistema</div><div class="v">~${esc(d.txt.geracaoTxt)}</div><div class="n">cobre ${esc(d.txt.coberturaPctTxt)} do consumo</div></div>
-          <div class="pv-resumo hl"><div class="k">Economia</div><div class="v">${esc(d.txt.economiaMensalRS)}/mês</div><div class="n">dinheiro que deixa de ir para a conta de luz</div></div>
-          <div class="pv-resumo"><div class="k">Retorno</div><div class="v">${esc(d.txt.paybackCurto)}</div><div class="n">depois disso, é lucro</div></div>
+      <div class="pv-trilha" style="margin-top:2mm;">${trilhaHtml}</div>
+
+      <div class="pv-dia-noite" style="margin-top:2mm;">
+        <div class="col">
+          <div class="col-t" style="color:#B45309;">☀ De dia</div>
+          <div class="col-x">Os painéis produzem energia e a sua casa consome direto da sua própria usina. O que sobra vira crédito automaticamente.</div>
         </div>
-      </div>
-
-      <div style="margin-top:6mm;">
-        <div style="font-family:Montserrat;font-weight:800;font-size:9pt;color:#1d4290;letter-spacing:1.2px;">DO SOL ATÉ A SUA CONTA DE LUZ</div>
-        <div class="pv-fluxo" style="margin-top:3mm;">
-          <div class="pv-fluxo-item"><div class="ico">☀️</div><div class="t">Sol</div><div class="d">Luz gratuita, todos os dias</div></div>
-          <div class="pv-fluxo-arrow">→</div>
-          <div class="pv-fluxo-item"><div class="ico">🔆</div><div class="t">Painéis</div><div class="d">Transformam a luz em energia</div></div>
-          <div class="pv-fluxo-arrow">→</div>
-          <div class="pv-fluxo-item"><div class="ico">⚡</div><div class="t">Inversor</div><div class="d">Deixa a energia pronta para uso</div></div>
-          <div class="pv-fluxo-arrow">→</div>
-          <div class="pv-fluxo-item"><div class="ico">🏠</div><div class="t">Sua casa</div><div class="d">Usa na hora o que precisa</div></div>
-          <div class="pv-fluxo-arrow">→</div>
-          <div class="pv-fluxo-item"><div class="ico">🔌</div><div class="t">Rede</div><div class="d">Guarda a sobra como crédito</div></div>
+        <div class="col">
+          <div class="col-t" style="color:#1D4ED8;">☾ À noite</div>
+          <div class="col-x">Os créditos de energia gerada durante o dia abastecem o consumo noturno. É assim que a conta continua baixa fora do sol.</div>
         </div>
-        <div style="text-align:center;font-size:7.4pt;color:#11845b;font-weight:800;margin-top:1.5mm;">⇠ a rede devolve a sobra como crédito em kWh ⇠</div>
-      </div>
-
-      <div class="pv-grid2" style="margin-top:5mm;">
-        <div class="pv-periodo dia"><strong>☀ De dia:</strong> Os painéis produzem energia e a casa usa primeiro o que está sendo gerado. O que sobra vai para a rede da ${esc(d.concessionaria)} e vira crédito em kWh na sua conta.</div>
-        <div class="pv-periodo noite"><strong>🌙 À noite e em dias nublados:</strong> A casa puxa energia da rede normalmente e os créditos acumulados abatem esse consumo. Os créditos valem por até 60 meses. Você nunca fica sem luz.</div>
       </div>
     </div>
-    ${footerInterno(2)}
-  </section>`
+    ${rodapeInternoHtml(d, 2)}
+  </div>`
 }
 
 /* ------------------------------------------------------------------ */
-/* PÁGINA 3 — SEU SISTEMA                                             */
+/* PÁGINA 3 — SISTEMA (espelho de v2PaginaSistema.tsx)                */
 /* ------------------------------------------------------------------ */
-function pagina3(d: DadosV2): string {
-  const itemPainel = `<tr>
-        <td class="qtd">${esc(d.painelQtd || '—')}</td>
-        <td class="item">${esc(d.painelModelo)}</td>
-        <td class="para">Geração de energia limpa a partir do sol</td>
-        <td class="pv-incluso">✓ Incluso</td>
-      </tr>`
-  const itemInversor = `<tr>
-        <td class="qtd">${esc(d.inversorQtd || '—')}</td>
-        <td class="item">${esc(d.inversorModelo)}</td>
-        <td class="para">Converte a energia para uso na casa (monitoramento incluso)</td>
-        <td class="pv-incluso">✓ Incluso</td>
-      </tr>`
-  const itensExtras = d.kitItens
+function paginaSistemaHtml(d: DadosV2): string {
+  const tabelaItens = d.itensKit
     .map(
-      (i) => `<tr>
-        <td class="qtd">${esc(i.qtd)}</td>
-        <td class="item">${esc(i.nome)}</td>
-        <td class="para">${esc(i.obs)}</td>
-        <td class="pv-incluso">✓ Incluso</td>
-      </tr>`,
+      (it) =>
+        `<tr><td class="qtd">${esc(it.qtd)}</td><td><b>${esc(it.item)}</b></td><td class="para">${esc(it.paraQue)}</td><td class="incluso">${esc(it.incluso)}</td></tr>`,
     )
     .join('')
 
-  return `<section class="pv-page">
-    ${headerInterno(d)}
-    <div class="pv-page-inner pv-pad">
-      <div style="margin-top:6mm;">
-        <span class="pv-sec-tag">1 • Seu sistema</span>
-        <h2 class="pv-sec-title" style="margin-top:3mm;">Kit solar ${esc(d.txt.potenciaTxt)} — ${esc(d.painelModelo)} + ${esc(d.inversorModelo)}</h2>
-        <p class="pv-sub" style="margin-top:2mm;">Como chegamos a esse tamanho: partimos do seu consumo e da quantidade de sol da região.</p>
+  return `<div class="pv-page">
+    ${cabecalhoInternoHtml(d, 3)}
+    <div class="pv-pad" style="flex:1;display:flex;flex-direction:column;gap:3.5mm;">
+      <div>
+        <span class="pv-sec-tag">O sistema</span>
+        <div class="pv-sec-title" style="margin-top:2mm;">Como chegamos no tamanho certo</div>
       </div>
 
-      <div class="pv-conta" style="margin-top:5mm;">
-        ${esc(d.txt.potenciaTxt)} <span class="op">×</span> ~4,6 h de sol/dia
-        <span class="op">×</span> 30 dias <span class="op">×</span> 80% aproveitamento real
-        <span class="op">=</span> <span class="res">~${esc(d.txt.geracaoTxt)}</span>
-      </div>
+      <div class="pv-formula">${esc(d.txt.formulaTxt)}</div>
 
-      <div style="margin-top:5mm;">
-        <div style="font-weight:800;font-size:9pt;color:#0B1E4A;">Quanto do seu consumo o sistema cobre: ${esc(d.txt.coberturaPctTxt)}</div>
-        <div class="pv-barra" style="margin-top:2mm;">
-          <div class="g" style="width:${esc(d.calc.coberturaPct)}%;">Gerado pelo sistema: ~${esc(d.txt.geracaoTxt)}</div>
-          <div class="r" style="width:${esc(100 - d.calc.coberturaPct)}%;">Restante da rede: ~${esc(Math.round(d.calc.consumoNaoCobertoKwh))} kWh</div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:8pt;color:#5A6680;margin-bottom:1.5mm;">
+          <span>Cobertura estimada do seu consumo: <b style="color:#0B1E4A;">${esc(d.txt.coberturaTxt)}</b></span>
+          <span>Geração ~${esc(d.txt.geracaoTxt)} • Consumo ${esc(d.consumoKwh || '—')} kWh/mês</span>
         </div>
+        <div class="pv-barra-out"><div class="pv-barra-in" style="width:${esc(Math.max(2, Math.min(100, d.coberturaPct)))}%;"></div></div>
+        <div style="font-size:7.5pt;color:#5A6680;margin-top:1.5mm;">O excedente vira crédito na distribuidora e compensa o consumo noturno e chuvoso (Lei 14.300).</div>
       </div>
 
-      <div class="pv-info-azul" style="margin-top:5mm;">
-        <strong>Por que considerar 20% de perdas?</strong> Painel no calor, cabos, sujeira e o próprio inversor consomem uma parte da energia. Usamos esse desconto para que a geração prometida seja realista — preferimos que você se surpreenda para mais, não para menos.
-      </div>
-
-      <div style="margin-top:6mm;">
-        <div style="font-family:Montserrat;font-weight:800;font-size:9pt;color:#1d4290;letter-spacing:1.2px;">O QUE VEM NO SEU KIT — E PARA QUE SERVE CADA ITEM</div>
-        <table class="pv-tabela" style="margin-top:3mm;">
-          <thead><tr><th style="width:14mm;">Qtd.</th><th>Item</th><th>Para que serve</th><th style="width:18mm;">Incluso</th></tr></thead>
-          <tbody>${itemPainel}${itemInversor}${itensExtras}</tbody>
+      <div class="pv-tabela-wrap">
+        <table class="pv-tabela">
+          <thead><tr><th style="width:12mm;">Qtd.</th><th style="width:52mm;">Item</th><th>Para que serve</th><th style="width:22mm;">Incluso</th></tr></thead>
+          <tbody>${tabelaItens}</tbody>
         </table>
       </div>
 
+      <div class="pv-perdas"><b>Por que considerar 20% de perdas?</b> Nenhum sistema entrega 100% da potência de catálogo: calor, cabos, poeira e a eficiência do inversor consomem parte da energia. As contas desta proposta já usam o cenário realista (${esc(d.txt.geracaoTxt)} líquidos por mês), e não o número otimista do folheto.</div>
+
+      <div class="pv-kpis3" style="margin-top:1mm;">
+        <div class="pv-kpi"><div class="k">Geração mensal líquida</div><div class="v">~${esc(d.txt.geracaoTxt)}</div></div>
+        <div class="pv-kpi"><div class="k">Cobertura da conta</div><div class="v">${esc(d.txt.coberturaTxt)}</div></div>
+        <div class="pv-kpi"><div class="k">Vida útil do sistema</div><div class="v">25+ anos</div></div>
+      </div>
+
       ${alertaInversorHtml(d)}
-
-      <div class="pv-kits-fim" style="margin-top:auto;padding-top:5mm;">
-        <div class="pv-card"><div style="font-size:7.2pt;letter-spacing:.8px;text-transform:uppercase;color:#5b6782;font-weight:700;">Área no telhado</div><div class="v">~${esc(Math.round(d.areaM2))} m²</div><div class="n">estimativa com os painéis deste kit</div></div>
-        <div class="pv-card"><div style="font-size:7.2pt;letter-spacing:.8px;text-transform:uppercase;color:#5b6782;font-weight:700;">Tipo de telhado</div><div class="v">${esc(d.tipoTelhado)}</div><div class="n">estrutura própria inclusa</div></div>
-        <div class="pv-card"><div style="font-size:7.2pt;letter-spacing:.8px;text-transform:uppercase;color:#5b6782;font-weight:700;">Monitoramento</div><div class="v">24 h</div><div class="n">acompanhamento no celular</div></div>
-      </div>
     </div>
-    ${footerInterno(3)}
-  </section>`
+    ${rodapeInternoHtml(d, 3)}
+  </div>`
 }
 
 /* ------------------------------------------------------------------ */
-/* PÁGINA 4 — INVESTIMENTO E RETORNO                                  */
+/* PÁGINA 4 — INVESTIMENTO (espelho de v2PaginaInvestimento.tsx)      */
 /* ------------------------------------------------------------------ */
-function pagina4(d: DadosV2): string {
-  const solarPct = Math.round(d.calc.rendimentoSolarPct)
-  const maxRend = Math.max(solarPct, d.rendPoupancaPct, d.rendCdbPct, 12)
-  const largura = (pct: number) => Math.max(6, Math.round((pct / Math.max(maxRend, 1)) * 100))
-
-  const linhasBarras = `
-    <div class="linha">
-      <span class="nome">Poupança ${esc(d.rendPoupancaPct)}% a.a.</span>
-      <div class="faixa"><div class="fill" style="width:${largura(d.rendPoupancaPct)}%;background:#aab4c9;">&nbsp;</div></div>
-      <span class="pct">${esc(d.rendPoupancaPct)}%</span>
-    </div>
-    <div class="linha">
-      <span class="nome">CDB (líquido de IR) ~${esc(d.rendCdbPct)}% a.a.</span>
-      <div class="faixa"><div class="fill" style="width:${largura(d.rendCdbPct)}%;background:#1d4290;">&nbsp;</div></div>
-      <span class="pct">${esc(d.rendCdbPct)}%</span>
-    </div>
-    <div class="linha">
-      <span class="nome">Energia solar (economia)</span>
-      <div class="faixa"><div class="fill" style="width:${largura(solarPct)}%;background:#11845b;font-family:Montserrat;">&nbsp;</div></div>
-      <span class="pct solar">${esc(solarPct)}%</span>
-    </div>`
-
-  const fioBPctInt = Math.round(d.fioBPct * 100)
-  const anoEmissao = d.dataEmissao.getFullYear()
-  const fioBTexto =
-    anoEmissao >= 2028
-      ? 'em 2028, 90% desse componente'
-      : anoEmissao === 2027
-        ? 'em 2027, 75% desse componente'
-        : `em ${esc(anoEmissao)}, ${esc(fioBPctInt)}% desse componente (2027: 75%, 2028: 90%)`
-  const cdbNoPrimeiroAno = formatBRL(d.calc.precoFinal * REN_CDB)
-
-  return `<section class="pv-page">
-    ${headerInterno(d)}
-    <div class="pv-page-inner pv-pad">
-      <div style="margin-top:6mm;">
-        <span class="pv-sec-tag">2 • Investimento e retorno</span>
-        <h2 class="pv-sec-title" style="margin-top:3mm;">Quanto custa e em quanto tempo se paga</h2>
+function paginaInvestimentoHtml(d: DadosV2): string {
+  return `<div class="pv-page">
+    ${cabecalhoInternoHtml(d, 4)}
+    <div class="pv-pad" style="flex:1;display:flex;flex-direction:column;gap:3.5mm;">
+      <div>
+        <span class="pv-sec-tag">Investimento</span>
+        <div class="pv-sec-title" style="margin-top:2mm;">Quanto custa e quanto volta para o seu bolso</div>
       </div>
 
-      <div class="pv-invest" style="margin-top:5mm;">
-        <div style="flex:1;">
-          <div class="lbl">Investimento total • chave na mão</div>
-          <h3>${esc(d.txt.precoFinalRS)}</h3>
-          <p>Equipamentos + projeto de engenharia com ART + homologação na ${esc(d.concessionaria)} + instalação.</p>
-          <p style="margin-top:1.5mm;">Sem custos escondidos: tudo o que está na página anterior já está neste valor.</p>
+      <div class="pv-hero-preco">
+        <div class="tag">INVESTIMENTO TOTAL • CHAVE NA MÃOS</div>
+        <div class="linha-valor">
+          ${d.txt.precoCheioRS ? `<span class="riscado">${esc(d.txt.precoCheioRS)}</span>` : ''}
+          <span class="valor">${esc(d.txt.precoFinalRS)}</span>
+          ${d.txt.descontoBadge ? `<span class="badge-desc">${esc(d.txt.descontoBadge)}</span>` : ''}
         </div>
-        <div class="pv-preco">
-          <div><span class="cheio">${esc(d.txt.precoCheioRS)}</span><span class="off">-${esc(d.txt.descontoPct)} OFF</span></div>
-          <div class="final">${esc(d.txt.precoFinalRS)}</div>
-          <div class="economiza">Você economiza ${esc(d.txt.descontoRS)} nesta proposta</div>
+        ${d.txt.parcelasTxt ? `<div class="parcelas">${esc(d.txt.parcelasTxt)}</div>` : ''}
+        <div class="incluso">Inclui equipamentos, projeto com ART, homologação e instalação — sem taxa extra.</div>
+      </div>
+
+      <div class="pv-minis" style="margin-top:1mm;">
+        <div class="pv-mini"><div class="k">Conta de hoje</div><div class="v">${esc(d.txt.contaHojeRS)}</div></div>
+        <div class="pv-mini"><div class="k">Conta com solar</div><div class="v">${esc(d.txt.contaNovaRS)}</div></div>
+        <div class="pv-mini"><div class="k">Economia/mês</div><div class="v am">${esc(d.txt.economiaMensalRS)}</div></div>
+        <div class="pv-mini"><div class="k">Retorno</div><div class="v">${esc(d.txt.paybackCurto)}</div></div>
+      </div>
+
+      <div class="pv-comp">
+        <div class="linha">
+          <div class="rotulo">Poupança <b>${esc(d.txt.rendPoupanca)}</b>/ano</div>
+          <div class="pv-comp-out"><div class="pv-comp-in" style="width:18%;"></div></div>
         </div>
-      </div>
-
-      <div class="pv-cards4" style="margin-top:4mm;">
-        <div class="pv-inv-card"><div class="k">Economia/mês (estimada)</div><div class="v">${esc(d.txt.economiaMensalRS)}</div><div class="n">média no primeiro ano</div></div>
-        <div class="pv-inv-card"><div class="k">Economia/ano</div><div class="v">${esc(d.txt.economiaAnualRS)}</div><div class="n">dinheiro que fica com você</div></div>
-        <div class="pv-inv-card hl"><div class="k">Retorno</div><div class="v">${esc(d.txt.paybackCurto)}</div><div class="n">${esc(d.txt.paybackExtenso)}</div></div>
-        <div class="pv-inv-card"><div class="k">Em 25 anos</div><div class="v">${esc(d.txt.economia25RS)}</div><div class="n">sem contar reajustes</div></div>
-      </div>
-
-      <div class="pv-card" style="margin-top:4mm;">
-        <h3>Comparando com deixar o dinheiro aplicado</h3>
-        <p class="pv-sub" style="margin-top:1mm;">Se você colocar ${esc(d.txt.precoFinalRS)} em uma aplicação, quanto ela devolve por ano? Compare com o que o sistema solar devolve em economia:</p>
-        <div class="pv-barras">${linhasBarras}</div>
-        <p style="font-size:8.4pt;margin-top:2.5mm;"><strong>Em reais, no 1º ano:</strong> aplicação no CDB ≈ ${esc(cdbNoPrimeiroAno)} • sistema solar ≈ ${esc(d.txt.economiaAnualRS)} de economia.</p>
-        <p class="pv-nota" style="margin-top:1.5mm;">Rendimentos de referência aproximados, apenas para comparação. A economia na conta de luz não paga imposto de renda.</p>
-      </div>
-
-      <div class="pv-grid2" style="margin-top:4mm;">
-        <div class="pv-card">
-          <h3>Como calculamos a economia (líquida)</h3>
-          <div class="pv-li"><span class="bola v"></span><span>Geração de ~${esc(d.txt.geracaoTxt)}, com 20% de perdas já descontadas.</span></div>
-          <div class="pv-li"><span class="bola v"></span><span>Tarifa média de ${esc(d.txt.tarifaRS)}/kWh — ${esc(d.txt.taxaMinimaRS)} de taxa mínima da ligação já considerada.</span></div>
-          <div class="pv-li"><span class="bola v"></span><span>Fio B da Lei 14.300 descontado: ${esc(d.txt.fioBRS)}/mês — que historicamente sobe todos os anos e deixaria a economia ainda maior.</span></div>
-          <div class="pv-li"><span class="bola v"></span><span>Em 25 anos já descontamos o leve desgaste natural dos painéis (cerca de 0,4% ao ano).</span></div>
+        <div class="linha">
+          <div class="rotulo">CDB líquido <b>${esc(d.txt.rendCdb)}</b>/ano</div>
+          <div class="pv-comp-out"><div class="pv-comp-in" style="width:28%;"></div></div>
         </div>
-        <div class="pv-caixa-am">
-          <h4>O que continua aparecendo na sua conta (transparência)</h4>
-          <p>• A taxa mínima da ${esc(d.concessionaria)} (custo de disponibilidade), que todo cliente conectado à rede paga;</p>
-          <p>• O Fio B (Lei 14.300): uma parte do uso da rede cobrada sobre a energia que vai e volta como crédito — ${esc(fioBTexto)};</p>
-          <p>• O consumo que passar do que o sistema gera.</p>
-          <p style="font-weight:700;">Por isso falamos em economia estimada: a conta não zera, mas cai muito.</p>
+        <div class="linha">
+          <div class="rotulo">Sistema solar <b>${esc(d.txt.rendimentoSolar)}</b>/ano</div>
+          <div class="pv-comp-out"><div class="pv-comp-in am" style="width:100%;"></div></div>
+        </div>
+        <div style="font-size:7.5pt;color:#5A6680;margin-top:1.5mm;">Rendimento do sistema solar = economia anual ÷ investimento. Isento de imposto e indexado à tarifa de energia, que só sobe.</div>
+      </div>
+
+      <div class="pv-2col" style="margin-top:1mm;">
+        <div class="col">
+          <div class="col-t">Como calculamos</div>
+          <ul>${d.txt.comoCalculamos.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
+        </div>
+        <div class="col destaque">
+          <div class="col-t" style="color:#0B1E4A;">O que continua na sua conta</div>
+          <ul>${d.txt.continuaNaConta.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
+          <div style="margin-top:2.5mm;font-size:8pt;color:#5A6680;">Conta estimada com solar: <b style="color:#0B1E4A;">${esc(d.txt.contaNovaRS)}/mês</b> (taxa mínima + Fio B)</div>
         </div>
       </div>
     </div>
-    ${footerInterno(4)}
-  </section>`
+    ${rodapeInternoHtml(d, 4)}
+  </div>`
 }
 
 /* ------------------------------------------------------------------ */
-/* PÁGINA 5 — COMO VAI SER (ETAPAS) + PAGAMENTO                       */
+/* PÁGINA 5 — COMO VAI SER (espelho de v2PaginaComoVaiSer.tsx)        */
 /* ------------------------------------------------------------------ */
-function pagina5(d: DadosV2): string {
-  const cartoes = d.etapas
+const CHIP_COR: Record<string, 'voce' | 'eco' | 'conc'> = {
+  Você: 'voce',
+  Ecosolar: 'eco',
+  Concessionária: 'conc',
+}
+
+function paginaComoVaiSerHtml(d: DadosV2): string {
+  const etapasHtml = d.etapas
     .map(
-      (e, i) => `<div class="pv-etapa">
-        <div class="topo"><div class="num">${esc(i + 1)}</div><span class="quem eco">${esc(e.quem)}</span></div>
-        <p>${esc(e.txt)}</p>
-      </div>`,
+      (e, i) =>
+        `<div class="etapa"><span class="chip ${CHIP_COR[e.quem] ?? 'voce'}">${esc(e.quem)}</span><div class="etapa-t">${esc(`${i + 1}. ${e.titulo}`)}</div><div class="etapa-x">${esc(e.txt)}</div></div>`,
     )
     .join('')
 
-  return `<section class="pv-page">
-    ${headerInterno(d)}
-    <div class="pv-page-inner pv-pad">
-      <div style="margin-top:6mm;">
-        <span class="pv-sec-tag">3 • Como vai ser</span>
-        <h2 class="pv-sec-title" style="margin-top:3mm;">Do "sim" até a usina ligada</h2>
-        <p class="pv-sub" style="margin-top:2mm;">Cuidamos de toda a burocracia com a concessionária. Você só participa de algumas etapas.</p>
+  const garantiasHtml = d.garantias.map((g) => `<li>${esc(g)}</li>`).join('')
+  const inclusoHtml = d.incluso.map((g) => `<li>${esc(g)}</li>`).join('')
+  const naoInclusoHtml = d.naoIncluso.map((g) => `<li>${esc(g)}</li>`).join('')
+  const pagamentosHtml = d.formasPagamento
+    .map((f) => `<div class="linha"><b>${esc(f.titulo)}</b><span>${esc(f.descricao)}</span></div>`)
+    .join('')
+
+  return `<div class="pv-page">
+    ${cabecalhoInternoHtml(d, 5)}
+    <div class="pv-pad" style="flex:1;display:flex;flex-direction:column;gap:3.5mm;">
+      <div>
+        <span class="pv-sec-tag">Como vai ser</span>
+        <div class="pv-sec-title" style="margin-top:2mm;">Do aceite ao sistema ligado — passo a passo</div>
       </div>
 
-      <div class="pv-etapas" style="margin-top:5mm;">${cartoes}</div>
+      <div class="pv-etapas" style="margin-top:1mm;">${etapasHtml}</div>
 
-      <div class="pv-grid2" style="margin-top:5mm;">
-        <div class="pv-card">
-          <h3>Garantias</h3>
-          <div class="pv-li"><span class="bola v"></span><span>Painéis ${esc(d.painelModelo)}: garantia de desempenho linear de ${esc(d.painelGarantiaDesempenho)} do fabricante.</span></div>
-          <div class="pv-li"><span class="bola v"></span><span>Inversor ${esc(d.inversorModelo)}: ${esc(d.garantiaInversorAnos)} anos de garantia.</span></div>
-          <div class="pv-li"><span class="bola v"></span><span>Instalação: ${esc(d.garantiaInstalacaoAnos)} anos de garantia e suporte técnico pós-venda.</span></div>
-          <div class="pv-li"><span class="bola v"></span><span>Projeto: assinado por engenheiro eletricista, com ART registrada no CREA.</span></div>
+      <div style="font-size:8.5pt;color:#5A6680;margin-top:0.5mm;">Prazo de instalação: até <b style="color:#0B1E4A;">${PRAZO_INSTALACAO_DIAS} dias</b> após a aprovação da concessionária.</div>
+
+      <div class="pv-2col" style="margin-top:1mm;">
+        <div class="col">
+          <div class="col-t" style="color:#166534;">Garantias</div>
+          <ul>${garantiasHtml}</ul>
         </div>
-        <div class="pv-card">
-          <h3>Já está incluso no valor</h3>
-          <div class="pv-li"><span class="bola v"></span><span>Todos os equipamentos e a estrutura de fixação</span></div>
-          <div class="pv-li"><span class="bola v"></span><span>Projeto, ART e homologação na concessionária</span></div>
-          <div class="pv-li"><span class="bola v"></span><span>Mão de obra de instalação e frete do material</span></div>
-          <div class="pv-li"><span class="bola v"></span><span>Configuração do monitoramento no seu celular</span></div>
-          <div style="margin-top:3mm;padding-top:2.5mm;border-top:1px dashed #dfe5f0;">
-            <h3>Não incluso</h3>
-            <div class="pv-li"><span class="bola c"></span><span>Adequações no padrão de entrada ou quadro, se a concessionária exigir — avaliadas na vistoria e orçadas à parte, antes de qualquer serviço.</span></div>
-          </div>
+        <div class="col destaque">
+          <div class="col-t" style="color:#0B1E4A;">O que está incluso</div>
+          <ul>${inclusoHtml}</ul>
+          <div class="col-t" style="color:#7F1D1D;margin-top:2.5mm;">O que NÃO está incluso${d.naoIncluso.length === 0 ? ' — nada a pagar além do valor desta proposta' : ''}</div>
+          <ul>${naoInclusoHtml}</ul>
         </div>
       </div>
 
-      <div style="margin-top:5mm;">
-        <div style="font-family:Montserrat;font-weight:800;font-size:9pt;color:#1d4290;letter-spacing:1.2px;">FORMAS DE PAGAMENTO</div>
-        <div class="pv-pagtos" style="margin-top:3mm;">
-          <div class="pv-pagto"><h4>Condições desta proposta</h4><p>${esc(d.financiamentoTxt)}</p></div>
-        </div>
+      <div class="pv-pagamentos" style="margin-top:1mm;">
+        <div class="pt-t">Formas de pagamento</div>
+        ${pagamentosHtml}
       </div>
     </div>
-    ${footerInterno(5)}
-  </section>`
+    ${rodapeInternoHtml(d, 5)}
+  </div>`
 }
 
 /* ------------------------------------------------------------------ */
-/* PÁGINA 6 — DEPOIMENTO + FAQ + ACEITE (QR Code)                     */
+/* PÁGINA 6 — FECHAMENTO (espelho de v2PaginaFinal.tsx)               */
 /* ------------------------------------------------------------------ */
-function pagina6(d: DadosV2, linkPublico: string, urlBase?: string): string {
+function paginaFinalHtml(d: DadosV2, urlAceite: string): string {
+  const depoimentos: { nome: string; txt: string }[] = [...d.depoimento]
+  if (d.depoimentoExtra && depoimentos.length < 2) depoimentos.push(d.depoimentoExtra)
+
+  const depoHtml = depoimentos
+    .slice(0, 2)
+    .map(
+      (dep) =>
+        `<div class="pv-depo navy"><div class="aspas" aria-hidden="true">”</div><div><div class="txt">${esc(dep.txt)}</div><div class="autor">${esc(dep.nome)}</div></div></div>`,
+    )
+    .join('')
+
   const faqHtml = d.faq
     .map((f) => `<div><div class="q">${esc(f.q)}</div><div class="a">${esc(f.a)}</div></div>`)
     .join('')
-  const depo = d.depoimento[0]
 
-  const aceiteTela = `<div class="pv-aceite-tela pv-somente-tela" data-proposta-aceite>
-    <button type="button" class="pv-btn-aceite" data-acao-aceite>✓ Aceitar esta proposta agora</button>
-    <a class="pv-link-aceite" href="${esc(linkPublico)}">Ou use o link de aceite: ${esc(linkPublico)}</a>
-  </div>`
-
-  const urlAbsoluta = urlBase ? `${urlBase}${linkPublico}` : linkPublico
-  const linkImpressao = `<div style="display:flex;align-items:center;gap:4mm;margin-top:2.5mm;">
-        ${qrCodeHtml(urlAbsoluta)}
-        <span class="mono pv-somente-impressao" style="font-size:8pt;word-break:break-all;">${esc(urlAbsoluta)}</span>
-      </div>`
-
-  return `<section class="pv-page">
-    ${headerInterno(d)}
-    <div class="pv-page-inner pv-pad">
-      <div style="margin-top:6mm;">
-        <span class="pv-sec-tag">4 • Quem faz</span>
-        <h2 class="pv-sec-title" style="margin-top:3mm;">Clientes que já economizam com a gente</h2>
+  return `<div class="pv-page">
+    ${cabecalhoInternoHtml(d, 6)}
+    <div class="pv-pad" style="flex:1;display:flex;flex-direction:column;gap:3.5mm;">
+      <div>
+        <span class="pv-sec-tag">Fechamento</span>
+        <div class="pv-sec-title" style="margin-top:2mm;">Pronto para começar a economizar?</div>
       </div>
 
-      <div class="pv-depo" style="margin-top:4mm;">
-        <div class="aspas">"</div>
-        <div>
-          <div class="txt">${esc(depo?.txt || '')}</div>
-          <div class="autor">${esc(depo?.nome || 'Cliente Ecosolar')}</div>
+      <div style="display:grid;grid-template-columns:${depoimentos.length > 1 ? '1fr 1fr' : '1fr'};gap:3mm;">${depoHtml}</div>
+
+      <div class="pv-faq" style="grid-template-columns:1fr 1fr;">${faqHtml}</div>
+
+      <div class="pv-aceite">
+        <strong style="font-size:9pt;color:#0B1E4A;">Aceite desta proposta — válido até ${esc(dataBR(d.dataValidade))} (${esc(d.validadeDias)} dias)</strong>
+        <div class="mono">${esc(urlAceite || 'Link de aceite disponível com o seu consultor')}</div>
+        <div class="qrbox">
+          ${urlAceite ? qrCodeHtml(urlAceite) : ''}
+          <div class="qrtexto">Aponte a câmera do celular para o QR Code ou acesse o link acima para aceitar a proposta digitalmente. O aceite é registrado com data/hora e entra imediatamente na fila de engenharia. Dúvidas? WhatsApp <b style="color:#0B1E4A;">${esc(CONTATO_ECOSOLAR.telefoneFormatado)}</b>.</div>
         </div>
       </div>
 
-      <div style="margin-top:5mm;">
-        <div style="font-family:Montserrat;font-weight:800;font-size:9pt;color:#1d4290;letter-spacing:1.2px;">PERGUNTAS FREQUENTES</div>
-        <div class="pv-faq" style="margin-top:3mm;">${faqHtml}</div>
-      </div>
-
-      <div class="pv-aceite" style="margin-top:5mm;">
-        <div style="font-family:Montserrat;font-weight:800;font-size:10pt;color:#0B1E4A;">Aceite online — rápido e seguro, sem cartório</div>
-        <p style="font-size:8.4pt;color:#5b6782;margin-top:1.5mm;">Válida até <strong style="color:#0B1E4A;">${esc(dataBR(d.dataValidade))}</strong>. Os valores desta proposta ficam garantidos até a data de validade. Para aceitar, aponte a câmera do celular para o QR Code abaixo ou acesse o link.</p>
-        ${linkImpressao}
-        ${aceiteTela}
-      </div>
-
       <div class="pv-assina">
-        <div class="campo"><b>${esc(d.consultorNome || 'Equipe Ecosolar')}</b><span>Ecosolar Energy • Consultor Técnico</span></div>
         <div class="campo"><b>${esc(d.clienteNome)}</b><span>Cliente contratante</span></div>
+        <div class="campo"><b>${esc(d.consultorNome || 'Consultor Ecosolar')}</b><span>Ecosolar Energy</span></div>
       </div>
     </div>
-    ${footerInterno(6)}
-  </section>`
+    ${rodapeInternoHtml(d, 6)}
+  </div>`
+}
+
+/* ------------------------------------------------------------------ */
+/* Alerta interno — SOMENTE TELA (nunca sai no PDF impresso)          */
+/* ------------------------------------------------------------------ */
+function alertaInversorHtml(d: DadosV2): string {
+  const a = d.alertaInversor
+  if (!a?.estourado) return ''
+  return `<div class="pv-somente-tela" style="margin-top:4mm;border:1.5px solid #b45309;background:#fef3c7;color:#7c2d12;border-radius:2mm;padding:3mm 4mm;font-size:8.4pt;line-height:1.5;">
+    <strong>⚠ Atenção (uso interno — não impresso):</strong> a potência do kit (${esc(d.potenciaKwp)} kWp) corresponde a
+    ${esc(Math.round(a.razaoPct))}% da potência dos inversores (limite recomendado: ${esc(Math.round(a.limitePct))}%).
+    Revise o dimensionamento do inversor antes de enviar ao cliente.
+  </div>`
 }
 
 /* ------------------------------------------------------------------ */
@@ -513,11 +452,11 @@ export function generateProposalPrintHTML(
   const linkPublico =
     opts?.linkPublico ||
     (data.token_publico ? `/proposta/${data.token_publico}` : `/proposta/${data.id || ''}`)
-  const urlBase = opts?.urlBase
+  const urlAceite = opts?.urlBase ? `${opts.urlBase}${linkPublico}` : linkPublico
   const d = proposalDataDePublica(
     { ...data, lead: leadDeData(data) } as unknown as PublicProposta,
     {},
-    linkPublico,
+    urlAceite,
   )
 
   return `<!DOCTYPE html>
@@ -525,17 +464,19 @@ export function generateProposalPrintHTML(
 <head>
   <meta charset="UTF-8" />
   <title>Proposta Comercial Nº ${esc(d.numero)} — ${esc(d.clienteNome)} | Ecosolar Energy</title>
-  ${FONTS_PROPOSTA_LINK}
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="${FONTS_PROPOSTA_LINK}" />
   <style>${PROPOSTA_V2_CSS}${IMPRESSAO_CSS_EXTRA}</style>
 </head>
 <body>
   <div class="prop-v2">
-    ${paginaCapa(d)}
-    ${pagina2(d)}
-    ${pagina3(d)}
-    ${pagina4(d)}
-    ${pagina5(d)}
-    ${pagina6(d, linkPublico, urlBase)}
+    ${paginaCapaHtml(d)}
+    ${paginaApresentacaoHtml(d)}
+    ${paginaSistemaHtml(d)}
+    ${paginaInvestimentoHtml(d)}
+    ${paginaComoVaiSerHtml(d)}
+    ${paginaFinalHtml(d, urlAceite)}
   </div>
 </body>
 </html>`
