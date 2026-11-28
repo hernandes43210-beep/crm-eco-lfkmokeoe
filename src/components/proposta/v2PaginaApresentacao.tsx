@@ -5,6 +5,15 @@ interface PaginaApresentacaoProps {
   d: DadosV2
 }
 
+/** Trilha Sol→Casa→Rede — conteúdo fixo/decorativo da proposta, não vem dos dados. */
+const TRILHA = [
+  { k: 'sol', ic: '☀', t: 'Sol', x: 'Luz gratuita, todos os dias' },
+  { k: 'painel', ic: '▤', t: 'Painéis', x: 'Transformam a luz em energia' },
+  { k: 'inversor', ic: '⌁', t: 'Inversor', x: 'Deixa a energia pronta para uso' },
+  { k: 'casa', ic: '⌂', t: 'Sua casa', x: 'Usa na hora o que precisa' },
+  { k: 'rede', ic: '⚡', t: 'Rede', x: 'Guarda a sobra como crédito' },
+] as const
+
 /** Página 2 — APRESENTAÇÃO (resumo em 30 segundos + trilha Sol→Casa→Rede + De dia/À noite). */
 export function PaginaApresentacao({ d }: PaginaApresentacaoProps) {
   const primeiroNome = (d.clienteNome || 'Cliente').trim().split(/\s+/)[0]
@@ -54,18 +63,10 @@ export function PaginaApresentacao({ d }: PaginaApresentacaoProps) {
 
         {/* trilha Sol → Painéis → Inversor → Casa → Rede */}
         <div className="pv-trilha" style={{ marginTop: '2mm' }}>
-          {d.trilha.map((t) => (
+          {TRILHA.map((t) => (
             <div className="etapa" key={t.k}>
               <div className="etapa-ic" aria-hidden="true">
-                {t.k === 'sol'
-                  ? '☀'
-                  : t.k === 'painel'
-                    ? '▤'
-                    : t.k === 'inversor'
-                      ? '⌁'
-                      : t.k === 'casa'
-                        ? '⌂'
-                        : '⚡'}
+                {t.ic}
               </div>
               <div className="etapa-t">{t.t}</div>
               <div className="etapa-x">{t.x}</div>

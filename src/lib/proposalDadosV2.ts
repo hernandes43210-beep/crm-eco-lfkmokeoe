@@ -12,6 +12,7 @@ import {
   type InversorJsonValor,
 } from '@/services/kitGerador'
 import { rotuloBateria } from './propostaBaterias'
+import { parseCondicoesPagamento } from './paymentConditionsParser'
 import {
   calcularProposta,
   calcularDataValidade,
@@ -107,6 +108,9 @@ export interface DadosV2 {
   inversorKw: number
   inversorQtd: number
   kitItens: KitItensProposta[]
+  /** Tabela completa do kit (página 3): colunas Qtd./Item/Para que serve/Incluso. */
+  itensKit: { qtd: string; item: string; paraQue: string; incluso: string }[]
+  coberturaPct: number
   fotoCapa: FotoProposta | null
   calc: ResultadoCalculoProposta
   fioBPct: number
@@ -121,6 +125,11 @@ export interface DadosV2 {
   garantiaInstalacaoAnos: number | null
   rendPoupancaPct: number
   rendCdbPct: number
+  /** Etapas da implantação (página 5) — quem/título/texto. */
+  garantias: string[]
+  incluso: string[]
+  naoIncluso: string[]
+  formasPagamento: { titulo: string; descricao: string }[]
   alertaInversor: LimiteInversorInfo | null
   txt: {
     contaHojeRS: string
@@ -142,6 +151,15 @@ export interface DadosV2 {
     taxaMinimaRS: string
     fioBRS: string
     coberturaPctTxt: string
+    coberturaTxt: string
+    formulaTxt: string
+    descontoBadge: string
+    parcelasTxt: string
+    rendPoupanca: string
+    rendCdb: string
+    rendimentoSolar: string
+    comoCalculamos: string[]
+    continuaNaConta: string[]
   }
 }
 
@@ -214,6 +232,84 @@ export function proposalDataDePublica(
 
   const financiamentoTxt = 'ou financiamento com carência — consulte condições'
 
+  const fioBPctAtual = percentualFioB(dataEmissao)
+  const fioBPctInt = Math.round(fioBPctAtual * 100)
+  const anoEmissao = dataEmissao.getFullYear()
+  const fioBTexto =
+    anoEmissao >= 2028
+      ? 'sobe para 90% em 2028'
+      : anoEmissao === 2027
+        ? 'sobe para 75% em 2027'
+        : `hoje ${fioBPctInt}% (sobe para 75% em 2027 e 90% em 2028)`
+  const painelQtdCalc =
+    painel?.qtd && Number(painel.qtd) > 0
+      ? Number(painel.qtd)
+      : painel?.potencia_w
+        ? Math.max(1, Math.round((potenciaKwp * 1000) / Number(painel.potencia_w)))
+        : 0
+  const painelNome =
+    painel && (painel.marca || painel.modelo)
+      ? `${painel.marca} ${painel.modelo || ''}`.trim()
+      : 'Painel fotovoltaico monocristalino'
+  const inversorNome = (() => {
+    const inv = inversoresLinhas[0]
+    if (inv) return `${inv.marca} ${inv.modelo || ''}`.trim() || 'Inversor string'
+    return (kit?.marca_inversor || p.kit_marca_inversor || '').trim() || 'Inversor string'
+  })()
+  const tipoEstruturaTxt = p.kit_tipo_estrutura || kit?.tipo_estrutura || 'telhado'
+  const stringBoxTxt = String(kit?.string_box || p.kit_string_box || '').trim()
+  const bateriasKit = parseBateriasJson(p.kit_baterias)
+  const itensKit: { qtd: string; item: string; paraQue: string; incluso: string }[] = []
+  itensKit.push({
+    qtd: painelQtdCalc > 0 ? String(painelQtdCalc) : '—',
+    item: painelNome,
+    paraQue: 'Geração de energia limpa a partir do sol',
+    incluso: '✓ Incluso',
+  })
+  itensKit.push({
+    qtd: String(Math.max(1, Number(kit?.qtd_inversores || p.kit_qtd_inversores || 1))),
+    item: inversorNome,
+    paraQue: 'Converte a energia para uso na casa (monitoramento incluso)',
+    incluso: '✓ Incluso',
+  })
+  itensKit.push({
+    qtd: '1',
+    item: `Estrutura de fixação (${tipoEstruturaTxt})`,
+    paraQue: 'Fixação e montagem dos painéis',
+    incluso: '✓ Incluso',
+  })
+  if (stringBoxTxt) {
+    itensKit.push({
+      qtd: '1',
+      item: `String box ${stringBoxTxt}`,
+      paraQue: 'Proteção e comando do sistema (disjuntores e DPS)',
+      incluso: '✓ Incluso',
+    })
+  }
+  for (const b of bateriasKit) {
+    itensKit.push({
+      qtd: String(b.qtd || 1),
+      item: rotuloBateria(b),
+      paraQue: 'Armazenamento de energia (ampliação opcional)',
+      incluso: '✓ Incluso',
+    })
+  }
+  const matchParcelas = String(
+    (p as unknown as Record<string, unknown>).condicoes_pagamento || '',
+  ).match(/(\d{1,3}\s*x)/i)
+  const parcelasTxt = matchParcelas
+    ? `Em até ${matchParcelas[1].replace(/\s+/g, '')} no cartão ou ${financiamentoTxt}`
+    : financiamentoTxt
+  const formasPagamento = ((p as unknown as Record<string, unknown>).condicoes_pagamento as string)
+    ? parseCondicoesPagamento(
+        (p as unknown as Record<string, unknown>).condicoes_pagamento as string,
+        precoFinal,
+      ).itens.map((i) => ({ titulo: i.titulo, descricao: i.descricao }))
+    : [
+        { titulo: 'À vista', descricao: 'PIX ou TED — melhor condição e retorno imediato.' },
+        { titulo: 'Financiamento', descricao: 'Com carência — consulte as condições.' },
+      ]
+
   return {
     empresa: emp,
     numero: p.token_publico || p.id || '',
@@ -234,33 +330,23 @@ export function proposalDataDePublica(
     potenciaKwp,
     geracaoMensalKwh: calc.geracaoMensalKwh,
     areaM2: painel?.area_m2 && painel?.qtd ? painel.area_m2 * painel.qtd : potenciaKwp * M2_POR_KWP,
-    painelModelo: painel
-      ? `${painel.marca} ${painel.modelo || ''}`.trim() || 'Painel fotovoltaico monocristalino'
-      : 'Painel fotovoltaico monocristalino',
-    painelQtd: painel?.qtd ? Number(painel.qtd) : 0,
+    painelModelo: painelNome,
+    painelQtd: painelQtdCalc,
     painelGarantiaProduto: '12 anos',
     painelGarantiaDesempenho: '30 anos',
-    inversorModelo: (() => {
-      const inv = inversoresLinhas[0]
-      if (inv) return `${inv.marca} ${inv.modelo}`.trim()
-      return kit?.marca_inversor || p.kit_marca_inversor
-        ? (kit?.marca_inversor || p.kit_marca_inversor || '').trim()
-        : 'Inversor string'
-    })(),
+    inversorModelo: inversorNome,
     inversorKw: Number(kit?.potencia_inversor_kw || p.kit_potencia_inversor_kw || 0),
     inversorQtd: Number(kit?.qtd_inversores || p.kit_qtd_inversores || 1),
-    kitItens: (() => {
-      // Baterias do kit entram como linhas do "O que vem no seu kit" (v0.0.79+).
-      const baterias = parseBateriasJson(p.kit_baterias)
-      return baterias.map((b) => ({
-        nome: rotuloBateria(b),
-        qtd: String(b.qtd || 1),
-        obs: 'Armazenamento de energia (ampliação opcional)',
-      }))
-    })(),
+    kitItens: bateriasKit.map((b) => ({
+      nome: rotuloBateria(b),
+      qtd: String(b.qtd || 1),
+      obs: 'Armazenamento de energia (ampliação opcional)',
+    })),
+    itensKit,
+    coberturaPct: calc.coberturaPct,
     fotoCapa,
     calc,
-    fioBPct: percentualFioB(dataEmissao),
+    fioBPct: fioBPctAtual,
     simultaneidadePct: 30,
     tarifaFioB: calc.tarifaFioB,
     aceiteUrl,
@@ -279,6 +365,20 @@ export function proposalDataDePublica(
     garantiaInstalacaoAnos: GARANTIA_INSTALACAO_ANOS,
     rendPoupancaPct: Math.round(RENDIMENTO_POUPANCA_AO_ANO * 100),
     rendCdbPct: Math.round(RENDIMENTO_CDB_LIQUIDO_AO_ANO * 100),
+    garantias: [
+      `Painéis ${painelNome}: garantia de produto de 12 anos e desempenho linear de 30 anos.`,
+      `Inversor ${inversorNome}: ${GARANTIA_INVERSOR_ANOS} anos de garantia.`,
+      `Instalação: ${GARANTIA_INSTALACAO_ANOS} anos de garantia e suporte técnico pós-venda.`,
+      'Projeto assinado por engenheiro eletricista, com ART registrada no CREA.',
+    ],
+    incluso: [
+      'Todos os equipamentos e a estrutura de fixação',
+      'Projeto, ART e homologação na concessionária',
+      'Mão de obra de instalação e frete do material',
+      'Configuração do monitoramento no seu celular',
+    ],
+    naoIncluso: [] as string[],
+    formasPagamento,
     alertaInversor: calc.alertaInversor,
     txt: {
       contaHojeRS: formatBRL(calc.contaHoje),
@@ -296,10 +396,29 @@ export function proposalDataDePublica(
       precoCheioRS: formatBRL(precoCheio),
       descontoRS: formatBRL(calc.descontoRs),
       descontoPct: `${formatNumeroBR(calc.descontoPct, 0)}%`,
+      descontoBadge: calc.descontoRs > 0 ? `-${formatNumeroBR(calc.descontoPct, 0)}% OFF` : '',
+      parcelasTxt,
       tarifaRS: formatBRL(calc.tarifaKwh),
       taxaMinimaRS: formatBRL(calc.taxaMinimaMensal),
       fioBRS: formatBRL(calc.custoFioBMensal),
       coberturaPctTxt: `${calc.coberturaPct}%`,
+      coberturaTxt: `${calc.coberturaPct}%`,
+      formulaTxt: `${formatNumeroBR(potenciaKwp, 2)} kWp × ~4,6 h de sol/dia × 30 dias × 80% = ~${formatNumeroBR(calc.geracaoMensalKwh)} kWh/mês`,
+      rendPoupanca: `${Math.round(RENDIMENTO_POUPANCA_AO_ANO * 100)}%`,
+      rendCdb: `${Math.round(RENDIMENTO_CDB_LIQUIDO_AO_ANO * 100)}%`,
+      rendimentoSolar: `${formatNumeroBR(calc.rendimentoSolarPct, 1)}%`,
+      comoCalculamos: [
+        `Geração de ~${formatNumeroBR(calc.geracaoMensalKwh)} kWh/mês, com 20% de perdas já descontadas.`,
+        `Tarifa média de ${formatBRL(calc.tarifaKwh)}/kWh — ${formatBRL(calc.taxaMinimaMensal)} de taxa mínima já considerada.`,
+        `Fio B da Lei 14.300 descontado: ${formatBRL(calc.custoFioBMensal)}/mês — e ele sobe todo ano.`,
+        'Em 25 anos já descontamos o desgaste natural dos painéis (~0,4% ao ano).',
+      ],
+      continuaNaConta: [
+        'A taxa mínima da concessionária (custo de disponibilidade) — todo cliente conectado à rede paga.',
+        `O Fio B (Lei 14.300): parte do uso da rede sobre a energia que vai e volta como crédito — ${fioBTexto}.`,
+        'O consumo que passar do que o sistema gera.',
+        'Por isso falamos em economia ESTIMADA: a conta não zera, mas cai muito.',
+      ],
     },
   }
 }
