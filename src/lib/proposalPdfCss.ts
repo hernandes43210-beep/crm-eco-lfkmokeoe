@@ -143,6 +143,73 @@ export const PROPOSTA_V2_CSS = `
 .pv-assina .campo b{display:block;font-size:8.4pt;color:#0B1E4A}
 .pv-assina .campo span{font-size:6.8pt;color:#5A6680}
 
+/* ===== Página apresentação (trilha + de dia/à noite) ===== */
+.pv-corpo{font-size:9pt;line-height:1.6;color:#1A2440}
+.pv-trilha{display:grid;grid-template-columns:repeat(5,1fr);gap:2.5mm}
+.pv-trilha .etapa{background:#F3F5FA;border:1px solid #DDE3EF;border-radius:2.5mm;padding:2.5mm;text-align:center}
+.pv-trilha .etapa-ic{font-size:13pt;line-height:1.2}
+.pv-trilha .etapa-t{font-family:Montserrat,sans-serif;font-weight:800;font-size:8pt;color:#0B1E4A;margin-top:.8mm}
+.pv-trilha .etapa-x{font-size:6.9pt;color:#5A6680;margin-top:.5mm;line-height:1.35}
+.pv-dia-noite{display:grid;grid-template-columns:1fr 1fr;gap:3mm}
+.pv-dia-noite .col{background:#F3F5FA;border:1px solid #DDE3EF;border-radius:2.5mm;padding:3mm 3.5mm}
+.pv-dia-noite .col-t{font-family:Montserrat,sans-serif;font-weight:800;font-size:8.5pt}
+.pv-dia-noite .col-x{font-size:7.4pt;color:#5A6680;line-height:1.5;margin-top:1mm}
+
+/* ===== Investimento (hero navy, barras de comparação, 2 colunas) ===== */
+.pv-hero-preco{background:#0B1E4A;border-radius:3mm;padding:5mm 6mm;color:#fff}
+.pv-hero-preco .tag{font-size:7pt;text-transform:uppercase;letter-spacing:1.2px;color:#A9B8D8;font-weight:800}
+.pv-hero-preco .linha-valor{display:flex;align-items:baseline;gap:3mm;flex-wrap:wrap;margin-top:1.5mm}
+.pv-hero-preco .riscado{font-size:9pt;color:#A9B8D8;text-decoration:line-through}
+.pv-hero-preco .valor{font-family:Montserrat,sans-serif;font-weight:900;font-size:22pt;color:#FFC629}
+.pv-hero-preco .badge-desc{background:#FFC629;color:#0B1E4A;font-weight:800;font-size:7.5pt;border-radius:999px;padding:.8mm 2.5mm}
+.pv-hero-preco .parcelas{font-size:8pt;color:#C9D4EA;margin-top:1mm}
+.pv-hero-preco .incluso{font-size:7.2pt;color:#A9B8D8;margin-top:2mm;line-height:1.5}
+.pv-comp{background:#F3F5FA;border:1px solid #DDE3EF;border-radius:3mm;padding:4mm 5mm}
+.pv-comp .linha{display:grid;grid-template-columns:52mm 1fr;align-items:center;gap:3mm;margin:1.8mm 0;font-size:7.8pt;color:#5A6680}
+.pv-comp .rotulo b{color:#0B1E4A}
+.pv-comp-out{background:#E8EDF6;border-radius:999px;height:5.5mm;overflow:hidden;display:block}
+.pv-comp-in{height:100%;border-radius:999px;background:#1d4290;display:block}
+.pv-comp-in.am{background:linear-gradient(90deg,#FFC629,#E8A400)}
+.pv-2col{display:grid;grid-template-columns:1fr 1fr;gap:4mm}
+.pv-2col .col{background:#F3F5FA;border:1px solid #DDE3EF;border-radius:3mm;padding:4mm 5mm}
+.pv-2col .col.destaque{background:#FFF7DF;border-color:#F2DFA0}
+.pv-2col .col-t{font-family:Montserrat,sans-serif;font-weight:800;font-size:8.8pt;color:#8a6d00;margin-bottom:1.5mm}
+.pv-2col .col ul{margin:0;padding-left:4mm;display:grid;gap:1.2mm}
+.pv-2col .col li{font-size:7.4pt;color:#5A6680;line-height:1.45}
+
+/* ===== Como vai ser (etapas com chips, formas de pagamento) ===== */
+.pv-etapas{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm}
+.pv-etapas .etapa{border:1px solid #DDE3EF;border-radius:3mm;padding:3mm;background:#fff}
+.pv-etapas .chip{display:inline-block;font-size:6pt;font-weight:800;letter-spacing:.6px;text-transform:uppercase;border-radius:999px;padding:.6mm 2mm;margin-bottom:1.5mm}
+.pv-etapas .chip.voce{background:#FFC629;color:#0B1E4A}
+.pv-etapas .chip.eco{background:#0B1E4A;color:#fff}
+.pv-etapas .chip.conc{background:#E8EDF6;color:#0B1E4A}
+.pv-etapas .etapa-t{font-family:Montserrat,sans-serif;font-weight:800;font-size:8pt;color:#0B1E4A;margin-bottom:.8mm}
+.pv-etapas .etapa-x{font-size:6.9pt;color:#5A6680;line-height:1.45}
+.pv-pagamentos{background:#F3F5FA;border:1px solid #DDE3EF;border-radius:3mm;padding:3.5mm 5mm}
+.pv-pagamentos .pt-t{font-family:Montserrat,sans-serif;font-weight:800;font-size:9pt;color:#1d4290;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:2mm}
+.pv-pagamentos .linha{display:flex;gap:3mm;font-size:7.8pt;color:#5A6680;line-height:1.5;margin-top:1mm}
+.pv-pagamentos .linha b{color:#0B1E4A;white-space:nowrap}
+
+/* ===== Sistema (barra de cobertura, tabela wrap, perdas, 3 KPIs) ===== */
+.pv-barra-out{height:8mm;border-radius:999px;background:#E8EDF6;overflow:hidden}
+.pv-barra-in{height:100%;border-radius:999px;background:linear-gradient(90deg,#FFC629,#E8A400)}
+.pv-tabela-wrap{overflow:hidden;border:1px solid #DDE3EF;border-radius:2.5mm}
+.pv-tabela-wrap .pv-tabela{margin:0}
+.pv-tabela-wrap td.para{color:#5A6680}
+.pv-tabela-wrap td.incluso{font-weight:700;color:#0E7A54}
+.pv-perdas{background:#F3F5FA;border-left:1.5mm solid #FFC629;border-radius:2.5mm;padding:3mm 4mm;font-size:7.6pt;color:#5A6680;line-height:1.5}
+.pv-perdas b{color:#0B1E4A}
+.pv-kpis3{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm}
+
+/* ===== Página final (depoimentos navy, QR local) ===== */
+.pv-depo.navy{background:#0B1E4A;border-left-color:#FFC629}
+.pv-depo.navy .txt{color:#fff}
+.pv-depo.navy .autor{color:#C9D4EA}
+.pv-depo.navy .aspas{color:#FFC629}
+.pv-qr-aceite{width:26mm;height:26mm;flex:none}
+.pv-qr-aceite svg{width:100%;height:100%;display:block}
+
 /* ===== Alerta interno (nunca imprime) ===== */
 .pv-alerta-interno{background:#FFF1F1;border:1.5px dashed #E05252;border-radius:3mm;padding:3mm 4mm;font-size:7.8pt;color:#B23A3A;font-weight:600}
 
