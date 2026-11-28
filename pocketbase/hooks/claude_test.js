@@ -78,6 +78,7 @@ routerAdd(
 
     // Cascade de modelos: o modelo configurado (ou o padrão) primeiro, depois alternativos
     const MODELOS_ALTERNATIVOS = [
+      'claude-sonnet-5-5',
       'claude-sonnet-4-5',
       'claude-sonnet-4-20250514',
       'claude-3-5-sonnet-20241022',
@@ -178,7 +179,7 @@ routerAdd(
       if (modeloFuncionou !== modeloConfigurado) {
         successMsg +=
           ' O modelo configurado (' +
-          (modeloConfigurado || 'claude-sonnet-4-5') +
+          (modeloConfigurado || 'claude-sonnet-5-5') +
           ') não respondeu para essa chave; os testes e o assistente usarão ' +
           modeloFuncionou +
           '. Atualize o campo Modelo em Integrações se desejar fixá-lo.'

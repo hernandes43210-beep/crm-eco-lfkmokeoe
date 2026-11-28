@@ -229,7 +229,7 @@ export default function IntegracoesPage() {
       toast({
         title: 'Modelo não informado',
         description:
-          'Escolha um modelo da lista ou digite o identificador (ex: claude-sonnet-4-5).',
+          'Escolha um modelo da lista ou digite o identificador (ex: claude-sonnet-5-5).',
         variant: 'destructive',
       })
       return
@@ -1415,7 +1415,7 @@ export default function IntegracoesPage() {
                             list="claude-modelos-options"
                             value={claudeModelo}
                             onChange={(e) => setClaudeModelo(e.target.value)}
-                            placeholder="claude-sonnet-4-5"
+                            placeholder="claude-sonnet-5-5"
                             className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-xs font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#0B7A5B]"
                           />
                           <datalist id="claude-modelos-options">

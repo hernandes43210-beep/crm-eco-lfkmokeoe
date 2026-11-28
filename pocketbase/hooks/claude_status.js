@@ -7,8 +7,9 @@ routerAdd(
   'GET',
   '/backend/v1/integrations/claude/status',
   (e) => {
-    const CLAUDE_MODELO_PADRAO = 'claude-sonnet-4-5'
+    const CLAUDE_MODELO_PADRAO = 'claude-sonnet-5-5'
     const MODELOS_DISPONIVEIS = [
+      'claude-sonnet-5-5',
       'claude-sonnet-4-5',
       'claude-sonnet-4-20250514',
       'claude-3-5-sonnet-20241022',

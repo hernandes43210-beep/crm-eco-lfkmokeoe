@@ -55,10 +55,11 @@ export interface ClaudeChatResponse {
   message?: string
 }
 
-export const CLAUDE_MODELO_PADRAO = 'claude-sonnet-4-5'
+export const CLAUDE_MODELO_PADRAO = 'claude-sonnet-5-5'
 
 /** Modelos sugeridos no seletor da página Integrações (aceita também valor digitado livremente) */
 export const CLAUDE_MODELOS_SUGERIDOS = [
+  'claude-sonnet-5-5',
   'claude-sonnet-4-5',
   'claude-sonnet-4-20250514',
   'claude-3-5-sonnet-20241022',

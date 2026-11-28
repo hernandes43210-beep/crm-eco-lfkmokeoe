@@ -9,7 +9,7 @@ routerAdd(
   'POST',
   '/backend/v1/integrations/claude/chat',
   (e) => {
-    const CLAUDE_MODELO_PADRAO = 'claude-sonnet-4-5'
+    const CLAUDE_MODELO_PADRAO = 'claude-sonnet-5-5'
     const MODELOS_ALTERNATIVOS = [
       'claude-sonnet-4-5',
       'claude-sonnet-4-20250514',
