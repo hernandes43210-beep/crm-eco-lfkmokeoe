@@ -117,10 +117,11 @@ export const ClaudeIntegrationService = {
   },
 
   /** Envia um prompt à Claude via proxy backend (a chave nunca vai exposta ao frontend).
-   * Sem options.model, o backend usa o modelo salvo pelo Admin (com fallback em cascata). */
+   * Sem options.model, o backend usa o modelo salvo pelo Admin (com fallback em cascata).
+   * options.lead_id: id do lead em análise — o backend usa para saber o vendedor responsável. */
   async chat(
     prompt: string,
-    options?: { system?: string; max_tokens?: number; model?: string },
+    options?: { system?: string; max_tokens?: number; model?: string; lead_id?: string },
   ): Promise<ClaudeChatResponse> {
     return pb.send('/backend/v1/integrations/claude/chat', {
       method: 'POST',
@@ -129,6 +130,7 @@ export const ClaudeIntegrationService = {
         system: options?.system,
         max_tokens: options?.max_tokens,
         model: options?.model,
+        lead_id: options?.lead_id,
       }),
     })
   },

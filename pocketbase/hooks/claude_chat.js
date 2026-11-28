@@ -112,10 +112,10 @@ routerAdd(
 
     const body = e.requestInfo().body || {}
     const system = typeof body.system === 'string' ? body.system : ''
-    const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : ''
-    let maxTokens = typeof body.max_tokens === 'number' ? body.max_tokens : 1024
+    let prompt = typeof body.prompt === 'string' ? body.prompt.trim() : ''
+    let maxTokens = typeof body.max_tokens === 'number' ? body.max_tokens : 2000
     if (!(maxTokens > 0) || maxTokens > 4096) {
-      maxTokens = 1024
+      maxTokens = 2000
     }
     const modeloPedido =
       typeof body.model === 'string' && body.model.trim() ? body.model.trim() : ''
@@ -123,6 +123,46 @@ routerAdd(
     if (!prompt) {
       return e.json(400, { success: false, error: 'prompt obrigatório' })
     }
+
+    // Contexto do CRM: nome do vendedor responsável (proprietário do lead).
+    // Sem spread em nenhum lugar: o JSVM (goja) não tem __spreadValues/__spreadProps.
+    let nomeVendedor = ''
+    if (typeof body.lead_id === 'string' && body.lead_id.trim()) {
+      try {
+        const leadRec = $app.findRecordById('leads', body.lead_id.trim())
+        const propId = (leadRec.getString('proprietario') || '').trim()
+        if (propId) {
+          try {
+            const vendedorRec = $app.findRecordById('users', propId)
+            const nome = (vendedorRec.getString('name') || '').trim()
+            if (nome) nomeVendedor = nome
+          } catch (_) {}
+        }
+      } catch (_) {}
+    }
+
+    // Prompt de sistema padrão: contexto da empresa + vendedor + regras de resposta.
+    // O frontend pode sobrescrever via body.system, mas nunca deve remover as
+    // instruções de identidade — então sempre prefixamos o bloco fixo.
+    const blocoFixo = [
+      'Você é o assistente de IA do CRM da Ecosolar Energy, empresa de energia solar de Ji-Paraná/RO (Brasil).',
+      nomeVendedor ? 'O vendedor responsável pelo lead se chama ' + nomeVendedor + '.' : '',
+      'REGRAS OBRIGATÓRIAS, sem exceção:',
+      '1. Nunca escreva placeholders como [Nome da Empresa], [Nome], [Sua Empresa] ou colchetes semelhantes. Use SEMPRE os nomes reais: a empresa é "Ecosolar Energy"; o vendedor é ' +
+        (nomeVendedor
+          ? '"' + nomeVendedor + '"'
+          : 'o vendedor responsável pelo lead (nome informado nos dados, se houver)') +
+        '; o cliente é o nome informado nos dados do lead.',
+      '2. Se faltar alguma informação (nome do vendedor, do cliente etc.), escreva a frase de forma natural sem inventar dados — nunca use colchetes ou "XXX".',
+      '3. Responda em português do Brasil, em formato Markdown simples (negrito, listas e títulos curtos com ###).',
+      '4. Nunca ofereça preço, valor ou desconto.',
+      '5. Aja como consultor(a) comercial da Ecosolar Energy falando sobre o cliente — nunca como o cliente.',
+    ]
+      .filter(function (l) {
+        return l !== ''
+      })
+      .join('\n')
+    const systemFinal = blocoFixo + (system ? '\n\n' + system : '')
 
     // Cascade: modelo pedido > modelo salvo pelo Admin > padrão > alternativos (sem repetir)
     const cadeia = []
@@ -167,8 +207,8 @@ routerAdd(
             max_tokens: maxTokens,
             messages: [{ role: 'user', content: prompt }],
           }
-          if (system) {
-            payloadClaude.system = system
+          if (systemFinal) {
+            payloadClaude.system = systemFinal
           }
           res = $http.send({
             url: 'https://api.anthropic.com/v1/messages',

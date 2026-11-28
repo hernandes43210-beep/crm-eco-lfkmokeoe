@@ -3,6 +3,7 @@
 // e conversa com a Claude via proxy backend (src/services/claudeIntegration.ts).
 
 import { useState, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
 import {
   Sparkles,
   BrainCircuit,
@@ -122,7 +123,7 @@ export function LeadClaudeAssistente({ lead, isAdmin }: LeadClaudeAssistenteProp
     }
     try {
       const prompt = acao === 'analise' ? promptAnalise(lead) : promptFollowup(lead)
-      const res = await ClaudeIntegrationService.chat(prompt, { max_tokens: 1200 })
+      const res = await ClaudeIntegrationService.chat(prompt, { lead_id: lead.id })
       if (!res.success || !res.texto) {
         toast({
           title: 'Não foi possível usar a Claude',
@@ -269,7 +270,7 @@ export function LeadClaudeAssistente({ lead, isAdmin }: LeadClaudeAssistenteProp
                 <div
                   key={acao}
                   className={cn(
-                    'relative rounded-xl border p-4 text-xs leading-relaxed whitespace-pre-wrap',
+                    'relative rounded-xl border p-4 text-xs leading-relaxed',
                     acaoAtiva === acao
                       ? 'border-emerald-200 bg-emerald-50/60'
                       : 'border-slate-200 bg-slate-50',
@@ -296,7 +297,9 @@ export function LeadClaudeAssistente({ lead, isAdmin }: LeadClaudeAssistenteProp
                       <span>{copiado ? 'Copiado' : 'Copiar'}</span>
                     </button>
                   </div>
-                  <p className="text-slate-800">{texto}</p>
+                  <div className="text-slate-800 prose prose-slate prose-sm max-w-none prose-headings:text-slate-900 prose-headings:font-bold prose-headings:text-xs prose-headings:uppercase prose-headings:tracking-wide prose-strong:text-slate-900 prose-li:my-0.5 prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5">
+                    <ReactMarkdown>{texto}</ReactMarkdown>
+                  </div>
                 </div>
               )
             })}
