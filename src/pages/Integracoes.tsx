@@ -105,6 +105,8 @@ export default function IntegracoesPage() {
   const [showClaudeInputKey, setShowClaudeInputKey] = useState(false)
   const [claudeModelo, setClaudeModelo] = useState(CLAUDE_MODELO_PADRAO)
   const [savingClaudeModelo, setSavingClaudeModelo] = useState(false)
+  const [claudeInputWorkspace, setClaudeInputWorkspace] = useState('')
+  const [savingClaudeWorkspace, setSavingClaudeWorkspace] = useState(false)
   const [claudeTestResult, setClaudeTestResult] = useState<{
     success: boolean
     message: string
@@ -213,6 +215,7 @@ export default function IntegracoesPage() {
       if (data.model_configured) {
         setClaudeModelo(data.model_configured)
       }
+      setClaudeInputWorkspace(data.workspace_id || '')
     } catch (err: unknown) {
       console.error('Erro ao carregar status da Claude:', err)
     } finally {
@@ -251,6 +254,39 @@ export default function IntegracoesPage() {
       })
     } finally {
       setSavingClaudeModelo(false)
+    }
+  }
+
+  const handleSaveClaudeWorkspace = async () => {
+    // Opcional: vazio remove o workspace configurado
+    const workspaceId = claudeInputWorkspace.trim()
+
+    try {
+      setSavingClaudeWorkspace(true)
+      setClaudeTestResult(null)
+      await ClaudeIntegrationService.saveWorkspaceId(workspaceId)
+
+      toast({
+        title: workspaceId
+          ? 'ID do Workspace da Claude salvo!'
+          : 'ID do Workspace da Claude removido!',
+        description: workspaceId
+          ? 'As chamadas à API da Anthropic passarão a enviar o header anthropic-workspace-id (' +
+            workspaceId +
+            ').'
+          : 'As chamadas à API da Anthropic voltarão a ser feitas sem o header de workspace.',
+      })
+
+      await loadClaudeData()
+    } catch (err: unknown) {
+      const msg = toPortugueseErrorMessage(err, 'Falha ao salvar o ID do Workspace da Claude.')
+      toast({
+        title: 'Erro ao salvar ID do Workspace',
+        description: msg,
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingClaudeWorkspace(false)
     }
   }
 
@@ -299,7 +335,9 @@ export default function IntegracoesPage() {
 
       // Se o usuário digitou uma chave no input mas não salvou ainda, testa a chave digitada
       const keyToTest = claudeInputKey.trim() || undefined
-      const res = await ClaudeIntegrationService.testConnection(keyToTest)
+      // Testa com o workspace digitado; sem digitação, o backend usa o salvo (ou nenhum)
+      const workspaceToTest = claudeInputWorkspace.trim() || undefined
+      const res = await ClaudeIntegrationService.testConnection(keyToTest, workspaceToTest)
 
       setClaudeTestResult({
         success: res.success,
@@ -1401,6 +1439,39 @@ export default function IntegracoesPage() {
                           Escolha um modelo sugerido ou digite outro identificador disponível na sua
                           conta Anthropic. Se o modelo configurado der 404, o teste e o assistente
                           tentam automaticamente os alternativos.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                          ID do Workspace (opcional)
+                        </label>
+                        <div className="flex gap-1.5">
+                          <input
+                            type="text"
+                            value={claudeInputWorkspace}
+                            onChange={(e) => setClaudeInputWorkspace(e.target.value)}
+                            placeholder="wrkspc_01Ab... (deixe vazio se a chave já está vinculada a um workspace)"
+                            className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-xs font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#0B7A5B]"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={savingClaudeWorkspace}
+                            onClick={handleSaveClaudeWorkspace}
+                            className="bg-[#0B7A5B] hover:bg-[#095C44] text-white text-xs font-semibold h-8.5 px-3 gap-1.5 shadow-xs shrink-0"
+                            title="Salva o ID do Workspace enviado no header anthropic-workspace-id (vazio remove)"
+                          >
+                            <Save className="w-3.5 h-3.5" />
+                            <span>{savingClaudeWorkspace ? 'Salvando...' : 'Salvar'}</span>
+                          </Button>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          Formato <code className="bg-white px-1 rounded border">wrkspc_...</code>.
+                          Obrigatório apenas quando a chave não está vinculada a um espaço de
+                          trabalho específico (chave de Organização); nesse caso, encontre o ID no
+                          Console: Configurações → Espaços de trabalho. Se vazio, o CRM não envia o
+                          header.
                         </p>
                       </div>
 

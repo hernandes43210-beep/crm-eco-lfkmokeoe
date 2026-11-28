@@ -58,6 +58,7 @@ routerAdd(
     let apiKey = ''
     let source = 'none'
     let modeloConfigurado = ''
+    let workspaceId = ''
     try {
       const records = $app.findRecordsByFilter(
         'integracoes_config',
@@ -78,6 +79,13 @@ routerAdd(
             const extrasObj = JSON.parse(extras)
             if (extrasObj && typeof extrasObj.modelo === 'string' && extrasObj.modelo.trim()) {
               modeloConfigurado = extrasObj.modelo.trim()
+            }
+            if (
+              extrasObj &&
+              typeof extrasObj.workspace_id === 'string' &&
+              extrasObj.workspace_id.trim()
+            ) {
+              workspaceId = extrasObj.workspace_id.trim()
             }
           }
         } catch (_) {}
@@ -147,6 +155,8 @@ routerAdd(
               'Content-Type': 'application/json',
               'x-api-key': apiKey,
               'anthropic-version': '2023-06-01',
+              // Enviado apenas quando o Admin configura o ID do Workspace (opcional)
+              ...(workspaceId ? { 'anthropic-workspace-id': workspaceId } : {}),
             },
             body: JSON.stringify({
               model: modelo,

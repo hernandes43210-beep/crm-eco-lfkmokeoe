@@ -17,10 +17,15 @@ routerAdd(
     }
 
     const body = e.requestInfo().body || {}
-    const rawApiKey = typeof body.api_key === 'string' ? body.api_key.trim() : null
+    // '__MANTER_ATUAL__' = manter a chave já salva (o frontend nunca tem a chave em claro)
+    const rawApiKey =
+      typeof body.api_key === 'string' && body.api_key.trim() !== '__MANTER_ATUAL__'
+        ? body.api_key.trim()
+        : ''
     const rawModelo = typeof body.modelo === 'string' ? body.modelo.trim() : null
+    const rawWorkspaceId = typeof body.workspace_id === 'string' ? body.workspace_id.trim() : null
 
-    if (rawApiKey === null || (rawApiKey === '' && rawModelo === null)) {
+    if (rawApiKey === '' && rawModelo === null && rawWorkspaceId === null) {
       return e.json(400, {
         error:
           'A chave da API da Claude é obrigatória. Cole a chave obtida no console da Anthropic.',
@@ -66,6 +71,12 @@ routerAdd(
     rec.set('ativo', true)
     if (rawModelo) {
       extrasObj.modelo = rawModelo
+    }
+    if (rawWorkspaceId !== null) {
+      // '' remove o workspace configurado (campo opcional)
+      extrasObj.workspace_id = rawWorkspaceId
+    }
+    if (rawModelo || rawWorkspaceId !== null) {
       rec.set('dados_extras', JSON.stringify(extrasObj))
     }
 
@@ -96,6 +107,7 @@ routerAdd(
       source: 'database',
       masked_key: masked,
       modelo: rawModelo || '',
+      workspace_id: rawWorkspaceId !== null ? rawWorkspaceId : '',
     })
   },
   $apis.requireAuth(),

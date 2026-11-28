@@ -12,6 +12,7 @@ export interface ClaudeStatusResponse {
   model_default: string
   model_configured: string
   model_effective: string
+  workspace_id: string
   modelos_disponiveis?: string[]
   ultimo_teste_status: string
   ultimo_teste_mensagem: string
@@ -21,6 +22,8 @@ export interface ClaudeStatusResponse {
 export interface SaveClaudeSettingsPayload {
   api_key: string
   modelo?: string
+  /** ID do Workspace da Anthropic (opcional, formato wrkspc_...) — '' remove */
+  workspace_id?: string
 }
 
 export interface SaveClaudeSettingsResponse {
@@ -30,6 +33,7 @@ export interface SaveClaudeSettingsResponse {
   source: string
   masked_key: string | null
   modelo?: string
+  workspace_id?: string
 }
 
 export interface TestClaudeResponse {
@@ -84,12 +88,30 @@ export const ClaudeIntegrationService = {
     })
   },
 
+  /** Salva apenas o ID do Workspace da Anthropic (opcional, formato wrkspc_...).
+   * '' remove o workspace configurado. (Admin only, validado no backend) */
+  async saveWorkspaceId(workspaceId: string): Promise<SaveClaudeSettingsResponse> {
+    // O backend exige api_key: repete a chave salva (o valor nunca transita pelo frontend)
+    return pb.send('/backend/v1/integrations/claude/settings', {
+      method: 'POST',
+      body: JSON.stringify({ api_key: '__MANTER_ATUAL__', workspace_id: workspaceId.trim() }),
+    })
+  },
+
   /** Teste real: o backend chama a API de Mensagens da Anthropic com uma mensagem mínima.
    * Em 404 do modelo configurado/padrão, tenta automaticamente os modelos alternativos. */
-  async testConnection(apiKeyParaTestar?: string): Promise<TestClaudeResponse> {
+  async testConnection(
+    apiKeyParaTestar?: string,
+    workspaceIdParaTestar?: string,
+  ): Promise<TestClaudeResponse> {
     return pb.send('/backend/v1/integrations/claude/test', {
       method: 'POST',
-      body: JSON.stringify(apiKeyParaTestar ? { api_key: apiKeyParaTestar } : {}),
+      body: JSON.stringify({
+        ...(apiKeyParaTestar ? { api_key: apiKeyParaTestar } : {}),
+        ...(workspaceIdParaTestar !== undefined
+          ? { workspace_id: workspaceIdParaTestar.trim() }
+          : {}),
+      }),
     })
   },
 

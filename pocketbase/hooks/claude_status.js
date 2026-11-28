@@ -22,6 +22,7 @@ routerAdd(
     let ultimoTesteEm = ''
     let settingsId = ''
     let modeloConfigurado = ''
+    let workspaceId = ''
 
     // 1. Tentar ler da coleção integracoes_config
     try {
@@ -49,6 +50,13 @@ routerAdd(
             const extrasObj = JSON.parse(extras)
             if (extrasObj && typeof extrasObj.modelo === 'string' && extrasObj.modelo.trim()) {
               modeloConfigurado = extrasObj.modelo.trim()
+            }
+            if (
+              extrasObj &&
+              typeof extrasObj.workspace_id === 'string' &&
+              extrasObj.workspace_id.trim()
+            ) {
+              workspaceId = extrasObj.workspace_id.trim()
             }
           }
         } catch (_) {}
@@ -87,6 +95,7 @@ routerAdd(
       model_default: CLAUDE_MODELO_PADRAO,
       model_configured: modeloConfigurado,
       model_effective: modeloConfigurado || CLAUDE_MODELO_PADRAO,
+      workspace_id: workspaceId,
       modelos_disponiveis: MODELOS_DISPONIVEIS,
       ultimo_teste_status: ultimoTesteStatus,
       ultimo_teste_mensagem: ultimoTesteMensagem,

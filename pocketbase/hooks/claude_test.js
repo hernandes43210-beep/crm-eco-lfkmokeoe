@@ -21,11 +21,14 @@ routerAdd(
 
     const body = e.requestInfo().body || {}
     const candidata = typeof body.api_key === 'string' ? body.api_key.trim() : ''
+    // Workspace opcional: parâmetro digitado > salvo no banco (dados_extras.workspace_id)
+    const workspaceParam = typeof body.workspace_id === 'string' ? body.workspace_id.trim() : ''
 
     // Carrega a chave ativa: parâmetro > banco (integracoes_config chave='claude') > env
     let testKey = candidata
     let settingsRec = null
     let modeloConfigurado = ''
+    let workspaceId = ''
     try {
       const records = $app.findRecordsByFilter(
         'integracoes_config',
@@ -45,6 +48,15 @@ routerAdd(
             const extrasObj = JSON.parse(extras)
             if (extrasObj && typeof extrasObj.modelo === 'string' && extrasObj.modelo.trim()) {
               modeloConfigurado = extrasObj.modelo.trim()
+            }
+            if (workspaceParam) {
+              workspaceId = workspaceParam
+            } else if (
+              extrasObj &&
+              typeof extrasObj.workspace_id === 'string' &&
+              extrasObj.workspace_id.trim()
+            ) {
+              workspaceId = extrasObj.workspace_id.trim()
             }
           }
         } catch (_) {}
@@ -84,6 +96,8 @@ routerAdd(
           'Content-Type': 'application/json',
           'x-api-key': testKey,
           'anthropic-version': '2023-06-01',
+          // Enviado apenas quando há ID do Workspace configurado (opcional)
+          ...(workspaceId ? { 'anthropic-workspace-id': workspaceId } : {}),
         },
         body: JSON.stringify({
           model: modelo,
