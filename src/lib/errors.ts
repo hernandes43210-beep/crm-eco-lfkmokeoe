@@ -290,6 +290,12 @@ export function toPortugueseErrorMessage(
     const responseObj = (pbErr.response || {}) as Record<string, unknown>
     const dataObj = (pbErr.data || responseObj.data || {}) as Record<string, unknown>
     const directErrorMsg =
+      (typeof pbErr.message === 'string' &&
+        pbErr.message.trim() &&
+        !pbErr.message.toLowerCase().includes('something went wrong') &&
+        !pbErr.message.toLowerCase().includes('failed to authenticate') &&
+        !pbErr.message.toLowerCase().includes('invalid credentials') &&
+        pbErr.message.trim()) ||
       (typeof responseObj.error === 'string' && responseObj.error.trim()) ||
       (typeof dataObj.error === 'string' && dataObj.error.trim()) ||
       (typeof responseObj.message === 'string' &&

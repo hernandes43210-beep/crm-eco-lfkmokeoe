@@ -1451,6 +1451,11 @@ export default function IntegracoesPage() {
                             type="text"
                             value={claudeInputWorkspace}
                             onChange={(e) => setClaudeInputWorkspace(e.target.value)}
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck={false}
+                            name="claude-workspace-id"
                             placeholder="wrkspc_01Ab... (deixe vazio se a chave já está vinculada a um workspace)"
                             className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-xs font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#0B7A5B]"
                           />
